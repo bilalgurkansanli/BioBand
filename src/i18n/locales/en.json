@@ -1,0 +1,67 @@
+{
+  "tabs": {
+    "home": "Home",
+    "instruments": "Instruments",
+    "recordings": "My Recordings"
+  },
+  "home": {
+    "welcome": "Welcome to BioBand",
+    "subtitle": "Play, record, learn — all in one app.",
+    "features": {
+      "instruments": {
+        "title": "Virtual Instruments",
+        "description": "Play piano, guitar, drums and more with a tap."
+      },
+      "recordings": {
+        "title": "Multi-track Recording",
+        "description": "Layer your tracks and build your own songs."
+      },
+      "learn": {
+        "title": "Learn Mode",
+        "description": "Watch YouTube lessons and play guided songs."
+      }
+    }
+  },
+  "common": {
+    "back": "Back"
+  },
+  "instruments": {
+    "title": "Instruments",
+    "subtitle": "Pick an instrument and start playing.",
+    "piano": "Piano",
+    "pianoDescription": "2-octave touch piano — tap the keys to play.",
+    "open": "Open",
+    "pianoHint": "Hold keys for sustained notes. Multiple keys at once = chords.",
+    "pianoLoading": "Loading piano sounds...",
+    "pianoLoadError": "Could not load sounds. Go back and try again.",
+    "pianoLandscapeRequired": "Piano works in landscape only",
+    "pianoLandscapeHint": "Please rotate your device horizontally."
+  },
+  "recordings": {
+    "title": "My Recordings",
+    "comingSoon": "Your recordings will appear here soon."
+  },
+  "language": {
+    "toggle": "Language"
+  },
+  "tutorial": {
+    "start": "Start Tutorial",
+    "title": "Piano Tutorial",
+    "pickSong": "Choose a song",
+    "watchDescription": "The bot plays for 10 seconds, then you play along.",
+    "watchNow": "Watch Now",
+    "backToSongs": "Back to song list",
+    "close": "Close",
+    "banner": {
+      "watching": "Listen… The bot is playing.",
+      "practice": "Your turn! Press the green key.",
+      "complete": "Great job! You finished the song."
+    },
+    "songs": {
+      "jingleBells": {
+        "title": "Jingle Bells",
+        "description": "Classic holiday melody in C major."
+      }
+    }
+  }
+}

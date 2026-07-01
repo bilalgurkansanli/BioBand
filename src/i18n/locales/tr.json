@@ -1,0 +1,67 @@
+{
+  "tabs": {
+    "home": "Ana Sayfa",
+    "instruments": "Enstrümanlar",
+    "recordings": "Kayıtlarım"
+  },
+  "home": {
+    "welcome": "BioBand'a Hoş Geldin",
+    "subtitle": "Çal, kaydet, öğren — hepsi tek uygulamada.",
+    "features": {
+      "instruments": {
+        "title": "Sanal Enstrümanlar",
+        "description": "Piyano, gitar, davul ve daha fazlasına dokunarak çal."
+      },
+      "recordings": {
+        "title": "Çoklu Kayıt",
+        "description": "Katman katman kaydet, kendi şarkını oluştur."
+      },
+      "learn": {
+        "title": "Eğitici Mod",
+        "description": "YouTube dersleri izle, rehberli parça çal."
+      }
+    }
+  },
+  "common": {
+    "back": "Geri"
+  },
+  "instruments": {
+    "title": "Enstrümanlar",
+    "subtitle": "Bir enstrüman seç ve çalmaya başla.",
+    "piano": "Piyano",
+    "pianoDescription": "2 oktavlı dokunmatik piyano — tuşlara basarak çal.",
+    "open": "Aç",
+    "pianoHint": "Tuşlara basılı tutabilirsin. Aynı anda birden fazla tuş = akor.",
+    "pianoLoading": "Piyano sesleri yükleniyor...",
+    "pianoLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
+    "pianoLandscapeRequired": "Piyano yatay modda çalışır",
+    "pianoLandscapeHint": "Lütfen cihazını yatay çevir."
+  },
+  "recordings": {
+    "title": "Kayıtlarım",
+    "comingSoon": "Yakında kayıtlarını burada görebileceksin."
+  },
+  "language": {
+    "toggle": "Dil"
+  },
+  "tutorial": {
+    "start": "Öğreticiyi Başlat",
+    "title": "Piyano Öğreticisi",
+    "pickSong": "Bir şarkı seç",
+    "watchDescription": "Önce 10 saniye bot çalar, sonra sırayla sen çalarsın.",
+    "watchNow": "Hemen İzle",
+    "backToSongs": "Şarkı listesine dön",
+    "close": "Kapat",
+    "banner": {
+      "watching": "Dinle… Bot şarkıyı çalıyor.",
+      "practice": "Şimdi sen çal! Yeşil tuşa bas.",
+      "complete": "Harika! Şarkıyı tamamladın."
+    },
+    "songs": {
+      "jingleBells": {
+        "title": "Jingle Bells",
+        "description": "Klasik Noel melodisi — Do majör."
+      }
+    }
+  }
+}

@@ -1,0 +1,41 @@
+---
+description: BioBand core project conventions and development workflow
+alwaysApply: true
+---
+
+# BioBand Core Rules
+
+## Stack
+- Expo managed workflow (Expo Go first)
+- TypeScript strict mode
+- React Navigation (bottom tabs)
+- i18next for all UI strings (tr + en)
+- Dark theme via `src/theme/colors.ts`
+
+## Development Workflow
+- Build in small, testable phases; one feature at a time
+- Ask the user before assuming on unclear requirements
+- Warn before requiring native modules or expo-dev-client
+- Explain decisions briefly — this is a learning project
+
+## Code Style
+- Functional components only
+- No hardcoded UI strings — use `useTranslation()` and locale JSON files
+- Reuse existing components and theme tokens
+- Keep comments short and in English; explain non-obvious logic only
+
+## File Organization
+```
+src/
+  components/   # Shared UI
+  screens/      # Screen components
+  navigation/   # Navigators
+  i18n/         # Translations
+  theme/        # Colors and shared styles
+  types/        # TypeScript types
+```
+
+## Expo Go Compatibility
+- Prefer packages that work in Expo Go
+- Use `expo-audio` (not `expo-av`) for audio features
+- Use event-based recording for multi-track (not microphone capture)

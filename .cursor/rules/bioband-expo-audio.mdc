@@ -1,0 +1,32 @@
+---
+description: Audio and instrument playback conventions for BioBand
+globs: src/**/*audio*,src/**/*instrument*,src/**/*Audio*,src/**/*Instrument*
+alwaysApply: false
+---
+
+# BioBand Audio Rules
+
+## Library
+- Use `expo-audio` — never `expo-av`
+- Preload with `preload()` when available (SDK 55+); on SDK 54 use `createAudioPlayer()` pool at init
+- Use `useAudioPlayer()` or a shared player pool for low-latency playback
+
+## Sample Playback
+```typescript
+// Preload at module scope for instant playback
+import { preload, useAudioPlayer } from 'expo-audio';
+
+preload(require('../assets/samples/C4.wav'));
+
+// In component: player.play() on touch
+```
+
+## Recording (Phase 4+)
+- Event-based recording: `{ note, timestamp, velocity }[]`
+- Do NOT use microphone capture for instrument tracks
+- Store recordings locally via AsyncStorage or expo-file-system
+
+## Performance
+- Prefer local bundled WAV samples over remote URLs
+- Limit simultaneous active players; reuse where possible
+- Test latency on real Android device via Expo Go
