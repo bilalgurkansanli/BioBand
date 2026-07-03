@@ -10,7 +10,7 @@
     "features": {
       "instruments": {
         "title": "Virtual Instruments",
-        "description": "Play piano, guitar, drums and more with a tap."
+        "description": "Play piano, guitar, violin, drums and more with a tap."
       },
       "recordings": {
         "title": "Multi-track Recording",
@@ -23,7 +23,8 @@
     }
   },
   "common": {
-    "back": "Back"
+    "back": "Back",
+    "cancel": "Cancel"
   },
   "instruments": {
     "title": "Instruments",
@@ -35,20 +36,156 @@
     "pianoLoading": "Loading piano sounds...",
     "pianoLoadError": "Could not load sounds. Go back and try again.",
     "pianoLandscapeRequired": "Piano works in landscape only",
-    "pianoLandscapeHint": "Please rotate your device horizontally."
+    "pianoLandscapeHint": "Please rotate your device horizontally.",
+    "landscapeRequired": "This instrument works in landscape only",
+    "landscapeHint": "Please rotate your device horizontally.",
+    "drums": "Drums",
+    "drumsDescription": "Touch drum kit — tap the pads to play.",
+    "drumsLoading": "Loading drum sounds...",
+    "drumsLoadError": "Could not load sounds. Go back and try again.",
+    "guitar": "Guitar",
+    "guitarDescription": "Pluck strings or strum chords — acoustic guitar.",
+    "guitarLoading": "Loading guitar sounds...",
+    "guitarLoadError": "Could not load sounds. Go back and try again.",
+    "violin": "Violin",
+    "violinDescription": "4-string fingerboard — tap positions to play pizzicato.",
+    "violinLoading": "Loading violin sounds...",
+    "violinLoadError": "Could not load sounds. Go back and try again.",
+    "pads": "Pads",
+    "padsDescription": "16 touch pads — build a beat.",
+    "padsLoading": "Loading pad sounds...",
+    "padsLoadError": "Could not load sounds. Go back and try again."
   },
   "recordings": {
     "title": "My Recordings",
-    "comingSoon": "Your recordings will appear here soon."
+    "count": "{{count}} recordings",
+    "count_one": "{{count}} recording",
+    "count_other": "{{count}} recordings",
+    "emptyTitle": "No recordings yet",
+    "emptyDescription": "Tap Record on any instrument screen to save your playing.",
+    "modeInstrument": "Instrument",
+    "modeMicrophone": "Microphone",
+    "eventCount": "{{count}} notes",
+    "eventCount_one": "{{count}} note",
+    "eventCount_other": "{{count}} notes",
+    "audioTrack": "Audio track"
+  },
+  "recording": {
+    "button": "Record",
+    "stop": "Stop",
+    "chooseModeTitle": "How should we record?",
+    "chooseModeMessage": "Record with the microphone, or the instrument only?",
+    "modeInstrument": "Instrument only",
+    "modeMicrophone": "Microphone",
+    "permissionDenied": "Microphone permission was denied. You can enable it in Settings.",
+    "banner": {
+      "instrument": "Recording — your playing is being captured.",
+      "microphone": "Recording — microphone is active."
+    }
+  },
+  "drums": {
+    "pads": {
+      "crash": "Crash",
+      "hihatClosed": "Hi-Hat Closed",
+      "hihatOpen": "Hi-Hat Open",
+      "ride": "Ride",
+      "tomHi": "Tom Hi",
+      "tomMid": "Tom Mid",
+      "tomLow": "Tom Low",
+      "snare": "Snare",
+      "kick": "Kick"
+    }
+  },
+  "violin": {
+    "strings": {
+      "e": "E",
+      "a": "A",
+      "d": "D",
+      "g": "G"
+    },
+    "phrases": {
+      "scale": "Scale",
+      "twinkle": "Twinkle",
+      "arpeggio": "Arpeggio",
+      "openStrings": "Open"
+    }
+  },
+  "guitar": {
+    "chords": {
+      "Em": "Em",
+      "G": "G",
+      "C": "C",
+      "D": "D",
+      "Am": "Am",
+      "E": "E"
+    }
+  },
+  "pads": {
+    "labels": {
+      "kick": "Kick",
+      "snare": "Snare",
+      "hat": "Hat",
+      "hatOpen": "Hat+",
+      "tom": "Tom",
+      "perc": "Perc",
+      "fx1": "FX 1",
+      "fx2": "FX 2",
+      "stab1": "C3",
+      "stab2": "E3",
+      "stab3": "G3",
+      "stab4": "C4",
+      "stab5": "E4",
+      "stab6": "G4",
+      "stab7": "A4",
+      "stab8": "C5"
+    }
   },
   "language": {
     "toggle": "Language"
+  },
+  "piano": {
+    "comingSoonTitle": "Coming Soon",
+    "toolbar": {
+      "metronome": "Metronome",
+      "sustain": "Sustain pedal",
+      "fx": "Effects",
+      "layout": "Keyboard layout",
+      "dualKeyboard": "Dual keyboard",
+      "instrument": "Instrument",
+      "game": "Game mode",
+      "menu": "Menu",
+      "fxComingSoon": "Effects will be available in a future update.",
+      "layoutComingSoon": "Keyboard layout options are coming soon.",
+      "dualKeyboardComingSoon": "Dual keyboard mode is coming soon.",
+      "instrumentComingSoon": "More piano sounds are coming soon."
+    },
+    "nav": {
+      "jumpStart": "Jump to start",
+      "stepLeft": "Previous keys",
+      "stepRight": "Next keys",
+      "jumpEnd": "Jump to end"
+    },
+    "tone": {
+      "thickLabel": "Thick",
+      "thinLabel": "Thin",
+      "center": "Normal",
+      "thick": "Thick −{{count}}",
+      "thin": "Thin +{{count}}",
+      "jumpLow": "Thickest sound",
+      "jumpHigh": "Thinnest sound",
+      "stepThicker": "Thicker sound",
+      "stepThinner": "Thinner sound",
+      "dragHint": "Tap for normal · drag to adjust"
+    },
+    "game": {
+      "comingSoon": "Piano game mode is coming soon!"
+    }
   },
   "tutorial": {
     "start": "Start Tutorial",
     "title": "Piano Tutorial",
     "pickSong": "Choose a song",
-    "watchDescription": "The bot plays for 10 seconds, then you play along.",
+    "watchDescription": "The bot plays for 5 seconds, then you play along.",
     "watchNow": "Watch Now",
     "backToSongs": "Back to song list",
     "close": "Close",

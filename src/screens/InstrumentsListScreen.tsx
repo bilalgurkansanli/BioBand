@@ -12,10 +12,18 @@ import type { InstrumentsStackParamList } from '../types/navigation';
 
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'InstrumentsList'>;
 
+type InstrumentRoute = 'Piano' | 'Drums' | 'Guitar' | 'Violin' | 'Pads';
+
 export function InstrumentsListScreen({ navigation }: Props) {
   const { t } = useTranslation();
 
   useRestoreTabBar(navigation);
+
+  const openInstrument = (route: InstrumentRoute) => {
+    void lockLandscapeOrientation().finally(() => {
+      navigation.navigate(route);
+    });
+  };
 
   return (
     <ScreenContainer style={styles.container}>
@@ -26,12 +34,40 @@ export function InstrumentsListScreen({ navigation }: Props) {
         actionLabel={t('instruments.open')}
         description={t('instruments.pianoDescription')}
         icon="keypad"
-        onPress={() => {
-          void lockLandscapeOrientation().finally(() => {
-            navigation.navigate('Piano');
-          });
-        }}
+        onPress={() => openInstrument('Piano')}
         title={t('instruments.piano')}
+      />
+
+      <InstrumentCard
+        actionLabel={t('instruments.open')}
+        description={t('instruments.drumsDescription')}
+        icon="disc"
+        onPress={() => openInstrument('Drums')}
+        title={t('instruments.drums')}
+      />
+
+      <InstrumentCard
+        actionLabel={t('instruments.open')}
+        description={t('instruments.guitarDescription')}
+        icon="musical-note"
+        onPress={() => openInstrument('Guitar')}
+        title={t('instruments.guitar')}
+      />
+
+      <InstrumentCard
+        actionLabel={t('instruments.open')}
+        description={t('instruments.violinDescription')}
+        icon="musical-notes"
+        onPress={() => openInstrument('Violin')}
+        title={t('instruments.violin')}
+      />
+
+      <InstrumentCard
+        actionLabel={t('instruments.open')}
+        description={t('instruments.padsDescription')}
+        icon="grid"
+        onPress={() => openInstrument('Pads')}
+        title={t('instruments.pads')}
       />
     </ScreenContainer>
   );

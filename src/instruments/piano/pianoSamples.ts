@@ -15,7 +15,7 @@ export const BASE_SAMPLE_FILES: Record<BaseSampleId, number> = {
   A5: require('../../../assets/samples/piano/A5.mp3'),
 };
 
-const SAMPLE_ANCHORS: { id: BaseSampleId; midi: number }[] = [
+export const SAMPLE_ANCHORS: { id: BaseSampleId; midi: number }[] = [
   { id: 'C4', midi: 60 },
   { id: 'Ds4', midi: 63 },
   { id: 'Fs4', midi: 66 },
@@ -27,6 +27,7 @@ const SAMPLE_ANCHORS: { id: BaseSampleId; midi: number }[] = [
 ];
 
 export type NoteSampleConfig = {
+  anchorId: BaseSampleId;
   source: number;
   playbackRate: number;
 };
@@ -41,6 +42,7 @@ export function getNoteSampleConfig(midi: number): NoteSampleConfig {
   }
 
   return {
+    anchorId: closest.id,
     source: BASE_SAMPLE_FILES[closest.id],
     playbackRate: 2 ** ((midi - closest.midi) / 12),
   };

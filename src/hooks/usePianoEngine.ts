@@ -1,16 +1,21 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   initPianoEngine,
   playNote as enginePlayNote,
   releasePianoEngine,
+  setPianoToneOffset,
 } from '../instruments/piano/pianoEngine';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 
-export function usePianoEngine() {
+export function usePianoEngine(toneOffsetSemitones = 0) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPianoToneOffset(toneOffsetSemitones);
+  }, [toneOffsetSemitones]);
 
   useFocusEffect(
     useCallback(() => {
@@ -40,9 +45,12 @@ export function usePianoEngine() {
     }, []),
   );
 
-  const playNote = useCallback((noteId: NoteId) => {
-    enginePlayNote(noteId);
-  }, []);
+  const playNote = useCallback(
+    (noteId: NoteId) => {
+      enginePlayNote(noteId, toneOffsetSemitones);
+    },
+    [toneOffsetSemitones],
+  );
 
   return { ready, error, playNote };
 }
