@@ -1,0 +1,65 @@
+import type { ViolinStringId } from './violinSounds';
+
+export type PhraseId = 'scale' | 'twinkle' | 'arpeggio' | 'openStrings';
+
+export type PhraseNote = {
+  stringId: ViolinStringId;
+  position: number;
+};
+
+export type PhraseDefinition = {
+  id: PhraseId;
+  labelKey: string;
+  notes: PhraseNote[];
+};
+
+export const VIOLIN_PHRASES: PhraseDefinition[] = [
+  {
+    id: 'scale',
+    labelKey: 'violin.phrases.scale',
+    notes: [
+      { stringId: 'v4', position: 0 },
+      { stringId: 'v4', position: 1 },
+      { stringId: 'v4', position: 2 },
+      { stringId: 'v4', position: 3 },
+      { stringId: 'v4', position: 4 },
+    ],
+  },
+  {
+    id: 'twinkle',
+    labelKey: 'violin.phrases.twinkle',
+    notes: [
+      { stringId: 'v4', position: 5 },
+      { stringId: 'v4', position: 5 },
+      { stringId: 'v3', position: 0 },
+      { stringId: 'v3', position: 0 },
+      { stringId: 'v2', position: 0 },
+      { stringId: 'v2', position: 0 },
+      { stringId: 'v4', position: 5 },
+    ],
+  },
+  {
+    id: 'arpeggio',
+    labelKey: 'violin.phrases.arpeggio',
+    notes: [
+      { stringId: 'v4', position: 0 },
+      { stringId: 'v4', position: 4 },
+      { stringId: 'v3', position: 0 },
+      { stringId: 'v3', position: 5 },
+    ],
+  },
+  {
+    id: 'openStrings',
+    labelKey: 'violin.phrases.openStrings',
+    notes: [
+      { stringId: 'v1', position: 0 },
+      { stringId: 'v2', position: 0 },
+      { stringId: 'v3', position: 0 },
+      { stringId: 'v4', position: 0 },
+    ],
+  },
+];
+
+export function getPhraseById(id: PhraseId): PhraseDefinition | undefined {
+  return VIOLIN_PHRASES.find((phrase) => phrase.id === id);
+}

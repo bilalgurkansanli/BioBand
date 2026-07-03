@@ -10,7 +10,7 @@
     "features": {
       "instruments": {
         "title": "Sanal Enstrümanlar",
-        "description": "Piyano, gitar, davul ve daha fazlasına dokunarak çal."
+        "description": "Piyano, gitar, keman, davul ve daha fazlasına dokunarak çal."
       },
       "recordings": {
         "title": "Çoklu Kayıt",
@@ -23,7 +23,8 @@
     }
   },
   "common": {
-    "back": "Geri"
+    "back": "Geri",
+    "cancel": "İptal"
   },
   "instruments": {
     "title": "Enstrümanlar",
@@ -35,20 +36,156 @@
     "pianoLoading": "Piyano sesleri yükleniyor...",
     "pianoLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "pianoLandscapeRequired": "Piyano yatay modda çalışır",
-    "pianoLandscapeHint": "Lütfen cihazını yatay çevir."
+    "pianoLandscapeHint": "Lütfen cihazını yatay çevir.",
+    "landscapeRequired": "Bu enstrüman yatay modda çalışır",
+    "landscapeHint": "Lütfen cihazını yatay çevir.",
+    "drums": "Davul",
+    "drumsDescription": "Dokunmatik davul seti — vur ve çal.",
+    "drumsLoading": "Davul sesleri yükleniyor...",
+    "drumsLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
+    "guitar": "Gitar",
+    "guitarDescription": "Telleri çek veya akor bas — akustik gitar.",
+    "guitarLoading": "Gitar sesleri yükleniyor...",
+    "guitarLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
+    "violin": "Keman",
+    "violinDescription": "4 telli parmak tahtası — pizzicato çalmak için dokun.",
+    "violinLoading": "Keman sesleri yükleniyor...",
+    "violinLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
+    "pads": "Padler",
+    "padsDescription": "16 dokunmatik pad — beat oluştur.",
+    "padsLoading": "Pad sesleri yükleniyor...",
+    "padsLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene."
   },
   "recordings": {
     "title": "Kayıtlarım",
-    "comingSoon": "Yakında kayıtlarını burada görebileceksin."
+    "count": "{{count}} kayıt",
+    "count_one": "{{count}} kayıt",
+    "count_other": "{{count}} kayıt",
+    "emptyTitle": "Henüz kayıt yok",
+    "emptyDescription": "Enstrüman ekranında Kayıt'a basarak çaldıklarını kaydedebilirsin.",
+    "modeInstrument": "Enstrüman",
+    "modeMicrophone": "Mikrofon",
+    "eventCount": "{{count}} nota",
+    "eventCount_one": "{{count}} nota",
+    "eventCount_other": "{{count}} nota",
+    "audioTrack": "Ses kaydı"
+  },
+  "recording": {
+    "button": "Kayıt",
+    "stop": "Durdur",
+    "chooseModeTitle": "Nasıl kaydedelim?",
+    "chooseModeMessage": "Mikrofonla mı yoksa sadece enstrüman mı kaydedilsin?",
+    "modeInstrument": "Sadece enstrüman",
+    "modeMicrophone": "Mikrofon",
+    "permissionDenied": "Mikrofon izni verilmedi. Ayarlardan izin verebilirsin.",
+    "banner": {
+      "instrument": "Kayıt devam ediyor — çaldıkların kaydediliyor.",
+      "microphone": "Kayıt devam ediyor — mikrofon açık."
+    }
+  },
+  "drums": {
+    "pads": {
+      "crash": "Crash",
+      "hihatClosed": "Hi-Hat Kapalı",
+      "hihatOpen": "Hi-Hat Açık",
+      "ride": "Ride",
+      "tomHi": "Tom Tiz",
+      "tomMid": "Tom Orta",
+      "tomLow": "Tom Bas",
+      "snare": "Trampet",
+      "kick": "Bas Davul"
+    }
+  },
+  "violin": {
+    "strings": {
+      "e": "Mi",
+      "a": "La",
+      "d": "Re",
+      "g": "Sol"
+    },
+    "phrases": {
+      "scale": "Gam",
+      "twinkle": "Parlayan",
+      "arpeggio": "Arpej",
+      "openStrings": "Açık"
+    }
+  },
+  "guitar": {
+    "chords": {
+      "Em": "Em",
+      "G": "G",
+      "C": "C",
+      "D": "D",
+      "Am": "Am",
+      "E": "E"
+    }
+  },
+  "pads": {
+    "labels": {
+      "kick": "Kick",
+      "snare": "Snare",
+      "hat": "Hat",
+      "hatOpen": "Hat+",
+      "tom": "Tom",
+      "perc": "Perc",
+      "fx1": "FX 1",
+      "fx2": "FX 2",
+      "stab1": "C3",
+      "stab2": "E3",
+      "stab3": "G3",
+      "stab4": "C4",
+      "stab5": "E4",
+      "stab6": "G4",
+      "stab7": "A4",
+      "stab8": "C5"
+    }
   },
   "language": {
     "toggle": "Dil"
+  },
+  "piano": {
+    "comingSoonTitle": "Yakında",
+    "toolbar": {
+      "metronome": "Metronom",
+      "sustain": "Sustain pedalı",
+      "fx": "Efektler",
+      "layout": "Klavye düzeni",
+      "dualKeyboard": "Çift klavye",
+      "instrument": "Enstrüman",
+      "game": "Oyun modu",
+      "menu": "Menü",
+      "fxComingSoon": "Efektler yakında eklenecek.",
+      "layoutComingSoon": "Klavye düzeni seçenekleri yakında.",
+      "dualKeyboardComingSoon": "Çift klavye modu yakında.",
+      "instrumentComingSoon": "Daha fazla piyano sesi yakında."
+    },
+    "nav": {
+      "jumpStart": "Başa git",
+      "stepLeft": "Önceki tuşlar",
+      "stepRight": "Sonraki tuşlar",
+      "jumpEnd": "Sona git"
+    },
+    "tone": {
+      "thickLabel": "Kalın",
+      "thinLabel": "İnce",
+      "center": "Normal",
+      "thick": "Kalın −{{count}}",
+      "thin": "İnce +{{count}}",
+      "jumpLow": "En kalın ses",
+      "jumpHigh": "En ince ses",
+      "stepThicker": "Daha kalın ses",
+      "stepThinner": "Daha ince ses",
+      "dragHint": "Normale dönmek için dokun · sürükleyerek ayarla"
+    },
+    "game": {
+      "comingSoon": "Piyano oyun modu yakında geliyor!"
+    }
   },
   "tutorial": {
     "start": "Öğreticiyi Başlat",
     "title": "Piyano Öğreticisi",
     "pickSong": "Bir şarkı seç",
-    "watchDescription": "Önce 10 saniye bot çalar, sonra sırayla sen çalarsın.",
+    "watchDescription": "Önce 5 saniye bot çalar, sonra sırayla sen çalarsın.",
     "watchNow": "Hemen İzle",
     "backToSongs": "Şarkı listesine dön",
     "close": "Kapat",

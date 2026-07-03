@@ -3,11 +3,17 @@ import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
 
-type PianoLandscapeOverlayProps = {
+type LandscapeOverlayProps = {
   visible: boolean;
+  titleKey?: string;
+  hintKey?: string;
 };
 
-export function PianoLandscapeOverlay({ visible }: PianoLandscapeOverlayProps) {
+export function LandscapeOverlay({
+  visible,
+  titleKey = 'instruments.landscapeRequired',
+  hintKey = 'instruments.landscapeHint',
+}: LandscapeOverlayProps) {
   const { t } = useTranslation();
 
   if (!visible) {
@@ -17,8 +23,8 @@ export function PianoLandscapeOverlay({ visible }: PianoLandscapeOverlayProps) {
   return (
     <View pointerEvents="auto" style={styles.overlay}>
       <Text style={styles.icon}>↻</Text>
-      <Text style={styles.title}>{t('instruments.pianoLandscapeRequired')}</Text>
-      <Text style={styles.subtitle}>{t('instruments.pianoLandscapeHint')}</Text>
+      <Text style={styles.title}>{t(titleKey)}</Text>
+      <Text style={styles.subtitle}>{t(hintKey)}</Text>
     </View>
   );
 }
