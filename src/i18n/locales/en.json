@@ -149,6 +149,7 @@
       "metronome": "Metronome",
       "sustain": "Sustain pedal",
       "fx": "Effects",
+      "volume": "Volume",
       "layout": "Keyboard layout",
       "dualKeyboard": "Dual keyboard",
       "instrument": "Instrument",
@@ -158,6 +159,10 @@
       "layoutComingSoon": "Keyboard layout options are coming soon.",
       "dualKeyboardComingSoon": "Dual keyboard mode is coming soon.",
       "instrumentComingSoon": "More piano sounds are coming soon."
+    },
+    "volume": {
+      "title": "Volume",
+      "close": "Close"
     },
     "nav": {
       "jumpStart": "Jump to start",
@@ -177,8 +182,63 @@
       "stepThinner": "Thinner sound",
       "dragHint": "Tap for normal · drag to adjust"
     },
+    "fx": {
+      "title": "Sound Effects",
+      "subtitle": "The piano always plays. Each effect is optional — off means normal sound.",
+      "distortion": "Distortion",
+      "reverb": "Reverb",
+      "echo": "Echo",
+      "intensity": "Intensity",
+      "lowPass": "Tone (Low Pass)",
+      "time": "Time",
+      "mix": "Mix",
+      "delay": "Delay",
+      "feedback": "Feedback",
+      "reset": "Reset",
+      "close": "Close"
+    },
+    "voices": {
+      "title": "Choose piano sound",
+      "acoustic": "Acoustic",
+      "bright": "Bright",
+      "musicBox": "Music Box",
+      "organ": "Organ",
+      "rhodes": "Rhodes",
+      "synth": "Synth",
+      "close": "Close"
+    },
     "game": {
-      "comingSoon": "Piano game mode is coming soon!"
+      "title": "Band Mode",
+      "pickSong": "Choose a song to play",
+      "comingSoon": "Coming soon",
+      "pickLevel": "How much support do you want?",
+      "backToSongs": "Back to song list",
+      "close": "Close",
+      "levels": {
+        "guided": "Watch first",
+        "guidedDesc": "The app plays the whole song for you — watch which keys light up.",
+        "medium": "Step by step",
+        "mediumDesc": "The next key lights up and waits for you — the song moves at your pace.",
+        "free": "No support",
+        "freeDesc": "No hints. The song is all yours."
+      },
+      "hud": {
+        "countdown": "Get ready… {{count}}",
+        "watching": "Watch… the song is playing for you",
+        "tapToStart": "Press the glowing key — the song waits for you",
+        "progress": "{{done}}/{{total}} notes · {{hits}} hits",
+        "stop": "Stop"
+      },
+      "results": {
+        "title": "Song finished!",
+        "accuracy": "Accuracy: {{percent}}%",
+        "hits": "You played: {{count}}",
+        "autos": "Played for you: {{count}}",
+        "misses": "Missed: {{count}}",
+        "wrong": "Wrong keys: {{count}}",
+        "replay": "Play again",
+        "change": "Change song / level"
+      }
     }
   },
   "tutorial": {
@@ -196,8 +256,16 @@
     },
     "songs": {
       "jingleBells": {
-        "title": "Jingle Bells",
         "description": "Classic holiday melody in C major."
+      },
+      "odeToJoy": {
+        "description": "Beethoven's famous theme — calm and steady."
+      },
+      "neyleyimIstanbul": {
+        "description": "Murat Dalkılıç — the intro melody, fast runs!"
+      },
+      "gulpembe": {
+        "description": "Barış Manço — the legendary intro, relaxed tempo."
       }
     }
   }

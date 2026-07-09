@@ -6,16 +6,25 @@ import {
   playNote as enginePlayNote,
   releasePianoEngine,
   setPianoToneOffset,
+  setPianoVoice,
 } from '../instruments/piano/pianoEngine';
 import type { NoteId } from '../instruments/piano/pianoNotes';
+import type { PianoVoiceId } from '../instruments/piano/pianoVoices';
 
-export function usePianoEngine(toneOffsetSemitones = 0) {
+export function usePianoEngine(
+  toneOffsetSemitones = 0,
+  voiceId: PianoVoiceId = 'acoustic',
+) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPianoToneOffset(toneOffsetSemitones);
   }, [toneOffsetSemitones]);
+
+  useEffect(() => {
+    setPianoVoice(voiceId);
+  }, [voiceId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,9 +56,9 @@ export function usePianoEngine(toneOffsetSemitones = 0) {
 
   const playNote = useCallback(
     (noteId: NoteId) => {
-      enginePlayNote(noteId, toneOffsetSemitones);
+      enginePlayNote(noteId, toneOffsetSemitones, voiceId);
     },
-    [toneOffsetSemitones],
+    [toneOffsetSemitones, voiceId],
   );
 
   return { ready, error, playNote };
