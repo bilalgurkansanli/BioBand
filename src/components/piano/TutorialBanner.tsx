@@ -6,10 +6,10 @@ import type { TutorialPhase } from '../../hooks/usePianoTutorial';
 
 type TutorialBannerProps = {
   phase: TutorialPhase;
-  songTitleKey?: string;
+  songTitle?: string;
 };
 
-export function TutorialBanner({ phase, songTitleKey }: TutorialBannerProps) {
+export function TutorialBanner({ phase, songTitle }: TutorialBannerProps) {
   const { t } = useTranslation();
 
   if (phase === 'idle' || phase === 'pickSong' || phase === 'readyToWatch') {
@@ -25,9 +25,7 @@ export function TutorialBanner({ phase, songTitleKey }: TutorialBannerProps) {
 
   return (
     <View style={styles.banner}>
-      {songTitleKey ? (
-        <Text style={styles.songName}>{t(songTitleKey)}</Text>
-      ) : null}
+      {songTitle ? <Text style={styles.songName}>{songTitle}</Text> : null}
       <Text style={styles.message}>{t(messageKey)}</Text>
     </View>
   );

@@ -1,10 +1,11 @@
+import type { AudioBuffer } from '../../audio/audioApi';
+
 import {
-  createSamplePool,
-  playFromPool,
+  loadSample,
+  playSample,
   prepareSamplePlayback,
-  releaseSamplePools,
-  type SamplePool,
-} from '../../audio/samplePool';
+  stopAllVoices,
+} from '../../audio/sampleBank';
 import { getMidi } from './violinNotes';
 import { getPhraseById, type PhraseId } from './violinPhrases';
 import {
@@ -15,35 +16,43 @@ import {
 } from './violinSounds';
 
 const PHRASE_STAGGER_MS = 30;
-const VOICES_PER_STRING = 6;
+const NOTE_GAIN = 0.55;
 
-const pools = new Map<ViolinStringId, SamplePool>();
+const buffers = new Map<ViolinStringId, AudioBuffer>();
 const phraseTimers: ReturnType<typeof setTimeout>[] = [];
 let initialized = false;
 
 export async function initViolinEngine(): Promise<void> {
-  if (initialized && pools.size === VIOLIN_STRINGS.length) {
+  if (initialized) {
     return;
   }
 
-  releaseViolinEngine();
   await prepareSamplePlayback();
 
-  for (const string of VIOLIN_STRINGS) {
-    pools.set(string.id, createSamplePool(STRING_SAMPLE_FILES[string.id], VOICES_PER_STRING));
-  }
+  await Promise.all(
+    VIOLIN_STRINGS.map(async (string) => {
+      const buffer = await loadSample(STRING_SAMPLE_FILES[string.id]);
+      buffers.set(string.id, buffer);
+    }),
+  );
 
   initialized = true;
 }
 
 export function playNote(stringId: ViolinStringId, position: number): void {
-  const pool = pools.get(stringId);
-  if (!pool) {
+  const buffer = buffers.get(stringId);
+  if (!buffer) {
     return;
   }
 
   const midi = getMidi(stringId, position);
-  playFromPool(pool, { playbackRate: getStringPlaybackRate(stringId, midi) });
+  playSample(
+    buffer,
+    getStringPlaybackRate(stringId, midi),
+    NOTE_GAIN,
+    undefined,
+    `violin:${stringId}:${position}`,
+  );
 }
 
 export function playPhrase(phraseId: PhraseId): void {
@@ -66,8 +75,6 @@ export function releaseViolinEngine(): void {
     clearTimeout(timer);
   }
   phraseTimers.length = 0;
-
-  releaseSamplePools(pools.values());
-  pools.clear();
+  stopAllVoices();
   initialized = false;
 }

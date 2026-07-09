@@ -26,14 +26,9 @@ const JINGLE_BELLS_EVENTS: { noteId: NoteId; atMs: number }[] = [
 
 export const jingleBellsSong: SongDefinition = {
   id: 'jingle-bells',
-  titleKey: 'tutorial.songs.jingleBells.title',
+  title: 'Jingle Bells',
+  artist: 'James Lord Pierpont',
   descriptionKey: 'tutorial.songs.jingleBells.description',
   previewDurationMs: 5000,
   events: JINGLE_BELLS_EVENTS,
 };
-
-export const TUTORIAL_SONGS: SongDefinition[] = [jingleBellsSong];
-
-export function getSongById(id: string): SongDefinition | undefined {
-  return TUTORIAL_SONGS.find((song) => song.id === id);
-}

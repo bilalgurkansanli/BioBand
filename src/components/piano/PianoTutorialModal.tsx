@@ -44,8 +44,10 @@ export function PianoTutorialModal({
                     onPress={() => onSelectSong(song.id)}
                     style={({ pressed }) => [styles.songRow, pressed && styles.pressed]}
                   >
-                    <Text style={styles.songTitle}>{t(song.titleKey)}</Text>
-                    <Text style={styles.songDescription}>{t(song.descriptionKey)}</Text>
+                    <Text style={styles.songTitle}>{song.title}</Text>
+                    <Text style={styles.songDescription}>
+                      {song.descriptionKey ? t(song.descriptionKey) : song.artist}
+                    </Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -54,7 +56,7 @@ export function PianoTutorialModal({
 
           {phase === 'readyToWatch' && selectedSong ? (
             <>
-              <Text style={styles.selectedSongTitle}>{t(selectedSong.titleKey)}</Text>
+              <Text style={styles.selectedSongTitle}>{selectedSong.title}</Text>
               <Text style={styles.subtitle}>{t('tutorial.watchDescription')}</Text>
               <Pressable
                 onPress={onStartWatch}

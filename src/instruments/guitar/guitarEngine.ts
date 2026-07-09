@@ -1,10 +1,11 @@
+import type { AudioBuffer } from '../../audio/audioApi';
+
 import {
-  createSamplePool,
-  playFromPool,
+  loadSample,
+  playSample,
   prepareSamplePlayback,
-  releaseSamplePools,
-  type SamplePool,
-} from '../../audio/samplePool';
+  stopAllVoices,
+} from '../../audio/sampleBank';
 import type { ChordId } from './guitarChords';
 import { GUITAR_CHORDS, getChordStringNotes } from './guitarChords';
 import {
@@ -15,36 +16,44 @@ import {
 } from './guitarSounds';
 
 const STRUM_STAGGER_MS = 18;
-const VOICES_PER_STRING = 6;
+const STRING_GAIN = 0.55;
 
-const pools = new Map<GuitarStringId, SamplePool>();
+const buffers = new Map<GuitarStringId, AudioBuffer>();
 const strumTimers: ReturnType<typeof setTimeout>[] = [];
 let initialized = false;
 
 export async function initGuitarEngine(): Promise<void> {
-  if (initialized && pools.size === GUITAR_STRINGS.length) {
+  if (initialized) {
     return;
   }
 
-  releaseGuitarEngine();
   await prepareSamplePlayback();
 
-  for (const string of GUITAR_STRINGS) {
-    pools.set(string.id, createSamplePool(STRING_SAMPLE_FILES[string.id], VOICES_PER_STRING));
-  }
+  await Promise.all(
+    GUITAR_STRINGS.map(async (string) => {
+      const buffer = await loadSample(STRING_SAMPLE_FILES[string.id]);
+      buffers.set(string.id, buffer);
+    }),
+  );
 
   initialized = true;
 }
 
 export function pluckString(stringId: GuitarStringId, midi?: number): void {
-  const pool = pools.get(stringId);
+  const buffer = buffers.get(stringId);
   const openMidi = GUITAR_STRINGS.find((s) => s.id === stringId)?.openMidi ?? 64;
-  if (!pool) {
+  if (!buffer) {
     return;
   }
 
   const targetMidi = midi ?? openMidi;
-  playFromPool(pool, { playbackRate: getStringPlaybackRate(stringId, targetMidi) });
+  playSample(
+    buffer,
+    getStringPlaybackRate(stringId, targetMidi),
+    STRING_GAIN,
+    undefined,
+    `guitar:${stringId}`,
+  );
 }
 
 export function strumChord(chordId: ChordId, direction: 'down' | 'up' = 'down'): void {
@@ -72,8 +81,6 @@ export function releaseGuitarEngine(): void {
     clearTimeout(timer);
   }
   strumTimers.length = 0;
-
-  releaseSamplePools(pools.values());
-  pools.clear();
+  stopAllVoices();
   initialized = false;
 }

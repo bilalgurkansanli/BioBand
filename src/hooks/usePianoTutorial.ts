@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { scheduleSongPlayback } from '../instruments/piano/songPlayer';
-import { getSongById, TUTORIAL_SONGS } from '../instruments/piano/songs/jingleBells';
+import { getSongById, PIANO_SONGS } from '../instruments/piano/songs/catalog';
 import type { SongDefinition } from '../instruments/piano/songs/types';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 
@@ -129,7 +129,7 @@ export function usePianoTutorial(playNote: (noteId: NoteId) => void) {
   );
 
   return {
-    songs: TUTORIAL_SONGS,
+    songs: PIANO_SONGS,
     phase,
     selectedSong,
     demoNoteId,

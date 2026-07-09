@@ -10,11 +10,18 @@ type PianoToolbarProps = {
   isRecording: boolean;
   sustainOn: boolean;
   metronomeOn: boolean;
+  /** True when any FX (distortion/reverb/echo) is enabled. */
+  fxOn?: boolean;
+  /** Current master volume 0..1 — drives the volume icon state. */
+  volume?: number;
+  /** Accent color of the active piano voice, shown on the instrument icon. */
+  instrumentAccent?: string;
   onBack: () => void;
   onRecordPress: () => void;
   onMetronomePress: () => void;
   onSustainPress: () => void;
   onFxPress: () => void;
+  onVolumePress: () => void;
   onLayoutPress: () => void;
   onDualKeyboardPress: () => void;
   onInstrumentPress: () => void;
@@ -29,6 +36,7 @@ type IconButtonProps = {
   active?: boolean;
   accent?: 'record' | 'game' | 'default';
   disabled?: boolean;
+  colorOverride?: string;
 };
 
 function IconButton({
@@ -38,9 +46,11 @@ function IconButton({
   active = false,
   accent = 'default',
   disabled = false,
+  colorOverride,
 }: IconButtonProps) {
   const iconColor =
-    accent === 'record' && active
+    colorOverride ??
+    (accent === 'record' && active
       ? '#FFFFFF'
       : accent === 'record'
         ? '#FF3B30'
@@ -48,7 +58,7 @@ function IconButton({
           ? '#FFD54F'
           : active
             ? colors.accent
-            : '#C8C8C8';
+            : '#C8C8C8');
 
   return (
     <Pressable
@@ -74,15 +84,29 @@ function IconButton({
   );
 }
 
+function volumeIcon(volume: number): ToolbarIcon {
+  if (volume <= 0) {
+    return 'volume-mute-outline';
+  }
+  if (volume < 0.5) {
+    return 'volume-low-outline';
+  }
+  return 'volume-high-outline';
+}
+
 export function PianoToolbar({
   isRecording,
   sustainOn,
   metronomeOn,
+  fxOn = false,
+  volume = 1,
+  instrumentAccent,
   onBack,
   onRecordPress,
   onMetronomePress,
   onSustainPress,
   onFxPress,
+  onVolumePress,
   onLayoutPress,
   onDualKeyboardPress,
   onInstrumentPress,
@@ -118,9 +142,17 @@ export function PianoToolbar({
         onPress={onSustainPress}
       />
       <IconButton
+        active={fxOn}
         icon="sparkles-outline"
         label={t('piano.toolbar.fx')}
         onPress={onFxPress}
+      />
+      <IconButton
+        active={volume < 1}
+        colorOverride={volume <= 0 ? '#FF7043' : undefined}
+        icon={volumeIcon(volume)}
+        label={t('piano.toolbar.volume')}
+        onPress={onVolumePress}
       />
       <IconButton
         icon="grid-outline"
@@ -133,6 +165,7 @@ export function PianoToolbar({
         onPress={onDualKeyboardPress}
       />
       <IconButton
+        colorOverride={instrumentAccent}
         icon="musical-notes-outline"
         label={t('piano.toolbar.instrument')}
         onPress={onInstrumentPress}

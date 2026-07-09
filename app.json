@@ -13,7 +13,14 @@
       }
     },
     "android": {
-      "permissions": ["RECORD_AUDIO"],
+      "package": "com.bioband.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -43,7 +50,16 @@
         {
           "initialOrientation": "PORTRAIT_UP"
         }
-      ]
-    ]
+      ],
+      "react-native-audio-api",
+      "expo-asset",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c07925ea-9e6b-4e4d-9d9c-4e7a595de287"
+      }
+    },
+    "owner": "bioking"
   }
 }

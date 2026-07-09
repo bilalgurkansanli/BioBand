@@ -1,11 +1,12 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { type GestureResponderEvent, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type GestureResponderEvent, type NativeTouchEvent, StyleSheet, View } from 'react-native';
 
 import {
   BLACK_PIANO_NOTES,
   WHITE_PIANO_NOTES,
   type NoteId,
 } from '../../instruments/piano/pianoNotes';
+import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
 import { PianoKey } from './PianoKey';
 
 const KEY_GAP = 2;
@@ -14,33 +15,53 @@ type KeyLayout = {
   whiteKeyWidth: number;
   blackKeyWidth: number;
   blackKeyHeight: number;
+  keyboardWidth: number;
 };
 
 function resolveNoteAtPoint(x: number, y: number, layout: KeyLayout): NoteId | null {
-  const { whiteKeyWidth, blackKeyWidth, blackKeyHeight } = layout;
+  const { whiteKeyWidth, blackKeyWidth, blackKeyHeight, keyboardWidth } = layout;
   const slot = whiteKeyWidth + KEY_GAP;
 
-  for (const note of BLACK_PIANO_NOTES) {
-    const left =
-      (note.blackKeyAfterWhite ?? 0) * slot + whiteKeyWidth - blackKeyWidth / 2;
+  if (x < 0 || y < 0 || x > keyboardWidth) {
+    return null;
+  }
 
-    if (y >= 0 && y <= blackKeyHeight && x >= left && x <= left + blackKeyWidth) {
-      return note.id;
+  if (y <= blackKeyHeight) {
+    for (const note of BLACK_PIANO_NOTES) {
+      const left =
+        (note.blackKeyAfterWhite ?? 0) * slot + whiteKeyWidth - blackKeyWidth / 2;
+
+      if (x >= left && x <= left + blackKeyWidth) {
+        return note.id;
+      }
     }
   }
 
-  const whiteIndex = Math.floor(x / slot);
-  if (whiteIndex < 0 || whiteIndex >= WHITE_PIANO_NOTES.length) {
-    return null;
+  for (let index = 0; index < WHITE_PIANO_NOTES.length; index++) {
+    const keyLeft = index * slot;
+    const keyRight =
+      index === WHITE_PIANO_NOTES.length - 1 ? keyboardWidth : keyLeft + whiteKeyWidth;
+
+    if (x >= keyLeft && x <= keyRight) {
+      return WHITE_PIANO_NOTES[index].id;
+    }
   }
 
-  const keyLeft = whiteIndex * slot;
-  if (x < keyLeft || x > keyLeft + whiteKeyWidth) {
-    return null;
-  }
-
-  return WHITE_PIANO_NOTES[whiteIndex].id;
+  return null;
 }
+
+export type PianoKeyboardTheme = {
+  background: string;
+  badgeLow: string;
+  badgeHigh: string;
+  keys?: PianoKeyColors;
+};
+
+const DEFAULT_THEME: PianoKeyboardTheme = {
+  background: '#0A0A0A',
+  badgeLow: '#8BC34A',
+  badgeHigh: '#64B5F6',
+};
 
 type PianoKeyboardProps = {
   width: number;
@@ -50,6 +71,7 @@ type PianoKeyboardProps = {
   enableSound?: boolean;
   guideNoteId?: NoteId | null;
   demoNoteId?: NoteId | null;
+  theme?: PianoKeyboardTheme;
 };
 
 export function PianoKeyboard({
@@ -60,6 +82,7 @@ export function PianoKeyboard({
   enableSound = true,
   guideNoteId = null,
   demoNoteId = null,
+  theme = DEFAULT_THEME,
 }: PianoKeyboardProps) {
   const { whiteKeyWidth, whiteKeyHeight, blackKeyWidth, blackKeyHeight, keyboardWidth, keyLayout } =
     useMemo(() => {
@@ -83,128 +106,87 @@ export function PianoKeyboard({
           whiteKeyWidth: computedWhiteWidth,
           blackKeyWidth: computedBlackWidth,
           blackKeyHeight: computedBlackHeight,
+          keyboardWidth: computedKeyboardWidth,
         },
       };
     }, [width, height]);
 
   const [activeNotes, setActiveNotes] = useState<Set<NoteId>>(new Set());
   const touchNotesRef = useRef<Map<string, NoteId>>(new Map());
-  const holdCountRef = useRef<Map<NoteId, number>>(new Map());
 
-  const pressNote = useCallback(
-    (noteId: NoteId) => {
-      const count = holdCountRef.current.get(noteId) ?? 0;
-      holdCountRef.current.set(noteId, count + 1);
+  useEffect(() => {
+    touchNotesRef.current.clear();
+    setActiveNotes(new Set());
+  }, [keyLayout]);
 
-      if (count === 0) {
-        if (enableSound) {
-          onNotePressIn(noteId);
-        }
-        setActiveNotes((current) => new Set(current).add(noteId));
-      }
-    },
-    [enableSound, onNotePressIn],
-  );
-
-  const releaseNote = useCallback(
-    (noteId: NoteId) => {
-      const count = holdCountRef.current.get(noteId) ?? 0;
-      if (count <= 1) {
-        holdCountRef.current.delete(noteId);
-        setActiveNotes((current) => {
-          const next = new Set(current);
-          next.delete(noteId);
-          return next;
-        });
-        onNotePressOut?.(noteId);
-        return;
-      }
-
-      holdCountRef.current.set(noteId, count - 1);
-    },
-    [onNotePressOut],
-  );
-
-  const setTouchNote = useCallback(
-    (touchId: string, noteId: NoteId | null) => {
-      const previous = touchNotesRef.current.get(touchId);
-
-      if (previous === noteId) {
-        return;
-      }
-
-      if (previous) {
-        releaseNote(previous);
-        touchNotesRef.current.delete(touchId);
-      }
-
-      if (noteId) {
-        touchNotesRef.current.set(touchId, noteId);
-        pressNote(noteId);
-      }
-    },
-    [pressNote, releaseNote],
-  );
-
-  const clearTouch = useCallback(
-    (touchId: string) => {
-      const previous = touchNotesRef.current.get(touchId);
-      if (!previous) {
-        return;
-      }
-
-      touchNotesRef.current.delete(touchId);
-      releaseNote(previous);
-    },
-    [releaseNote],
-  );
-
-  const handleTouches = useCallback(
-    (event: GestureResponderEvent, phase: 'start' | 'move' | 'end') => {
-      if (phase === 'end') {
-        for (const touch of event.nativeEvent.changedTouches) {
-          clearTouch(String(touch.identifier));
-        }
-        return;
-      }
-
-      let touches = event.nativeEvent.changedTouches;
-      if (phase === 'start' && touches.length === 0) {
-        touches = event.nativeEvent.touches;
-      }
-      if (phase === 'move') {
-        touches = event.nativeEvent.touches;
-      }
+  const syncTouches = useCallback(
+    (touches: readonly NativeTouchEvent[]) => {
+      const nextTouchMap = new Map<string, NoteId>();
+      const notesToTrigger: NoteId[] = [];
+      const previousTouchMap = touchNotesRef.current;
 
       for (const touch of touches) {
+        const touchId = String(touch.identifier);
         const noteId = resolveNoteAtPoint(touch.locationX, touch.locationY, keyLayout);
-        if (noteId) {
-          setTouchNote(String(touch.identifier), noteId);
-        } else {
-          clearTouch(String(touch.identifier));
+        if (!noteId) {
+          continue;
+        }
+
+        nextTouchMap.set(touchId, noteId);
+
+        if (previousTouchMap.get(touchId) !== noteId) {
+          notesToTrigger.push(noteId);
+        }
+      }
+
+      const nextActiveNotes = new Set(nextTouchMap.values());
+      const previousActiveNotes = new Set(previousTouchMap.values());
+
+      for (const noteId of previousActiveNotes) {
+        if (!nextActiveNotes.has(noteId)) {
+          onNotePressOut?.(noteId);
+        }
+      }
+
+      touchNotesRef.current = nextTouchMap;
+      setActiveNotes(nextActiveNotes);
+
+      if (enableSound) {
+        for (const noteId of notesToTrigger) {
+          onNotePressIn(noteId);
         }
       }
     },
-    [clearTouch, keyLayout, setTouchNote],
+    [enableSound, keyLayout, onNotePressIn, onNotePressOut],
   );
 
   const handleTouchStart = useCallback(
-    (event: GestureResponderEvent) => handleTouches(event, 'start'),
-    [handleTouches],
+    (event: GestureResponderEvent) => {
+      const touches =
+        event.nativeEvent.touches.length > 0
+          ? event.nativeEvent.touches
+          : event.nativeEvent.changedTouches;
+      syncTouches(touches);
+    },
+    [syncTouches],
   );
 
   const handleTouchMove = useCallback(
-    (event: GestureResponderEvent) => handleTouches(event, 'move'),
-    [handleTouches],
+    (event: GestureResponderEvent) => {
+      syncTouches(event.nativeEvent.touches);
+    },
+    [syncTouches],
   );
 
   const handleTouchEnd = useCallback(
-    (event: GestureResponderEvent) => handleTouches(event, 'end'),
-    [handleTouches],
+    (event: GestureResponderEvent) => {
+      syncTouches(event.nativeEvent.touches);
+    },
+    [syncTouches],
   );
 
   return (
-    <View style={[styles.wrapper, { width, height }]}>
+    <View style={[styles.wrapper, { width, height, backgroundColor: theme.background }]}>
       <View
         onTouchCancel={handleTouchEnd}
         onTouchEnd={handleTouchEnd}
@@ -216,11 +198,14 @@ export function PianoKeyboard({
           {WHITE_PIANO_NOTES.map((note) => (
             <PianoKey
               key={note.id}
+              badgeColorHigh={theme.badgeHigh}
+              badgeColorLow={theme.badgeLow}
               height={whiteKeyHeight}
               isActive={activeNotes.has(note.id)}
               isBlackKey={false}
               isDemo={demoNoteId === note.id}
               isGuide={guideNoteId === note.id}
+              keyColors={theme.keys}
               letterLabel={note.label}
               noteId={note.id}
               solfegeLabel={note.solfegeLabel}
@@ -243,6 +228,7 @@ export function PianoKeyboard({
                 isBlackKey
                 isDemo={demoNoteId === note.id}
                 isGuide={guideNoteId === note.id}
+                keyColors={theme.keys}
                 letterLabel={note.label}
                 noteId={note.id}
                 solfegeLabel={note.solfegeLabel}

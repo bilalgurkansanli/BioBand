@@ -1,6 +1,18 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
 import { colors } from '../../theme/colors';
+
+const DEFAULT_KEY_COLORS: PianoKeyColors = {
+  white: '#F4F4F4',
+  whiteActive: '#B0B0B0',
+  whiteBottomBorder: '#B8B8B8',
+  black: '#141414',
+  blackActive: '#3A3A3A',
+  whiteText: '#333333',
+  blackText: '#F0F0F0',
+  blackBadge: '#3A3A3A',
+};
 
 type PianoKeyProps = {
   noteId: string;
@@ -12,6 +24,9 @@ type PianoKeyProps = {
   isDemo?: boolean;
   width: number;
   height: number;
+  badgeColorLow?: string;
+  badgeColorHigh?: string;
+  keyColors?: PianoKeyColors;
 };
 
 function getOctave(noteId: string): number {
@@ -19,7 +34,14 @@ function getOctave(noteId: string): number {
   return match ? Number(match[1]) : 4;
 }
 
-function getLabelBadgeStyle(octave: number, isActive: boolean, isGuide: boolean, isDemo: boolean) {
+function getLabelBadgeStyle(
+  octave: number,
+  isActive: boolean,
+  isGuide: boolean,
+  isDemo: boolean,
+  badgeColorLow: string,
+  badgeColorHigh: string,
+) {
   if (isGuide) {
     return styles.guideBadge;
   }
@@ -29,7 +51,7 @@ function getLabelBadgeStyle(octave: number, isActive: boolean, isGuide: boolean,
   if (isActive) {
     return styles.activeBadge;
   }
-  return octave >= 5 ? styles.blueBadge : styles.greenBadge;
+  return { backgroundColor: octave >= 5 ? badgeColorHigh : badgeColorLow };
 }
 
 export function PianoKey({
@@ -42,6 +64,9 @@ export function PianoKey({
   isDemo = false,
   width,
   height,
+  badgeColorLow = '#8BC34A',
+  badgeColorHigh = '#64B5F6',
+  keyColors = DEFAULT_KEY_COLORS,
 }: PianoKeyProps) {
   const octave = getOctave(noteId);
 
@@ -51,22 +76,45 @@ export function PianoKey({
       style={[
         styles.key,
         isBlackKey ? styles.blackKey : styles.whiteKey,
+        isBlackKey
+          ? { backgroundColor: keyColors.black }
+          : {
+              backgroundColor: keyColors.white,
+              borderBottomColor: keyColors.whiteBottomBorder,
+            },
         { width, height },
         isGuide && styles.guideKey,
         isDemo && !isBlackKey && styles.demoKey,
-        isActive && (isBlackKey ? styles.blackKeyActive : styles.whiteKeyActive),
+        isActive && {
+          backgroundColor: isBlackKey ? keyColors.blackActive : keyColors.whiteActive,
+        },
       ]}
     >
       {isBlackKey ? <View style={styles.blackKeyHighlight} /> : null}
 
       <View style={[styles.labelGroup, isBlackKey && styles.blackLabelGroup]}>
-        <Text style={[styles.solfegeLabel, isBlackKey && styles.blackKeySolfege]}>
+        <Text
+          style={[
+            styles.solfegeLabel,
+            isBlackKey && styles.blackKeySolfege,
+            { color: isBlackKey ? keyColors.blackText : keyColors.whiteText },
+          ]}
+        >
           {solfegeLabel}
         </Text>
         <View
           style={[
             styles.labelBadge,
-            isBlackKey ? styles.blackBadge : getLabelBadgeStyle(octave, isActive, isGuide, isDemo),
+            isBlackKey
+              ? [styles.blackBadge, { backgroundColor: keyColors.blackBadge }]
+              : getLabelBadgeStyle(
+                  octave,
+                  isActive,
+                  isGuide,
+                  isDemo,
+                  badgeColorLow,
+                  badgeColorHigh,
+                ),
           ]}
         >
           <Text style={[styles.labelText, isBlackKey && styles.blackBadgeText]}>{letterLabel}</Text>
@@ -159,12 +207,6 @@ const styles = StyleSheet.create({
     minWidth: 28,
     paddingHorizontal: 5,
     paddingVertical: 3,
-  },
-  greenBadge: {
-    backgroundColor: '#8BC34A',
-  },
-  blueBadge: {
-    backgroundColor: '#64B5F6',
   },
   guideBadge: {
     backgroundColor: '#2E7D32',

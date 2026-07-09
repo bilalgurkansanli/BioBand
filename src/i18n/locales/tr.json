@@ -149,6 +149,7 @@
       "metronome": "Metronom",
       "sustain": "Sustain pedalı",
       "fx": "Efektler",
+      "volume": "Ses",
       "layout": "Klavye düzeni",
       "dualKeyboard": "Çift klavye",
       "instrument": "Enstrüman",
@@ -158,6 +159,10 @@
       "layoutComingSoon": "Klavye düzeni seçenekleri yakında.",
       "dualKeyboardComingSoon": "Çift klavye modu yakında.",
       "instrumentComingSoon": "Daha fazla piyano sesi yakında."
+    },
+    "volume": {
+      "title": "Ses",
+      "close": "Kapat"
     },
     "nav": {
       "jumpStart": "Başa git",
@@ -177,8 +182,63 @@
       "stepThinner": "Daha ince ses",
       "dragHint": "Normale dönmek için dokun · sürükleyerek ayarla"
     },
+    "fx": {
+      "title": "Ses Efektleri",
+      "subtitle": "Piyano her zaman çalar. Her efekt bağımsız açılır; kapalıyken ses normaldir.",
+      "distortion": "Distortion",
+      "reverb": "Reverb",
+      "echo": "Eko",
+      "intensity": "Yoğunluk",
+      "lowPass": "Ton (Low Pass)",
+      "time": "Süre",
+      "mix": "Miktar",
+      "delay": "Gecikme",
+      "feedback": "Tekrar",
+      "reset": "Sıfırla",
+      "close": "Kapat"
+    },
+    "voices": {
+      "title": "Piyano sesini seç",
+      "acoustic": "Akustik",
+      "bright": "Parlak",
+      "musicBox": "Müzik Kutusu",
+      "organ": "Org",
+      "rhodes": "Rhodes",
+      "synth": "Synth",
+      "close": "Kapat"
+    },
     "game": {
-      "comingSoon": "Piyano oyun modu yakında geliyor!"
+      "title": "Grup Modu",
+      "pickSong": "Çalmak için bir şarkı seç",
+      "comingSoon": "Yakında",
+      "pickLevel": "Ne kadar destek istiyorsun?",
+      "backToSongs": "Şarkı listesine dön",
+      "close": "Kapat",
+      "levels": {
+        "guided": "Önce izle",
+        "guidedDesc": "Uygulama şarkıyı baştan sona çalar — hangi tuşların yandığını izleyerek öğren.",
+        "medium": "Adım adım",
+        "mediumDesc": "Sıradaki tuş yanar ve seni bekler — doğru tuşa basınca şarkı ilerler.",
+        "free": "Desteksiz",
+        "freeDesc": "İpucu yok. Şarkı tamamen sende."
+      },
+      "hud": {
+        "countdown": "Hazır ol… {{count}}",
+        "watching": "İzle… şarkı senin için çalınıyor",
+        "tapToStart": "Yanan tuşa bas — şarkı seni bekliyor",
+        "progress": "{{done}}/{{total}} nota · {{hits}} isabet",
+        "stop": "Bitir"
+      },
+      "results": {
+        "title": "Şarkı bitti!",
+        "accuracy": "İsabet oranı: %{{percent}}",
+        "hits": "Senin çaldıkların: {{count}}",
+        "autos": "Senin yerine çalınan: {{count}}",
+        "misses": "Kaçırılan: {{count}}",
+        "wrong": "Yanlış tuşlar: {{count}}",
+        "replay": "Tekrar çal",
+        "change": "Şarkı / seviye değiştir"
+      }
     }
   },
   "tutorial": {
@@ -196,8 +256,16 @@
     },
     "songs": {
       "jingleBells": {
-        "title": "Jingle Bells",
         "description": "Klasik Noel melodisi — Do majör."
+      },
+      "odeToJoy": {
+        "description": "Beethoven'ın ünlü teması — sakin ve düzenli."
+      },
+      "neyleyimIstanbul": {
+        "description": "Murat Dalkılıç — intro melodisi, hızlı koşular!"
+      },
+      "gulpembe": {
+        "description": "Barış Manço — efsane intro, sakin tempo."
       }
     }
   }

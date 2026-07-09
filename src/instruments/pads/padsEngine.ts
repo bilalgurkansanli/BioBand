@@ -1,45 +1,47 @@
+import type { AudioBuffer } from '../../audio/audioApi';
+
 import {
-  createSamplePool,
-  playFromPool,
+  loadSample,
+  playSample,
   prepareSamplePlayback,
-  releaseSamplePools,
-  type SamplePool,
-} from '../../audio/samplePool';
+  stopAllVoices,
+} from '../../audio/sampleBank';
 import { PAD_SOUND_FILES, type PadSoundId } from './padsSounds';
 
-const VOICES_PER_PAD = 6;
+const PAD_GAIN = 0.65;
 
-const pools = new Map<PadSoundId, SamplePool>();
+const buffers = new Map<PadSoundId, AudioBuffer>();
 let initialized = false;
 
 const SOUND_IDS = Object.keys(PAD_SOUND_FILES) as PadSoundId[];
 
 export async function initPadsEngine(): Promise<void> {
-  if (initialized && pools.size === SOUND_IDS.length) {
+  if (initialized) {
     return;
   }
 
-  releasePadsEngine();
   await prepareSamplePlayback();
 
-  for (const id of SOUND_IDS) {
-    pools.set(id, createSamplePool(PAD_SOUND_FILES[id], VOICES_PER_PAD));
-  }
+  await Promise.all(
+    SOUND_IDS.map(async (id) => {
+      const buffer = await loadSample(PAD_SOUND_FILES[id]);
+      buffers.set(id, buffer);
+    }),
+  );
 
   initialized = true;
 }
 
 export function triggerPad(id: PadSoundId): void {
-  const pool = pools.get(id);
-  if (!pool) {
+  const buffer = buffers.get(id);
+  if (!buffer) {
     return;
   }
 
-  playFromPool(pool);
+  playSample(buffer, 1, PAD_GAIN);
 }
 
 export function releasePadsEngine(): void {
-  releaseSamplePools(pools.values());
-  pools.clear();
+  stopAllVoices();
   initialized = false;
 }
