@@ -6,13 +6,16 @@ import {
   playSample,
   prepareSamplePlayback,
   registerActiveVoice,
+  releaseVoiceByTag,
   stopAllVoices,
 } from '../../audio/sampleBank';
 import {
   getPianoFxInput,
   resetPianoFx,
   schedulePianoEchoRepeats,
+  schedulePianoReverbTaps,
 } from './pianoFx';
+import { stopMetronome } from './pianoMetronome';
 import {
   BASE_SAMPLE_FILES,
   getNoteSampleConfig,
@@ -29,6 +32,87 @@ const noteMidis = new Map<NoteId, number>();
 let toneOffsetSemitones = 0;
 let currentVoice: PianoVoiceId = 'acoustic';
 let initialized = false;
+let sustainPedalOn = false;
+/** Keys currently under the finger. */
+const fingerHeldNotes = new Set<NoteId>();
+/** Notes kept ringing by the sustain pedal after finger lift. */
+const pedalHeldNotes = new Set<NoteId>();
+
+const HELD_SYNTH_SECONDS = 24;
+
+// ---------------------------------------------------------------------------
+// Synth polyphony bus — automatic gain compensation.
+//
+// Oscillator-based voices (organ, rhodes, synthLead) produce mathematically
+// pure waveforms that sum in-phase.  Even a few simultaneous notes can push
+// the total past the master limiter's safe range, causing hard digital
+// clipping heard as crackling.  A dedicated synthBus sits between every synth
+// voice and the FX input; its gain is dynamically adjusted to 1/sqrt(n) where
+// n is the number of currently ringing synth voices.  One note plays at full
+// volume, but eight notes are automatically ducked to ~35 % each — keeping
+// the summed level roughly constant no matter how fast the user plays.
+// ---------------------------------------------------------------------------
+
+type GainNodeT = ReturnType<ReturnType<typeof getSharedAudioContext>['createGain']>;
+
+let synthBusNode: GainNodeT | null = null;
+let activeSynthCount = 0;
+const synthEndTimers = new Set<ReturnType<typeof setTimeout>>();
+
+function getSynthBus(): GainNodeT {
+  if (!synthBusNode) {
+    const ctx = getSharedAudioContext();
+    synthBusNode = ctx.createGain();
+    synthBusNode.gain.value = 1;
+    synthBusNode.connect(getPianoFxInput());
+  }
+  return synthBusNode;
+}
+
+function updateSynthBusGain(): void {
+  const bus = synthBusNode;
+  if (!bus) return;
+  const ctx = getSharedAudioContext();
+  const now = ctx.currentTime;
+  // 1/sqrt(n): 1→1.00  2→0.71  4→0.50  8→0.35  16→0.25
+  const target = Math.max(0.22, 1 / Math.sqrt(Math.max(1, activeSynthCount)));
+  try {
+    bus.gain.cancelScheduledValues(now);
+    bus.gain.setValueAtTime(bus.gain.value, now);
+    bus.gain.linearRampToValueAtTime(target, now + 0.012);
+  } catch {
+    bus.gain.value = target;
+  }
+}
+
+/**
+ * Register a synth voice in the polyphony-compensation budget.  The counter
+ * is decremented automatically when the voice's lifetime expires.  Early
+ * voice stealing may cause the counter to stay briefly high, which is safe
+ * (results in slightly more ducking — never in clipping).
+ */
+function registerSynthLifetime(durationSeconds: number): void {
+  activeSynthCount++;
+  updateSynthBusGain();
+
+  const ms = Math.max(50, durationSeconds * 1000);
+  const timer = setTimeout(() => {
+    synthEndTimers.delete(timer);
+    activeSynthCount = Math.max(0, activeSynthCount - 1);
+    updateSynthBusGain();
+  }, ms);
+  synthEndTimers.add(timer);
+}
+
+function resetSynthBus(): void {
+  for (const timer of synthEndTimers) clearTimeout(timer);
+  synthEndTimers.clear();
+  activeSynthCount = 0;
+  if (synthBusNode) {
+    try { synthBusNode.disconnect(); } catch { /* already disconnected */ }
+    synthBusNode = null;
+  }
+}
 
 export function setPianoToneOffset(semitones: number): void {
   toneOffsetSemitones = semitones;
@@ -121,7 +205,8 @@ function getOrganFilter() {
     organFilter.type = 'lowpass';
     organFilter.frequency.value = 2800;
     organFilter.Q.value = 0.6;
-    organFilter.connect(getPianoFxInput());
+    // Route through synthBus for polyphony gain compensation.
+    organFilter.connect(getSynthBus());
   }
   return organFilter;
 }
@@ -149,6 +234,7 @@ function resetPianoVoiceFilters(): void {
   brightFilter = null;
   musicBoxFilter = null;
   organFilter = null;
+  resetSynthBus();
 }
 
 function playSampleVoice(
@@ -159,10 +245,14 @@ function playSampleVoice(
     output?: Parameters<typeof playSample>[3];
     /** Soft lowpass when rate is high (music-box aliasing). */
     antiAlias?: boolean;
-    /** 1 = dry note; <1 = quieter echo repeat. */
+    /** 1 = dry note; <1 = quieter echo/reverb tap. */
     gainScale?: number;
-    /** Unique tag so echo repeats do not steal the dry note. */
+    /** Unique tag so FX taps do not steal the dry note. */
     tag?: string;
+    /** Short envelope for reverb/echo taps — protects polyphony. */
+    shortTail?: boolean;
+    /** Finger/sustain held note — release via releaseVoiceByTag. */
+    held?: boolean;
   },
 ): void {
   // Pick the anchor sample nearest to the target pitch so the playback rate
@@ -182,7 +272,10 @@ function playSampleVoice(
   const gainScale = options?.gainScale ?? 1;
   const tag = options?.tag ?? `piano:${noteId}`;
 
-  playSample(buffer, rate, gain * gainScale, destination, tag);
+  playSample(buffer, rate, gain * gainScale, destination, tag, {
+    shortTail: options?.shortTail,
+    held: options?.held,
+  });
 }
 
 // Synth voices sustain their level instead of decaying like a struck string,
@@ -192,24 +285,32 @@ function playSampleVoice(
 // crackling that "starts after a while".
 
 // Church/drawbar organ: stacked sine partials with a short sustained tone.
-function playOrgan(frequency: number, tag: string, gainScale = 1): void {
+// Routed through synthBus for automatic polyphony gain compensation.
+function playOrgan(
+  frequency: number,
+  tag: string,
+  gainScale = 1,
+  held = false,
+): void {
   const context = getSharedAudioContext();
   const now = context.currentTime;
 
   // Thick/low notes carry more energy on small speakers — scale them down.
   const bassScale =
-    frequency < 180 ? 0.5 : frequency < 280 ? 0.7 : frequency < 400 ? 0.85 : 1;
+    frequency < 180 ? 0.45 : frequency < 280 ? 0.6 : frequency < 400 ? 0.8 : 1;
 
   const noteGain = context.createGain();
+  // Start silent — the envelope ramp brings the level up.
+  noteGain.gain.setValueAtTime(0.0001, now);
   const stealGain = context.createGain();
   noteGain.connect(stealGain);
   stealGain.connect(getOrganFilter());
 
   // Levels kept modest: chords stack 3 partials × N keys into the master.
   const partials: [ratio: number, level: number][] = [
-    [1, 0.07 * bassScale * gainScale],
-    [2, 0.035 * bassScale * gainScale],
-    [3, 0.018 * bassScale * gainScale],
+    [1, 0.055 * bassScale * gainScale],
+    [2, 0.028 * bassScale * gainScale],
+    [3, 0.014 * bassScale * gainScale],
   ];
 
   const oscillators = partials.map(([ratio, level]) => {
@@ -218,7 +319,7 @@ function playOrgan(frequency: number, tag: string, gainScale = 1): void {
     osc.frequency.value = frequency * ratio;
     // A few random cents of detune keep repeated presses of the same key
     // from phase-stacking into a doubled (clipping) amplitude.
-    osc.detune.value = (Math.random() - 0.5) * 10;
+    osc.detune.value = (Math.random() - 0.5) * 12;
     const partialGain = context.createGain();
     partialGain.gain.value = level;
     osc.connect(partialGain);
@@ -227,14 +328,15 @@ function playOrgan(frequency: number, tag: string, gainScale = 1): void {
     return osc;
   });
 
-  // Shorter sustain than before so overlapping organ notes sum less.
-  const peak = 0.85;
-  const releaseStart = now + 0.4;
-  const endsAt = releaseStart + 0.22;
-  noteGain.gain.setValueAtTime(0.0001, now);
-  noteGain.gain.linearRampToValueAtTime(peak, now + 0.03);
+  const peak = 0.8;
+  const releaseStart = now + (held ? HELD_SYNTH_SECONDS : 0.35);
+  const endsAt = releaseStart + (held ? 0.25 : 0.18);
+  noteGain.gain.linearRampToValueAtTime(peak, now + 0.015);
   noteGain.gain.setValueAtTime(peak, releaseStart);
   noteGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
+
+  const voiceDuration = endsAt - now + 0.05;
+  registerSynthLifetime(voiceDuration);
 
   for (const osc of oscillators) {
     osc.stop(endsAt + 0.05);
@@ -255,26 +357,41 @@ function playOrgan(frequency: number, tag: string, gainScale = 1): void {
 }
 
 // Electric piano: soft sine fundamental with a fast-decaying bell overtone.
-function playRhodes(frequency: number, tag: string, gainScale = 1): void {
+// Routed through synthBus for automatic polyphony gain compensation.
+function playRhodes(
+  frequency: number,
+  tag: string,
+  gainScale = 1,
+  held = false,
+): void {
   const context = getSharedAudioContext();
   const now = context.currentTime;
 
+  // Bass notes carry more energy on small speakers — scale them down.
+  const bassScale =
+    frequency < 180 ? 0.5 : frequency < 280 ? 0.65 : frequency < 400 ? 0.82 : 1;
+
   const noteGain = context.createGain();
-  noteGain.gain.value = 1;
+  // Start silent — the per-partial envelopes bring the level up.
+  noteGain.gain.setValueAtTime(0.0001, now);
+  noteGain.gain.linearRampToValueAtTime(1, now + 0.003);
   const stealGain = context.createGain();
   noteGain.connect(stealGain);
-  stealGain.connect(getPianoFxInput());
+  // Route through synthBus, not directly to FX input.
+  stealGain.connect(getSynthBus());
 
-  const endsAt = now + 1.5;
+  const endsAt = now + (held ? HELD_SYNTH_SECONDS : 1.0);
 
   const body = context.createOscillator();
   body.type = 'sine';
   body.frequency.value = frequency;
-  // See playOrgan: random detune avoids phase-stacking on repeated presses.
-  body.detune.value = (Math.random() - 0.5) * 8;
+  // Random detune avoids phase-stacking on repeated presses of the same key.
+  body.detune.value = (Math.random() - 0.5) * 10;
   const bodyGain = context.createGain();
   bodyGain.gain.setValueAtTime(0.0001, now);
-  bodyGain.gain.linearRampToValueAtTime(0.22 * gainScale, now + 0.005);
+  // Gentler attack (15 ms) prevents the click heard when two overlapping
+  // voices both hit their peak at the same instant.
+  bodyGain.gain.linearRampToValueAtTime(0.13 * bassScale * gainScale, now + 0.015);
   bodyGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
   body.connect(bodyGain);
   bodyGain.connect(noteGain);
@@ -284,15 +401,18 @@ function playRhodes(frequency: number, tag: string, gainScale = 1): void {
   const bell = context.createOscillator();
   bell.type = 'sine';
   bell.frequency.value = frequency * 4;
-  bell.detune.value = (Math.random() - 0.5) * 8;
+  bell.detune.value = (Math.random() - 0.5) * 10;
   const bellGain = context.createGain();
   bellGain.gain.setValueAtTime(0.0001, now);
-  bellGain.gain.linearRampToValueAtTime(0.06 * gainScale, now + 0.005);
-  bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  bellGain.gain.linearRampToValueAtTime(0.032 * bassScale * gainScale, now + 0.015);
+  bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
   bell.connect(bellGain);
   bellGain.connect(noteGain);
   bell.start(now);
   bell.stop(endsAt + 0.05);
+
+  const voiceDuration = endsAt - now + 0.05;
+  registerSynthLifetime(voiceDuration);
 
   registerActiveVoice(
     {
@@ -308,9 +428,18 @@ function playRhodes(frequency: number, tag: string, gainScale = 1): void {
 }
 
 // Synth lead: sawtooth through a lowpass, plucky decay.
-function playSynthLead(frequency: number, tag: string, gainScale = 1): void {
+// Routed through synthBus for automatic polyphony gain compensation.
+function playSynthLead(
+  frequency: number,
+  tag: string,
+  gainScale = 1,
+  held = false,
+): void {
   const context = getSharedAudioContext();
   const now = context.currentTime;
+
+  const bassScale =
+    frequency < 180 ? 0.55 : frequency < 280 ? 0.7 : frequency < 400 ? 0.85 : 1;
 
   const osc = context.createOscillator();
   osc.type = 'sawtooth';
@@ -321,10 +450,10 @@ function playSynthLead(frequency: number, tag: string, gainScale = 1): void {
   filter.frequency.value = Math.min(frequency * 4, 6000);
   filter.Q.value = 1.1;
 
-  const endsAt = now + 0.95;
+  const endsAt = now + (held ? HELD_SYNTH_SECONDS : 0.8);
   const noteGain = context.createGain();
   noteGain.gain.setValueAtTime(0.0001, now);
-  noteGain.gain.linearRampToValueAtTime(0.26 * gainScale, now + 0.005);
+  noteGain.gain.linearRampToValueAtTime(0.18 * bassScale * gainScale, now + 0.012);
   noteGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
 
   const stealGain = context.createGain();
@@ -332,12 +461,23 @@ function playSynthLead(frequency: number, tag: string, gainScale = 1): void {
   osc.connect(filter);
   filter.connect(noteGain);
   noteGain.connect(stealGain);
-  stealGain.connect(getPianoFxInput());
+  // Route through synthBus, not directly to FX input.
+  stealGain.connect(getSynthBus());
 
   osc.start(now);
   osc.stop(endsAt + 0.05);
 
+  const voiceDuration = endsAt - now + 0.05;
+  registerSynthLifetime(voiceDuration);
+
   registerActiveVoice(osc, stealGain, endsAt + 0.05, tag);
+}
+
+function dryVoiceTag(voice: PianoVoiceId, noteId: NoteId): string {
+  if (voice === 'acoustic' || voice === 'bright' || voice === 'musicBox') {
+    return `piano:${noteId}`;
+  }
+  return `${voice}:${noteId}`;
 }
 
 function triggerVoice(
@@ -346,6 +486,8 @@ function triggerVoice(
   voice: PianoVoiceId,
   gainScale: number,
   tagSuffix: string,
+  shortTail = false,
+  held = false,
 ): void {
   const tag = `${voice}:${noteId}${tagSuffix}`;
 
@@ -353,6 +495,8 @@ function triggerVoice(
     case 'acoustic':
       playSampleVoice(noteId, shiftedMidi, 0.55, {
         gainScale,
+        shortTail,
+        held,
         tag: `piano:${noteId}${tagSuffix}`,
       });
       break;
@@ -360,6 +504,8 @@ function triggerVoice(
       playSampleVoice(noteId, shiftedMidi, 0.5, {
         output: getBrightFilter(),
         gainScale,
+        shortTail,
+        held,
         tag: `piano:${noteId}${tagSuffix}`,
       });
       break;
@@ -367,21 +513,26 @@ function triggerVoice(
       playSampleVoice(noteId, shiftedMidi + 12, 0.45, {
         antiAlias: true,
         gainScale,
+        shortTail,
+        held,
         tag: `piano:${noteId}${tagSuffix}`,
       });
       break;
     case 'organ':
-      playOrgan(midiToFrequency(shiftedMidi), tag, gainScale);
+      playOrgan(midiToFrequency(shiftedMidi), tag, gainScale, held);
       break;
     case 'rhodes':
-      playRhodes(midiToFrequency(shiftedMidi), tag, gainScale);
+      playRhodes(midiToFrequency(shiftedMidi), tag, gainScale, held);
       break;
     case 'synth':
-      playSynthLead(midiToFrequency(shiftedMidi), tag, gainScale);
+      playSynthLead(midiToFrequency(shiftedMidi), tag, gainScale, held);
       break;
   }
 }
 
+/**
+ * One-shot note (tutorial / play-along / FX taps). Auto-releases on its own.
+ */
 export function playNote(
   noteId: NoteId,
   toneSemitones = toneOffsetSemitones,
@@ -403,16 +554,101 @@ export function playNote(
   // 1) Dry piano immediately.
   triggerVoice(noteId, shiftedMidi, voice, 1, '');
 
-  // 2) If echo is on: quieter repeats after delayMs (not DelayNode — broken on Android).
+  // 2) Reverb: denser delayed reflections (no ConvolverNode — crackles on RN).
+  schedulePianoReverbTaps((gainScale, tapIndex) => {
+    triggerVoice(noteId, shiftedMidi, voice, gainScale, `:reverb:${tapIndex}`, true);
+  });
+
+  // 3) Echo: quieter spaced repeats — leave echo path unchanged (full tail).
   schedulePianoEchoRepeats((gainScale) => {
     triggerVoice(noteId, shiftedMidi, voice, gainScale, ':echo');
   });
 }
 
+/**
+ * Interactive key press — held until noteOff / sustain pedal release.
+ */
+export function noteOn(
+  noteId: NoteId,
+  toneSemitones = toneOffsetSemitones,
+  voice: PianoVoiceId = currentVoice,
+): void {
+  const midi = noteMidis.get(noteId);
+  if (midi === undefined) {
+    return;
+  }
+
+  const context = getSharedAudioContext();
+  if (context.state === 'suspended') {
+    void context.resume();
+  }
+
+  fingerHeldNotes.add(noteId);
+  pedalHeldNotes.delete(noteId);
+
+  const shiftedMidi = midi + toneSemitones;
+  triggerVoice(noteId, shiftedMidi, voice, 1, '', false, true);
+
+  schedulePianoReverbTaps((gainScale, tapIndex) => {
+    triggerVoice(noteId, shiftedMidi, voice, gainScale, `:reverb:${tapIndex}`, true);
+  });
+  schedulePianoEchoRepeats((gainScale) => {
+    triggerVoice(noteId, shiftedMidi, voice, gainScale, ':echo');
+  });
+}
+
+function releaseDryNote(
+  noteId: NoteId,
+  voice: PianoVoiceId = currentVoice,
+): void {
+  releaseVoiceByTag(dryVoiceTag(voice, noteId));
+}
+
+/**
+ * Interactive key release. With sustain on, the note keeps ringing until
+ * the pedal is lifted (or the same key is pressed again).
+ */
+export function noteOff(
+  noteId: NoteId,
+  voice: PianoVoiceId = currentVoice,
+): void {
+  fingerHeldNotes.delete(noteId);
+
+  if (sustainPedalOn) {
+    pedalHeldNotes.add(noteId);
+    return;
+  }
+
+  pedalHeldNotes.delete(noteId);
+  releaseDryNote(noteId, voice);
+}
+
+export function setSustainPedal(on: boolean): void {
+  sustainPedalOn = on;
+  if (on) {
+    return;
+  }
+
+  for (const noteId of pedalHeldNotes) {
+    if (!fingerHeldNotes.has(noteId)) {
+      releaseDryNote(noteId, currentVoice);
+    }
+  }
+  pedalHeldNotes.clear();
+}
+
+export function getSustainPedal(): boolean {
+  return sustainPedalOn;
+}
+
 export function releasePianoEngine(): void {
+  stopMetronome();
   stopAllVoices();
   resetPianoVoiceFilters();
   resetPianoFx();
+  fingerHeldNotes.clear();
+  pedalHeldNotes.clear();
+  sustainPedalOn = false;
   noteMidis.clear();
   toneOffsetSemitones = 0;
   initialized = false;

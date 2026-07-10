@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -9,9 +9,23 @@ import { INSTRUMENT_ICONS, INSTRUMENT_TITLE_KEYS } from '../../utils/recordingLa
 
 type RecordingCardProps = {
   recording: SavedRecording;
+  isPlaying?: boolean;
+  isLoading?: boolean;
+  isBusy?: boolean;
+  onPlayPress: () => void;
+  onSharePress: () => void;
+  onDownloadPress: () => void;
 };
 
-export function RecordingCard({ recording }: RecordingCardProps) {
+export function RecordingCard({
+  recording,
+  isPlaying = false,
+  isLoading = false,
+  isBusy = false,
+  onPlayPress,
+  onSharePress,
+  onDownloadPress,
+}: RecordingCardProps) {
   const { t, i18n } = useTranslation();
 
   const dateLabel = new Date(recording.createdAt).toLocaleString(
@@ -35,8 +49,11 @@ export function RecordingCard({ recording }: RecordingCardProps) {
       ? t('recordings.eventCount', { count: recording.events?.length ?? 0 })
       : t('recordings.audioTrack');
 
+  const playLabel = isPlaying ? t('recordings.stopPlayback') : t('recordings.play');
+  const actionsDisabled = isLoading || isBusy;
+
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, isPlaying && styles.cardPlaying]}>
       <View style={styles.iconWrap}>
         <Ionicons color={colors.accent} name={INSTRUMENT_ICONS[recording.instrument]} size={24} />
       </View>
@@ -52,7 +69,71 @@ export function RecordingCard({ recording }: RecordingCardProps) {
           <Text style={styles.meta}>{detailLabel}</Text>
         </View>
       </View>
+
+      <View style={styles.actions}>
+        <ActionButton
+          disabled={actionsDisabled}
+          icon="download-outline"
+          label={t('recordings.download')}
+          onPress={onDownloadPress}
+        />
+        <ActionButton
+          disabled={actionsDisabled}
+          icon="share-outline"
+          label={t('recordings.share')}
+          onPress={onSharePress}
+        />
+        <Pressable
+          accessibilityLabel={playLabel}
+          accessibilityRole="button"
+          disabled={actionsDisabled && !isPlaying}
+          hitSlop={6}
+          onPress={onPlayPress}
+          style={({ pressed }) => [
+            styles.playButton,
+            isPlaying && styles.playButtonActive,
+            pressed && styles.pressed,
+            isLoading && styles.disabled,
+          ]}
+        >
+          {isLoading ? (
+            <ActivityIndicator color={colors.accent} size="small" />
+          ) : (
+            <Ionicons
+              color={isPlaying ? '#FFFFFF' : colors.accent}
+              name={isPlaying ? 'stop' : 'play'}
+              size={22}
+            />
+          )}
+        </Pressable>
+      </View>
     </View>
+  );
+}
+
+type ActionButtonProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+};
+
+function ActionButton({ icon, label, onPress, disabled }: ActionButtonProps) {
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      disabled={disabled}
+      hitSlop={6}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <Ionicons color={colors.textSecondary} name={icon} size={20} />
+    </Pressable>
   );
 }
 
@@ -67,6 +148,9 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     padding: 14,
   },
+  cardPlaying: {
+    borderColor: colors.accent,
+  },
   iconWrap: {
     alignItems: 'center',
     backgroundColor: colors.surfaceLight,
@@ -78,6 +162,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    marginRight: 8,
   },
   title: {
     color: colors.text,
@@ -104,5 +189,38 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     marginHorizontal: 6,
+  },
+  actions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionButton: {
+    alignItems: 'center',
+    borderRadius: 18,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  playButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    marginLeft: 2,
+    width: 44,
+  },
+  playButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  pressed: {
+    opacity: 0.75,
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });

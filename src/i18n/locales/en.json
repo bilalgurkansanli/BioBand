@@ -68,7 +68,18 @@
     "eventCount": "{{count}} notes",
     "eventCount_one": "{{count}} note",
     "eventCount_other": "{{count}} notes",
-    "audioTrack": "Audio track"
+    "audioTrack": "Audio track",
+    "play": "Play recording",
+    "stopPlayback": "Stop playback",
+    "playbackError": "Could not play this recording.",
+    "download": "Download",
+    "share": "Share",
+    "shareTitle": "Share recording",
+    "shareUnavailable": "Sharing is not available on this device.",
+    "shareError": "Could not share this recording.",
+    "downloadSuccessTitle": "Saved",
+    "downloadSuccessDocuments": "Saved as {{fileName}} in BioBand Recordings.",
+    "downloadError": "Could not download this recording."
   },
   "recording": {
     "button": "Record",
@@ -150,15 +161,37 @@
       "sustain": "Sustain pedal",
       "fx": "Effects",
       "volume": "Volume",
-      "layout": "Keyboard layout",
-      "dualKeyboard": "Dual keyboard",
       "instrument": "Instrument",
       "game": "Game mode",
-      "menu": "Menu",
-      "fxComingSoon": "Effects will be available in a future update.",
-      "layoutComingSoon": "Keyboard layout options are coming soon.",
-      "dualKeyboardComingSoon": "Dual keyboard mode is coming soon.",
-      "instrumentComingSoon": "More piano sounds are coming soon."
+      "settings": "Settings"
+    },
+    "settings": {
+      "title": "Settings",
+      "tonePanel": "Tone panel",
+      "speedHud": "Speed indicator",
+      "scaleLights": "Scale lights",
+      "scalePick": "Choose scale",
+      "startTutorial": "Start tutorial",
+      "close": "Close"
+    },
+    "scale": {
+      "title": "Scale",
+      "subtitle": "Keys in the selected scale glow softly.",
+      "off": "Off",
+      "close": "Close",
+      "names": {
+        "cMajor": "C major",
+        "gMajor": "G major",
+        "dMajor": "D major",
+        "aMinor": "A minor",
+        "eMinor": "E minor",
+        "cPentatonic": "C pentatonic"
+      }
+    },
+    "metronome": {
+      "title": "Metronome",
+      "bpm": "BPM",
+      "close": "Close"
     },
     "volume": {
       "title": "Volume",

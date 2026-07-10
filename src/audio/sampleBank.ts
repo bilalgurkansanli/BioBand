@@ -28,7 +28,13 @@ type StoppableNode = { stop: (when?: number) => void };
 // a tanh soft-clipper. When overlapping notes sum past the ceiling anyway,
 // the waveshaper rounds the peaks off smoothly instead of letting the DAC
 // hard-clip them into harsh digital crackle.
-const MASTER_HEADROOM = 0.7;
+//
+// IMPORTANT: Web Audio WaveShaper maps input [-1, 1] to curve values.  Any
+// signal above 1.0 hard-clips to the last curve sample.  Using tanh(3x)
+// instead of tanh(x) means the curve is nearly flat (saturated) well before
+// ±1 — so the transition at the boundary is imperceptible even if the
+// signal slightly exceeds the range.
+const MASTER_HEADROOM = 0.55;
 const DEFAULT_SAMPLE_GAIN = 0.55;
 const ATTACK_SECONDS = 0.004;
 let masterGain: GainNodeT | null = null;
@@ -47,11 +53,13 @@ export function getMasterVolume(): number {
 }
 
 function buildSoftClipCurve(): Float32Array {
-  const resolution = 2048;
+  const resolution = 4096;
   const curve = new Float32Array(resolution);
   for (let i = 0; i < resolution; i++) {
     const x = (i / (resolution - 1)) * 2 - 1;
-    curve[i] = Math.tanh(x);
+    // tanh(3x) saturates at ≈ ±0.995 by x = ±1, leaving almost no
+    // amplitude step at the [-1, 1] boundary → no audible hard clip.
+    curve[i] = Math.tanh(3 * x);
   }
   return curve;
 }
@@ -96,6 +104,9 @@ const MAX_VOICES = 10;
 const VOICE_HOLD_SECONDS = 3;
 const VOICE_RELEASE_SECONDS = 1.5;
 const STEAL_FADE_SECONDS = 0.1;
+/** Interactive held notes (finger/sustain) — released via releaseVoiceByTag. */
+const HELD_VOICE_SECONDS = 28;
+const NOTE_OFF_FADE_SECONDS = 0.28;
 
 type ActiveVoice = {
   node: StoppableNode;
@@ -135,7 +146,12 @@ function stealVoice(voice: ActiveVoice, now: number): void {
 }
 
 function stealOldestVoice(now: number): void {
-  const voice = activeVoices.shift();
+  // Prefer reverb taps under pressure so dry + echo notes stay intact.
+  const fxIndex = activeVoices.findIndex((voice) =>
+    voice.tag?.includes(':reverb'),
+  );
+  const index = fxIndex >= 0 ? fxIndex : 0;
+  const [voice] = activeVoices.splice(index, 1);
   if (voice) {
     stealVoice(voice, now);
   }
@@ -183,6 +199,37 @@ export function stopAllVoices(): void {
   }
 }
 
+/**
+ * Soft-release every voice with the given tag (note-off / sustain pedal up).
+ * Returns true if at least one voice was released.
+ */
+export function releaseVoiceByTag(
+  tag: string,
+  fadeSeconds = NOTE_OFF_FADE_SECONDS,
+): boolean {
+  const now = getAudioContext().currentTime;
+  pruneFinishedVoices(now);
+  let released = false;
+
+  for (let i = activeVoices.length - 1; i >= 0; i--) {
+    if (activeVoices[i].tag !== tag) {
+      continue;
+    }
+    const [voice] = activeVoices.splice(i, 1);
+    try {
+      voice.stealGain.gain.cancelScheduledValues(now);
+      voice.stealGain.gain.setValueAtTime(voice.stealGain.gain.value || 1, now);
+      voice.stealGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
+      voice.node.stop(now + fadeSeconds + 0.02);
+    } catch {
+      // Already stopped.
+    }
+    released = true;
+  }
+
+  return released;
+}
+
 const bufferCache = new Map<number, Promise<AudioBuffer>>();
 
 export function loadSample(source: number): Promise<AudioBuffer> {
@@ -196,24 +243,49 @@ export function loadSample(source: number): Promise<AudioBuffer> {
   return loading;
 }
 
+export type PlaySampleOptions = {
+  /**
+   * Medium hold/release for reverb taps — long enough to hear the wash,
+   * short enough to protect polyphony. Echo must NOT use this.
+   */
+  shortTail?: boolean;
+  /**
+   * Finger/sustain held note — long ceiling; end with releaseVoiceByTag.
+   */
+  held?: boolean;
+};
+
 export function playSample(
   buffer: AudioBuffer,
   playbackRate = 1,
   gain = DEFAULT_SAMPLE_GAIN,
   output?: AudioNodeT,
   tag?: string,
+  options?: PlaySampleOptions,
 ): void {
   const context = getAudioContext();
   const now = context.currentTime;
 
-  const node = context.createBufferSource();
-  node.buffer = buffer;
-  node.playbackRate.value = playbackRate;
+  const holdSeconds = options?.held
+    ? HELD_VOICE_SECONDS
+    : options?.shortTail
+      ? 0.9
+      : VOICE_HOLD_SECONDS;
+  const releaseSeconds = options?.held
+    ? 0.4
+    : options?.shortTail
+      ? 0.55
+      : VOICE_RELEASE_SECONDS;
 
   // Hold at full gain, then release to silence and stop the node, so long
   // sample tails never accumulate. Short samples simply end earlier.
-  const releaseStart = now + VOICE_HOLD_SECONDS;
-  const endsAt = releaseStart + VOICE_RELEASE_SECONDS;
+  const releaseStart = now + holdSeconds;
+  const endsAt = releaseStart + releaseSeconds;
+  const stopAt = endsAt + 0.05;
+
+  const node = context.createBufferSource();
+  node.buffer = buffer;
+  node.playbackRate.value = playbackRate;
 
   const noteGain = context.createGain();
   // Short attack avoids clicks when the sample does not start at a zero crossing.
@@ -229,9 +301,9 @@ export function playSample(
   stealGain.connect(output ?? getMasterGain(context));
 
   node.start(now);
-  node.stop(endsAt + 0.05);
+  node.stop(stopAt);
 
-  registerActiveVoice(node, stealGain, endsAt + 0.05, tag);
+  registerActiveVoice(node, stealGain, stopAt, tag);
 }
 
 export async function prepareSamplePlayback(): Promise<void> {

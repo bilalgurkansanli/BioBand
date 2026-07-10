@@ -68,7 +68,18 @@
     "eventCount": "{{count}} nota",
     "eventCount_one": "{{count}} nota",
     "eventCount_other": "{{count}} nota",
-    "audioTrack": "Ses kaydı"
+    "audioTrack": "Ses kaydı",
+    "play": "Kaydı dinle",
+    "stopPlayback": "Dinlemeyi durdur",
+    "playbackError": "Bu kayıt çalınamadı.",
+    "download": "İndir",
+    "share": "Paylaş",
+    "shareTitle": "Kaydı paylaş",
+    "shareUnavailable": "Bu cihazda paylaşım kullanılamıyor.",
+    "shareError": "Kayıt paylaşılamadı.",
+    "downloadSuccessTitle": "Kaydedildi",
+    "downloadSuccessDocuments": "{{fileName}} BioBand Recordings klasörüne kaydedildi.",
+    "downloadError": "Kayıt indirilemedi."
   },
   "recording": {
     "button": "Kayıt",
@@ -150,15 +161,37 @@
       "sustain": "Sustain pedalı",
       "fx": "Efektler",
       "volume": "Ses",
-      "layout": "Klavye düzeni",
-      "dualKeyboard": "Çift klavye",
       "instrument": "Enstrüman",
       "game": "Oyun modu",
-      "menu": "Menü",
-      "fxComingSoon": "Efektler yakında eklenecek.",
-      "layoutComingSoon": "Klavye düzeni seçenekleri yakında.",
-      "dualKeyboardComingSoon": "Çift klavye modu yakında.",
-      "instrumentComingSoon": "Daha fazla piyano sesi yakında."
+      "settings": "Ayarlar"
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "tonePanel": "Ton paneli",
+      "speedHud": "Hız göstergesi",
+      "scaleLights": "Gam ışıkları",
+      "scalePick": "Gam seç",
+      "startTutorial": "Öğreticiyi başlat",
+      "close": "Kapat"
+    },
+    "scale": {
+      "title": "Gam",
+      "subtitle": "Seçilen gamdaki tuşlar hafif yanar.",
+      "off": "Kapalı",
+      "close": "Kapat",
+      "names": {
+        "cMajor": "Do majör",
+        "gMajor": "Sol majör",
+        "dMajor": "Re majör",
+        "aMinor": "La minör",
+        "eMinor": "Mi minör",
+        "cPentatonic": "Do pentatonik"
+      }
+    },
+    "metronome": {
+      "title": "Metronom",
+      "bpm": "BPM",
+      "close": "Kapat"
     },
     "volume": {
       "title": "Ses",
