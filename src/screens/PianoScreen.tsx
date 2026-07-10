@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,13 +9,16 @@ import { RecordingBanner } from '../components/instrument/RecordingBanner';
 import { getMasterVolume, setMasterVolume } from '../audio/sampleBank';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoKeyboard } from '../components/piano/PianoKeyboard';
+import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoNavigator } from '../components/piano/PianoNavigator';
+import { PianoSettingsModal } from '../components/piano/PianoSettingsModal';
 import { PianoToolbar } from '../components/piano/PianoToolbar';
 import { PianoTutorialModal } from '../components/piano/PianoTutorialModal';
 import { PianoVoiceModal } from '../components/piano/PianoVoiceModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { PlayAlongHud } from '../components/piano/PlayAlongHud';
 import { PlayAlongModal } from '../components/piano/PlayAlongModal';
+import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { TutorialBanner } from '../components/piano/TutorialBanner';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
@@ -23,6 +26,7 @@ import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
 import { usePianoTutorial } from '../hooks/usePianoTutorial';
+import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import {
   applyPianoFxSettings,
@@ -30,7 +34,22 @@ import {
   isAnyPianoFxEnabled,
   type PianoFxSettings,
 } from '../instruments/piano/pianoFx';
+import {
+  getMetronomeBpm,
+  METRONOME_BPM_DEFAULT,
+  startMetronome,
+  stopMetronome,
+} from '../instruments/piano/pianoMetronome';
+import {
+  getScaleNoteIds,
+  type PianoScaleId,
+} from '../instruments/piano/pianoScales';
 import { getPianoVoice, type PianoVoiceId } from '../instruments/piano/pianoVoices';
+import {
+  DEFAULT_PIANO_UI_SETTINGS,
+  loadPianoUiSettings,
+  savePianoUiSettings,
+} from '../storage/pianoSettingsStorage';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList } from '../types/navigation';
 
@@ -44,10 +63,72 @@ export function PianoScreen({ navigation }: Props) {
   const tone = usePianoTone();
   const [voiceId, setVoiceId] = useState<PianoVoiceId>('acoustic');
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
-  const { ready, error, playNote } = usePianoEngine(tone.semitoneOffset, voiceId);
+  const { ready, error, playNote, noteOn, noteOff, setSustainPedal } = usePianoEngine(
+    tone.semitoneOffset,
+    voiceId,
+  );
   const [keyboardSize, setKeyboardSize] = useState({ width: 0, height: 0 });
   const [metronomeOn, setMetronomeOn] = useState(false);
+  const [metronomeModalVisible, setMetronomeModalVisible] = useState(false);
+  const [metronomeBpm, setMetronomeBpmState] = useState(
+    () => getMetronomeBpm() || METRONOME_BPM_DEFAULT,
+  );
   const [sustainOn, setSustainOn] = useState(false);
+  const [showTonePanel, setShowTonePanel] = useState(
+    DEFAULT_PIANO_UI_SETTINGS.showTonePanel,
+  );
+  const [showSpeedHud, setShowSpeedHud] = useState(
+    DEFAULT_PIANO_UI_SETTINGS.showSpeedHud,
+  );
+  const [scaleId, setScaleId] = useState<PianoScaleId | null>(
+    DEFAULT_PIANO_UI_SETTINGS.scaleId,
+  );
+  const [lastScaleId, setLastScaleId] = useState<PianoScaleId>('cMajor');
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed();
+
+  const scaleNoteIds = useMemo(
+    () => (scaleId ? getScaleNoteIds(scaleId) : null),
+    [scaleId],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadPianoUiSettings().then((settings) => {
+      if (cancelled) {
+        return;
+      }
+      setShowTonePanel(settings.showTonePanel);
+      setShowSpeedHud(settings.showSpeedHud);
+      setScaleId(settings.scaleId);
+      if (settings.scaleId) {
+        setLastScaleId(settings.scaleId);
+      }
+      setSettingsHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!settingsHydrated) {
+      return;
+    }
+    void savePianoUiSettings({
+      showTonePanel,
+      showSpeedHud,
+      scaleId,
+    });
+  }, [settingsHydrated, showTonePanel, showSpeedHud, scaleId]);
+
+  const handleScaleIdChange = useCallback((next: PianoScaleId | null) => {
+    setScaleId(next);
+    if (next) {
+      setLastScaleId(next);
+    }
+  }, []);
 
   const voice = getPianoVoice(voiceId);
 
@@ -119,6 +200,12 @@ export function PianoScreen({ navigation }: Props) {
     }
   }, [ready, applyFxNow]);
 
+  useEffect(() => {
+    return () => {
+      stopMetronome();
+    };
+  }, []);
+
   const handleOpenFx = useCallback(() => {
     applyFxNow(fxSettingsRef.current);
     setFxModalVisible(true);
@@ -128,6 +215,29 @@ export function PianoScreen({ navigation }: Props) {
     setVolume(nextVolume);
     setMasterVolume(nextVolume);
   }, []);
+
+  const handleMetronomePress = useCallback(() => {
+    if (metronomeOn) {
+      stopMetronome();
+      setMetronomeOn(false);
+      return;
+    }
+    startMetronome(metronomeBpm);
+    setMetronomeOn(true);
+    setMetronomeModalVisible(true);
+  }, [metronomeOn, metronomeBpm]);
+
+  const handleMetronomeBpmChange = useCallback((bpm: number) => {
+    setMetronomeBpmState(bpm);
+  }, []);
+
+  const handleSustainPress = useCallback(() => {
+    setSustainOn((current) => {
+      const next = !current;
+      setSustainPedal(next);
+      return next;
+    });
+  }, [setSustainPedal]);
 
   const {
     songs,
@@ -155,7 +265,7 @@ export function PianoScreen({ navigation }: Props) {
     setKeyboardSize({ width, height });
   };
 
-  const onNotePress = useCallback(
+  const onNotePressIn = useCallback(
     (noteId: NoteId) => {
       captureEvent(noteId);
 
@@ -164,30 +274,36 @@ export function PianoScreen({ navigation }: Props) {
         return;
       }
 
-      handleNotePress(noteId);
+      // Tutorial practice/watch use one-shot playNote — not interactive hold.
+      if (phase === 'practice' || phase === 'watching') {
+        handleNotePress(noteId);
+        return;
+      }
+
+      recordNoteOn();
+      noteOn(noteId);
     },
-    [captureEvent, handleNotePress, playAlong],
+    [captureEvent, handleNotePress, noteOn, phase, playAlong, recordNoteOn],
   );
 
-  const showComingSoon = useCallback(
-    (featureKey: string) => {
-      Alert.alert(t('piano.comingSoonTitle'), t(featureKey));
+  const onNotePressOut = useCallback(
+    (noteId: NoteId) => {
+      if (playAlong.isActive || phase === 'practice' || phase === 'watching') {
+        return;
+      }
+      noteOff(noteId);
     },
-    [t],
+    [noteOff, phase, playAlong.isActive],
   );
 
-  const handleMenuPress = useCallback(() => {
-    Alert.alert(t('piano.toolbar.menu'), undefined, [
-      {
-        text: t('tutorial.start'),
-        onPress: () => {
-          playAlong.close();
-          openTutorial();
-        },
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
-  }, [openTutorial, playAlong, t]);
+  const handleSettingsPress = useCallback(() => {
+    setSettingsModalVisible(true);
+  }, []);
+
+  const handleStartTutorialFromSettings = useCallback(() => {
+    playAlong.close();
+    openTutorial();
+  }, [openTutorial, playAlong]);
 
   const handleGamePress = useCallback(() => {
     closeTutorial();
@@ -199,6 +315,12 @@ export function PianoScreen({ navigation }: Props) {
     playAlong.phase === 'pickSong' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
+
+  const hideSpeedHud =
+    phase === 'watching' ||
+    playAlong.phase === 'countdown' ||
+    playAlong.phase === 'demo' ||
+    playAlong.phase === 'playing';
 
   return (
     <View
@@ -214,37 +336,50 @@ export function PianoScreen({ navigation }: Props) {
       ]}
     >
       <PianoToolbar
+        fxOn={isAnyPianoFxEnabled(fxSettings)}
+        instrumentAccent={voice.theme.accent}
         isRecording={isRecording}
         metronomeOn={metronomeOn}
         onBack={() => navigation.goBack()}
-        onDualKeyboardPress={() => showComingSoon('piano.toolbar.dualKeyboardComingSoon')}
         onFxPress={handleOpenFx}
-        fxOn={isAnyPianoFxEnabled(fxSettings)}
-        instrumentAccent={voice.theme.accent}
         onGamePress={handleGamePress}
         onInstrumentPress={() => setVoiceModalVisible(true)}
-        onLayoutPress={() => showComingSoon('piano.toolbar.layoutComingSoon')}
-        onMenuPress={handleMenuPress}
-        onMetronomePress={() => setMetronomeOn((current) => !current)}
+        onMetronomeLongPress={() => {
+          if (metronomeOn) {
+            setMetronomeModalVisible(true);
+          }
+        }}
+        onMetronomePress={handleMetronomePress}
         onRecordPress={handleRecordPress}
-        onSustainPress={() => setSustainOn((current) => !current)}
+        onSettingsPress={handleSettingsPress}
+        onSustainPress={handleSustainPress}
         onVolumePress={() => setVolumeModalVisible(true)}
         sustainOn={sustainOn}
         volume={volume}
       />
 
-      <PianoNavigator
-        canStepThicker={tone.canStepThicker}
-        canStepThinner={tone.canStepThinner}
-        onJumpCenter={tone.jumpCenter}
-        onJumpHigh={tone.jumpHigh}
-        onJumpLow={tone.jumpLow}
-        onStepThicker={tone.stepThicker}
-        onStepThinner={tone.stepThinner}
-        onToneChange={tone.setTonePosition}
-        semitoneOffset={tone.semitoneOffset}
-        tonePosition={tone.tonePosition}
-      />
+      {showTonePanel ? (
+        <PianoNavigator
+          canStepThicker={tone.canStepThicker}
+          canStepThinner={tone.canStepThinner}
+          onJumpCenter={tone.jumpCenter}
+          onJumpHigh={tone.jumpHigh}
+          onJumpLow={tone.jumpLow}
+          onStepThicker={tone.stepThicker}
+          onStepThinner={tone.stepThinner}
+          onToneChange={tone.setTonePosition}
+          semitoneOffset={tone.semitoneOffset}
+          tonePosition={tone.tonePosition}
+        />
+      ) : null}
+
+      {showSpeedHud ? (
+        <PlaySpeedHud
+          maxNotesPerSec={maxNotesPerSec}
+          notesPerSec={notesPerSec}
+          visible={!hideSpeedHud}
+        />
+      ) : null}
 
       <RecordingBanner isRecording={isRecording} mode={mode} />
 
@@ -272,7 +407,9 @@ export function PianoScreen({ navigation }: Props) {
             demoNoteId={demoNoteId}
             guideNoteId={playAlong.guideNoteId ?? guideNoteId}
             height={keyboardSize.height}
-            onNotePressIn={onNotePress}
+            onNotePressIn={onNotePressIn}
+            onNotePressOut={onNotePressOut}
+            scaleNoteIds={scaleNoteIds}
             theme={voice.theme}
             width={keyboardSize.width}
           />
@@ -321,6 +458,26 @@ export function PianoScreen({ navigation }: Props) {
         onClose={() => setVolumeModalVisible(false)}
         visible={volumeModalVisible && !isPortrait}
         volume={volume}
+      />
+
+      <PianoMetronomeModal
+        bpm={metronomeBpm}
+        onChangeBpm={handleMetronomeBpmChange}
+        onClose={() => setMetronomeModalVisible(false)}
+        visible={metronomeModalVisible && !isPortrait}
+      />
+
+      <PianoSettingsModal
+        lastScaleId={lastScaleId}
+        onChangeScaleId={handleScaleIdChange}
+        onChangeShowSpeedHud={setShowSpeedHud}
+        onChangeShowTonePanel={setShowTonePanel}
+        onClose={() => setSettingsModalVisible(false)}
+        onStartTutorial={handleStartTutorialFromSettings}
+        scaleId={scaleId}
+        showSpeedHud={showSpeedHud}
+        showTonePanel={showTonePanel}
+        visible={settingsModalVisible && !isPortrait}
       />
 
       <LandscapeOverlay

@@ -19,13 +19,12 @@ type PianoToolbarProps = {
   onBack: () => void;
   onRecordPress: () => void;
   onMetronomePress: () => void;
+  onMetronomeLongPress?: () => void;
   onSustainPress: () => void;
   onFxPress: () => void;
   onVolumePress: () => void;
-  onLayoutPress: () => void;
-  onDualKeyboardPress: () => void;
   onInstrumentPress: () => void;
-  onMenuPress: () => void;
+  onSettingsPress: () => void;
   onGamePress: () => void;
 };
 
@@ -33,6 +32,7 @@ type IconButtonProps = {
   icon: ToolbarIcon;
   label: string;
   onPress: () => void;
+  onLongPress?: () => void;
   active?: boolean;
   accent?: 'record' | 'game' | 'default';
   disabled?: boolean;
@@ -43,6 +43,7 @@ function IconButton({
   icon,
   label,
   onPress,
+  onLongPress,
   active = false,
   accent = 'default',
   disabled = false,
@@ -66,6 +67,7 @@ function IconButton({
       accessibilityRole="button"
       disabled={disabled}
       hitSlop={4}
+      onLongPress={onLongPress}
       onPress={onPress}
       style={({ pressed }) => [
         styles.iconButton,
@@ -104,13 +106,12 @@ export function PianoToolbar({
   onBack,
   onRecordPress,
   onMetronomePress,
+  onMetronomeLongPress,
   onSustainPress,
   onFxPress,
   onVolumePress,
-  onLayoutPress,
-  onDualKeyboardPress,
   onInstrumentPress,
-  onMenuPress,
+  onSettingsPress,
   onGamePress,
 }: PianoToolbarProps) {
   const { t } = useTranslation();
@@ -126,6 +127,7 @@ export function PianoToolbar({
         active={metronomeOn}
         icon="pulse-outline"
         label={t('piano.toolbar.metronome')}
+        onLongPress={onMetronomeLongPress}
         onPress={onMetronomePress}
       />
       <IconButton
@@ -155,16 +157,6 @@ export function PianoToolbar({
         onPress={onVolumePress}
       />
       <IconButton
-        icon="grid-outline"
-        label={t('piano.toolbar.layout')}
-        onPress={onLayoutPress}
-      />
-      <IconButton
-        icon="albums-outline"
-        label={t('piano.toolbar.dualKeyboard')}
-        onPress={onDualKeyboardPress}
-      />
-      <IconButton
         colorOverride={instrumentAccent}
         icon="musical-notes-outline"
         label={t('piano.toolbar.instrument')}
@@ -177,9 +169,9 @@ export function PianoToolbar({
         onPress={onGamePress}
       />
       <IconButton
-        icon="menu-outline"
-        label={t('piano.toolbar.menu')}
-        onPress={onMenuPress}
+        icon="settings-outline"
+        label={t('piano.toolbar.settings')}
+        onPress={onSettingsPress}
       />
     </View>
   );

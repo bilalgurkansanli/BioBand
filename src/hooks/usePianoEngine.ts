@@ -3,10 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 
 import {
   initPianoEngine,
+  noteOff as engineNoteOff,
+  noteOn as engineNoteOn,
   playNote as enginePlayNote,
   releasePianoEngine,
   setPianoToneOffset,
   setPianoVoice,
+  setSustainPedal as engineSetSustainPedal,
 } from '../instruments/piano/pianoEngine';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import type { PianoVoiceId } from '../instruments/piano/pianoVoices';
@@ -54,6 +57,7 @@ export function usePianoEngine(
     }, []),
   );
 
+  /** One-shot (tutorial / play-along demos). */
   const playNote = useCallback(
     (noteId: NoteId) => {
       enginePlayNote(noteId, toneOffsetSemitones, voiceId);
@@ -61,5 +65,24 @@ export function usePianoEngine(
     [toneOffsetSemitones, voiceId],
   );
 
-  return { ready, error, playNote };
+  /** Interactive finger press — held until noteOff / sustain release. */
+  const noteOn = useCallback(
+    (noteId: NoteId) => {
+      engineNoteOn(noteId, toneOffsetSemitones, voiceId);
+    },
+    [toneOffsetSemitones, voiceId],
+  );
+
+  const noteOff = useCallback(
+    (noteId: NoteId) => {
+      engineNoteOff(noteId, voiceId);
+    },
+    [voiceId],
+  );
+
+  const setSustainPedal = useCallback((on: boolean) => {
+    engineSetSustainPedal(on);
+  }, []);
+
+  return { ready, error, playNote, noteOn, noteOff, setSustainPedal };
 }

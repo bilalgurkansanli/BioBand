@@ -5,12 +5,16 @@ import { useTranslation } from 'react-i18next';
 import { RecordingCard } from '../components/recordings/RecordingCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { useRecordingActions } from '../hooks/useRecordingActions';
+import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { colors } from '../theme/colors';
 
 export function RecordingsScreen() {
   const { t } = useTranslation();
   const { recordings, loading } = useRecordings();
+  const { playingId, loadingId, play } = useRecordingPlayback();
+  const { busyId, share, download } = useRecordingActions();
 
   return (
     <ScreenContainer style={styles.container}>
@@ -35,7 +39,17 @@ export function RecordingsScreen() {
             contentContainerStyle={styles.listContent}
             data={recordings}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => <RecordingCard recording={item} />}
+            renderItem={({ item }) => (
+              <RecordingCard
+                isBusy={busyId === item.id}
+                isLoading={loadingId === item.id}
+                isPlaying={playingId === item.id}
+                onDownloadPress={() => void download(item)}
+                onPlayPress={() => void play(item)}
+                onSharePress={() => void share(item)}
+                recording={item}
+              />
+            )}
             showsVerticalScrollIndicator={false}
           />
         </>

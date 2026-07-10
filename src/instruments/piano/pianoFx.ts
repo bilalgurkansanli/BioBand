@@ -5,11 +5,13 @@ import { getMasterInput, getSharedAudioContext } from '../../audio/sampleBank';
 //
 //   voiceBus ─→ dry ──────────────────┐
 //   voiceBus ─→ drive → shaper → tone ┴→ post ─→ master
-//                                      post ─→ convolver → wet → master  (+reverb)
 //
-// Echo does NOT use DelayNode — react-native-audio-api's DelayNode is broken
-// on Android (no real delay, dry path corruption). Echo is scheduled as
-// quieter note re-triggers in pianoEngine via getPianoEchoPlayback().
+// Reverb does NOT use ConvolverNode. On react-native-audio-api, convolution
+// (and any dry+wet branch from one node — #1000) causes crackle / underruns.
+// Reverb is scheduled as short, quieter multi-tap re-triggers — same pattern
+// as echo, denser and earlier for a room-like wash.
+//
+// Echo does NOT use DelayNode — DelayNode is broken on Android.
 
 export type PianoFxSettings = {
   distortion: { enabled: boolean; lowPassHz: number; intensity: number };
@@ -28,7 +30,7 @@ export type PianoEchoPlayback = {
 
 export const PIANO_FX_DEFAULTS: PianoFxSettings = {
   distortion: { enabled: false, lowPassHz: 8000, intensity: 0.3 },
-  reverb: { enabled: false, timeSeconds: 1.2, mix: 0.35 },
+  reverb: { enabled: false, timeSeconds: 1.2, mix: 0.55 },
   // Classic: dry first, then quieter delayed repeats (~380ms).
   echo: { enabled: false, delayMs: 380, feedback: 0.35, mix: 0.4 },
 };
@@ -37,7 +39,7 @@ export const PIANO_FX_RANGES = {
   lowPassHz: { min: 500, max: 10000 },
   intensity: { min: 0, max: 1 },
   timeSeconds: { min: 0.3, max: 3 },
-  mix: { min: 0, max: 0.6 },
+  mix: { min: 0, max: 1.0 },
   delayMs: { min: 120, max: 900 },
   feedback: { min: 0, max: 1 },
   echoMix: { min: 0, max: 1 },
@@ -48,8 +50,15 @@ const ECHO_FIRST_REPEAT_MAX = 0.5;
 const ECHO_FEEDBACK_MAX = 0.75;
 const ECHO_MAX_REPEATS = 5;
 
+/**
+ * Multi-tap reverb: audible early reflections + decaying wash.
+ * Delays scale with timeSeconds; levels scale with mix. No ConvolverNode.
+ */
+const REVERB_TAP_DELAY_RATIOS = [0.08, 0.14, 0.22, 0.32, 0.45, 0.62] as const;
+const REVERB_TAP_LEVELS = [0.42, 0.32, 0.24, 0.18, 0.13, 0.09] as const;
+const REVERB_FIRST_TAP_MAX = 0.38;
+
 const GAIN_RAMP_SECONDS = 0.02;
-const POST_TRIM_WET = 0.7;
 
 function cloneSettings(settings: PianoFxSettings): PianoFxSettings {
   return {
@@ -63,7 +72,6 @@ let currentSettings: PianoFxSettings = cloneSettings(PIANO_FX_DEFAULTS);
 
 type AudioContextT = ReturnType<typeof getSharedAudioContext>;
 type BiquadFilterNode = ReturnType<AudioContextT['createBiquadFilter']>;
-type ConvolverNode = ReturnType<AudioContextT['createConvolver']>;
 
 type FxGraph = {
   voiceBus: GainNode;
@@ -72,24 +80,18 @@ type FxGraph = {
   distDrive: GainNode | null;
   distFilter: BiquadFilterNode | null;
   distWet: GainNode | null;
-  convolver: ConvolverNode | null;
-  reverbWet: GainNode | null;
   bypassed: boolean;
 };
 
 let graph: FxGraph | null = null;
 let distortionFailed = false;
-let reverbFailed = false;
-let impulseSeconds = 0;
 
-// Delay between fading the reverb tail to silence and physically removing the
-// convolver from the graph. Long enough for the wet fade to finish so the tail
-// does not cut with a click.
-const REVERB_TEARDOWN_MS = 220;
-let reverbTeardownTimer: ReturnType<typeof setTimeout> | null = null;
+const DISTORTION_TEARDOWN_MS = 220;
+let distortionTeardownTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Pending echo re-triggers — cleared when echo is turned off or engine releases. */
+/** Pending echo / reverb re-triggers — cleared when FX off or engine releases. */
 const echoTimers = new Set<ReturnType<typeof setTimeout>>();
+const reverbTimers = new Set<ReturnType<typeof setTimeout>>();
 
 function disconnectSafe(node: { disconnect: () => void } | null | undefined): void {
   if (!node) {
@@ -138,37 +140,6 @@ function buildDistortionCurve(): Float32Array {
     curve[i] = Math.tanh(2.5 * x);
   }
   return curve;
-}
-
-function buildImpulseBuffer(seconds: number) {
-  const context = getSharedAudioContext();
-  const rate = context.sampleRate;
-  const length = Math.max(Math.floor(rate * 0.1), Math.floor(rate * seconds));
-  const impulse = context.createBuffer(2, length, rate);
-
-  // A raw white-noise tail convolves into a harsh, metallic "sssh". Two things
-  // tame it into a natural room: a one-pole lowpass smooths the noise into a
-  // warmer diffuse tail, and a short fade-in removes the click from a hard
-  // onset at t=0. Decay is a smooth exponential so it dies away, not cuts off.
-  const attack = Math.max(1, Math.floor(rate * 0.006));
-
-  for (let channel = 0; channel < 2; channel++) {
-    const data = new Float32Array(length);
-    let lowpassed = 0;
-    for (let i = 0; i < length; i++) {
-      const white = Math.random() * 2 - 1;
-      lowpassed += 0.4 * (white - lowpassed);
-      const decay = (1 - i / length) ** 3;
-      let sample = lowpassed * decay;
-      if (i < attack) {
-        sample *= i / attack;
-      }
-      data[i] = sample;
-    }
-    impulse.copyToChannel(data, channel);
-  }
-
-  return impulse;
 }
 
 function disconnectFrom(
@@ -223,8 +194,6 @@ function ensureGraph(): FxGraph {
     distDrive: null,
     distFilter: null,
     distWet: null,
-    convolver: null,
-    reverbWet: null,
     bypassed: false,
   };
 
@@ -232,55 +201,39 @@ function ensureGraph(): FxGraph {
   return graph;
 }
 
-function cancelReverbTeardown(): void {
-  if (reverbTeardownTimer) {
-    clearTimeout(reverbTeardownTimer);
-    reverbTeardownTimer = null;
+function cancelDistortionTeardown(): void {
+  if (distortionTeardownTimer) {
+    clearTimeout(distortionTeardownTimer);
+    distortionTeardownTimer = null;
   }
 }
 
-/**
- * Physically remove the convolver + wet gain from the live graph. Leaving the
- * convolver connected (even at wet gain 0) corrupts the dry path on
- * react-native-audio-api — the same class of bug that forced echo off
- * DelayNode — so reverb must be fully detached when disabled, not just muted.
- */
-function tearDownReverbStage(g: FxGraph): void {
-  cancelReverbTeardown();
-  disconnectFrom(g.post, g.convolver);
-  disconnectSafe(g.convolver);
-  disconnectSafe(g.reverbWet);
-  g.convolver = null;
-  g.reverbWet = null;
-  impulseSeconds = 0;
-}
-
-/** Fade already done by the caller — remove the convolver shortly after. */
-function scheduleReverbTeardown(g: FxGraph): void {
-  if (!g.convolver && !g.reverbWet) {
-    return;
-  }
-  cancelReverbTeardown();
-  reverbTeardownTimer = setTimeout(() => {
-    reverbTeardownTimer = null;
-    if (graph && !currentSettings.reverb.enabled) {
-      tearDownReverbStage(graph);
-    }
-  }, REVERB_TEARDOWN_MS);
-}
-
-function tearDownWetStages(g: FxGraph): void {
+function tearDownDistortionStage(g: FxGraph): void {
+  cancelDistortionTeardown();
   disconnectFrom(g.voiceBus, g.distDrive);
-
   disconnectSafe(g.distDrive);
   disconnectSafe(g.distFilter);
   disconnectSafe(g.distWet);
-
   g.distDrive = null;
   g.distFilter = null;
   g.distWet = null;
+}
 
-  tearDownReverbStage(g);
+function scheduleDistortionTeardown(g: FxGraph): void {
+  if (!g.distDrive && !g.distWet) {
+    return;
+  }
+  cancelDistortionTeardown();
+  distortionTeardownTimer = setTimeout(() => {
+    distortionTeardownTimer = null;
+    if (graph && !currentSettings.distortion.enabled) {
+      tearDownDistortionStage(graph);
+    }
+  }, DISTORTION_TEARDOWN_MS);
+}
+
+function tearDownWetStages(g: FxGraph): void {
+  tearDownDistortionStage(g);
 }
 
 /** Cancel pending delayed echo repeats (echo off / leave piano). */
@@ -289,6 +242,14 @@ export function clearPianoEchoTimers(): void {
     clearTimeout(timer);
   }
   echoTimers.clear();
+}
+
+/** Cancel pending reverb taps (reverb off / leave piano). */
+export function clearPianoReverbTimers(): void {
+  for (const timer of reverbTimers) {
+    clearTimeout(timer);
+  }
+  reverbTimers.clear();
 }
 
 /**
@@ -339,8 +300,57 @@ export function schedulePianoEchoRepeats(
   }
 }
 
+/**
+ * Schedule dense early-reflection taps for a room-like wash without
+ * ConvolverNode. `playTap(gainScale, tapIndex)` must use a unique tag and
+ * preferably a short voice tail to protect polyphony.
+ */
+export function schedulePianoReverbTaps(
+  playTap: (gainScale: number, tapIndex: number) => void,
+): void {
+  const { reverb } = currentSettings;
+  if (!reverb.enabled) {
+    return;
+  }
+
+  const mix = clamp(reverb.mix, 0, 1);
+  if (mix < 0.02) {
+    return;
+  }
+
+  const timeSeconds = clamp(
+    reverb.timeSeconds,
+    PIANO_FX_RANGES.timeSeconds.min,
+    PIANO_FX_RANGES.timeSeconds.max,
+  );
+
+  for (let i = 0; i < REVERB_TAP_DELAY_RATIOS.length; i++) {
+    // Minimum spacing so taps never collapse into the dry attack.
+    const delayMs = Math.max(
+      35 + i * 28,
+      Math.round(REVERB_TAP_DELAY_RATIOS[i] * timeSeconds * 1000),
+    );
+    const level = Math.min(REVERB_FIRST_TAP_MAX, REVERB_TAP_LEVELS[i] * mix);
+    if (level < 0.025) {
+      continue;
+    }
+
+    const tapIndex = i;
+    const thisLevel = level;
+    const timer = setTimeout(() => {
+      reverbTimers.delete(timer);
+      if (!currentSettings.reverb.enabled) {
+        return;
+      }
+      playTap(thisLevel, tapIndex);
+    }, delayMs);
+    reverbTimers.add(timer);
+  }
+}
+
 export function resetPianoFx(): void {
   clearPianoEchoTimers();
+  clearPianoReverbTimers();
 
   if (graph) {
     tearDownWetStages(graph);
@@ -351,7 +361,6 @@ export function resetPianoFx(): void {
   }
 
   distortionFailed = false;
-  reverbFailed = false;
   currentSettings = cloneSettings(PIANO_FX_DEFAULTS);
 }
 
@@ -386,52 +395,21 @@ function ensureDistortionStage(g: FxGraph): void {
   }
 }
 
-function ensureReverbStage(g: FxGraph): void {
-  if (g.reverbWet || reverbFailed || g.bypassed) {
-    return;
-  }
-
-  try {
-    const context = getSharedAudioContext();
-    const convolver = context.createConvolver();
-    convolver.normalize = true;
-    impulseSeconds = currentSettings.reverb.timeSeconds;
-    convolver.buffer = buildImpulseBuffer(impulseSeconds);
-    const wet = context.createGain();
-    wet.gain.value = 0;
-
-    g.post.connect(convolver);
-    convolver.connect(wet);
-    wet.connect(getMasterInput());
-
-    g.convolver = convolver;
-    g.reverbWet = wet;
-  } catch (error) {
-    reverbFailed = true;
-    console.warn('Piano FX: reverb unavailable', error);
-  }
-}
-
 function applyToGraph(g: FxGraph, settings: PianoFxSettings): void {
   if (g.bypassed) {
     return;
   }
 
   const now = getSharedAudioContext().currentTime;
-  const { distortion, reverb } = settings;
+  const { distortion } = settings;
 
   rampGain(g.dry, 1, now);
+  rampGain(g.post, 1, now);
 
   if (distortion.enabled) {
+    cancelDistortionTeardown();
     ensureDistortionStage(g);
   }
-  if (reverb.enabled && !reverbFailed) {
-    cancelReverbTeardown();
-    ensureReverbStage(g);
-  }
-
-  const reverbActive = reverb.enabled && !!g.reverbWet && !reverbFailed;
-  rampGain(g.post, reverbActive ? POST_TRIM_WET : 1, now);
 
   if (distortion.enabled && g.distWet && g.distDrive) {
     const drive = 1 + distortion.intensity * 4;
@@ -444,28 +422,9 @@ function applyToGraph(g: FxGraph, settings: PianoFxSettings): void {
     g.distFilter.frequency.value = distortion.lowPassHz;
   }
 
-  if (
-    reverb.enabled &&
-    g.convolver &&
-    Math.abs(reverb.timeSeconds - impulseSeconds) > 0.05
-  ) {
-    try {
-      impulseSeconds = reverb.timeSeconds;
-      g.convolver.buffer = buildImpulseBuffer(impulseSeconds);
-    } catch (error) {
-      console.warn('Piano FX: reverb impulse rebuild failed', error);
-    }
-  }
-  if (g.reverbWet) {
-    const mix = Math.min(reverb.mix, PIANO_FX_RANGES.mix.max);
-    rampGain(g.reverbWet, reverbActive ? mix : 0, now);
-  }
-
-  // Reverb off: fade the tail (above), then detach the convolver so it cannot
-  // corrupt the dry piano path. Without this the piano goes silent after the
-  // user turns reverb off.
-  if (!reverb.enabled || reverbFailed) {
-    scheduleReverbTeardown(g);
+  // WaveShaper left attached mutes the graph on this library — tear down.
+  if (!distortion.enabled || distortionFailed) {
+    scheduleDistortionTeardown(g);
   }
 }
 
@@ -475,11 +434,14 @@ export function getPianoFxInput(): GainNode {
 
 export function applyPianoFxSettings(settings: PianoFxSettings): void {
   const wasEchoOn = currentSettings.echo.enabled;
+  const wasReverbOn = currentSettings.reverb.enabled;
   currentSettings = cloneSettings(settings);
 
-  // Turning echo off cancels pending delayed repeats immediately.
   if (wasEchoOn && !currentSettings.echo.enabled) {
     clearPianoEchoTimers();
+  }
+  if (wasReverbOn && !currentSettings.reverb.enabled) {
+    clearPianoReverbTimers();
   }
 
   try {

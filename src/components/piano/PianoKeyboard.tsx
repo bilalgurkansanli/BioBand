@@ -71,6 +71,8 @@ type PianoKeyboardProps = {
   enableSound?: boolean;
   guideNoteId?: NoteId | null;
   demoNoteId?: NoteId | null;
+  /** Notes belonging to the selected scale (soft highlight). */
+  scaleNoteIds?: ReadonlySet<NoteId> | null;
   theme?: PianoKeyboardTheme;
 };
 
@@ -82,6 +84,7 @@ export function PianoKeyboard({
   enableSound = true,
   guideNoteId = null,
   demoNoteId = null,
+  scaleNoteIds = null,
   theme = DEFAULT_THEME,
 }: PianoKeyboardProps) {
   const { whiteKeyWidth, whiteKeyHeight, blackKeyWidth, blackKeyHeight, keyboardWidth, keyLayout } =
@@ -205,6 +208,7 @@ export function PianoKeyboard({
               isBlackKey={false}
               isDemo={demoNoteId === note.id}
               isGuide={guideNoteId === note.id}
+              isInScale={scaleNoteIds?.has(note.id) ?? false}
               keyColors={theme.keys}
               letterLabel={note.label}
               noteId={note.id}
@@ -228,6 +232,7 @@ export function PianoKeyboard({
                 isBlackKey
                 isDemo={demoNoteId === note.id}
                 isGuide={guideNoteId === note.id}
+                isInScale={scaleNoteIds?.has(note.id) ?? false}
                 keyColors={theme.keys}
                 letterLabel={note.label}
                 noteId={note.id}

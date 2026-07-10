@@ -22,6 +22,8 @@ type PianoKeyProps = {
   isActive: boolean;
   isGuide?: boolean;
   isDemo?: boolean;
+  /** Soft highlight when note is in the selected scale. */
+  isInScale?: boolean;
   width: number;
   height: number;
   badgeColorLow?: string;
@@ -62,6 +64,7 @@ export function PianoKey({
   isActive,
   isGuide = false,
   isDemo = false,
+  isInScale = false,
   width,
   height,
   badgeColorLow = '#8BC34A',
@@ -69,6 +72,7 @@ export function PianoKey({
   keyColors = DEFAULT_KEY_COLORS,
 }: PianoKeyProps) {
   const octave = getOctave(noteId);
+  const showScaleTint = isInScale && !isGuide && !isDemo && !isActive;
 
   return (
     <View
@@ -83,6 +87,8 @@ export function PianoKey({
               borderBottomColor: keyColors.whiteBottomBorder,
             },
         { width, height },
+        showScaleTint && !isBlackKey && styles.scaleWhiteKey,
+        showScaleTint && isBlackKey && styles.scaleBlackKey,
         isGuide && styles.guideKey,
         isDemo && !isBlackKey && styles.demoKey,
         isActive && {
@@ -91,6 +97,7 @@ export function PianoKey({
       ]}
     >
       {isBlackKey ? <View style={styles.blackKeyHighlight} /> : null}
+      {showScaleTint && isBlackKey ? <View style={styles.scaleBlackStripe} /> : null}
 
       <View style={[styles.labelGroup, isBlackKey && styles.blackLabelGroup]}>
         <Text
@@ -115,6 +122,7 @@ export function PianoKey({
                   badgeColorLow,
                   badgeColorHigh,
                 ),
+            showScaleTint && !isBlackKey && styles.scaleBadge,
           ]}
         >
           <Text style={[styles.labelText, isBlackKey && styles.blackBadgeText]}>{letterLabel}</Text>
@@ -191,6 +199,24 @@ const styles = StyleSheet.create({
   demoKey: {
     backgroundColor: '#E8E0FF',
     borderColor: colors.accent,
+  },
+  scaleWhiteKey: {
+    backgroundColor: '#E8F5E9',
+    borderBottomColor: '#A5D6A7',
+  },
+  scaleBlackKey: {
+    borderTopColor: '#81C784',
+  },
+  scaleBlackStripe: {
+    backgroundColor: 'rgba(129, 199, 132, 0.55)',
+    height: 3,
+    left: '12%',
+    position: 'absolute',
+    right: '12%',
+    top: 2,
+  },
+  scaleBadge: {
+    backgroundColor: '#66BB6A',
   },
   labelGroup: {
     alignItems: 'center',
