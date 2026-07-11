@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
 import { HorizontalSlider } from './HorizontalSlider';
+import { ModalChromeHeader } from './ModalChromeHeader';
 
 const ACCENT = '#66BB6A';
 const PRESETS = [0.25, 0.5, 0.75, 1];
@@ -45,7 +46,11 @@ export function PianoVolumeModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>{t('piano.volume.title')}</Text>
+          <ModalChromeHeader
+            closeLabel={t('piano.volume.close')}
+            onClose={onClose}
+            title={t('piano.volume.title')}
+          />
 
           <View style={styles.valueRow}>
             <Ionicons
@@ -95,13 +100,6 @@ export function PianoVolumeModal({
               );
             })}
           </View>
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeButtonText}>{t('piano.volume.close')}</Text>
-          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -124,13 +122,6 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     padding: 20,
     width: '100%',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 10,
-    textAlign: 'center',
   },
   valueRow: {
     alignItems: 'center',
@@ -178,15 +169,6 @@ const styles = StyleSheet.create({
   },
   presetTextActive: {
     color: ACCENT,
-  },
-  closeButton: {
-    marginTop: 14,
-    paddingVertical: 8,
-  },
-  closeButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
   },
   pressed: {
     opacity: 0.75,

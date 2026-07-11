@@ -53,7 +53,8 @@
       ],
       "react-native-audio-api",
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      "expo-document-picker"
     ],
     "extra": {
       "eas": {

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -17,6 +16,7 @@ import {
 } from '../../instruments/piano/pianoFx';
 import { colors } from '../../theme/colors';
 import { HorizontalSlider } from './HorizontalSlider';
+import { ModalChromeHeader } from './ModalChromeHeader';
 
 const FX_COMMIT_DEBOUNCE_MS = 80;
 
@@ -108,7 +108,7 @@ function FxSection({
         />
       </View>
 
-      {children}
+      <View style={styles.sectionBody}>{children}</View>
 
       <Pressable
         onPress={onReset}
@@ -131,7 +131,6 @@ export function PianoFxModal({
   onClose,
 }: PianoFxModalProps) {
   const { t } = useTranslation();
-  const scrollRef = useRef<ScrollView>(null);
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef(settings);
   const wasVisibleRef = useRef(false);
@@ -187,12 +186,9 @@ export function PianoFxModal({
     [onChange],
   );
 
-  const handleSliderSlidingStart = useCallback(() => {
-    scrollRef.current?.setNativeProps({ scrollEnabled: false });
-  }, []);
+  const handleSliderSlidingStart = useCallback(() => {}, []);
 
   const handleSliderSlidingComplete = useCallback(() => {
-    scrollRef.current?.setNativeProps({ scrollEnabled: true });
     flushCommit();
   }, [flushCommit]);
 
@@ -207,16 +203,14 @@ export function PianoFxModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
       <Pressable style={styles.overlay} onPress={handleClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>{t('piano.fx.title')}</Text>
+          <ModalChromeHeader
+            closeLabel={t('piano.fx.close')}
+            onClose={handleClose}
+            title={t('piano.fx.title')}
+          />
           <Text style={styles.subtitle}>{t('piano.fx.subtitle')}</Text>
 
-          <ScrollView
-            ref={scrollRef}
-            contentContainerStyle={styles.sectionsRow}
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-          >
+          <View style={styles.sectionsRow}>
             <FxSection
               accent={DISTORTION_ACCENT}
               enabled={draft.distortion.enabled}
@@ -408,14 +402,7 @@ export function PianoFxModal({
                 value={draft.echo.mix}
               />
             </FxSection>
-          </ScrollView>
-
-          <Pressable
-            onPress={handleClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeButtonText}>{t('piano.fx.close')}</Text>
-          </Pressable>
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -436,16 +423,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     maxHeight: '96%',
-    maxWidth: 760,
-    paddingHorizontal: 16,
+    maxWidth: 720,
+    paddingHorizontal: 14,
     paddingVertical: 14,
     width: '100%',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    textAlign: 'center',
   },
   subtitle: {
     color: colors.textSecondary,
@@ -455,16 +436,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sectionsRow: {
+    alignItems: 'stretch',
     flexDirection: 'row',
     gap: 10,
+    width: '100%',
   },
   section: {
     backgroundColor: colors.surfaceLight,
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
-    padding: 12,
-    width: 220,
+    flex: 1,
+    minWidth: 0,
+    paddingBottom: 10,
+    paddingHorizontal: 12,
+    paddingTop: 12,
   },
   sectionHeader: {
     alignItems: 'center',
@@ -486,6 +472,10 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: '700',
+  },
+  sectionBody: {
+    flexGrow: 0,
+    flexShrink: 0,
   },
   sliderBlock: {
     marginBottom: 4,
@@ -510,24 +500,16 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     alignSelf: 'center',
-    marginTop: 6,
+    marginTop: 'auto',
+    paddingBottom: 4,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingTop: 10,
   },
   resetText: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
     textTransform: 'uppercase',
-  },
-  closeButton: {
-    marginTop: 10,
-    paddingVertical: 8,
-  },
-  closeButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
   },
   pressed: {
     opacity: 0.75,

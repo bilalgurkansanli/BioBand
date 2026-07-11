@@ -2,13 +2,34 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import { getSongById, PIANO_SONGS } from '../instruments/piano/songs/catalog';
-import type { SongDefinition } from '../instruments/piano/songs/types';
+import {
+  resolvePlaySession,
+  type ResolvedPlaySession,
+} from '../instruments/piano/songs/resolvePlaySession';
+import {
+  getBackingCurrentTimeMs,
+  getBackingElapsedMs,
+  onBackingFinished,
+  pauseBackingTrack,
+  playBackingFrom,
+  prepareBackingTrack,
+  stopBackingTrack,
+} from '../instruments/piano/songs/songBackingPlayer';
+import type {
+  PlayMode,
+  SongDefinition,
+  SongEvent,
+  SongScope,
+} from '../instruments/piano/songs/types';
 
+export type { PlayMode, SongScope };
 export type SupportLevel = 'guided' | 'medium' | 'free';
 
 export type PlayAlongPhase =
   | 'idle'
   | 'pickSong'
+  | 'pickMode'
+  | 'pickScope'
   | 'pickLevel'
   | 'countdown'
   | 'demo'
@@ -32,7 +53,6 @@ export type PlayAlongProgress = {
   hits: number;
 };
 
-// A press counts as a hit when it lands within this window around the note's time.
 const HIT_WINDOW_MS = 350;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
@@ -52,9 +72,14 @@ function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   return 0;
 }
 
-export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
+export function usePianoPlayAlong(
+  playNote: (noteId: NoteId) => void,
+  extraSongs: SongDefinition[] = [],
+) {
   const [phase, setPhase] = useState<PlayAlongPhase>('idle');
   const [selectedSong, setSelectedSong] = useState<SongDefinition | null>(null);
+  const [playMode, setPlayMode] = useState<PlayMode | null>(null);
+  const [songScope, setSongScope] = useState<SongScope | null>(null);
   const [level, setLevel] = useState<SupportLevel>('guided');
   const [countdownValue, setCountdownValue] = useState(COUNTDOWN_START);
   const [guideNoteId, setGuideNoteId] = useState<NoteId | null>(null);
@@ -66,15 +91,24 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
   const [results, setResults] = useState<PlayAlongResults | null>(null);
 
   const songRef = useRef<SongDefinition | null>(null);
+  const sessionRef = useRef<ResolvedPlaySession | null>(null);
+  const eventsRef = useRef<SongEvent[]>([]);
+  const playModeRef = useRef<PlayMode | null>(null);
+  const songScopeRef = useRef<SongScope | null>(null);
   const levelRef = useRef<SupportLevel>('guided');
   const phaseRef = useRef<PlayAlongPhase>('idle');
+  const extraSongsRef = useRef(extraSongs);
+  extraSongsRef.current = extraSongs;
   const startTimeRef = useRef(0);
   const pointerRef = useRef(0);
   const statsRef = useRef({ hits: 0, autos: 0, misses: 0, wrongPresses: 0 });
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const notesFinishedRef = useRef(false);
 
   phaseRef.current = phase;
+  playModeRef.current = playMode;
+  songScopeRef.current = songScope;
 
   const clearTimers = useCallback(() => {
     if (tickRef.current) {
@@ -87,28 +121,42 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
     timersRef.current = [];
   }, []);
 
+  const stopSessionAudio = useCallback(() => {
+    void stopBackingTrack();
+  }, []);
+
   useEffect(() => {
-    return clearTimers;
+    return () => {
+      clearTimers();
+      void stopBackingTrack();
+    };
   }, [clearTimers]);
 
+  const getElapsedMs = useCallback(() => {
+    const session = sessionRef.current;
+    if (session?.useBacking) {
+      return getBackingElapsedMs(session.audioStartMs);
+    }
+    return Date.now() - startTimeRef.current;
+  }, []);
+
   const updateGuide = useCallback(() => {
-    const song = songRef.current;
-    if (!song || levelRef.current === 'free') {
+    const events = eventsRef.current;
+    if (events.length === 0 || levelRef.current === 'free') {
       setGuideNoteId(null);
       return;
     }
-    setGuideNoteId(song.events[pointerRef.current]?.noteId ?? null);
+    setGuideNoteId(events[pointerRef.current]?.noteId ?? null);
   }, []);
 
   const finishSong = useCallback(() => {
     clearTimers();
+    stopSessionAudio();
     setGuideNoteId(null);
 
-    const song = songRef.current;
+    const events = eventsRef.current;
     const stats = statsRef.current;
-    const totalNotes = song?.events.length ?? 0;
-    // Step mode always resolves every note, so score it on wrong presses
-    // instead; timed (free) mode scores on hit ratio.
+    const totalNotes = events.length;
     const accuracy =
       totalNotes > 0
         ? levelRef.current === 'medium'
@@ -130,120 +178,257 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers]);
+  }, [clearTimers, stopSessionAudio]);
+
+  const maybeFinishAfterNotes = useCallback(() => {
+    const session = sessionRef.current;
+    const events = eventsRef.current;
+    if (pointerRef.current < events.length) {
+      return;
+    }
+    notesFinishedRef.current = true;
+
+    // Full-band + full scope: keep listening until the track ends (or partial end).
+    if (session?.useBacking && songScopeRef.current === 'full') {
+      return;
+    }
+    finishSong();
+  }, [finishSong]);
 
   const advancePointer = useCallback(() => {
     pointerRef.current += 1;
     updateGuide();
 
-    const song = songRef.current;
+    const events = eventsRef.current;
     setProgress({
       resolved: pointerRef.current,
-      total: song?.events.length ?? 0,
+      total: events.length,
       hits: statsRef.current.hits,
     });
 
-    if (song && pointerRef.current >= song.events.length) {
-      finishSong();
+    if (pointerRef.current >= events.length) {
+      maybeFinishAfterNotes();
     }
-  }, [finishSong, updateGuide]);
+  }, [maybeFinishAfterNotes, updateGuide]);
+
+  const buildSession = useCallback((): ResolvedPlaySession | null => {
+    const song = songRef.current;
+    const mode = playModeRef.current;
+    const scope = songScopeRef.current;
+    if (!song || !mode || !scope) {
+      return null;
+    }
+    const session = resolvePlaySession(song, mode, scope);
+    sessionRef.current = session;
+    eventsRef.current = session.events;
+    return session;
+  }, []);
+
+  const ensureBackingReady = useCallback(async (session: ResolvedPlaySession) => {
+    const song = songRef.current;
+    if (!session.useBacking || !song?.backingTrack) {
+      await stopBackingTrack();
+      return;
+    }
+    await prepareBackingTrack(song.backingTrack.module);
+    onBackingFinished(() => {
+      if (phaseRef.current === 'demo') {
+        setGuideNoteId(null);
+        setPhase('pickLevel');
+        void stopBackingTrack();
+        return;
+      }
+      if (phaseRef.current === 'playing' || phaseRef.current === 'countdown') {
+        finishSong();
+      }
+    });
+  }, [finishSong]);
 
   const startTick = useCallback(() => {
     tickRef.current = setInterval(() => {
-      const currentSong = songRef.current;
-      if (!currentSong || phaseRef.current !== 'playing') {
+      const events = eventsRef.current;
+      const session = sessionRef.current;
+      if (!events.length || phaseRef.current !== 'playing') {
         return;
       }
 
-      const elapsed = Date.now() - startTimeRef.current;
+      const elapsed = getElapsedMs();
 
-      // Resolve every note whose hit window has fully passed without a press.
-      // The clock only runs in free mode — the other levels have no timer.
+      // Partial window end while notes still pending.
+      if (
+        session?.useBacking &&
+        session.audioEndMs != null &&
+        getBackingCurrentTimeMs() >= session.audioEndMs
+      ) {        pauseBackingTrack();
+        if (notesFinishedRef.current || pointerRef.current >= events.length) {
+          finishSong();
+        } else {
+          // Force-miss remaining notes in free mode, then finish.
+          while (pointerRef.current < events.length) {
+            statsRef.current.misses += 1;
+            pointerRef.current += 1;
+          }
+          setProgress({
+            resolved: events.length,
+            total: events.length,
+            hits: statsRef.current.hits,
+          });
+          finishSong();
+        }
+        return;
+      }
+
+      if (levelRef.current !== 'free') {
+        return;
+      }
+
       while (
-        pointerRef.current < currentSong.events.length &&
-        elapsed > currentSong.events[pointerRef.current].atMs + HIT_WINDOW_MS
+        pointerRef.current < events.length &&
+        elapsed > events[pointerRef.current].atMs + HIT_WINDOW_MS
       ) {
         statsRef.current.misses += 1;
         advancePointer();
       }
     }, TICK_MS);
-  }, [advancePointer]);
+  }, [advancePointer, finishSong, getElapsedMs]);
 
   const startPlaying = useCallback(() => {
-    const song = songRef.current;
-    if (!song) {
+    const session = sessionRef.current ?? buildSession();
+    if (!session) {
       return;
     }
 
+    notesFinishedRef.current = false;
     startTimeRef.current = Date.now();
     pointerRef.current = 0;
     statsRef.current = { hits: 0, autos: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: song.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
     setPhase('playing');
     updateGuide();
-    startTick();
-  }, [startTick, updateGuide]);
 
-  // "Watch first" level: the app performs the whole song, lighting each key
-  // as it sounds, then returns to the level picker. No scoring.
-  const startDemo = useCallback(() => {
-    const song = songRef.current;
-    if (!song) {
+    if (session.useBacking) {
+      void playBackingFrom(session.audioStartMs);
+    }
+    startTick();
+  }, [buildSession, startTick, updateGuide]);
+
+  const startDemo = useCallback(async () => {
+    const session = buildSession();
+    if (!session) {
       return;
     }
 
     clearTimers();
     setResults(null);
+    notesFinishedRef.current = false;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, autos: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: song.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
     setPhase('demo');
-    setGuideNoteId(song.events[0]?.noteId ?? null);
+    setGuideNoteId(session.events[0]?.noteId ?? null);
 
-    song.events.forEach((event, index) => {
+    await ensureBackingReady(session);
+
+    if (session.useBacking) {
+      // Light keys from the audio clock; don't double the melody over vocals.
+      await playBackingFrom(session.audioStartMs);
+      startTimeRef.current = Date.now();
+
+      tickRef.current = setInterval(() => {
+        if (phaseRef.current !== 'demo') {
+          return;
+        }
+        const elapsed = getElapsedMs();
+        const events = eventsRef.current;
+        let idx = 0;
+        while (idx < events.length && events[idx].atMs <= elapsed) {
+          idx += 1;
+        }
+        const current = Math.max(0, idx - 1);
+        pointerRef.current = current;
+        setGuideNoteId(events[current]?.noteId ?? null);
+        setProgress({
+          resolved: Math.min(events.length, idx),
+          total: events.length,
+          hits: 0,
+        });
+
+        if (
+          session.audioEndMs != null &&
+          getBackingCurrentTimeMs() >= session.audioEndMs
+        ) {
+          pauseBackingTrack();
+          setGuideNoteId(null);
+          setPhase('pickLevel');
+          clearTimers();
+          void stopBackingTrack();
+        }
+      }, TICK_MS);
+      return;
+    }
+
+    session.events.forEach((event, index) => {
       const timer = setTimeout(() => {
         playNote(event.noteId);
         setGuideNoteId(event.noteId);
         setProgress({
           resolved: index + 1,
-          total: song.events.length,
+          total: session.events.length,
           hits: 0,
         });
       }, event.atMs);
       timersRef.current.push(timer);
     });
 
-    const lastAtMs = song.events[song.events.length - 1]?.atMs ?? 0;
+    const lastAtMs = session.events[session.events.length - 1]?.atMs ?? 0;
     const endTimer = setTimeout(() => {
       setGuideNoteId(null);
       setPhase('pickLevel');
     }, lastAtMs + 1500);
     timersRef.current.push(endTimer);
-  }, [clearTimers, playNote]);
+  }, [
+    buildSession,
+    clearTimers,
+    ensureBackingReady,
+    getElapsedMs,
+    playNote,
+  ]);
 
-  // "Step by step" level: the next note lights up and waits — the song only
-  // advances when the user presses the right key. No clock, no misses.
-  const startStepMode = useCallback(() => {
-    const song = songRef.current;
-    if (!song) {
+  const startStepMode = useCallback(async () => {
+    const session = buildSession();
+    if (!session) {
       return;
     }
 
     clearTimers();
     setResults(null);
+    notesFinishedRef.current = false;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, autos: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: song.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
     setPhase('playing');
     updateGuide();
-  }, [clearTimers, updateGuide]);
 
-  const startCountdown = useCallback(() => {
+    await ensureBackingReady(session);
+    if (session.useBacking) {
+      await playBackingFrom(session.audioStartMs);
+      startTick();
+    }
+  }, [buildSession, clearTimers, ensureBackingReady, startTick, updateGuide]);
+
+  const startCountdown = useCallback(async () => {
+    const session = buildSession();
+    if (!session) {
+      return;
+    }
+
     clearTimers();
     setResults(null);
     setCountdownValue(COUNTDOWN_START);
     setPhase('countdown');
     setGuideNoteId(null);
+
+    await ensureBackingReady(session);
 
     for (let step = 1; step <= COUNTDOWN_START; step++) {
       const timer = setTimeout(() => {
@@ -256,45 +441,71 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
       }, step * COUNTDOWN_STEP_MS);
       timersRef.current.push(timer);
     }
-  }, [clearTimers, startPlaying]);
+  }, [buildSession, clearTimers, ensureBackingReady, startPlaying]);
+
+  const resetWizardSong = useCallback(() => {
+    clearTimers();
+    stopSessionAudio();
+    setSelectedSong(null);
+    songRef.current = null;
+    sessionRef.current = null;
+    eventsRef.current = [];
+    setPlayMode(null);
+    setSongScope(null);
+    setResults(null);
+    setGuideNoteId(null);
+  }, [clearTimers, stopSessionAudio]);
 
   const open = useCallback(() => {
-    clearTimers();
-    setSelectedSong(null);
-    songRef.current = null;
-    setResults(null);
-    setGuideNoteId(null);
+    resetWizardSong();
     setPhase('pickSong');
-  }, [clearTimers]);
+  }, [resetWizardSong]);
 
   const close = useCallback(() => {
-    clearTimers();
-    setSelectedSong(null);
-    songRef.current = null;
-    setResults(null);
-    setGuideNoteId(null);
+    resetWizardSong();
     setPhase('idle');
-  }, [clearTimers]);
+  }, [resetWizardSong]);
 
   const selectSong = useCallback((songId: string) => {
-    const song = getSongById(songId);
+    const song =
+      getSongById(songId) ??
+      extraSongsRef.current.find((entry) => entry.id === songId);
     if (!song) {
       return;
     }
 
     setSelectedSong(song);
     songRef.current = song;
+    setPlayMode(null);
+    setSongScope(null);
+    setPhase('pickMode');
+  }, []);
+
+  const selectPlayMode = useCallback((mode: PlayMode) => {
+    const song = songRef.current;
+    if (mode === 'fullBand' && !song?.backingTrack) {
+      return;
+    }
+    setPlayMode(mode);
+    playModeRef.current = mode;
+    setSongScope(null);
+    setPhase('pickScope');
+  }, []);
+
+  const selectScope = useCallback((scope: SongScope) => {
+    setSongScope(scope);
+    songScopeRef.current = scope;
     setPhase('pickLevel');
   }, []);
 
   const startForLevel = useCallback(
     (targetLevel: SupportLevel) => {
       if (targetLevel === 'guided') {
-        startDemo();
+        void startDemo();
       } else if (targetLevel === 'medium') {
-        startStepMode();
+        void startStepMode();
       } else {
-        startCountdown();
+        void startCountdown();
       }
     },
     [startCountdown, startDemo, startStepMode],
@@ -310,8 +521,31 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
   );
 
   const backToSongList = useCallback(() => {
+    clearTimers();
+    stopSessionAudio();
+    setPlayMode(null);
+    setSongScope(null);
     setPhase('pickSong');
-  }, []);
+  }, [clearTimers, stopSessionAudio]);
+
+  const goBack = useCallback(() => {
+    if (phase === 'pickMode') {
+      setPlayMode(null);
+      setSongScope(null);
+      setPhase('pickSong');
+      return;
+    }
+    if (phase === 'pickScope') {
+      setSongScope(null);
+      setPhase('pickMode');
+      return;
+    }
+    if (phase === 'pickLevel' || phase === 'results') {
+      clearTimers();
+      stopSessionAudio();
+      setPhase('pickScope');
+    }
+  }, [clearTimers, phase, stopSessionAudio]);
 
   const replay = useCallback(() => {
     if (!songRef.current) {
@@ -322,17 +556,15 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
 
   const handleNotePress = useCallback(
     (noteId: NoteId) => {
-      // The instrument always sounds — scoring happens on top of playing.
       playNote(noteId);
 
-      const song = songRef.current;
-      if (!song || phaseRef.current !== 'playing') {
+      const events = eventsRef.current;
+      if (!events.length || phaseRef.current !== 'playing') {
         return;
       }
 
-      const event = song.events[pointerRef.current];
+      const event = events[pointerRef.current];
 
-      // Step mode: no clock — the right key advances, a wrong key just counts.
       if (levelRef.current === 'medium') {
         if (event && noteId === event.noteId) {
           statsRef.current.hits += 1;
@@ -343,7 +575,7 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
         return;
       }
 
-      const elapsed = Date.now() - startTimeRef.current;
+      const elapsed = getElapsedMs();
 
       if (
         event &&
@@ -357,16 +589,18 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
         statsRef.current.wrongPresses += 1;
       }
     },
-    [advancePointer, playNote],
+    [advancePointer, getElapsedMs, playNote],
   );
 
   const isActive =
     phase === 'countdown' || phase === 'demo' || phase === 'playing';
 
   return {
-    songs: PIANO_SONGS,
+    songs: [...PIANO_SONGS, ...extraSongs],
     phase,
     selectedSong,
+    playMode,
+    songScope,
     level,
     countdownValue,
     guideNoteId,
@@ -376,7 +610,10 @@ export function usePianoPlayAlong(playNote: (noteId: NoteId) => void) {
     open,
     close,
     selectSong,
+    selectPlayMode,
+    selectScope,
     selectLevel,
+    goBack,
     backToSongList,
     replay,
     handleNotePress,

@@ -6,6 +6,7 @@ import {
   type PianoVoiceId,
 } from '../../instruments/piano/pianoVoices';
 import { colors } from '../../theme/colors';
+import { ModalChromeHeader } from './ModalChromeHeader';
 
 type PianoVoiceModalProps = {
   visible: boolean;
@@ -26,7 +27,11 @@ export function PianoVoiceModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>{t('piano.voices.title')}</Text>
+          <ModalChromeHeader
+            closeLabel={t('piano.voices.close')}
+            onClose={onClose}
+            title={t('piano.voices.title')}
+          />
 
           <View style={styles.grid}>
             {PIANO_VOICES.map((voice) => {
@@ -58,13 +63,6 @@ export function PianoVoiceModal({
               );
             })}
           </View>
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeButtonText}>{t('piano.voices.close')}</Text>
-          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -88,18 +86,11 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '100%',
   },
-  title: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'center',
     gap: 10,
+    justifyContent: 'center',
   },
   item: {
     alignItems: 'center',
@@ -122,15 +113,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: '600',
-    textAlign: 'center',
-  },
-  closeButton: {
-    marginTop: 16,
-    paddingVertical: 10,
-  },
-  closeButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
     textAlign: 'center',
   },
   pressed: {

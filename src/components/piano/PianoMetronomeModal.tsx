@@ -3,12 +3,17 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import {
+  getMetronomeSoundId,
   METRONOME_BPM_MAX,
   METRONOME_BPM_MIN,
+  METRONOME_SOUNDS,
   setMetronomeBpm,
+  setMetronomeSound,
+  type MetronomeSoundId,
 } from '../../instruments/piano/pianoMetronome';
 import { colors } from '../../theme/colors';
 import { HorizontalSlider } from './HorizontalSlider';
+import { ModalChromeHeader } from './ModalChromeHeader';
 
 const ACCENT = '#4FC3F7';
 
@@ -27,10 +32,12 @@ export function PianoMetronomeModal({
 }: PianoMetronomeModalProps) {
   const { t } = useTranslation();
   const [displayBpm, setDisplayBpm] = useState(bpm);
+  const [soundId, setSoundId] = useState<MetronomeSoundId>(() => getMetronomeSoundId());
 
   useEffect(() => {
     if (visible) {
       setDisplayBpm(bpm);
+      setSoundId(getMetronomeSoundId());
     }
   }, [visible, bpm]);
 
@@ -53,11 +60,20 @@ export function PianoMetronomeModal({
     [commitBpm, displayBpm],
   );
 
+  const selectSound = useCallback((nextSoundId: MetronomeSoundId) => {
+    setSoundId(nextSoundId);
+    setMetronomeSound(nextSoundId);
+  }, []);
+
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>{t('piano.metronome.title')}</Text>
+          <ModalChromeHeader
+            closeLabel={t('piano.metronome.close')}
+            onClose={onClose}
+            title={t('piano.metronome.title')}
+          />
           <Text style={styles.bpmValue}>{Math.round(displayBpm)}</Text>
           <Text style={styles.bpmLabel}>{t('piano.metronome.bpm')}</Text>
 
@@ -84,12 +100,30 @@ export function PianoMetronomeModal({
             </Pressable>
           </View>
 
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeButtonText}>{t('piano.metronome.close')}</Text>
-          </Pressable>
+          <Text style={styles.soundLabel}>{t('piano.metronome.sound')}</Text>
+          <View style={styles.soundRow}>
+            {METRONOME_SOUNDS.map((sound) => {
+              const selected = sound.id === soundId;
+              return (
+                <Pressable
+                  key={sound.id}
+                  onPress={() => selectSound(sound.id)}
+                  style={({ pressed }) => [
+                    styles.soundChip,
+                    selected && styles.soundChipSelected,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.soundChipText, selected && styles.soundChipTextSelected]}
+                  >
+                    {t(sound.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -113,13 +147,6 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '100%',
   },
-  title: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
   bpmValue: {
     color: ACCENT,
     fontSize: 40,
@@ -140,6 +167,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: 8,
+    marginBottom: 16,
   },
   slider: {
     flex: 1,
@@ -157,14 +185,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  closeButton: {
-    marginTop: 16,
-    paddingVertical: 8,
-  },
-  closeButtonText: {
+  soundLabel: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    marginBottom: 8,
     textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  soundRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  soundChip: {
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    minWidth: '30%',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  soundChipSelected: {
+    backgroundColor: `${ACCENT}22`,
+    borderColor: ACCENT,
+  },
+  soundChipText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  soundChipTextSelected: {
+    color: ACCENT,
   },
   pressed: {
     opacity: 0.75,
