@@ -191,7 +191,15 @@
     "metronome": {
       "title": "Metronom",
       "bpm": "BPM",
-      "close": "Kapat"
+      "sound": "Ses",
+      "close": "Kapat",
+      "sounds": {
+        "classic": "Klasik",
+        "soft": "Yumuşak",
+        "sharp": "Keskin",
+        "wood": "Tahta",
+        "digital": "Dijital"
+      }
     },
     "volume": {
       "title": "Ses",
@@ -244,7 +252,16 @@
       "title": "Grup Modu",
       "pickSong": "Çalmak için bir şarkı seç",
       "comingSoon": "Yakında",
+      "pickMode": "Nasıl ilerlemek istersin?",
+      "modePiano": "Sadece piyano ile ilerle",
+      "modePianoHint": "Melodiyi yalnız piyano sesiyle çal / izle",
+      "modeFullBand": "Tüm şarkıyla ilerle",
+      "modeFullBandHint": "Orijinal kayıt (sözler dahil) + senin piyanon",
+      "pickScope": "Ne kadarını çalmak istersin?",
+      "scopePartial": "Bir kısmı ile devam et",
+      "scopeFull": "Şarkının tamamı ile devam et",
       "pickLevel": "Ne kadar destek istiyorsun?",
+      "back": "Geri",
       "backToSongs": "Şarkı listesine dön",
       "close": "Kapat",
       "levels": {
@@ -258,6 +275,8 @@
       "hud": {
         "countdown": "Hazır ol… {{count}}",
         "watching": "İzle… şarkı senin için çalınıyor",
+        "watchingBand": "Dinle… orijinal şarkı çalıyor, tuşları izle",
+        "bandLive": "Grup / orijinal kayıt",
         "tapToStart": "Yanan tuşa bas — şarkı seni bekliyor",
         "progress": "{{done}}/{{total}} nota · {{hits}} isabet",
         "stop": "Bitir"
@@ -270,7 +289,36 @@
         "misses": "Kaçırılan: {{count}}",
         "wrong": "Yanlış tuşlar: {{count}}",
         "replay": "Tekrar çal",
-        "change": "Şarkı / seviye değiştir"
+        "change": "Kapsam / seviye değiştir"
+      },
+      "import": {
+        "button": "Şarkı yükle",
+        "hint": "JSON veya MIDI (.mid) dosyası seç",
+        "preloaded": "Ön yüklenen",
+        "mySongs": "Benim şarkılarım",
+        "empty": "Henüz yüklenmiş şarkı yok",
+        "delete": "Sil",
+        "deleteTitle": "Şarkıyı sil?",
+        "deleteMessage": "\"{{title}}\" listeden kaldırılacak.",
+        "deleteConfirm": "Sil",
+        "deleteCancel": "Vazgeç",
+        "success": "Şarkı eklendi",
+        "pasteButton": "JSON yapıştır",
+        "pasteTitle": "Şarkı JSON’u",
+        "pasteHint": "title ve events içeren JSON yapıştır.",
+        "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
+        "pasteSubmit": "Ekle",
+        "pickerUnavailable": "Dosya seçici bu kurulumda yok. JSON yapıştırabilir veya uygulamayı yeniden derleyebilirsin (npx expo run:android).",
+        "errors": {
+          "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
+          "invalidJson": "JSON dosyası okunamadı.",
+          "invalidSchema": "Şarkı formatı geçersiz. title ve events gerekli.",
+          "emptySong": "Dosyada çalınabilir nota bulunamadı.",
+          "tooManyNotes": "Çok fazla nota (en fazla 800).",
+          "midiParseFailed": "MIDI dosyası okunamadı.",
+          "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "pickerUnavailable": "Dosya seçici kullanılamıyor. JSON yapıştırmayı dene."
+        }
       }
     }
   },

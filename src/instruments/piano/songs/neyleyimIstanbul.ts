@@ -4,9 +4,8 @@ import type { SongDefinition } from './types';
 // Murat Dalkılıç — "Neyleyim İstanbul'u" (music: Oytun Karanacak), intro melody.
 // Transcribed in C major from the kolaynota.com notation; quarter ≈ 470ms (~128bpm).
 // Bars 1-5 of the instrumental intro, ending on the low C resolution.
-// Played back slower than the record so it is easier to follow along.
-const TEMPO_SCALE = 1.3;
-
+// Backing: assets/songs/neyleyim-istanbul.mp3 (~4:23). eventsStartMs aligned to
+// first non-silent audio (~0.39s via silencedetect); fine-tune if keys feel early/late.
 const RAW_EVENTS: { noteId: NoteId; atMs: number }[] = [
   // Bar 1 — La Si La pickup, then the Mi Re Do Si La descent.
   { noteId: 'A4', atMs: 0 },
@@ -62,16 +61,24 @@ const RAW_EVENTS: { noteId: NoteId; atMs: number }[] = [
   { noteId: 'C4', atMs: 8810 },
 ];
 
-const NEYLEYIM_ISTANBUL_EVENTS = RAW_EVENTS.map((event) => ({
-  ...event,
-  atMs: Math.round(event.atMs * TEMPO_SCALE),
-}));
+const LAST_EVENT_MS = RAW_EVENTS[RAW_EVENTS.length - 1]?.atMs ?? 0;
+
+/** First audible frame of the bundled mix (ms). */
+const EVENTS_START_MS = 390;
 
 export const neyleyimIstanbulSong: SongDefinition = {
   id: 'neyleyim-istanbul',
   title: "Neyleyim İstanbul'u",
   artist: 'Murat Dalkılıç',
   descriptionKey: 'tutorial.songs.neyleyimIstanbul.description',
-  previewDurationMs: Math.round(10500 * TEMPO_SCALE),
-  events: NEYLEYIM_ISTANBUL_EVENTS,
+  previewDurationMs: 10500,
+  events: RAW_EVENTS,
+  backingTrack: {
+    module: require('../../../../assets/songs/neyleyim-istanbul.mp3'),
+    eventsStartMs: EVENTS_START_MS,
+  },
+  partialWindowMs: {
+    startMs: EVENTS_START_MS,
+    endMs: EVENTS_START_MS + LAST_EVENT_MS + 2000,
+  },
 };

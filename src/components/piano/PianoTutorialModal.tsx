@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { SongDefinition } from '../../instruments/piano/songs/types';
 import { colors } from '../../theme/colors';
 import type { TutorialPhase } from '../../hooks/usePianoTutorial';
+import { ModalChromeHeader } from './ModalChromeHeader';
 
 type PianoTutorialModalProps = {
   visible: boolean;
@@ -27,12 +28,19 @@ export function PianoTutorialModal({
   onBackToSongList,
 }: PianoTutorialModalProps) {
   const { t } = useTranslation();
+  const showBack = phase === 'readyToWatch';
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <Text style={styles.title}>{t('tutorial.title')}</Text>
+      <Pressable style={styles.overlay} onPress={onClose}>
+        <Pressable style={styles.card} onPress={() => {}}>
+          <ModalChromeHeader
+            backLabel={showBack ? t('tutorial.backToSongs') : undefined}
+            closeLabel={t('tutorial.close')}
+            onBack={showBack ? onBackToSongList : undefined}
+            onClose={onClose}
+            title={t('tutorial.title')}
+          />
 
           {phase === 'pickSong' ? (
             <>
@@ -64,23 +72,10 @@ export function PianoTutorialModal({
               >
                 <Text style={styles.primaryButtonText}>{t('tutorial.watchNow')}</Text>
               </Pressable>
-              <Pressable
-                onPress={onBackToSongList}
-                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.secondaryButtonText}>{t('tutorial.backToSongs')}</Text>
-              </Pressable>
             </>
           ) : null}
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeButtonText}>{t('tutorial.close')}</Text>
-          </Pressable>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -101,13 +96,6 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     padding: 20,
     width: '100%',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 8,
-    textAlign: 'center',
   },
   subtitle: {
     color: colors.textSecondary,
@@ -153,28 +141,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
-    textAlign: 'center',
-  },
-  secondaryButton: {
-    borderColor: colors.border,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginBottom: 8,
-    paddingVertical: 12,
-  },
-  secondaryButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  closeButton: {
-    marginTop: 8,
-    paddingVertical: 10,
-  },
-  closeButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
     textAlign: 'center',
   },
   pressed: {

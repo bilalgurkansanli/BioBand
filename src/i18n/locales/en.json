@@ -191,7 +191,15 @@
     "metronome": {
       "title": "Metronome",
       "bpm": "BPM",
-      "close": "Close"
+      "sound": "Sound",
+      "close": "Close",
+      "sounds": {
+        "classic": "Classic",
+        "soft": "Soft",
+        "sharp": "Sharp",
+        "wood": "Wood",
+        "digital": "Digital"
+      }
     },
     "volume": {
       "title": "Volume",
@@ -244,7 +252,16 @@
       "title": "Band Mode",
       "pickSong": "Choose a song to play",
       "comingSoon": "Coming soon",
+      "pickMode": "How do you want to continue?",
+      "modePiano": "Continue with piano only",
+      "modePianoHint": "Play / watch the melody with piano sound only",
+      "modeFullBand": "Continue with the full song",
+      "modeFullBandHint": "Original recording (with vocals) + your piano",
+      "pickScope": "How much of the song do you want to play?",
+      "scopePartial": "Continue with a part",
+      "scopeFull": "Continue with the whole song",
       "pickLevel": "How much support do you want?",
+      "back": "Back",
       "backToSongs": "Back to song list",
       "close": "Close",
       "levels": {
@@ -258,6 +275,8 @@
       "hud": {
         "countdown": "Get ready… {{count}}",
         "watching": "Watch… the song is playing for you",
+        "watchingBand": "Listen… original song playing, watch the keys",
+        "bandLive": "Band / original track",
         "tapToStart": "Press the glowing key — the song waits for you",
         "progress": "{{done}}/{{total}} notes · {{hits}} hits",
         "stop": "Stop"
@@ -270,7 +289,36 @@
         "misses": "Missed: {{count}}",
         "wrong": "Wrong keys: {{count}}",
         "replay": "Play again",
-        "change": "Change song / level"
+        "change": "Change scope / level"
+      },
+      "import": {
+        "button": "Import song",
+        "hint": "Pick a JSON or MIDI (.mid) file",
+        "preloaded": "Preloaded",
+        "mySongs": "My songs",
+        "empty": "No imported songs yet",
+        "delete": "Delete",
+        "deleteTitle": "Delete song?",
+        "deleteMessage": "\"{{title}}\" will be removed from your list.",
+        "deleteConfirm": "Delete",
+        "deleteCancel": "Cancel",
+        "success": "Song added",
+        "pasteButton": "Paste JSON",
+        "pasteTitle": "Song JSON",
+        "pasteHint": "Paste JSON with title and events.",
+        "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
+        "pasteSubmit": "Add",
+        "pickerUnavailable": "File picker is missing in this build. Paste JSON, or rebuild the app (npx expo run:android).",
+        "errors": {
+          "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
+          "invalidJson": "Could not read the JSON file.",
+          "invalidSchema": "Invalid song format. Needs title and events.",
+          "emptySong": "No playable notes found in the file.",
+          "tooManyNotes": "Too many notes (max 800).",
+          "midiParseFailed": "Could not read the MIDI file.",
+          "readFailed": "Could not read the file. Try again.",
+          "pickerUnavailable": "File picker unavailable. Try pasting JSON."
+        }
       }
     }
   },

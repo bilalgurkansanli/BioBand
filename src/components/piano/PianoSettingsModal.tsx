@@ -14,6 +14,7 @@ import {
   type PianoScaleId,
 } from '../../instruments/piano/pianoScales';
 import { colors } from '../../theme/colors';
+import { ModalChromeHeader } from './ModalChromeHeader';
 
 const SCALE_ACCENT = '#81C784';
 
@@ -50,7 +51,11 @@ export function PianoSettingsModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
-          <Text style={styles.title}>{t('piano.settings.title')}</Text>
+          <ModalChromeHeader
+            closeLabel={t('piano.settings.close')}
+            onClose={onClose}
+            title={t('piano.settings.title')}
+          />
 
           <ScrollView
             contentContainerStyle={styles.scrollContent}
@@ -130,13 +135,6 @@ export function PianoSettingsModal({
               </Text>
             </Pressable>
           </ScrollView>
-
-          <Pressable
-            onPress={onClose}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Text style={styles.closeButtonText}>{t('piano.settings.close')}</Text>
-          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -161,13 +159,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 16,
     width: '100%',
-  },
-  title: {
-    color: colors.text,
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 12,
-    textAlign: 'center',
   },
   scroll: {
     flexGrow: 0,
@@ -237,15 +228,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 15,
     fontWeight: '700',
-  },
-  closeButton: {
-    marginTop: 10,
-    paddingVertical: 8,
-  },
-  closeButtonText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
   },
   pressed: {
     opacity: 0.75,

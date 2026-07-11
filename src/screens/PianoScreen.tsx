@@ -27,6 +27,7 @@ import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
 import { usePianoTutorial } from '../hooks/usePianoTutorial';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
+import { useUserSongs } from '../hooks/useUserSongs';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import {
   applyPianoFxSettings,
@@ -253,7 +254,8 @@ export function PianoScreen({ navigation }: Props) {
     handleNotePress,
   } = usePianoTutorial(playNote);
 
-  const playAlong = usePianoPlayAlong(playNote);
+  const userSongs = useUserSongs();
+  const playAlong = usePianoPlayAlong(playNote, userSongs.songs);
 
   const { isRecording, mode, handleRecordPress, captureEvent } =
     useInstrumentRecording('piano');
@@ -313,6 +315,8 @@ export function PianoScreen({ navigation }: Props) {
   const isModalVisible = phase === 'pickSong' || phase === 'readyToWatch';
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
+    playAlong.phase === 'pickMode' ||
+    playAlong.phase === 'pickScope' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
 
@@ -390,6 +394,7 @@ export function PianoScreen({ navigation }: Props) {
         level={playAlong.level}
         onStop={playAlong.close}
         phase={playAlong.phase}
+        playMode={playAlong.playMode}
         progress={playAlong.progress}
         songTitle={playAlong.selectedSong?.title}
       />
@@ -428,14 +433,24 @@ export function PianoScreen({ navigation }: Props) {
       />
 
       <PlayAlongModal
+        importing={userSongs.importing}
         onBackToSongList={playAlong.backToSongList}
         onClose={playAlong.close}
+        onDeleteUserSong={(songId) => {
+          void userSongs.removeSong(songId);
+        }}
+        onGoBack={playAlong.goBack}
+        onImportSong={userSongs.importSong}
+        onImportSongFromJsonText={userSongs.importSongFromJsonText}
         onReplay={playAlong.replay}
         onSelectLevel={playAlong.selectLevel}
+        onSelectPlayMode={playAlong.selectPlayMode}
+        onSelectScope={playAlong.selectScope}
         onSelectSong={playAlong.selectSong}
         phase={playAlong.phase}
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}
+        userSongs={userSongs.songs}
         visible={isPlayAlongModalVisible && !isPortrait}
       />
 

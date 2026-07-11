@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type {
   PlayAlongPhase,
   PlayAlongProgress,
+  PlayMode,
   SupportLevel,
 } from '../../hooks/usePianoPlayAlong';
 import { colors } from '../../theme/colors';
@@ -13,6 +14,7 @@ type PlayAlongHudProps = {
   countdownValue: number;
   progress: PlayAlongProgress;
   level: SupportLevel;
+  playMode?: PlayMode | null;
   songTitle?: string;
   onStop: () => void;
 };
@@ -22,6 +24,7 @@ export function PlayAlongHud({
   countdownValue,
   progress,
   level,
+  playMode,
   songTitle,
   onStop,
 }: PlayAlongHudProps) {
@@ -31,16 +34,24 @@ export function PlayAlongHud({
     return null;
   }
 
+  const watchingLabel =
+    playMode === 'fullBand'
+      ? t('piano.game.hud.watchingBand')
+      : t('piano.game.hud.watching');
+
   return (
     <View style={styles.banner}>
       <View style={styles.info}>
         {songTitle ? <Text style={styles.songName}>{songTitle}</Text> : null}
+        {playMode === 'fullBand' ? (
+          <Text style={styles.bandBadge}>{t('piano.game.hud.bandLive')}</Text>
+        ) : null}
         {phase === 'countdown' ? (
           <Text style={styles.countdown}>
             {t('piano.game.hud.countdown', { count: countdownValue })}
           </Text>
         ) : phase === 'demo' ? (
-          <Text style={styles.countdown}>{t('piano.game.hud.watching')}</Text>
+          <Text style={styles.countdown}>{watchingLabel}</Text>
         ) : level === 'medium' && progress.resolved === 0 ? (
           <Text style={styles.countdown}>{t('piano.game.hud.tapToStart')}</Text>
         ) : (
@@ -86,6 +97,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     marginBottom: 2,
+  },
+  bandBadge: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+    textTransform: 'uppercase',
   },
   countdown: {
     color: colors.text,
