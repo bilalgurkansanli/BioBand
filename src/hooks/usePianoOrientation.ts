@@ -27,7 +27,7 @@ export async function lockPortraitOrientation(): Promise<void> {
 }
 
 export function usePianoOrientation(
-  navigation: NavigationProp<Record<string, object | undefined>>,
+  _navigation: NavigationProp<Record<string, object | undefined>>,
 ) {
   const { width, height } = useWindowDimensions();
   const [deviceOrientation, setDeviceOrientation] =
@@ -37,10 +37,8 @@ export function usePianoOrientation(
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
-      const parent = navigation.getParent();
 
       setIsFocused(true);
-      parent?.setOptions({ tabBarStyle: { display: 'none' } });
 
       const enforceLandscape = async () => {
         await ScreenOrientation.lockAsync(LANDSCAPE_LOCK);
@@ -73,11 +71,10 @@ export function usePianoOrientation(
         ScreenOrientation.removeOrientationChangeListener(subscription);
 
         void ScreenOrientation.lockAsync(PORTRAIT_LOCK).then(() => {
-          parent?.setOptions({ tabBarStyle: undefined });
           void configureSystemUi();
         });
       };
-    }, [navigation]),
+    }, []),
   );
 
   const isPortrait =

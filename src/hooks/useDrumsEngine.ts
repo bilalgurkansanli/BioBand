@@ -1,14 +1,16 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import {
   initDrumsEngine,
   playHit as enginePlayHit,
   releaseDrumsEngine,
+  setDrumKit as engineSetDrumKit,
 } from '../instruments/drums/drumsEngine';
+import type { DrumKitId } from '../instruments/drums/drumsKits';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
 
-export function useDrumsEngine() {
+export function useDrumsEngine(kitId: DrumKitId = 'acoustic') {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,6 +23,7 @@ export function useDrumsEngine() {
       initDrumsEngine()
         .then(() => {
           if (active) {
+            engineSetDrumKit(kitId);
             setReady(true);
           }
         })
@@ -37,8 +40,16 @@ export function useDrumsEngine() {
         releaseDrumsEngine();
         setReady(false);
       };
+      // kitId applied in a separate effect while focused — do not re-init samples.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- focus lifecycle only
     }, []),
   );
+
+  useEffect(() => {
+    if (ready) {
+      engineSetDrumKit(kitId);
+    }
+  }, [kitId, ready]);
 
   const playHit = useCallback((id: DrumSoundId) => {
     enginePlayHit(id);

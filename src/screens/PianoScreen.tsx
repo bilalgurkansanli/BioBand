@@ -7,25 +7,23 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
 import { getMasterVolume, setMasterVolume } from '../audio/sampleBank';
+import { setPianoToneOffset } from '../instruments/piano/pianoEngine';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoKeyboard } from '../components/piano/PianoKeyboard';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoNavigator } from '../components/piano/PianoNavigator';
 import { PianoSettingsModal } from '../components/piano/PianoSettingsModal';
 import { PianoToolbar } from '../components/piano/PianoToolbar';
-import { PianoTutorialModal } from '../components/piano/PianoTutorialModal';
 import { PianoVoiceModal } from '../components/piano/PianoVoiceModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { PlayAlongHud } from '../components/piano/PlayAlongHud';
 import { PlayAlongModal } from '../components/piano/PlayAlongModal';
 import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
-import { TutorialBanner } from '../components/piano/TutorialBanner';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
-import { usePianoTutorial } from '../hooks/usePianoTutorial';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserSongs } from '../hooks/useUserSongs';
 import type { NoteId } from '../instruments/piano/pianoNotes';
@@ -38,6 +36,7 @@ import {
 import {
   getMetronomeBpm,
   METRONOME_BPM_DEFAULT,
+  setMetronomeSubdivision,
   startMetronome,
   stopMetronome,
 } from '../instruments/piano/pianoMetronome';
@@ -223,6 +222,8 @@ export function PianoScreen({ navigation }: Props) {
       setMetronomeOn(false);
       return;
     }
+    // Piano stays on simple quarter clicks (subdivision UI is drums-only).
+    setMetronomeSubdivision('quarter');
     startMetronome(metronomeBpm);
     setMetronomeOn(true);
     setMetronomeModalVisible(true);
@@ -240,22 +241,19 @@ export function PianoScreen({ navigation }: Props) {
     });
   }, [setSustainPedal]);
 
-  const {
-    songs,
-    phase,
-    selectedSong,
-    demoNoteId,
-    guideNoteId,
-    openTutorial,
-    closeTutorial,
-    selectSong,
-    backToSongList,
-    startWatch,
-    handleNotePress,
-  } = usePianoTutorial(playNote);
-
   const userSongs = useUserSongs();
-  const playAlong = usePianoPlayAlong(playNote, userSongs.songs);
+  const playAlong = usePianoPlayAlong(
+    playNote,
+    userSongs.songs,
+    (songId, eventsStartMs) => {
+      void userSongs.updateUserSongBackingOffset(songId, eventsStartMs);
+    },
+  );
+
+  // Play-along lights chart NoteIds — keep sounding pitch in concert pitch.
+  useEffect(() => {
+    setPianoToneOffset(playAlong.isActive ? 0 : tone.semitoneOffset);
+  }, [playAlong.isActive, tone.semitoneOffset]);
 
   const { isRecording, mode, handleRecordPress, captureEvent } =
     useInstrumentRecording('piano');
@@ -276,26 +274,20 @@ export function PianoScreen({ navigation }: Props) {
         return;
       }
 
-      // Tutorial practice/watch use one-shot playNote — not interactive hold.
-      if (phase === 'practice' || phase === 'watching') {
-        handleNotePress(noteId);
-        return;
-      }
-
       recordNoteOn();
       noteOn(noteId);
     },
-    [captureEvent, handleNotePress, noteOn, phase, playAlong, recordNoteOn],
+    [captureEvent, noteOn, playAlong, recordNoteOn],
   );
 
   const onNotePressOut = useCallback(
     (noteId: NoteId) => {
-      if (playAlong.isActive || phase === 'practice' || phase === 'watching') {
+      if (playAlong.isActive) {
         return;
       }
       noteOff(noteId);
     },
-    [noteOff, phase, playAlong.isActive],
+    [noteOff, playAlong.isActive],
   );
 
   const handleSettingsPress = useCallback(() => {
@@ -303,25 +295,20 @@ export function PianoScreen({ navigation }: Props) {
   }, []);
 
   const handleStartTutorialFromSettings = useCallback(() => {
-    playAlong.close();
-    openTutorial();
-  }, [openTutorial, playAlong]);
+    playAlong.open();
+  }, [playAlong]);
 
   const handleGamePress = useCallback(() => {
-    closeTutorial();
     playAlong.open();
-  }, [closeTutorial, playAlong]);
+  }, [playAlong]);
 
-  const isModalVisible = phase === 'pickSong' || phase === 'readyToWatch';
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
-    playAlong.phase === 'pickMode' ||
     playAlong.phase === 'pickScope' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
 
   const hideSpeedHud =
-    phase === 'watching' ||
     playAlong.phase === 'countdown' ||
     playAlong.phase === 'demo' ||
     playAlong.phase === 'playing';
@@ -387,10 +374,9 @@ export function PianoScreen({ navigation }: Props) {
 
       <RecordingBanner isRecording={isRecording} mode={mode} />
 
-      <TutorialBanner phase={phase} songTitle={selectedSong?.title} />
-
       <PlayAlongHud
         countdownValue={playAlong.countdownValue}
+        isListeningOutro={playAlong.isListeningOutro}
         level={playAlong.level}
         onStop={playAlong.close}
         phase={playAlong.phase}
@@ -409,8 +395,7 @@ export function PianoScreen({ navigation }: Props) {
           </View>
         ) : keyboardSize.width > 0 && keyboardSize.height > 0 ? (
           <PianoKeyboard
-            demoNoteId={demoNoteId}
-            guideNoteId={playAlong.guideNoteId ?? guideNoteId}
+            guideNoteId={playAlong.guideNoteId}
             height={keyboardSize.height}
             onNotePressIn={onNotePressIn}
             onNotePressOut={onNotePressOut}
@@ -421,18 +406,8 @@ export function PianoScreen({ navigation }: Props) {
         ) : null}
       </View>
 
-      <PianoTutorialModal
-        onBackToSongList={backToSongList}
-        onClose={closeTutorial}
-        onSelectSong={selectSong}
-        onStartWatch={startWatch}
-        phase={phase}
-        selectedSong={selectedSong}
-        songs={songs}
-        visible={isModalVisible && !isPortrait}
-      />
-
       <PlayAlongModal
+        demoJustFinished={playAlong.demoJustFinished}
         importing={userSongs.importing}
         onBackToSongList={playAlong.backToSongList}
         onClose={playAlong.close}
@@ -444,12 +419,15 @@ export function PianoScreen({ navigation }: Props) {
         onImportSongFromJsonText={userSongs.importSongFromJsonText}
         onReplay={playAlong.replay}
         onSelectLevel={playAlong.selectLevel}
-        onSelectPlayMode={playAlong.selectPlayMode}
         onSelectScope={playAlong.selectScope}
-        onSelectSong={playAlong.selectSong}
+        onSelectSong={(songId) => {
+          void playAlong.selectSong(songId);
+        }}
+        onSelectTempo={playAlong.setTempo}
         phase={playAlong.phase}
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}
+        tempo={playAlong.tempo}
         userSongs={userSongs.songs}
         visible={isPlayAlongModalVisible && !isPortrait}
       />

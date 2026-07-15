@@ -16,29 +16,56 @@ import { useTranslation } from 'react-i18next';
 import type {
   PlayAlongPhase,
   PlayAlongResults,
-  PlayMode,
-  SongScope,
+  PlayTempo,
   SupportLevel,
 } from '../../hooks/usePianoPlayAlong';
 import type { ImportSongResult } from '../../hooks/useUserSongs';
 import { SONG_CATALOG } from '../../instruments/piano/songs/catalog';
-import type { SongDefinition } from '../../instruments/piano/songs/types';
+import type {
+  SongDefinition,
+  SongDifficulty,
+  SongScope,
+} from '../../instruments/piano/songs/types';
 import type { UserSong } from '../../storage/userSongsStorage';
 import { colors } from '../../theme/colors';
+import { isDocumentPickerAvailable } from '../../utils/documentPicker';
+import {
+  getStoreDisplayName,
+  openStoreReview,
+} from '../../utils/openStoreReview';
 import { ModalChromeHeader } from './ModalChromeHeader';
+
+type DifficultyFilter = 'all' | SongDifficulty;
+
+const DIFFICULTY_FILTERS: DifficultyFilter[] = ['all', 'easy', 'medium', 'hard'];
+
+const DIFFICULTY_COLORS: Record<SongDifficulty, string> = {
+  easy: '#2ECC71',
+  medium: '#F39C12',
+  hard: '#E74C3C',
+};
+
+function filterChipColor(option: DifficultyFilter): string {
+  if (option === 'all') {
+    return colors.accent;
+  }
+  return DIFFICULTY_COLORS[option];
+}
 
 type PlayAlongModalProps = {
   visible: boolean;
   phase: PlayAlongPhase;
   selectedSong: SongDefinition | null;
   results: PlayAlongResults | null;
+  tempo: PlayTempo;
+  demoJustFinished?: boolean;
   userSongs: UserSong[];
   importing: boolean;
   onClose: () => void;
   onSelectSong: (songId: string) => void;
-  onSelectPlayMode: (mode: PlayMode) => void;
   onSelectScope: (scope: SongScope) => void;
   onSelectLevel: (level: SupportLevel) => void;
+  onSelectTempo: (tempo: PlayTempo) => void;
   onGoBack: () => void;
   onBackToSongList: () => void;
   onReplay: () => void;
@@ -46,6 +73,8 @@ type PlayAlongModalProps = {
   onImportSongFromJsonText: (text: string) => Promise<ImportSongResult>;
   onDeleteUserSong: (songId: string) => void;
 };
+
+const TEMPO_OPTIONS: PlayTempo[] = ['slow', 'normal', 'fast'];
 
 const LEVELS: {
   id: SupportLevel;
@@ -90,6 +119,9 @@ type ChoiceRowProps = {
   comingSoon?: boolean;
   comingSoonLabel?: string;
   showChevron?: boolean;
+  /** Shown left of the chevron (e.g. difficulty badge). */
+  badgeLabel?: string;
+  badgeColor?: string;
   onPress?: () => void;
 };
 
@@ -101,6 +133,8 @@ function ChoiceRow({
   comingSoon = false,
   comingSoonLabel,
   showChevron = false,
+  badgeLabel,
+  badgeColor,
   onPress,
 }: ChoiceRowProps) {
   return (
@@ -135,6 +169,28 @@ function ChoiceRow({
         ) : null}
       </View>
 
+      {badgeLabel && badgeColor ? (
+        <View
+          style={[
+            styles.difficultyBadge,
+            {
+              backgroundColor: `${badgeColor}22`,
+              borderColor: badgeColor,
+            },
+            disabled && styles.difficultyBadgeDisabled,
+          ]}
+        >
+          <Text
+            style={[
+              styles.difficultyBadgeText,
+              { color: badgeColor },
+            ]}
+          >
+            {badgeLabel}
+          </Text>
+        </View>
+      ) : null}
+
       {comingSoon ? (
         <View style={styles.comingSoonBadge}>
           <Text style={styles.comingSoonText}>{comingSoonLabel}</Text>
@@ -151,13 +207,15 @@ export function PlayAlongModal({
   phase,
   selectedSong,
   results,
+  tempo,
+  demoJustFinished = false,
   userSongs,
   importing,
   onClose,
   onSelectSong,
-  onSelectPlayMode,
   onSelectScope,
   onSelectLevel,
+  onSelectTempo,
   onGoBack,
   onBackToSongList,
   onReplay,
@@ -168,27 +226,34 @@ export function PlayAlongModal({
   const { t } = useTranslation();
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
+  const [difficultyFilter, setDifficultyFilter] =
+    useState<DifficultyFilter>('all');
+
+  const filteredCatalog =
+    difficultyFilter === 'all'
+      ? SONG_CATALOG
+      : SONG_CATALOG.filter((entry) => entry.difficulty === difficultyFilter);
 
   const showBack =
-    phase === 'pickMode' ||
-    phase === 'pickScope' ||
-    phase === 'pickLevel' ||
-    phase === 'results';
+    phase === 'pickScope' || phase === 'pickLevel' || phase === 'results';
 
   const subtitle =
     phase === 'pickSong'
       ? t('piano.game.pickSong')
-      : phase === 'pickMode'
-        ? t('piano.game.pickMode')
-        : phase === 'pickScope'
-          ? t('piano.game.pickScope')
-          : phase === 'pickLevel'
-            ? t('piano.game.pickLevel')
-            : phase === 'results'
-              ? t('piano.game.results.title')
-              : null;
+      : phase === 'pickScope'
+        ? t('piano.game.pickScope')
+        : phase === 'pickLevel'
+          ? t('piano.game.pickLevel')
+          : phase === 'results'
+            ? t('piano.game.results.title')
+            : null;
 
   const handleImport = async () => {
+    // Custom / stale APK may lack ExpoDocumentPicker — never crash; paste JSON.
+    if (!isDocumentPickerAvailable()) {
+      setPasteOpen(true);
+      return;
+    }
     const result = await onImportSong();
     if (result.ok) {
       Alert.alert(t('piano.game.import.success'), result.song.title);
@@ -198,17 +263,7 @@ export function PlayAlongModal({
       return;
     }
     if (result.code === 'pickerUnavailable') {
-      Alert.alert(
-        t('piano.game.import.button'),
-        t('piano.game.import.pickerUnavailable'),
-        [
-          { text: t('piano.game.import.deleteCancel'), style: 'cancel' },
-          {
-            text: t('piano.game.import.pasteButton'),
-            onPress: () => setPasteOpen(true),
-          },
-        ],
-      );
+      setPasteOpen(true);
       return;
     }
     Alert.alert(
@@ -257,6 +312,7 @@ export function PlayAlongModal({
         <View style={styles.card}>
           <ModalChromeHeader
             backLabel={showBack ? t('piano.game.back') : undefined}
+            badge={t('piano.game.beta')}
             closeLabel={t('piano.game.close')}
             onBack={showBack ? onGoBack : undefined}
             onClose={onClose}
@@ -351,44 +407,87 @@ export function PlayAlongModal({
                 )}
 
                 <Text style={styles.sectionLabel}>{t('piano.game.import.preloaded')}</Text>
-                {SONG_CATALOG.map((entry) => {
-                  const isPlayable = entry.song !== null;
-                  return (
-                    <ChoiceRow
-                      comingSoon={!isPlayable}
-                      comingSoonLabel={t('piano.game.comingSoon')}
-                      disabled={!isPlayable}
-                      icon="musical-notes"
-                      key={entry.id}
-                      onPress={() => onSelectSong(entry.id)}
-                      showChevron={isPlayable}
-                      subtitle={entry.artist}
-                      title={entry.title}
-                    />
-                  );
-                })}
-              </>
-            ) : null}
+                <View style={styles.difficultyRow}>
+                  {DIFFICULTY_FILTERS.map((option) => {
+                    const selected = difficultyFilter === option;
+                    const chipColor = filterChipColor(option);
+                    return (
+                      <Pressable
+                        key={option}
+                        onPress={() => setDifficultyFilter(option)}
+                        style={({ pressed }) => [
+                          styles.difficultyChip,
+                          {
+                            borderColor: selected ? chipColor : colors.border,
+                            backgroundColor: selected
+                              ? `${chipColor}22`
+                              : colors.surfaceLight,
+                          },
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.difficultyChipText,
+                            { color: selected ? chipColor : colors.textSecondary },
+                          ]}
+                        >
+                          {t(`piano.game.difficulty.${option}`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {filteredCatalog.length === 0 ? (
+                  <Text style={styles.emptyText}>
+                    {t('piano.game.difficulty.empty')}
+                  </Text>
+                ) : (
+                  filteredCatalog.map((entry) => {
+                    const isPlayable = entry.song !== null;
+                    return (
+                      <ChoiceRow
+                        badgeColor={DIFFICULTY_COLORS[entry.difficulty]}
+                        badgeLabel={t(
+                          `piano.game.difficulty.${entry.difficulty}`,
+                        )}
+                        comingSoon={!isPlayable}
+                        comingSoonLabel={t('piano.game.comingSoon')}
+                        disabled={!isPlayable}
+                        icon="musical-notes"
+                        key={entry.id}
+                        onPress={() => onSelectSong(entry.id)}
+                        showChevron={isPlayable}
+                        subtitle={entry.artist}
+                        title={entry.title}
+                      />
+                    );
+                  })
+                )}
 
-            {phase === 'pickMode' ? (
-              <>
-                <ChoiceRow
-                  icon="keypad-outline"
-                  onPress={() => onSelectPlayMode('piano')}
-                  showChevron
-                  subtitle={t('piano.game.modePianoHint')}
-                  title={t('piano.game.modePiano')}
-                />
-                <ChoiceRow
-                  comingSoon={!selectedSong?.backingTrack}
-                  comingSoonLabel={t('piano.game.comingSoon')}
-                  disabled={!selectedSong?.backingTrack}
-                  icon="people-outline"
-                  onPress={() => onSelectPlayMode('fullBand')}
-                  showChevron={Boolean(selectedSong?.backingTrack)}
-                  subtitle={t('piano.game.modeFullBandHint')}
-                  title={t('piano.game.modeFullBand')}
-                />
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => {
+                    void openStoreReview().catch(() => {
+                      Alert.alert(t('piano.game.requestSongOpenFailed'));
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.requestSongButton,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Ionicons
+                    color={colors.accent}
+                    name="chatbubble-ellipses-outline"
+                    size={16}
+                  />
+                  <Text style={styles.requestSongText}>
+                    {t('piano.game.requestSong', {
+                      store: getStoreDisplayName(),
+                    })}
+                  </Text>
+                </Pressable>
               </>
             ) : null}
 
@@ -398,19 +497,53 @@ export function PlayAlongModal({
                   icon="cut-outline"
                   onPress={() => onSelectScope('partial')}
                   showChevron
+                  subtitle={t('piano.game.scopePartialHint')}
                   title={t('piano.game.scopePartial')}
                 />
                 <ChoiceRow
-                  icon="albums-outline"
+                  icon="musical-notes-outline"
                   onPress={() => onSelectScope('full')}
                   showChevron
+                  subtitle={t('piano.game.scopeFullHint')}
                   title={t('piano.game.scopeFull')}
                 />
               </>
             ) : null}
 
-            {phase === 'pickLevel'
-              ? LEVELS.map((levelOption) => (
+            {phase === 'pickLevel' ? (
+              <>
+                {demoJustFinished ? (
+                  <Text style={styles.demoFinishedHint}>
+                    {t('piano.game.demoFinished')}
+                  </Text>
+                ) : null}
+                <Text style={styles.tempoLabel}>{t('piano.game.tempo.label')}</Text>
+                <View style={styles.tempoRow}>
+                  {TEMPO_OPTIONS.map((option) => {
+                    const selected = tempo === option;
+                    return (
+                      <Pressable
+                        key={option}
+                        onPress={() => onSelectTempo(option)}
+                        style={({ pressed }) => [
+                          styles.tempoChip,
+                          selected && styles.tempoChipSelected,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tempoChipText,
+                            selected && styles.tempoChipTextSelected,
+                          ]}
+                        >
+                          {t(`piano.game.tempo.${option}`)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {LEVELS.map((levelOption) => (
                   <ChoiceRow
                     icon={levelOption.icon}
                     key={levelOption.id}
@@ -419,8 +552,9 @@ export function PlayAlongModal({
                     subtitle={t(levelOption.descriptionKey)}
                     title={t(levelOption.titleKey)}
                   />
-                ))
-              : null}
+                ))}
+              </>
+            ) : null}
 
             {phase === 'results' && results ? (
               <View style={styles.resultsBlock}>
@@ -435,11 +569,6 @@ export function PlayAlongModal({
                   <Text style={styles.statLine}>
                     {t('piano.game.results.hits', { count: results.hits })}
                   </Text>
-                  {results.autos > 0 ? (
-                    <Text style={styles.statLine}>
-                      {t('piano.game.results.autos', { count: results.autos })}
-                    </Text>
-                  ) : null}
                   {results.misses > 0 ? (
                     <Text style={styles.statLine}>
                       {t('piano.game.results.misses', { count: results.misses })}
@@ -660,11 +789,60 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textTransform: 'uppercase',
   },
+  difficultyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 4,
+  },
+  difficultyChip: {
+    alignItems: 'center',
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  difficultyChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  difficultyBadge: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  difficultyBadgeDisabled: {
+    opacity: 0.55,
+  },
+  difficultyBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   emptyText: {
     color: colors.textSecondary,
     fontSize: 12,
     paddingHorizontal: 4,
     paddingVertical: 4,
+  },
+  requestSongButton: {
+    alignItems: 'flex-start',
+    backgroundColor: `${colors.accent}12`,
+    borderColor: `${colors.accent}44`,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  requestSongText: {
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 18,
   },
   userSongRow: {
     alignItems: 'center',
@@ -696,6 +874,46 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  tempoLabel: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  demoFinishedHint: {
+    color: '#FFD54F',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  tempoRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  tempoChip: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+  },
+  tempoChipSelected: {
+    backgroundColor: `${colors.accent}28`,
+    borderColor: colors.accent,
+  },
+  tempoChipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  tempoChipTextSelected: {
+    color: colors.accent,
   },
   rowDisabled: {
     opacity: 0.55,
@@ -780,8 +998,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   primaryButton: {
+    alignItems: 'center',
     backgroundColor: colors.accent,
     borderRadius: 12,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingVertical: 12,
   },
   primaryButtonText: {

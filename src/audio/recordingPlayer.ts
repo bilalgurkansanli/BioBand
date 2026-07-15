@@ -6,12 +6,9 @@ import { initDrumsEngine, playHit, releaseDrumsEngine } from '../instruments/dru
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
 import {
   initGuitarEngine,
-  pluckString,
+  playGuitarSoundId,
   releaseGuitarEngine,
-  strumChord,
 } from '../instruments/guitar/guitarEngine';
-import type { ChordId } from '../instruments/guitar/guitarChords';
-import type { GuitarStringId } from '../instruments/guitar/guitarSounds';
 import { initPadsEngine, releasePadsEngine, triggerPad } from '../instruments/pads/padsEngine';
 import type { PadSoundId } from '../instruments/pads/padsSounds';
 import {
@@ -97,11 +94,7 @@ function playInstrumentEvent(instrument: InstrumentId, soundId: string): void {
       triggerPad(soundId as PadSoundId);
       return;
     case 'guitar': {
-      if (soundId.startsWith('chord:')) {
-        strumChord(soundId.slice('chord:'.length) as ChordId);
-        return;
-      }
-      pluckString(soundId as GuitarStringId);
+      playGuitarSoundId(soundId);
       return;
     }
     case 'violin': {

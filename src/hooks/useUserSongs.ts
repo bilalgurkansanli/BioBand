@@ -7,6 +7,11 @@ import {
   UserSongParseError,
   type UserSongParseErrorCode,
 } from '../instruments/piano/songs/userSongSchema';
+import type { SongDefinition } from '../instruments/piano/songs/types';
+import {
+  copySongAudioFile,
+  saveSongAudioBinding,
+} from '../storage/songAudioBindingsStorage';
 import {
   deleteUserSong,
   loadUserSongs,
@@ -14,16 +19,24 @@ import {
   type UserSong,
   type UserSongSource,
 } from '../storage/userSongsStorage';
+import {
+  pickAudioDocument,
+  pickChartDocument,
+} from '../utils/documentPicker';
 
 export type ImportSongResult =
   | { ok: true; song: UserSong }
-  | { ok: false; code: UserSongParseErrorCode | 'canceled' | 'pickerUnavailable' };
+  | {
+      ok: false;
+      code: UserSongParseErrorCode | 'canceled' | 'pickerUnavailable';
+    };
 
-type PickedAsset = {
-  name: string;
-  uri: string;
-  mimeType?: string | null;
-};
+export type AttachAudioResult =
+  | { ok: true; song: UserSong }
+  | {
+      ok: false;
+      code: 'canceled' | 'pickerUnavailable' | 'unsupported' | 'readFailed' | 'notFound';
+    };
 
 function extensionOf(name: string): string {
   const match = name.match(/\.([a-zA-Z0-9]+)$/);
@@ -47,49 +60,29 @@ function detectSource(fileName: string, mimeType?: string | null): UserSongSourc
   return null;
 }
 
-/**
- * Lazy-load DocumentPicker so missing native module does not crash app startup
- * (common when expo-dev-client was built before expo-document-picker was added).
- */
-async function pickDocument(): Promise<
-  | { ok: true; asset: PickedAsset }
-  | { ok: false; code: 'canceled' | 'pickerUnavailable' }
-> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const DocumentPicker = require('expo-document-picker') as typeof import('expo-document-picker');
-    const result = await DocumentPicker.getDocumentAsync({
-      type: [
-        'application/json',
-        'audio/midi',
-        'audio/mid',
-        'audio/x-midi',
-        '*/*',
-      ],
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-
-    if (result.canceled || !result.assets?.[0]) {
-      return { ok: false, code: 'canceled' };
-    }
-
-    const asset = result.assets[0];
-    return {
-      ok: true,
-      asset: {
-        name: asset.name,
-        uri: asset.uri,
-        mimeType: asset.mimeType,
-      },
-    };
-  } catch {
-    return { ok: false, code: 'pickerUnavailable' };
-  }
+async function attachAudioToDefinition(
+  definition: SongDefinition,
+  audioUri: string,
+  fileNameHint?: string,
+): Promise<SongDefinition> {
+  const localUri = copySongAudioFile(definition.id, audioUri, fileNameHint);
+  const eventsStartMs = 0;
+  await saveSongAudioBinding({
+    songId: definition.id,
+    localUri,
+    eventsStartMs,
+  });
+  return {
+    ...definition,
+    backingTrack: {
+      uri: localUri,
+      eventsStartMs,
+    },
+  };
 }
 
 async function persistSong(
-  definition: ReturnType<typeof parseUserSongJson>,
+  definition: SongDefinition,
   source: UserSongSource,
   setSongs: (songs: UserSong[]) => void,
 ): Promise<UserSong> {
@@ -122,10 +115,11 @@ export function useUserSongs() {
     };
   }, []);
 
+  /** Import chart only (JSON/MIDI). Attach Band Mode audio separately. */
   const importSong = useCallback(async (): Promise<ImportSongResult> => {
     setImporting(true);
     try {
-      const picked = await pickDocument();
+      const picked = await pickChartDocument();
       if (!picked.ok) {
         return { ok: false, code: picked.code };
       }
@@ -137,7 +131,7 @@ export function useUserSongs() {
       }
 
       const file = new File(asset.uri);
-      let definition;
+      let definition: SongDefinition;
       try {
         if (source === 'json') {
           const text = await file.text();
@@ -164,7 +158,7 @@ export function useUserSongs() {
     }
   }, []);
 
-  /** Import from pasted / typed JSON text — works without DocumentPicker native module. */
+  /** Import from pasted / typed JSON text — works without DocumentPicker. */
   const importSongFromJsonText = useCallback(
     async (text: string): Promise<ImportSongResult> => {
       setImporting(true);
@@ -184,6 +178,63 @@ export function useUserSongs() {
     [],
   );
 
+  /** Pick an original-mix file and attach it to an existing user song. */
+  const attachAudioToUserSong = useCallback(
+    async (songId: string): Promise<AttachAudioResult> => {
+      const existing = songs.find((song) => song.id === songId);
+      if (!existing) {
+        return { ok: false, code: 'notFound' };
+      }
+
+      setImporting(true);
+      try {
+        const picked = await pickAudioDocument();
+        if (!picked.ok) {
+          return { ok: false, code: picked.code };
+        }
+
+        const withAudio = await attachAudioToDefinition(
+          existing,
+          picked.asset.uri,
+          picked.asset.name,
+        );
+        const userSong: UserSong = {
+          ...existing,
+          ...withAudio,
+          source: existing.source,
+          importedAt: existing.importedAt,
+        };
+        const next = await saveUserSong(userSong);
+        setSongs(next);
+        return { ok: true, song: userSong };
+      } catch {
+        return { ok: false, code: 'readFailed' };
+      } finally {
+        setImporting(false);
+      }
+    },
+    [songs],
+  );
+
+  const updateUserSongBackingOffset = useCallback(
+    async (songId: string, eventsStartMs: number): Promise<void> => {
+      const existing = songs.find((song) => song.id === songId);
+      if (!existing?.backingTrack) {
+        return;
+      }
+      const userSong: UserSong = {
+        ...existing,
+        backingTrack: {
+          ...existing.backingTrack,
+          eventsStartMs,
+        },
+      };
+      const next = await saveUserSong(userSong);
+      setSongs(next);
+    },
+    [songs],
+  );
+
   const removeSong = useCallback(async (songId: string) => {
     const next = await deleteUserSong(songId);
     setSongs(next);
@@ -195,6 +246,8 @@ export function useUserSongs() {
     importing,
     importSong,
     importSongFromJsonText,
+    attachAudioToUserSong,
+    updateUserSongBackingOffset,
     removeSong,
   };
 }

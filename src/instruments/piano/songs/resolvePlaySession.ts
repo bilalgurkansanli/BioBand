@@ -1,4 +1,11 @@
-import type { PlayMode, SongDefinition, SongEvent, SongPartialWindow, SongScope } from './types';
+import {
+  songHasBackingAudio,
+  type PlayMode,
+  type SongDefinition,
+  type SongEvent,
+  type SongPartialWindow,
+  type SongScope,
+} from './types';
 
 export type ResolvedPlaySession = {
   events: SongEvent[];
@@ -14,27 +21,45 @@ function defaultPartialWindow(song: SongDefinition): SongPartialWindow {
     return song.partialWindowMs;
   }
   const eventsStart = song.backingTrack?.eventsStartMs ?? 0;
-  const lastAt = song.events[song.events.length - 1]?.atMs ?? 0;
+  const events = song.events;
+  if (events.length === 0) {
+    return { startMs: eventsStart, endMs: eventsStart };
+  }
+  // Fallback excerpt: first ~50 notes (until the song gets a real window).
+  const endIdx = Math.min(49, events.length - 1);
   return {
-    startMs: eventsStart,
-    endMs: eventsStart + lastAt + 2000,
+    startMs: eventsStart + events[0].atMs,
+    endMs: eventsStart + events[endIdx].atMs,
   };
+}
+
+function fallbackPartialEvents(song: SongDefinition): SongEvent[] {
+  const endIdx = Math.min(49, song.events.length - 1);
+  if (endIdx < 0) {
+    return [];
+  }
+  const startRel = song.events[0].atMs;
+  return song.events.slice(0, endIdx + 1).map((event) => ({
+    noteId: event.noteId,
+    atMs: event.atMs - startRel,
+  }));
 }
 
 /**
  * Map catalog song + wizard choices into session events and audio window.
- * Event `atMs` values are relative to session start (0 = first moment of play).
+ * Event `atMs` values are relative to session start (0 = first moment of play)
+ * in song-time (tempo rate is applied by the play-along clock / backing player).
  */
 export function resolvePlaySession(
   song: SongDefinition,
   playMode: PlayMode,
   songScope: SongScope,
 ): ResolvedPlaySession {
-  const useBacking = playMode === 'fullBand' && song.backingTrack != null;
+  const useBacking =
+    playMode === 'fullBand' && songHasBackingAudio(song.backingTrack);
   const eventsStart = song.backingTrack?.eventsStartMs ?? 0;
 
   if (!useBacking) {
-    // Piano-only: keep existing relative events; optional partial trim.
     if (songScope === 'partial') {
       const window = defaultPartialWindow(song);
       const startRel = Math.max(0, window.startMs - eventsStart);
@@ -46,7 +71,7 @@ export function resolvePlaySession(
           atMs: event.atMs - startRel,
         }));
       return {
-        events: sliced.length > 0 ? sliced : song.events,
+        events: sliced.length > 0 ? sliced : fallbackPartialEvents(song),
         useBacking: false,
         audioStartMs: 0,
         audioEndMs: null,
@@ -83,7 +108,7 @@ export function resolvePlaySession(
   }));
 
   return {
-    events: events.length > 0 ? events : song.events,
+    events: events.length > 0 ? events : fallbackPartialEvents(song),
     useBacking: true,
     audioStartMs,
     audioEndMs,
@@ -91,5 +116,5 @@ export function resolvePlaySession(
 }
 
 export function songHasBackingTrack(song: SongDefinition | null | undefined): boolean {
-  return song?.backingTrack != null;
+  return songHasBackingAudio(song?.backingTrack);
 }

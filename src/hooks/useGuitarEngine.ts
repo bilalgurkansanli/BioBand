@@ -1,16 +1,19 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { ChordId } from '../instruments/guitar/guitarChords';
 import {
   initGuitarEngine,
+  playGuitarSoundId,
   pluckString as enginePluckString,
   releaseGuitarEngine,
+  setGuitarVoice as engineSetGuitarVoice,
   strumChord as engineStrumChord,
 } from '../instruments/guitar/guitarEngine';
 import type { GuitarStringId } from '../instruments/guitar/guitarSounds';
+import type { GuitarVoiceId } from '../instruments/guitar/guitarVoices';
 
-export function useGuitarEngine() {
+export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,6 +26,7 @@ export function useGuitarEngine() {
       initGuitarEngine()
         .then(() => {
           if (active) {
+            engineSetGuitarVoice(voiceId);
             setReady(true);
           }
         })
@@ -39,16 +43,28 @@ export function useGuitarEngine() {
         releaseGuitarEngine();
         setReady(false);
       };
+      // voiceId applied in a separate effect while focused — do not re-init samples.
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- focus lifecycle only
     }, []),
   );
 
-  const pluckString = useCallback((stringId: GuitarStringId) => {
-    enginePluckString(stringId);
+  useEffect(() => {
+    if (ready) {
+      engineSetGuitarVoice(voiceId);
+    }
+  }, [voiceId, ready]);
+
+  const pluckString = useCallback((stringId: GuitarStringId, fret = 0) => {
+    enginePluckString(stringId, fret);
   }, []);
 
   const strumChord = useCallback((chordId: ChordId) => {
     engineStrumChord(chordId, 'down');
   }, []);
 
-  return { ready, error, pluckString, strumChord };
+  const playSoundId = useCallback((soundId: string) => {
+    playGuitarSoundId(soundId);
+  }, []);
+
+  return { ready, error, pluckString, strumChord, playSoundId };
 }

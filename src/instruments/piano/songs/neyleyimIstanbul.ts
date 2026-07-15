@@ -1,84 +1,295 @@
 import type { NoteId } from '../pianoNotes';
 import type { SongDefinition } from './types';
 
-// Murat Dalkılıç — "Neyleyim İstanbul'u" (music: Oytun Karanacak), intro melody.
-// Transcribed in C major from the kolaynota.com notation; quarter ≈ 470ms (~128bpm).
-// Bars 1-5 of the instrumental intro, ending on the low C resolution.
-// Backing: assets/songs/neyleyim-istanbul.mp3 (~4:23). eventsStartMs aligned to
-// first non-silent audio (~0.39s via silencedetect); fine-tune if keys feel early/late.
-const RAW_EVENTS: { noteId: NoteId; atMs: number }[] = [
-  // Bar 1 — La Si La pickup, then the Mi Re Do Si La descent.
-  { noteId: 'A4', atMs: 0 },
-  { noteId: 'B4', atMs: 115 },
-  { noteId: 'A4', atMs: 230 },
-  { noteId: 'E5', atMs: 350 },
-  { noteId: 'D5', atMs: 585 },
-  { noteId: 'C5', atMs: 820 },
-  { noteId: 'B4', atMs: 1055 },
-  { noteId: 'A4', atMs: 1170 },
-  // Bar 2 — Sol, Sol La Sol, Re Do Si La Sol.
-  { noteId: 'G4', atMs: 1290 },
-  { noteId: 'G4', atMs: 1880 },
-  { noteId: 'A4', atMs: 1995 },
-  { noteId: 'G4', atMs: 2110 },
-  { noteId: 'D5', atMs: 2230 },
-  { noteId: 'C5', atMs: 2465 },
-  { noteId: 'B4', atMs: 2700 },
-  { noteId: 'A4', atMs: 2935 },
-  { noteId: 'G4', atMs: 3050 },
-  // Bar 3 — the syncopated Fa Mi Fa riff, closing with Sol La.
-  { noteId: 'F4', atMs: 3170 },
-  { noteId: 'E4', atMs: 3290 },
-  { noteId: 'F4', atMs: 3405 },
-  { noteId: 'F4', atMs: 3875 },
-  { noteId: 'E4', atMs: 3990 },
-  { noteId: 'F4', atMs: 4110 },
-  { noteId: 'E4', atMs: 4460 },
-  { noteId: 'F4', atMs: 4580 },
-  { noteId: 'G4', atMs: 4815 },
-  { noteId: 'A4', atMs: 4930 },
-  // Bar 4 — Sol held, then the Re Mi Mi Re Do Si La Si run.
-  { noteId: 'G4', atMs: 5050 },
-  { noteId: 'D5', atMs: 5990 },
-  { noteId: 'E5', atMs: 6105 },
-  { noteId: 'E5', atMs: 6225 },
-  { noteId: 'D5', atMs: 6340 },
-  { noteId: 'C5', atMs: 6460 },
-  { noteId: 'B4', atMs: 6575 },
-  { noteId: 'A4', atMs: 6695 },
-  { noteId: 'B4', atMs: 6810 },
-  // Bar 5 — Do held, Sol La Fa Sol / Mi Fa Re Mi descent…
-  { noteId: 'C5', atMs: 6930 },
-  { noteId: 'G4', atMs: 7870 },
-  { noteId: 'A4', atMs: 7985 },
-  { noteId: 'F4', atMs: 8105 },
-  { noteId: 'G4', atMs: 8220 },
-  { noteId: 'E4', atMs: 8340 },
-  { noteId: 'F4', atMs: 8455 },
-  { noteId: 'D4', atMs: 8575 },
-  { noteId: 'E4', atMs: 8690 },
-  // …resolving on the low Do.
-  { noteId: 'C4', atMs: 8810 },
+// Murat Dalkılıç — "Neyleyim İstanbul'u" (Oytun Karanacak)
+// Musa Çetiner / kolaynota.com — full melody (intro + verse + chorus).
+// Solfege → C (Lab→Ab4, Sib→Bb4). Quarter ≈ 480ms (~125bpm).
+const Q = 480;
+const E = Q / 2;
+const S = Q / 4;
+const BAR = 4 * Q;
+
+type Ev = { noteId: NoteId; atMs: number };
+
+function phrase(
+  startMs: number,
+  noteIds: NoteId[],
+  spanMs: number = BAR,
+): Ev[] {
+  if (noteIds.length === 0) {
+    return [];
+  }
+  if (noteIds.length === 1) {
+    return [{ noteId: noteIds[0], atMs: startMs }];
+  }
+  const step = spanMs / noteIds.length;
+  return noteIds.map((noteId, i) => ({
+    noteId,
+    atMs: Math.round(startMs + i * step),
+  }));
+}
+
+function timed(startMs: number, notes: [NoteId, number][]): Ev[] {
+  return notes.map(([noteId, offset]) => ({
+    noteId,
+    atMs: startMs + offset,
+  }));
+}
+
+const NEYLEYIM_EVENTS: Ev[] = [
+  // ── Intro (bar 1 rest; melody bars 2–5) ──
+  ...timed(BAR, [
+    ['A4', 0],
+    ['B4', S],
+    ['A4', 2 * S],
+    ['E5', E],
+    ['D5', E + E],
+    ['C5', E + 2 * E],
+    ['B4', E + 3 * E],
+    ['A4', E + 3 * E + S],
+    ['G4', BAR - S],
+  ]),
+  ...timed(2 * BAR, [
+    ['G4', 0],
+    ['A4', S],
+    ['G4', 2 * S],
+    ['D5', E],
+    ['C5', E + E],
+    ['B4', E + 2 * E],
+    ['A4', E + 3 * E],
+    ['G4', E + 3 * E + S],
+    ['F4', 2 * Q],
+    ['E4', 2 * Q + S],
+    ['F4', 2 * Q + 2 * S],
+    ['F4', 3 * Q],
+    ['E4', 3 * Q + S],
+    ['F4', 3 * Q + 2 * S],
+    ['E4', 3 * Q + 3 * S],
+    ['F4', BAR - 3 * S],
+    ['G4', BAR - 2 * S],
+    ['A4', BAR - S],
+  ]),
+  ...timed(3 * BAR, [
+    ['G4', 0],
+    ['D5', Q],
+    ['E5', Q + S],
+    ['E5', Q + 2 * S],
+    ['D5', Q + 3 * S],
+    ['C5', 2 * Q],
+    ['B4', 2 * Q + S],
+    ['A4', 2 * Q + 2 * S],
+    ['B4', 2 * Q + 3 * S],
+    ['C5', 3 * Q],
+  ]),
+  ...timed(4 * BAR, [
+    ['G4', 0],
+    ['A4', S],
+    ['F4', 2 * S],
+    ['G4', 3 * S],
+    ['E4', Q],
+    ['F4', Q + S],
+    ['D4', Q + 2 * S],
+    ['E4', Q + 3 * S],
+    ['C4', 2 * Q],
+    ['G4', 3 * Q],
+  ]),
+
+  // ── "Son sözüm kalmadı söyleyecek sana" ──
+  ...phrase(5 * BAR, [
+    'G4',
+    'G4',
+    'A4',
+    'A4',
+    'G4',
+    'F4',
+    'E4',
+    'E4',
+    'F4',
+  ]),
+  ...phrase(6 * BAR, [
+    'G4',
+    'F4',
+    'G4',
+    'G4',
+    'C5',
+    'D5',
+    'E5',
+    'F5',
+    'G5',
+  ]),
+
+  // "Sadece birkaç küçük sitem"
+  ...phrase(7 * BAR, [
+    'F5',
+    'F5',
+    'F5',
+    'F5',
+    'F5',
+    'F5',
+    'A5',
+    'A5',
+    'A5',
+  ]),
+  ...phrase(8 * BAR, [
+    'B5',
+    'A5',
+    'G5',
+    'G5',
+    'A5',
+    'B5',
+    'A5',
+    'G5',
+    'F5',
+    'E5',
+    'F5',
+  ]),
+
+  // "Belki onlarda eriyip gidecek"
+  ...phrase(9 * BAR, [
+    'G5',
+    'G5',
+    'G5',
+    'A5',
+    'G5',
+    'F5',
+    'E5',
+    'E5',
+    'F5',
+  ]),
+  ...phrase(10 * BAR, [
+    'A5',
+    'G5',
+    'A5',
+    'C5',
+    'B4',
+    'C5',
+    'D5',
+    'F5',
+    'E5',
+    'D5',
+    'C5',
+  ]),
+
+  // "Mutlu olduğunu bilsem"
+  ...phrase(11 * BAR, [
+    'B4',
+    'G4',
+    'G4',
+    'A4',
+    'G4',
+    'F4',
+    'E4',
+    'D4',
+  ]),
+  ...phrase(12 * BAR, ['E4', 'C4'], 2 * Q),
+
+  // "Göz görmeyince gönül katlanır derler"
+  ...phrase(13 * BAR, ['G4', 'G4', 'A4', 'G4', 'E4', 'E4', 'F4']),
+  ...phrase(14 * BAR, ['G4', 'F4', 'G4', 'A4', 'A4', 'G4']),
+
+  // "Ondan biraz uzak olsam yeter"
+  ...phrase(15 * BAR, [
+    'F4',
+    'F4',
+    'F4',
+    'F4',
+    'F4',
+    'F4',
+    'E4',
+    'D4',
+    'F4',
+  ]),
+  ...phrase(16 * BAR, ['G4'], Q),
+
+  // "Ama hiç yalnız bırakmaz anılar"
+  ...phrase(17 * BAR, [
+    'Ab4',
+    'Ab4',
+    'Ab4',
+    'Bb4',
+    'Ab4',
+    'C5',
+    'C5',
+    'D5',
+  ]),
+  ...phrase(18 * BAR, ['G4', 'F4', 'G4', 'E4', 'E4']),
+
+  // "Çünkü en çok mesafeyi severler"
+  ...phrase(19 * BAR, [
+    'D4',
+    'D4',
+    'D4',
+    'A4',
+    'G4',
+    'G4',
+    'D4',
+    'E4',
+    'C4',
+  ]),
+
+  // Scale run into bridge
+  ...phrase(20 * BAR, ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']),
+
+  // "Ben birkaç parça anıyla sarhoş oldum bugün"
+  ...phrase(21 * BAR, ['A4', 'E5', 'D5', 'C5', 'C5', 'B4', 'A4']),
+  ...phrase(22 * BAR, ['A4', 'F4', 'E4', 'D4', 'C4', 'B4']),
+
+  // "Ve mutluluğum kaldı dağlar ardında"
+  ...phrase(23 * BAR, ['B4', 'G4', 'F4', 'F4', 'E4', 'D4']),
+  ...phrase(24 * BAR, [
+    'E4',
+    'D4',
+    'C4',
+    'B4',
+    'C5',
+    'B4',
+    'C5',
+    'C5',
+    'B4',
+    'C5',
+  ]),
+
+  // "Çünkü yoksun yanımda"
+  ...phrase(25 * BAR, ['A4', 'A4', 'E4', 'D4', 'C4', 'B4']),
+  ...phrase(26 * BAR, ['G4', 'D4', 'C4', 'C4', 'B4', 'A4']),
+
+  // ── Chorus — "Neyleyim İstanbul'u sonbaharda" ──
+  ...phrase(27 * BAR, ['F4', 'F4'], 2 * Q),
+  ...phrase(27 * BAR + 2 * Q, ['B4', 'B4', 'B4', 'C5'], 2 * Q),
+  ...phrase(28 * BAR, [
+    'C5',
+    'B4',
+    'C5',
+    'B4',
+    'C5',
+    'B4',
+    'C5',
+    'F4',
+    'E4',
+    'D4',
+    'C4',
+    'B4',
+  ]),
+  ...phrase(29 * BAR, ['A4', 'A4', 'A4', 'E4', 'D4', 'C4', 'B4']),
+  ...phrase(30 * BAR, ['G4', 'D4', 'C4', 'C4', 'B4', 'A4', 'F4', 'F4']),
+  ...phrase(31 * BAR, ['G4', 'B4', 'B4', 'B4', 'C5'], 2 * Q),
 ];
 
-const LAST_EVENT_MS = RAW_EVENTS[RAW_EVENTS.length - 1]?.atMs ?? 0;
+const LAST_MS = NEYLEYIM_EVENTS[NEYLEYIM_EVENTS.length - 1]?.atMs ?? 0;
 
-/** First audible frame of the bundled mix (ms). */
-const EVENTS_START_MS = 390;
+// Partial ≈ "Çünkü yoksun yanımda / Neyleyim İstanbul'u…" (~50 notes)
+const PARTIAL_START_MS = 25 * BAR;
+const partialNotes = NEYLEYIM_EVENTS.filter((e) => e.atMs >= PARTIAL_START_MS);
 
 export const neyleyimIstanbulSong: SongDefinition = {
   id: 'neyleyim-istanbul',
   title: "Neyleyim İstanbul'u",
   artist: 'Murat Dalkılıç',
   descriptionKey: 'tutorial.songs.neyleyimIstanbul.description',
-  previewDurationMs: 10500,
-  events: RAW_EVENTS,
-  backingTrack: {
-    module: require('../../../../assets/songs/neyleyim-istanbul.mp3'),
-    eventsStartMs: EVENTS_START_MS,
-  },
+  previewDurationMs: Math.min(12000, LAST_MS + Q),
+  events: NEYLEYIM_EVENTS,
   partialWindowMs: {
-    startMs: EVENTS_START_MS,
-    endMs: EVENTS_START_MS + LAST_EVENT_MS + 2000,
+    startMs: partialNotes[0].atMs,
+    endMs: partialNotes[partialNotes.length - 1].atMs,
   },
 };

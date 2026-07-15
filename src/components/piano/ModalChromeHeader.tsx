@@ -10,6 +10,8 @@ type ModalChromeHeaderProps = {
   /** When set, shows a back chevron on the left. */
   backLabel?: string;
   onBack?: () => void;
+  /** Small label shown next to the title (e.g. "Beta"). */
+  badge?: string;
 };
 
 export function ModalChromeHeader({
@@ -18,6 +20,7 @@ export function ModalChromeHeader({
   onClose,
   backLabel,
   onBack,
+  badge,
 }: ModalChromeHeaderProps) {
   const showBack = Boolean(onBack);
 
@@ -37,9 +40,16 @@ export function ModalChromeHeader({
         <View style={styles.spacer} />
       )}
 
-      <Text numberOfLines={1} style={styles.title}>
-        {title}
-      </Text>
+      <View style={styles.titleRow}>
+        <Text numberOfLines={1} style={styles.title}>
+          {title}
+        </Text>
+        {badge ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </View>
 
       <Pressable
         accessibilityLabel={closeLabel}
@@ -98,13 +108,33 @@ const styles = StyleSheet.create({
     height: 36,
     width: 36,
   },
+  titleRow: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginHorizontal: 8,
+    minWidth: 0,
+  },
   title: {
     color: colors.text,
-    flex: 1,
+    flexShrink: 1,
     fontSize: 17,
     fontWeight: '700',
-    marginHorizontal: 8,
     textAlign: 'center',
+  },
+  badge: {
+    backgroundColor: colors.accentMuted,
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    color: colors.text,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.4,
   },
   pressed: {
     opacity: 0.75,

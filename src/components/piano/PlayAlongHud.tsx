@@ -15,6 +15,7 @@ type PlayAlongHudProps = {
   progress: PlayAlongProgress;
   level: SupportLevel;
   playMode?: PlayMode | null;
+  isListeningOutro?: boolean;
   songTitle?: string;
   onStop: () => void;
 };
@@ -25,6 +26,7 @@ export function PlayAlongHud({
   progress,
   level,
   playMode,
+  isListeningOutro = false,
   songTitle,
   onStop,
 }: PlayAlongHudProps) {
@@ -34,45 +36,72 @@ export function PlayAlongHud({
     return null;
   }
 
-  const watchingLabel =
-    playMode === 'fullBand'
-      ? t('piano.game.hud.watchingBand')
-      : t('piano.game.hud.watching');
+  const isDemo = phase === 'demo';
+  const remaining = Math.max(0, progress.total - progress.resolved);
+
+  const progressText =
+    progress.total > 0
+      ? t(isDemo ? 'piano.game.hud.progressWatch' : 'piano.game.hud.progress', {
+          done: progress.resolved,
+          total: progress.total,
+          left: remaining,
+          hits: progress.hits,
+        })
+      : null;
+
+  let status: string | null = null;
+  if (phase === 'countdown') {
+    status = t('piano.game.hud.countdown', { count: countdownValue });
+  } else if (isDemo) {
+    status = t('piano.game.hud.watching');
+  } else if (isListeningOutro) {
+    status = t('piano.game.hud.listeningOutro');
+  } else if (playMode === 'fullBand') {
+    status = t('piano.game.hud.bandPerform');
+  } else if (level === 'medium' && progress.resolved === 0) {
+    status = t('piano.game.hud.tapToStart');
+  } else {
+    status = t(`piano.game.levels.${level}`);
+  }
+
+  const showProgress = Boolean(progressText) && phase !== 'countdown';
+  const middleParts: string[] = [];
+  if (playMode === 'fullBand' && !isDemo) {
+    middleParts.push(t('piano.game.hud.bandLive'));
+  }
+  if (status) {
+    middleParts.push(status);
+  }
+  if (showProgress && progressText) {
+    middleParts.push(progressText);
+  }
 
   return (
     <View style={styles.banner}>
-      <View style={styles.info}>
-        {songTitle ? <Text style={styles.songName}>{songTitle}</Text> : null}
-        {playMode === 'fullBand' ? (
-          <Text style={styles.bandBadge}>{t('piano.game.hud.bandLive')}</Text>
+      <View style={styles.left}>
+        {songTitle ? (
+          <Text numberOfLines={1} style={styles.songName}>
+            {songTitle}
+          </Text>
         ) : null}
-        {phase === 'countdown' ? (
-          <Text style={styles.countdown}>
-            {t('piano.game.hud.countdown', { count: countdownValue })}
-          </Text>
-        ) : phase === 'demo' ? (
-          <Text style={styles.countdown}>{watchingLabel}</Text>
-        ) : level === 'medium' && progress.resolved === 0 ? (
-          <Text style={styles.countdown}>{t('piano.game.hud.tapToStart')}</Text>
-        ) : (
-          <Text style={styles.message}>
-            {t('piano.game.hud.progress', {
-              done: progress.resolved,
-              total: progress.total,
-              hits: progress.hits,
-            })}
-            {'  ·  '}
-            {t(`piano.game.levels.${level}`)}
-          </Text>
-        )}
       </View>
 
-      <Pressable
-        onPress={onStop}
-        style={({ pressed }) => [styles.stopButton, pressed && styles.pressed]}
-      >
-        <Text style={styles.stopText}>{t('piano.game.hud.stop')}</Text>
-      </Pressable>
+      <View style={styles.center}>
+        {middleParts.length > 0 ? (
+          <Text numberOfLines={1} style={styles.middle}>
+            {middleParts.join(' · ')}
+          </Text>
+        ) : null}
+      </View>
+
+      <View style={styles.right}>
+        <Pressable
+          onPress={onStop}
+          style={({ pressed }) => [styles.stopButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.stopText}>{t('piano.game.hud.stop')}</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -80,52 +109,56 @@ export function PlayAlongHud({
 const styles = StyleSheet.create({
   banner: {
     alignItems: 'center',
+    alignSelf: 'stretch',
     backgroundColor: colors.surfaceLight,
     borderColor: '#FFD54F',
-    borderRadius: 10,
-    borderWidth: 1,
-    flexDirection: 'row',
-    marginBottom: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  info: {
-    flex: 1,
-  },
-  songName: {
-    color: '#FFD54F',
-    fontSize: 12,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  bandBadge: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.4,
-    marginBottom: 2,
-    textTransform: 'uppercase',
-  },
-  countdown: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  message: {
-    color: colors.text,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  stopButton: {
-    borderColor: colors.border,
     borderRadius: 8,
     borderWidth: 1,
-    marginLeft: 10,
+    flexDirection: 'row',
+    marginBottom: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  left: {
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingRight: 6,
+  },
+  center: {
+    alignItems: 'center',
+    flex: 1.4,
+    justifyContent: 'center',
+    minWidth: 0,
+    paddingHorizontal: 4,
+  },
+  right: {
+    alignItems: 'flex-end',
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 64,
+  },
+  songName: {
+    color: '#4DA3FF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  middle: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  stopButton: {
+    backgroundColor: colors.error,
+    borderColor: colors.error,
+    borderRadius: 6,
+    borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   stopText: {
-    color: colors.textSecondary,
+    color: colors.text,
     fontSize: 12,
     fontWeight: '700',
   },
