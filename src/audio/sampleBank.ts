@@ -253,6 +253,12 @@ export type PlaySampleOptions = {
    * Finger/sustain held note — long ceiling; end with releaseVoiceByTag.
    */
   held?: boolean;
+  /** Override default attack ramp (seconds). */
+  attackSeconds?: number;
+  /** Override how long the voice stays at full gain before release. */
+  holdSeconds?: number;
+  /** Override fade-out length after hold. */
+  releaseSeconds?: number;
 };
 
 export function playSample(
@@ -266,16 +272,20 @@ export function playSample(
   const context = getAudioContext();
   const now = context.currentTime;
 
-  const holdSeconds = options?.held
-    ? HELD_VOICE_SECONDS
-    : options?.shortTail
-      ? 0.9
-      : VOICE_HOLD_SECONDS;
-  const releaseSeconds = options?.held
-    ? 0.4
-    : options?.shortTail
-      ? 0.55
-      : VOICE_RELEASE_SECONDS;
+  const holdSeconds =
+    options?.holdSeconds ??
+    (options?.held
+      ? HELD_VOICE_SECONDS
+      : options?.shortTail
+        ? 0.9
+        : VOICE_HOLD_SECONDS);
+  const releaseSeconds =
+    options?.releaseSeconds ??
+    (options?.held ? 0.4 : options?.shortTail ? 0.55 : VOICE_RELEASE_SECONDS);
+  const attackSeconds = Math.max(
+    0.0005,
+    options?.attackSeconds ?? ATTACK_SECONDS,
+  );
 
   // Hold at full gain, then release to silence and stop the node, so long
   // sample tails never accumulate. Short samples simply end earlier.
@@ -290,7 +300,7 @@ export function playSample(
   const noteGain = context.createGain();
   // Short attack avoids clicks when the sample does not start at a zero crossing.
   noteGain.gain.setValueAtTime(0.0001, now);
-  noteGain.gain.linearRampToValueAtTime(gain, now + ATTACK_SECONDS);
+  noteGain.gain.linearRampToValueAtTime(gain, now + attackSeconds);
   noteGain.gain.setValueAtTime(gain, releaseStart);
   noteGain.gain.linearRampToValueAtTime(0.0001, endsAt);
 

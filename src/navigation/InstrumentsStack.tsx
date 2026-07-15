@@ -11,6 +11,11 @@ import type { InstrumentsStackParamList } from '../types/navigation';
 
 const Stack = createNativeStackNavigator<InstrumentsStackParamList>();
 
+const instrumentScreenOptions = {
+  animation: 'none' as const,
+  contentStyle: { backgroundColor: colors.background },
+};
+
 export function InstrumentsStack() {
   return (
     <Stack.Navigator
@@ -20,11 +25,31 @@ export function InstrumentsStack() {
       }}
     >
       <Stack.Screen name="InstrumentsList" component={InstrumentsListScreen} />
-      <Stack.Screen name="Piano" component={PianoScreen} />
-      <Stack.Screen name="Drums" component={DrumsScreen} />
-      <Stack.Screen name="Guitar" component={GuitarScreen} />
-      <Stack.Screen name="Violin" component={ViolinScreen} />
-      <Stack.Screen name="Pads" component={PadsScreen} />
+      <Stack.Screen
+        component={PianoScreen}
+        name="Piano"
+        options={instrumentScreenOptions}
+      />
+      <Stack.Screen
+        component={DrumsScreen}
+        name="Drums"
+        options={instrumentScreenOptions}
+      />
+      <Stack.Screen
+        component={GuitarScreen}
+        name="Guitar"
+        options={instrumentScreenOptions}
+      />
+      <Stack.Screen
+        component={ViolinScreen}
+        name="Violin"
+        options={instrumentScreenOptions}
+      />
+      <Stack.Screen
+        component={PadsScreen}
+        name="Pads"
+        options={instrumentScreenOptions}
+      />
     </Stack.Navigator>
   );
 }

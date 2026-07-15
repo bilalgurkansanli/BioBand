@@ -44,7 +44,7 @@
     "drumsLoading": "Loading drum sounds...",
     "drumsLoadError": "Could not load sounds. Go back and try again.",
     "guitar": "Guitar",
-    "guitarDescription": "Pluck strings or strum chords — acoustic guitar.",
+    "guitarDescription": "12-fret board — pluck frets or strum chords.",
     "guitarLoading": "Loading guitar sounds...",
     "guitarLoadError": "Could not load sounds. Go back and try again.",
     "violin": "Violin",
@@ -105,6 +105,116 @@
       "tomLow": "Tom Low",
       "snare": "Snare",
       "kick": "Kick"
+    },
+    "toolbar": {
+      "metronome": "Metronome",
+      "fx": "Effects",
+      "volume": "Volume",
+      "kit": "Drum kit sound",
+      "game": "Tutorial · Beta",
+      "settings": "Settings"
+    },
+    "kits": {
+      "title": "Choose drum kit",
+      "acoustic": "Acoustic",
+      "punch": "Punch",
+      "electronic": "Electronic",
+      "room": "Room",
+      "vintage": "Vintage",
+      "lofi": "Lo-fi",
+      "close": "Close"
+    },
+    "settings": {
+      "title": "Settings",
+      "showPadLabels": "Pad name labels",
+      "strongGuideHighlight": "Strong tutorial highlight",
+      "startTutorial": "Start tutorial",
+      "close": "Close"
+    },
+    "game": {
+      "title": "Tutorial Mode",
+      "beta": "Beta",
+      "pickSong": "Choose a beat to play",
+      "difficulty": {
+        "all": "All",
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+        "empty": "No beats in this difficulty"
+      },
+      "pickScope": "How much of the beat do you want to play?",
+      "scopePartial": "Continue with a part",
+      "scopePartialHint": "A short excerpt of the pattern",
+      "scopeFull": "Continue with the full beat",
+      "scopeFullHint": "Play every hit from start to end",
+      "pickLevel": "How much support do you want?",
+      "demoFinished": "Watching done — now you play.",
+      "tempo": {
+        "label": "Speed",
+        "slow": "Slow",
+        "normal": "Normal",
+        "fast": "Fast"
+      },
+      "back": "Back",
+      "backToSongs": "Back to beat list",
+      "close": "Close",
+      "levels": {
+        "guided": "Watch first",
+        "guidedDesc": "The app plays the beat for you — watch which pads light up.",
+        "medium": "Step by step",
+        "mediumDesc": "The next pad lights up and waits for you.",
+        "free": "No support",
+        "freeDesc": "No hints. Hit in time."
+      },
+      "hud": {
+        "countdown": "Get ready… {{count}}",
+        "watching": "Watch… the beat is playing for you",
+        "tapToStart": "Press the glowing pad — the beat waits for you",
+        "progress": "{{done}}/{{total}} hits · {{left}} left · {{hits}} hits",
+        "progressWatch": "{{done}}/{{total}} hits · {{left}} left",
+        "stop": "Stop"
+      },
+      "results": {
+        "title": "Beat finished!",
+        "accuracy": "Accuracy: {{percent}}%",
+        "hits": "You played: {{count}}",
+        "misses": "Missed: {{count}}",
+        "wrong": "Wrong pads: {{count}}",
+        "replay": "Play again",
+        "change": "Change level"
+      },
+      "import": {
+        "button": "Import beat",
+        "hint": "JSON/MIDI file or paste JSON",
+        "preloaded": "Preloaded",
+        "mySongs": "My beats",
+        "empty": "No imported beats yet",
+        "delete": "Delete",
+        "deleteTitle": "Delete beat?",
+        "deleteMessage": "\"{{title}}\" will be removed from your list.",
+        "deleteConfirm": "Delete",
+        "deleteCancel": "Cancel",
+        "success": "Beat added",
+        "pasteButton": "Paste JSON",
+        "pasteTitle": "Beat JSON",
+        "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
+        "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
+        "pasteSubmit": "Add",
+        "pickerUnavailable": "No file picker — paste JSON to add a beat.",
+        "errors": {
+          "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
+          "invalidJson": "Could not read the JSON file.",
+          "invalidSchema": "Invalid beat format. An events array is required (each item needs padId and atMs).",
+          "invalidPad": "Invalid pad id. Use: kick, snare, hihatClosed, hihatOpen, tomHi, tomMid, tomLow, ride, crash.",
+          "emptySong": "No playable drum hits found in the file.",
+          "tooManyNotes": "Too many hits (max 800).",
+          "midiParseFailed": "Could not read the MIDI file.",
+          "readFailed": "Could not read the file. Try again.",
+          "pickerUnavailable": "No file picker — paste JSON instead."
+        }
+      },
+      "requestSong": "Can't find the song you want, or its JSON? Drop the song name in a {{store}} review — we'll add it in the next version. :)",
+      "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
   "violin": {
@@ -129,6 +239,86 @@
       "D": "D",
       "Am": "Am",
       "E": "E"
+    },
+    "toolbar": {
+      "metronome": "Metronome",
+      "fx": "Effects",
+      "volume": "Volume",
+      "voice": "Guitar sound",
+      "game": "Tutorial · Beta",
+      "settings": "Settings"
+    },
+    "voices": {
+      "title": "Choose guitar sound",
+      "nylon": "Nylon",
+      "steel": "Steel",
+      "muted": "Muted",
+      "bright": "Bright",
+      "warm": "Warm",
+      "electric": "Electric",
+      "close": "Close"
+    },
+    "settings": {
+      "title": "Settings",
+      "showFretNumbers": "Fret number labels",
+      "strongGuideHighlight": "Strong tutorial highlight",
+      "startTutorial": "Start tutorial",
+      "close": "Close"
+    },
+    "game": {
+      "title": "Tutorial Mode",
+      "beta": "Beta",
+      "pickSong": "Choose a song to play",
+      "difficulty": {
+        "all": "All",
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+        "empty": "No songs in this difficulty"
+      },
+      "pickScope": "How much of the song do you want to play?",
+      "scopePartial": "Continue with a part",
+      "scopePartialHint": "A short excerpt of the pattern",
+      "scopeFull": "Continue with the full song",
+      "scopeFullHint": "Play every note from start to end",
+      "pickLevel": "How much support do you want?",
+      "demoFinished": "Watching done — now you play.",
+      "tempo": {
+        "label": "Speed",
+        "slow": "Slow",
+        "normal": "Normal",
+        "fast": "Fast"
+      },
+      "back": "Back",
+      "backToSongs": "Back to song list",
+      "close": "Close",
+      "levels": {
+        "guided": "Watch first",
+        "guidedDesc": "The app plays the song for you — watch which frets and chords light up.",
+        "medium": "Step by step",
+        "mediumDesc": "The next fret or chord lights up and waits for you.",
+        "free": "No support",
+        "freeDesc": "No hints. Play in time."
+      },
+      "hud": {
+        "countdown": "Get ready… {{count}}",
+        "watching": "Watch… the song is playing for you",
+        "tapToStart": "Press the glowing fret or chord — it waits for you",
+        "progress": "{{done}}/{{total}} notes · {{left}} left · {{hits}} hits",
+        "progressWatch": "{{done}}/{{total}} notes · {{left}} left",
+        "stop": "Stop"
+      },
+      "results": {
+        "title": "Song finished!",
+        "accuracy": "Accuracy: {{percent}}%",
+        "hits": "You played: {{count}}",
+        "misses": "Missed: {{count}}",
+        "wrong": "Wrong notes: {{count}}",
+        "replay": "Play again",
+        "change": "Change level"
+      },
+      "requestSong": "Can't find the song you want? Drop the song name in a {{store}} review — we'll add it in the next version. :)",
+      "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
   "pads": {
@@ -162,7 +352,7 @@
       "fx": "Effects",
       "volume": "Volume",
       "instrument": "Instrument",
-      "game": "Game mode",
+      "game": "Tutorial · Beta",
       "settings": "Settings"
     },
     "settings": {
@@ -192,6 +382,13 @@
       "title": "Metronome",
       "bpm": "BPM",
       "sound": "Sound",
+      "subdivision": "Click grid",
+      "subdivisions": {
+        "quarter": "1/4",
+        "eighth": "1/8",
+        "sixteenth": "1/16",
+        "backbeat": "2 & 4"
+      },
       "close": "Close",
       "sounds": {
         "classic": "Classic",
@@ -249,21 +446,65 @@
       "close": "Close"
     },
     "game": {
-      "title": "Band Mode",
+      "title": "Tutorial Mode",
+      "beta": "Beta",
       "pickSong": "Choose a song to play",
       "comingSoon": "Coming soon",
+      "difficulty": {
+        "all": "All",
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+        "empty": "No songs in this difficulty"
+      },
       "pickMode": "How do you want to continue?",
       "modePiano": "Continue with piano only",
       "modePianoHint": "Play / watch the melody with piano sound only",
       "modeFullBand": "Continue with the full song",
-      "modeFullBandHint": "Original recording (with vocals) + your piano",
+      "modeFullBandHint": "Your original track plays quietly; you play piano on top",
       "pickScope": "How much of the song do you want to play?",
       "scopePartial": "Continue with a part",
-      "scopeFull": "Continue with the whole song",
+      "scopePartialHint": "A short excerpt (~50 notes)",
+      "scopeFull": "Continue with the full song",
+      "scopeFullHint": "Play every note from start to end",
       "pickLevel": "How much support do you want?",
+      "demoFinished": "Watching done — now you play.",
+      "tempo": {
+        "label": "Speed",
+        "slow": "Slow",
+        "normal": "Normal",
+        "fast": "Fast"
+      },
       "back": "Back",
       "backToSongs": "Back to song list",
       "close": "Close",
+      "pickAudio": {
+        "title": "Add the original track",
+        "hint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A of this track so you can play piano over it.",
+        "button": "Choose audio file",
+        "busy": "Saving audio…",
+        "pianoLessDivider": "Better experience",
+        "pianoLessHint": "For the most realistic feel, upload a version WITHOUT the piano part (karaoke / stem). Your live piano will fill in!",
+        "pianoLessButton": "Upload piano-less version",
+        "pianoLessReady": "Piano-less version loaded ✓",
+        "pianoLessSuccess": "Piano-less track added",
+        "pianoLessSuccessHint": "Your live piano will now replace the original piano part — enjoy the real band feel!",
+        "errors": {
+          "canceled": "No file selected.",
+          "pickerUnavailable": "File picker unavailable in this build.",
+          "readFailed": "Could not save the audio file. Try again.",
+          "unsupported": "Pick an MP3, M4A, MP4 or WAV file."
+        }
+      },
+      "calibrate": {
+        "title": "Sync piano with the track",
+        "hint": "Drag until the first piano notes line up with the recording. Preview plays a short clip.",
+        "offset": "Offset: {{ms}} ms",
+        "preview": "Preview",
+        "stopPreview": "Stop",
+        "confirm": "Looks good",
+        "reopen": "Adjust audio sync"
+      },
       "levels": {
         "guided": "Watch first",
         "guidedDesc": "The app plays the whole song for you — watch which keys light up.",
@@ -277,8 +518,11 @@
         "watching": "Watch… the song is playing for you",
         "watchingBand": "Listen… original song playing, watch the keys",
         "bandLive": "Band / original track",
+        "bandPerform": "Tap the glowing key — you play the piano",
+        "listeningOutro": "Piano part done — keep listening to the song",
         "tapToStart": "Press the glowing key — the song waits for you",
-        "progress": "{{done}}/{{total}} notes · {{hits}} hits",
+        "progress": "{{done}}/{{total}} notes · {{left}} left · {{hits}} hits",
+        "progressWatch": "{{done}}/{{total}} notes · {{left}} left",
         "stop": "Stop"
       },
       "results": {
@@ -289,11 +533,11 @@
         "misses": "Missed: {{count}}",
         "wrong": "Wrong keys: {{count}}",
         "replay": "Play again",
-        "change": "Change scope / level"
+        "change": "Change level"
       },
       "import": {
         "button": "Import song",
-        "hint": "Pick a JSON or MIDI (.mid) file",
+        "hint": "JSON/MIDI file or paste JSON",
         "preloaded": "Preloaded",
         "mySongs": "My songs",
         "empty": "No imported songs yet",
@@ -303,23 +547,31 @@
         "deleteConfirm": "Delete",
         "deleteCancel": "Cancel",
         "success": "Song added",
+        "successWithAudio": "Song added with Band Mode audio",
+        "attachAudioPrompt": "Add an original MP3/M4A for \"{{title}}\" so Band Mode can play under your piano?",
+        "attachAudioYes": "Add audio",
+        "attachAudioSkip": "Piano only",
+        "hasBandAudio": "Band Mode ready",
         "pasteButton": "Paste JSON",
         "pasteTitle": "Song JSON",
-        "pasteHint": "Paste JSON with title and events.",
+        "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
         "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Add",
-        "pickerUnavailable": "File picker is missing in this build. Paste JSON, or rebuild the app (npx expo run:android).",
+        "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
           "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
-          "invalidSchema": "Invalid song format. Needs title and events.",
+          "invalidSchema": "Invalid song format. An events array is required (each item needs noteId and atMs).",
+          "invalidNote": "Invalid note name. Examples: C4, Db5, A5 (C4–B5; others are octave-shifted in).",
           "emptySong": "No playable notes found in the file.",
           "tooManyNotes": "Too many notes (max 800).",
           "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
-          "pickerUnavailable": "File picker unavailable. Try pasting JSON."
+          "pickerUnavailable": "No file picker — paste JSON instead."
         }
-      }
+      },
+      "requestSong": "Can't find the song you want, or its JSON? Drop the song name in a {{store}} review — we'll add it in the next version. :)",
+      "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
   "tutorial": {
@@ -336,17 +588,56 @@
       "complete": "Great job! You finished the song."
     },
     "songs": {
+      "billieJean": {
+        "description": "Michael Jackson — F#m groove + chorus + keyboard section."
+      },
       "jingleBells": {
-        "description": "Classic holiday melody in C major."
+        "description": "Classic holiday melody — 2 verses + 2 choruses in F major."
       },
       "odeToJoy": {
         "description": "Beethoven's famous theme — calm and steady."
       },
       "neyleyimIstanbul": {
-        "description": "Murat Dalkılıç — the intro melody, fast runs!"
+        "description": "Murat Dalkılıç — intro + verse + chorus (kolaynota)."
       },
       "gulpembe": {
-        "description": "Barış Manço — the legendary intro, relaxed tempo."
+        "description": "Barış Manço — intro + verses (gitaregitim / Em)."
+      },
+      "mesafe": {
+        "description": "Serdar Ortaç — verse + «Hiç yüzünden…» hook + chorus (kolaynota)."
+      },
+      "simarik": {
+        "description": "Tarkan — intro riff + verse + «Seni gidi…» + ocağına (PDF)."
+      },
+      "biliyorsun": {
+        "description": "Sezen Aksu — chorus + bridge + repeat (kolaynota, 6/8)."
+      },
+      "tutamiyorumZamani": {
+        "description": "Müslüm Gürses — verse + «tutamıyorum zamanı» chorus (kolaynota)."
+      },
+      "olsun": {
+        "description": "Sertab Erener — intro + «Ben giderim… olsun» (kolaynota, F#m)."
+      },
+      "ayaBenzer": {
+        "description": "Mustafa Sandal — intro + «Aya benzer yüreğim…» (kolaynota, Am)."
+      },
+      "uskudaraGiderken": {
+        "description": "Traditional — «Üsküdara gideriken…» / Katibim (kolaynota, Am)."
+      },
+      "turkMarsi": {
+        "description": "Mozart — Rondo Alla Turca / Turkish March (kolaynota, Am)."
+      },
+      "yasanacaksa": {
+        "description": "Manifest — verse + «Yaşanacaksa yaşanacak…» (kolaynota)."
+      },
+      "kusuraBakma": {
+        "description": "BLOK3 — «Senden geçemiyorum… kusura bakma» (kolaynota)."
+      },
+      "ayyBenHalaRuyada": {
+        "description": "Oğuzhan Koç — «Ay…» + «ben hala rüyada» (kolaynota)."
+      },
+      "ahu": {
+        "description": "Mabel Matiz — «Yandı gönül…» / «Çal beni…» (kolaynota)."
       }
     }
   }

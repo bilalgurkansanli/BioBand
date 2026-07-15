@@ -6,11 +6,22 @@ export type SongEvent = {
 };
 
 export type SongBackingTrack = {
-  /** Metro `require()` asset module id for the bundled MP3/M4A. */
-  module: number;
+  /**
+   * Metro `require()` asset module id for a bundled MP3/M4A
+   * (royalty-free / owned assets only).
+   */
+  module?: number;
+  /** Local file URI — user-provided original mix for Band Mode. */
+  uri?: string;
+  /**
+   * Local file URI — user-provided "piano-less" stem/karaoke track.
+   * When present the backing player uses this instead of `uri` so
+   * the user's live piano replaces the original piano part.
+   */
+  pianoLessUri?: string;
   /**
    * Audio timeline position (ms) where `events[0]` should align.
-   * Calibrate after dropping the real track.
+   * Calibrate per user’s file (intros / silence differ).
    */
   eventsStartMs: number;
 };
@@ -30,7 +41,7 @@ export type SongDefinition = {
   descriptionKey?: string;
   previewDurationMs: number;
   events: SongEvent[];
-  /** Present when a full-mix backing track is bundled for Band Mode. */
+  /** Present when a full-mix backing track is available for Band Mode. */
   backingTrack?: SongBackingTrack;
   /**
    * Audio-timeline window used for "partial" scope.
@@ -38,6 +49,9 @@ export type SongDefinition = {
    */
   partialWindowMs?: SongPartialWindow;
 };
+
+/** How hard the chart is to play on the piano (not support level). */
+export type SongDifficulty = 'easy' | 'medium' | 'hard';
 
 /**
  * Catalog entry: every song we plan to offer. `song` is null until the
@@ -47,6 +61,8 @@ export type CatalogSong = {
   id: string;
   title: string;
   artist: string;
+  /** Playability: easy / medium / hard for the song list filter. */
+  difficulty: SongDifficulty;
   song: SongDefinition | null;
 };
 
@@ -55,3 +71,19 @@ export type PlayMode = 'piano' | 'fullBand';
 
 /** Band Mode wizard: excerpt vs whole track. */
 export type SongScope = 'partial' | 'full';
+
+/** True when backing can actually be played (local URI, pianoLessUri, or bundled module). */
+export function songHasBackingAudio(
+  track: SongBackingTrack | null | undefined,
+): boolean {
+  if (!track) {
+    return false;
+  }
+  if (typeof track.pianoLessUri === 'string' && track.pianoLessUri.length > 0) {
+    return true;
+  }
+  if (typeof track.uri === 'string' && track.uri.length > 0) {
+    return true;
+  }
+  return typeof track.module === 'number';
+}

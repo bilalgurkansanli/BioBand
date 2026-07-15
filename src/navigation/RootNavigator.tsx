@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InstrumentsStack } from './InstrumentsStack';
-import { getTabBarStyle } from './tabBarStyles';
+import { RootTabBar } from './RootTabBar';
+import { getTabBarStyle, ROOT_TABS_ID } from './tabBarStyles';
 import { HomeScreen } from '../screens/HomeScreen';
 import { RecordingsScreen } from '../screens/RecordingsScreen';
 import { colors } from '../theme/colors';
@@ -15,14 +16,17 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 export function RootNavigator() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const tabBarStyle = getTabBarStyle(insets);
 
   return (
     <Tab.Navigator
+      id={ROOT_TABS_ID}
+      tabBar={(props) => <RootTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: getTabBarStyle(insets),
+        tabBarStyle,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '500',

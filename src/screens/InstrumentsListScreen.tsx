@@ -5,8 +5,6 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { InstrumentCard } from '../components/InstrumentCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { lockLandscapeOrientation } from '../hooks/usePianoOrientation';
-import { useRestoreTabBar } from '../hooks/useRestoreTabBar';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList } from '../types/navigation';
 
@@ -17,12 +15,10 @@ type InstrumentRoute = 'Piano' | 'Drums' | 'Guitar' | 'Violin' | 'Pads';
 export function InstrumentsListScreen({ navigation }: Props) {
   const { t } = useTranslation();
 
-  useRestoreTabBar(navigation);
-
+  // Navigate immediately — each instrument screen locks landscape on focus.
+  // Pre-locking here rotates the list mid-transition and warps the UI.
   const openInstrument = (route: InstrumentRoute) => {
-    void lockLandscapeOrientation().finally(() => {
-      navigation.navigate(route);
-    });
+    navigation.navigate(route);
   };
 
   return (

@@ -44,7 +44,7 @@
     "drumsLoading": "Davul sesleri yükleniyor...",
     "drumsLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "guitar": "Gitar",
-    "guitarDescription": "Telleri çek veya akor bas — akustik gitar.",
+    "guitarDescription": "12 perdeli tahta — perde çek veya akor bas.",
     "guitarLoading": "Gitar sesleri yükleniyor...",
     "guitarLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "violin": "Keman",
@@ -105,6 +105,116 @@
       "tomLow": "Tom Bas",
       "snare": "Trampet",
       "kick": "Bas Davul"
+    },
+    "toolbar": {
+      "metronome": "Metronom",
+      "fx": "Efektler",
+      "volume": "Ses",
+      "kit": "Davul seti sesi",
+      "game": "Öğretici · Beta",
+      "settings": "Ayarlar"
+    },
+    "kits": {
+      "title": "Davul seti seç",
+      "acoustic": "Akustik",
+      "punch": "Punch",
+      "electronic": "Elektronik",
+      "room": "Salon",
+      "vintage": "Vintage",
+      "lofi": "Lo-fi",
+      "close": "Kapat"
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "showPadLabels": "Pad isim etiketleri",
+      "strongGuideHighlight": "Güçlü öğretici vurgusu",
+      "startTutorial": "Öğreticiyi başlat",
+      "close": "Kapat"
+    },
+    "game": {
+      "title": "Öğretici Modu",
+      "beta": "Beta",
+      "pickSong": "Çalmak için bir beat seç",
+      "difficulty": {
+        "all": "Tümü",
+        "easy": "Kolay",
+        "medium": "Orta",
+        "hard": "Zor",
+        "empty": "Bu zorlukta beat yok"
+      },
+      "pickScope": "Beatin ne kadarını çalmak istiyorsun?",
+      "scopePartial": "Bir kısmıyla devam",
+      "scopePartialHint": "Kısa bir kesit",
+      "scopeFull": "Tüm beat ile devam",
+      "scopeFullHint": "Baştan sona tüm vuruşlar",
+      "pickLevel": "Ne kadar destek istiyorsun?",
+      "demoFinished": "İzleme bitti — şimdi sen çal.",
+      "tempo": {
+        "label": "Hız",
+        "slow": "Yavaş",
+        "normal": "Normal",
+        "fast": "Hızlı"
+      },
+      "back": "Geri",
+      "backToSongs": "Beat listesine dön",
+      "close": "Kapat",
+      "levels": {
+        "guided": "Önce izle",
+        "guidedDesc": "Uygulama beati çalar — hangi padlerin yandığını izle.",
+        "medium": "Adım adım",
+        "mediumDesc": "Sıradaki pad yanar ve seni bekler.",
+        "free": "Desteksiz",
+        "freeDesc": "İpucu yok. Zamanında vur."
+      },
+      "hud": {
+        "countdown": "Hazırlan… {{count}}",
+        "watching": "İzle… beat senin için çalıyor",
+        "tapToStart": "Yanan pada bas — beat seni bekliyor",
+        "progress": "{{done}}/{{total}} vuruş · {{left}} kaldı · {{hits}} isabet",
+        "progressWatch": "{{done}}/{{total}} vuruş · {{left}} kaldı",
+        "stop": "Dur"
+      },
+      "results": {
+        "title": "Beat bitti!",
+        "accuracy": "İsabet: %{{percent}}",
+        "hits": "Çaldığın: {{count}}",
+        "misses": "Kaçırılan: {{count}}",
+        "wrong": "Yanlış pad: {{count}}",
+        "replay": "Tekrar çal",
+        "change": "Seviye değiştir"
+      },
+      "import": {
+        "button": "Beat içe aktar",
+        "hint": "JSON/MIDI dosyası veya JSON yapıştır",
+        "preloaded": "Hazır",
+        "mySongs": "Beatlerim",
+        "empty": "Henüz içe aktarılmış beat yok",
+        "delete": "Sil",
+        "deleteTitle": "Beat silinsin mi?",
+        "deleteMessage": "\"{{title}}\" listenden kaldırılacak.",
+        "deleteConfirm": "Sil",
+        "deleteCancel": "İptal",
+        "success": "Beat eklendi",
+        "pasteButton": "JSON yapıştır",
+        "pasteTitle": "Beat JSON",
+        "pasteHint": "Başlık ve events içeren JSON yapıştır (dosya seçici yoksa kullanılır).",
+        "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
+        "pasteSubmit": "Ekle",
+        "pickerUnavailable": "Dosya seçici yok — beat eklemek için JSON yapıştır.",
+        "errors": {
+          "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) içe aktar.",
+          "invalidJson": "JSON dosyası okunamadı.",
+          "invalidSchema": "Geçersiz beat formatı. events dizisi gerekli (her öğede padId ve atMs olmalı).",
+          "invalidPad": "Geçersiz pad id. Kullan: kick, snare, hihatClosed, hihatOpen, tomHi, tomMid, tomLow, ride, crash.",
+          "emptySong": "Dosyada çalınabilir davul vuruşu bulunamadı.",
+          "tooManyNotes": "Çok fazla vuruş (en fazla 800).",
+          "midiParseFailed": "MIDI dosyası okunamadı.",
+          "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "pickerUnavailable": "Dosya seçici yok — bunun yerine JSON yapıştır."
+        }
+      },
+      "requestSong": "İstediğin şarkıyı bulamadın ya da JSON'unu bulamadın mı? Hemen {{store}} yorumlarına şarkı adını yaz — bir sonraki sürümde ekleyelim. :)",
+      "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },
   "violin": {
@@ -129,6 +239,86 @@
       "D": "D",
       "Am": "Am",
       "E": "E"
+    },
+    "toolbar": {
+      "metronome": "Metronom",
+      "fx": "Efektler",
+      "volume": "Ses",
+      "voice": "Gitar sesi",
+      "game": "Öğretici · Beta",
+      "settings": "Ayarlar"
+    },
+    "voices": {
+      "title": "Gitar sesi seç",
+      "nylon": "Naylon",
+      "steel": "Çelik",
+      "muted": "Susturulmuş",
+      "bright": "Parlak",
+      "warm": "Sıcak",
+      "electric": "Elektro",
+      "close": "Kapat"
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "showFretNumbers": "Perde numaraları",
+      "strongGuideHighlight": "Güçlü öğretici vurgusu",
+      "startTutorial": "Öğreticiyi başlat",
+      "close": "Kapat"
+    },
+    "game": {
+      "title": "Öğretici Mod",
+      "beta": "Beta",
+      "pickSong": "Çalmak için bir şarkı seç",
+      "difficulty": {
+        "all": "Tümü",
+        "easy": "Kolay",
+        "medium": "Orta",
+        "hard": "Zor",
+        "empty": "Bu zorlukta şarkı yok"
+      },
+      "pickScope": "Şarkının ne kadarını çalmak istiyorsun?",
+      "scopePartial": "Bir bölümle devam et",
+      "scopePartialHint": "Desenin kısa bir kesiti",
+      "scopeFull": "Tüm şarkıyla devam et",
+      "scopeFullHint": "Baştan sona her notayı çal",
+      "pickLevel": "Ne kadar destek istersin?",
+      "demoFinished": "İzleme bitti — şimdi sen çal.",
+      "tempo": {
+        "label": "Hız",
+        "slow": "Yavaş",
+        "normal": "Normal",
+        "fast": "Hızlı"
+      },
+      "back": "Geri",
+      "backToSongs": "Şarkı listesine dön",
+      "close": "Kapat",
+      "levels": {
+        "guided": "Önce izle",
+        "guidedDesc": "Uygulama şarkıyı senin için çalar — hangi perde ve akorların yandığını izle.",
+        "medium": "Adım adım",
+        "mediumDesc": "Sıradaki perde veya akor yanar ve seni bekler.",
+        "free": "Desteksiz",
+        "freeDesc": "İpucu yok. Tempo ile çal."
+      },
+      "hud": {
+        "countdown": "Hazırlan… {{count}}",
+        "watching": "İzle… şarkı senin için çalıyor",
+        "tapToStart": "Yanan perde veya akora bas — seni bekliyor",
+        "progress": "{{done}}/{{total}} nota · {{left}} kaldı · {{hits}} isabet",
+        "progressWatch": "{{done}}/{{total}} nota · {{left}} kaldı",
+        "stop": "Durdur"
+      },
+      "results": {
+        "title": "Şarkı bitti!",
+        "accuracy": "İsabet: %{{percent}}",
+        "hits": "Çaldığın: {{count}}",
+        "misses": "Kaçırılan: {{count}}",
+        "wrong": "Yanlış nota: {{count}}",
+        "replay": "Tekrar çal",
+        "change": "Seviyeyi değiştir"
+      },
+      "requestSong": "Aradığın şarkıyı bulamıyor musun? {{store}} yorumuna şarkı adını yaz — sonraki sürümde ekleyelim. :)",
+      "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },
   "pads": {
@@ -162,7 +352,7 @@
       "fx": "Efektler",
       "volume": "Ses",
       "instrument": "Enstrüman",
-      "game": "Oyun modu",
+      "game": "Öğretici · Beta",
       "settings": "Ayarlar"
     },
     "settings": {
@@ -192,6 +382,13 @@
       "title": "Metronom",
       "bpm": "BPM",
       "sound": "Ses",
+      "subdivision": "Tık ızgarası",
+      "subdivisions": {
+        "quarter": "1/4",
+        "eighth": "1/8",
+        "sixteenth": "1/16",
+        "backbeat": "2 & 4"
+      },
       "close": "Kapat",
       "sounds": {
         "classic": "Klasik",
@@ -249,21 +446,65 @@
       "close": "Kapat"
     },
     "game": {
-      "title": "Grup Modu",
+      "title": "Öğretici Modu",
+      "beta": "Beta",
       "pickSong": "Çalmak için bir şarkı seç",
       "comingSoon": "Yakında",
+      "difficulty": {
+        "all": "Tümü",
+        "easy": "Kolay",
+        "medium": "Orta",
+        "hard": "Zor",
+        "empty": "Bu zorlukta şarkı yok"
+      },
       "pickMode": "Nasıl ilerlemek istersin?",
       "modePiano": "Sadece piyano ile ilerle",
       "modePianoHint": "Melodiyi yalnız piyano sesiyle çal / izle",
       "modeFullBand": "Tüm şarkıyla ilerle",
-      "modeFullBandHint": "Orijinal kayıt (sözler dahil) + senin piyanon",
+      "modeFullBandHint": "Kendi orijinal kaydın alçak çalar; piyanoyu sen yüksek çalarsın",
       "pickScope": "Ne kadarını çalmak istersin?",
       "scopePartial": "Bir kısmı ile devam et",
-      "scopeFull": "Şarkının tamamı ile devam et",
+      "scopePartialHint": "Şarkıdan kısa bir kesit (~50 nota)",
+      "scopeFull": "Tüm şarkıyla ilerle",
+      "scopeFullHint": "Tüm notaları baştan sona çal",
       "pickLevel": "Ne kadar destek istiyorsun?",
+      "demoFinished": "İzleme bitti — şimdi sen çal.",
+      "tempo": {
+        "label": "Hız",
+        "slow": "Yavaş",
+        "normal": "Normal",
+        "fast": "Hızlı"
+      },
       "back": "Geri",
       "backToSongs": "Şarkı listesine dön",
       "close": "Kapat",
+      "pickAudio": {
+        "title": "Orijinal kaydı ekle",
+        "hint": "BioBand telifli şarkı dosyası gömmez. Bu parçanın kendi MP3/M4A kaydını seç; piyanoyu onun üstünde çalarsın.",
+        "button": "Ses dosyası seç",
+        "busy": "Ses kaydediliyor…",
+        "pianoLessDivider": "Daha gerçekçi deneyim",
+        "pianoLessHint": "En gerçekçi his için, piyano parçası OLMAYAN bir versiyon yükle (karaoke / stem). Canlı piyanon eksik kısmı dolduracak!",
+        "pianoLessButton": "Piyanosuz versiyon yükle",
+        "pianoLessReady": "Piyanosuz versiyon yüklü ✓",
+        "pianoLessSuccess": "Piyanosuz kayıt eklendi",
+        "pianoLessSuccessHint": "Canlı piyanon artık orijinal piyano parçasının yerini alacak — gerçek grup hissinin keyfini çıkar!",
+        "errors": {
+          "canceled": "Dosya seçilmedi.",
+          "pickerUnavailable": "Dosya seçici bu kurulumda yok.",
+          "readFailed": "Ses dosyası kaydedilemedi. Tekrar dene.",
+          "unsupported": "MP3, M4A, MP4 veya WAV dosyası seç."
+        }
+      },
+      "calibrate": {
+        "title": "Piyanoyu kayıtla senkronla",
+        "hint": "İlk piyano notaları kayıtla örtüşene kadar sürükle. Önizleme kısa bir parça çalar.",
+        "offset": "Ofset: {{ms}} ms",
+        "preview": "Önizle",
+        "stopPreview": "Durdur",
+        "confirm": "Tamam",
+        "reopen": "Ses senkronunu ayarla"
+      },
       "levels": {
         "guided": "Önce izle",
         "guidedDesc": "Uygulama şarkıyı baştan sona çalar — hangi tuşların yandığını izleyerek öğren.",
@@ -277,8 +518,11 @@
         "watching": "İzle… şarkı senin için çalınıyor",
         "watchingBand": "Dinle… orijinal şarkı çalıyor, tuşları izle",
         "bandLive": "Grup / orijinal kayıt",
+        "bandPerform": "Yanan tuşa bas — piyanoyu sen çalıyorsun",
+        "listeningOutro": "Piyano partisi bitti — şarkıyı dinlemeye devam",
         "tapToStart": "Yanan tuşa bas — şarkı seni bekliyor",
-        "progress": "{{done}}/{{total}} nota · {{hits}} isabet",
+        "progress": "{{done}}/{{total}} nota · {{left}} kaldı · {{hits}} isabet",
+        "progressWatch": "{{done}}/{{total}} nota · {{left}} kaldı",
         "stop": "Bitir"
       },
       "results": {
@@ -289,11 +533,11 @@
         "misses": "Kaçırılan: {{count}}",
         "wrong": "Yanlış tuşlar: {{count}}",
         "replay": "Tekrar çal",
-        "change": "Kapsam / seviye değiştir"
+        "change": "Seviye değiştir"
       },
       "import": {
         "button": "Şarkı yükle",
-        "hint": "JSON veya MIDI (.mid) dosyası seç",
+        "hint": "JSON/MIDI dosyası veya JSON yapıştır",
         "preloaded": "Ön yüklenen",
         "mySongs": "Benim şarkılarım",
         "empty": "Henüz yüklenmiş şarkı yok",
@@ -303,23 +547,31 @@
         "deleteConfirm": "Sil",
         "deleteCancel": "Vazgeç",
         "success": "Şarkı eklendi",
+        "successWithAudio": "Şarkı Grup Modu sesiyle eklendi",
+        "attachAudioPrompt": "\"{{title}}\" için orijinal MP3/M4A ekleyelim mi? Grup Modu’nda piyanonun altında çalar.",
+        "attachAudioYes": "Ses ekle",
+        "attachAudioSkip": "Sadece piyano",
+        "hasBandAudio": "Grup Modu hazır",
         "pasteButton": "JSON yapıştır",
         "pasteTitle": "Şarkı JSON’u",
-        "pasteHint": "title ve events içeren JSON yapıştır.",
+        "pasteHint": "title ve events içeren JSON yapıştır (dosya seçici yoksa bu yol kullanılır).",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici bu kurulumda yok. JSON yapıştırabilir veya uygulamayı yeniden derleyebilirsin (npx expo run:android).",
+        "pickerUnavailable": "Dosya seçici yok — JSON yapıştır ile şarkı ekleyebilirsin.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
           "invalidJson": "JSON dosyası okunamadı.",
-          "invalidSchema": "Şarkı formatı geçersiz. title ve events gerekli.",
+          "invalidSchema": "Şarkı formatı geçersiz. events dizisi gerekli (her öğede noteId ve atMs).",
+          "invalidNote": "Geçersiz nota adı. Örnek: C4, Db5, A5 (C4–B5; dışındakiler oktava çekilir).",
           "emptySong": "Dosyada çalınabilir nota bulunamadı.",
           "tooManyNotes": "Çok fazla nota (en fazla 800).",
           "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
-          "pickerUnavailable": "Dosya seçici kullanılamıyor. JSON yapıştırmayı dene."
+          "pickerUnavailable": "Dosya seçici yok — JSON yapıştır ile ekleyebilirsin."
         }
-      }
+      },
+      "requestSong": "İstediğin şarkıyı bulamadın ya da JSON'unu bulamadın mı? Hemen {{store}} yorumlarına şarkı adını yaz — bir sonraki sürümde ekleyelim. :)",
+      "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },
   "tutorial": {
@@ -336,17 +588,56 @@
       "complete": "Harika! Şarkıyı tamamladın."
     },
     "songs": {
+      "billieJean": {
+        "description": "Michael Jackson — F#m groove + nakarat + klavye bölümü."
+      },
       "jingleBells": {
-        "description": "Klasik Noel melodisi — Do majör."
+        "description": "Klasik Noel melodisi — 2 kıta + 2 nakarat, Fa majör."
       },
       "odeToJoy": {
         "description": "Beethoven'ın ünlü teması — sakin ve düzenli."
       },
       "neyleyimIstanbul": {
-        "description": "Murat Dalkılıç — intro melodisi, hızlı koşular!"
+        "description": "Murat Dalkılıç — intro + kıta + nakarat (kolaynota)."
       },
       "gulpembe": {
-        "description": "Barış Manço — efsane intro, sakin tempo."
+        "description": "Barış Manço — intro + kıtalar (gitaregitim / Em)."
+      },
+      "mesafe": {
+        "description": "Serdar Ortaç — kıta + «Hiç yüzünden…» + nakarat (kolaynota)."
+      },
+      "simarik": {
+        "description": "Tarkan — intro riff + kıta + «Seni gidi…» + ocağına (PDF)."
+      },
+      "biliyorsun": {
+        "description": "Sezen Aksu — nakarat + köprü + tekrar (kolaynota, 6/8)."
+      },
+      "tutamiyorumZamani": {
+        "description": "Müslüm Gürses — kıta + «tutamıyorum zamanı» nakarat (kolaynota)."
+      },
+      "olsun": {
+        "description": "Sertab Erener — intro + «Ben giderim… olsun» (kolaynota, F#m)."
+      },
+      "ayaBenzer": {
+        "description": "Mustafa Sandal — intro + «Aya benzer yüreğim…» (kolaynota, Am)."
+      },
+      "uskudaraGiderken": {
+        "description": "Anonim — «Üsküdara gideriken…» / Katibim (kolaynota, Am)."
+      },
+      "turkMarsi": {
+        "description": "Mozart — Rondo Alla Turca / Türk Marşı (kolaynota, Am)."
+      },
+      "yasanacaksa": {
+        "description": "Manifest — verse + «Yaşanacaksa yaşanacak…» (kolaynota)."
+      },
+      "kusuraBakma": {
+        "description": "BLOK3 — «Senden geçemiyorum… kusura bakma» (kolaynota)."
+      },
+      "ayyBenHalaRuyada": {
+        "description": "Oğuzhan Koç — «Ay…» + «ben hala rüyada» (kolaynota)."
+      },
+      "ahu": {
+        "description": "Mabel Matiz — «Yandı gönül…» / «Çal beni…» (kolaynota)."
       }
     }
   }

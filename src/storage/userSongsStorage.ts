@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { SongDefinition } from '../instruments/piano/songs/types';
+import { deleteSongAudioBinding } from './songAudioBindingsStorage';
 
 const STORAGE_KEY = '@bioband/user-songs.v1';
 
@@ -38,6 +39,7 @@ export async function deleteUserSong(songId: string): Promise<UserSong[]> {
   const existing = await loadUserSongs();
   const next = existing.filter((item) => item.id !== songId);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  await deleteSongAudioBinding(songId);
   return next;
 }
 

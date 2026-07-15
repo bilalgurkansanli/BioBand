@@ -4,11 +4,34 @@ import type { SongDefinition, SongEvent } from './types';
 export const MAX_USER_SONG_EVENTS = 800;
 export const DEFAULT_PREVIEW_DURATION_MS = 5000;
 
+const MIDI_C4 = 60;
+const MIDI_B5 = 83;
+
 const VALID_NOTE_IDS = new Set<string>(PIANO_NOTES.map((note) => note.id));
+const NOTE_ID_BY_MIDI = new Map<number, NoteId>(
+  PIANO_NOTES.map((note) => [note.midi, note.id]),
+);
+
+/** Pitch class → semitone within octave (C = 0). */
+const PITCH_CLASS: Record<string, number> = {
+  C: 0,
+  Db: 1,
+  D: 2,
+  Eb: 3,
+  E: 4,
+  F: 5,
+  Gb: 6,
+  G: 7,
+  Ab: 8,
+  A: 9,
+  Bb: 10,
+  B: 11,
+};
 
 export type UserSongParseErrorCode =
   | 'invalidJson'
   | 'invalidSchema'
+  | 'invalidNote'
   | 'emptySong'
   | 'tooManyNotes'
   | 'midiParseFailed'
@@ -27,6 +50,41 @@ export class UserSongParseError extends Error {
 
 export function isValidNoteId(value: unknown): value is NoteId {
   return typeof value === 'string' && VALID_NOTE_IDS.has(value);
+}
+
+/**
+ * Map a note id (e.g. C6, Bb3) onto the playable C4–B5 keyboard by
+ * shifting octaves. Returns null if the string is not a known pitch.
+ */
+export function resolveNoteIdToKeyboard(value: unknown): NoteId | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  if (isValidNoteId(value)) {
+    return value;
+  }
+
+  const match = /^([A-G]b?)(-?\d+)$/.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+
+  const pitch = match[1];
+  const octave = Number(match[2]);
+  const pc = PITCH_CLASS[pitch];
+  if (pc === undefined || !Number.isFinite(octave)) {
+    return null;
+  }
+
+  let midi = (octave + 1) * 12 + pc;
+  while (midi < MIDI_C4) {
+    midi += 12;
+  }
+  while (midi > MIDI_B5) {
+    midi -= 12;
+  }
+
+  return NOTE_ID_BY_MIDI.get(midi) ?? null;
 }
 
 export function createUserSongId(): string {
@@ -50,13 +108,14 @@ function parseEvents(raw: unknown): SongEvent[] {
       throw new UserSongParseError('invalidSchema');
     }
     const entry = item as Record<string, unknown>;
-    if (!isValidNoteId(entry.noteId)) {
-      throw new UserSongParseError('invalidSchema');
+    const noteId = resolveNoteIdToKeyboard(entry.noteId);
+    if (!noteId) {
+      throw new UserSongParseError('invalidNote');
     }
     if (typeof entry.atMs !== 'number' || !Number.isFinite(entry.atMs) || entry.atMs < 0) {
       throw new UserSongParseError('invalidSchema');
     }
-    events.push({ noteId: entry.noteId, atMs: Math.round(entry.atMs) });
+    events.push({ noteId, atMs: Math.round(entry.atMs) });
   }
 
   events.sort((a, b) => a.atMs - b.atMs);
@@ -66,6 +125,7 @@ function parseEvents(raw: unknown): SongEvent[] {
 /**
  * Validates a BioBand song JSON document and returns a SongDefinition.
  * Accepts `{ title, artist?, events }` — id / previewDurationMs optional.
+ * Out-of-range noteIds (e.g. C6) are octave-shifted into C4–B5.
  */
 export function parseUserSongJson(
   text: string,
@@ -99,6 +159,10 @@ export function parseUserSongJson(
     doc.previewDurationMs > 0
       ? Math.round(doc.previewDurationMs)
       : DEFAULT_PREVIEW_DURATION_MS;
+
+  if (!('events' in doc) || !Array.isArray(doc.events)) {
+    throw new UserSongParseError('invalidSchema');
+  }
 
   const events = parseEvents(doc.events);
 

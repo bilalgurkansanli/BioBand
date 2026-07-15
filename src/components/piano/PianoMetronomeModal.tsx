@@ -4,12 +4,16 @@ import { useTranslation } from 'react-i18next';
 
 import {
   getMetronomeSoundId,
+  getMetronomeSubdivision,
   METRONOME_BPM_MAX,
   METRONOME_BPM_MIN,
   METRONOME_SOUNDS,
+  METRONOME_SUBDIVISIONS,
   setMetronomeBpm,
   setMetronomeSound,
+  setMetronomeSubdivision,
   type MetronomeSoundId,
+  type MetronomeSubdivision,
 } from '../../instruments/piano/pianoMetronome';
 import { colors } from '../../theme/colors';
 import { HorizontalSlider } from './HorizontalSlider';
@@ -22,6 +26,9 @@ type PianoMetronomeModalProps = {
   bpm: number;
   onChangeBpm: (bpm: number) => void;
   onClose: () => void;
+  /** When true, show quarter / 8th / 16th / backbeat chips (drums). */
+  showSubdivision?: boolean;
+  onChangeSubdivision?: (subdivision: MetronomeSubdivision) => void;
 };
 
 export function PianoMetronomeModal({
@@ -29,15 +36,21 @@ export function PianoMetronomeModal({
   bpm,
   onChangeBpm,
   onClose,
+  showSubdivision = false,
+  onChangeSubdivision,
 }: PianoMetronomeModalProps) {
   const { t } = useTranslation();
   const [displayBpm, setDisplayBpm] = useState(bpm);
   const [soundId, setSoundId] = useState<MetronomeSoundId>(() => getMetronomeSoundId());
+  const [subdivision, setSubdivisionState] = useState<MetronomeSubdivision>(() =>
+    getMetronomeSubdivision(),
+  );
 
   useEffect(() => {
     if (visible) {
       setDisplayBpm(bpm);
       setSoundId(getMetronomeSoundId());
+      setSubdivisionState(getMetronomeSubdivision());
     }
   }, [visible, bpm]);
 
@@ -64,6 +77,15 @@ export function PianoMetronomeModal({
     setSoundId(nextSoundId);
     setMetronomeSound(nextSoundId);
   }, []);
+
+  const selectSubdivision = useCallback(
+    (next: MetronomeSubdivision) => {
+      setSubdivisionState(next);
+      setMetronomeSubdivision(next);
+      onChangeSubdivision?.(next);
+    },
+    [onChangeSubdivision],
+  );
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -100,7 +122,41 @@ export function PianoMetronomeModal({
             </Pressable>
           </View>
 
-          <Text style={styles.soundLabel}>{t('piano.metronome.sound')}</Text>
+          {showSubdivision ? (
+            <>
+              <Text style={styles.soundLabel}>{t('piano.metronome.subdivision')}</Text>
+              <View style={styles.soundRow}>
+                {METRONOME_SUBDIVISIONS.map((option) => {
+                  const selected = option === subdivision;
+                  return (
+                    <Pressable
+                      key={option}
+                      onPress={() => selectSubdivision(option)}
+                      style={({ pressed }) => [
+                        styles.soundChip,
+                        selected && styles.soundChipSelected,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        style={[
+                          styles.soundChipText,
+                          selected && styles.soundChipTextSelected,
+                        ]}
+                      >
+                        {t(`piano.metronome.subdivisions.${option}`)}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          ) : null}
+
+          <Text style={[styles.soundLabel, showSubdivision && styles.soundLabelSpaced]}>
+            {t('piano.metronome.sound')}
+          </Text>
           <View style={styles.soundRow}>
             {METRONOME_SOUNDS.map((sound) => {
               const selected = sound.id === soundId;
@@ -193,6 +249,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
     textTransform: 'uppercase',
+  },
+  soundLabelSpaced: {
+    marginTop: 14,
   },
   soundRow: {
     flexDirection: 'row',

@@ -11,6 +11,20 @@ export type MetronomeSoundId =
   | 'wood'
   | 'digital';
 
+/** Click grid relative to the quarter-note BPM. */
+export type MetronomeSubdivision =
+  | 'quarter'
+  | 'eighth'
+  | 'sixteenth'
+  | 'backbeat';
+
+export const METRONOME_SUBDIVISIONS: readonly MetronomeSubdivision[] = [
+  'quarter',
+  'eighth',
+  'sixteenth',
+  'backbeat',
+] as const;
+
 type MetronomeSoundProfile = {
   id: MetronomeSoundId;
   labelKey: string;
@@ -71,8 +85,11 @@ export const METRONOME_SOUNDS: readonly MetronomeSoundProfile[] = [
 
 let bpm = METRONOME_BPM_DEFAULT;
 let soundId: MetronomeSoundId = 'classic';
+let subdivision: MetronomeSubdivision = 'quarter';
 let running = false;
 let intervalId: ReturnType<typeof setInterval> | null = null;
+/** Advances every timer tick (subdivision unit or quarter for backbeat). */
+let tickIndex = 0;
 
 function clampBpm(value: number): number {
   return Math.min(METRONOME_BPM_MAX, Math.max(METRONOME_BPM_MIN, Math.round(value)));
@@ -82,7 +99,42 @@ function getSoundProfile(id: MetronomeSoundId): MetronomeSoundProfile {
   return METRONOME_SOUNDS.find((sound) => sound.id === id) ?? METRONOME_SOUNDS[0];
 }
 
-function playClick(profile = getSoundProfile(soundId)): void {
+function ticksPerBeat(): number {
+  switch (subdivision) {
+    case 'eighth':
+      return 2;
+    case 'sixteenth':
+      return 4;
+    case 'quarter':
+    case 'backbeat':
+    default:
+      return 1;
+  }
+}
+
+function shouldPlayTick(index: number): boolean {
+  if (subdivision !== 'backbeat') {
+    return true;
+  }
+  // 4/4: click only on beats 2 and 4 (0-based indices 1 and 3).
+  const beatInBar = index % 4;
+  return beatInBar === 1 || beatInBar === 3;
+}
+
+function isAccentTick(index: number): boolean {
+  if (subdivision === 'backbeat') {
+    return false;
+  }
+  const tpb = ticksPerBeat();
+  const beatInBar = Math.floor(index / tpb) % 4;
+  const subBeat = index % tpb;
+  return beatInBar === 0 && subBeat === 0;
+}
+
+function playClick(
+  profile = getSoundProfile(soundId),
+  accent = false,
+): void {
   try {
     const context = getSharedAudioContext();
     if (context.state === 'suspended') {
@@ -92,14 +144,16 @@ function playClick(profile = getSoundProfile(soundId)): void {
     const now = context.currentTime;
     const attack = profile.attackMs / 1000;
     const release = profile.releaseMs / 1000;
+    const peak = accent ? profile.peakGain * 1.4 : profile.peakGain * 0.72;
+    const freq = accent ? profile.frequency * 1.18 : profile.frequency;
 
     const osc = context.createOscillator();
     osc.type = profile.type;
-    osc.frequency.value = profile.frequency;
+    osc.frequency.value = freq;
 
     const gain = context.createGain();
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(profile.peakGain, now + attack);
+    gain.gain.linearRampToValueAtTime(peak, now + attack);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + attack + release);
 
     osc.connect(gain);
@@ -118,14 +172,22 @@ function clearTimer(): void {
   }
 }
 
+function fireTick(): void {
+  if (shouldPlayTick(tickIndex)) {
+    playClick(getSoundProfile(soundId), isAccentTick(tickIndex));
+  }
+  tickIndex += 1;
+}
+
 function armTimer(): void {
   clearTimer();
   if (!running) {
     return;
   }
-  const ms = 60_000 / bpm;
-  playClick();
-  intervalId = setInterval(() => playClick(), ms);
+  tickIndex = 0;
+  const ms = 60_000 / bpm / ticksPerBeat();
+  fireTick();
+  intervalId = setInterval(fireTick, ms);
 }
 
 export function getMetronomeBpm(): number {
@@ -134,6 +196,10 @@ export function getMetronomeBpm(): number {
 
 export function getMetronomeSoundId(): MetronomeSoundId {
   return soundId;
+}
+
+export function getMetronomeSubdivision(): MetronomeSubdivision {
+  return subdivision;
 }
 
 export function isMetronomeRunning(): boolean {
@@ -150,7 +216,14 @@ export function setMetronomeBpm(nextBpm: number): void {
 export function setMetronomeSound(nextSoundId: MetronomeSoundId): void {
   soundId = nextSoundId;
   // Preview the chosen click immediately.
-  playClick(getSoundProfile(nextSoundId));
+  playClick(getSoundProfile(nextSoundId), true);
+  if (running) {
+    armTimer();
+  }
+}
+
+export function setMetronomeSubdivision(next: MetronomeSubdivision): void {
+  subdivision = next;
   if (running) {
     armTimer();
   }
@@ -165,4 +238,5 @@ export function startMetronome(nextBpm = bpm): void {
 export function stopMetronome(): void {
   running = false;
   clearTimer();
+  tickIndex = 0;
 }
