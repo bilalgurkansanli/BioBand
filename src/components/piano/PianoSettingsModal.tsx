@@ -1,6 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -15,11 +13,8 @@ import {
   PIANO_SCALE_OPTIONS,
   type PianoScaleId,
 } from '../../instruments/piano/pianoScales';
+import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
-import {
-  getStoreDisplayName,
-  openStoreReview,
-} from '../../utils/openStoreReview';
 import { ModalChromeHeader } from './ModalChromeHeader';
 
 const SCALE_ACCENT = '#81C784';
@@ -141,29 +136,10 @@ export function PianoSettingsModal({
               </Text>
             </Pressable>
 
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => {
-                void openStoreReview().catch(() => {
-                  Alert.alert(t('piano.game.requestSongOpenFailed'));
-                });
-              }}
-              style={({ pressed }) => [
-                styles.requestSongButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons
-                color={colors.accent}
-                name="chatbubble-ellipses-outline"
-                size={16}
-              />
-              <Text style={styles.requestSongText}>
-                {t('piano.game.requestSong', {
-                  store: getStoreDisplayName(),
-                })}
-              </Text>
-            </Pressable>
+            <RequestSongPrompt
+              messageKey="piano.game.requestSong"
+              openFailedKey="piano.game.requestSongOpenFailed"
+            />
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -258,24 +234,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 15,
     fontWeight: '700',
-  },
-  requestSongButton: {
-    alignItems: 'flex-start',
-    backgroundColor: `${colors.accent}12`,
-    borderColor: `${colors.accent}44`,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  requestSongText: {
-    color: colors.textSecondary,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
   },
   pressed: {
     opacity: 0.75,

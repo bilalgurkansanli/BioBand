@@ -26,7 +26,7 @@ type PianoMetronomeModalProps = {
   bpm: number;
   onChangeBpm: (bpm: number) => void;
   onClose: () => void;
-  /** When true, show quarter / 8th / 16th / backbeat chips (drums). */
+  /** When true, show quarter / 8th / 16th / backbeat chips. */
   showSubdivision?: boolean;
   onChangeSubdivision?: (subdivision: MetronomeSubdivision) => void;
 };

@@ -1,5 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,17 +19,17 @@ import type {
   PlayTempo,
   SupportLevel,
 } from '../../hooks/useGuitarPlayAlong';
+import type { ImportGuitarSongResult } from '../../hooks/useUserGuitarSongs';
 import { GUITAR_SONG_CATALOG } from '../../instruments/guitar/songs/catalog';
 import type {
   GuitarSongDefinition,
   GuitarSongDifficulty,
   GuitarSongScope,
 } from '../../instruments/guitar/songs/types';
+import type { UserGuitarSong } from '../../storage/userGuitarSongsStorage';
+import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
-import {
-  getStoreDisplayName,
-  openStoreReview,
-} from '../../utils/openStoreReview';
+import { isDocumentPickerAvailable } from '../../utils/documentPicker';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
 type DifficultyFilter = 'all' | GuitarSongDifficulty;
@@ -46,6 +56,8 @@ type GuitarPlayAlongModalProps = {
   results: GuitarPlayAlongResults | null;
   tempo: PlayTempo;
   demoJustFinished?: boolean;
+  userSongs: UserGuitarSong[];
+  importing: boolean;
   onClose: () => void;
   onSelectSong: (songId: string) => void;
   onSelectScope: (scope: GuitarSongScope) => void;
@@ -54,6 +66,9 @@ type GuitarPlayAlongModalProps = {
   onGoBack: () => void;
   onBackToSongList: () => void;
   onReplay: () => void;
+  onImportSong: () => Promise<ImportGuitarSongResult>;
+  onImportSongFromJsonText: (text: string) => Promise<ImportGuitarSongResult>;
+  onDeleteUserSong: (songId: string) => void;
 };
 
 const TEMPO_OPTIONS: PlayTempo[] = ['slow', 'normal', 'fast'];
@@ -91,6 +106,8 @@ export function GuitarPlayAlongModal({
   results,
   tempo,
   demoJustFinished = false,
+  userSongs,
+  importing,
   onClose,
   onSelectSong,
   onSelectScope,
@@ -99,9 +116,14 @@ export function GuitarPlayAlongModal({
   onGoBack,
   onBackToSongList,
   onReplay,
+  onImportSong,
+  onImportSongFromJsonText,
+  onDeleteUserSong,
 }: GuitarPlayAlongModalProps) {
   const { t } = useTranslation();
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   const songs =
     difficultyFilter === 'all'
@@ -110,6 +132,58 @@ export function GuitarPlayAlongModal({
 
   const showBack =
     phase === 'pickScope' || phase === 'pickLevel' || phase === 'results';
+
+  const handleImport = async () => {
+    if (!isDocumentPickerAvailable()) {
+      setPasteOpen(true);
+      return;
+    }
+    const result = await onImportSong();
+    if (result.ok) {
+      Alert.alert(t('guitar.game.import.success'), result.song.title);
+      return;
+    }
+    if (result.code === 'canceled') {
+      return;
+    }
+    if (result.code === 'pickerUnavailable') {
+      setPasteOpen(true);
+      return;
+    }
+    Alert.alert(
+      t('guitar.game.import.button'),
+      t(`guitar.game.import.errors.${result.code}`),
+    );
+  };
+
+  const handlePasteSubmit = async () => {
+    const result = await onImportSongFromJsonText(pasteText);
+    if (result.ok) {
+      setPasteOpen(false);
+      setPasteText('');
+      Alert.alert(t('guitar.game.import.success'), result.song.title);
+      return;
+    }
+    Alert.alert(
+      t('guitar.game.import.pasteTitle'),
+      t(`guitar.game.import.errors.${result.code}`),
+    );
+  };
+
+  const confirmDelete = (song: UserGuitarSong) => {
+    Alert.alert(
+      t('guitar.game.import.deleteTitle'),
+      t('guitar.game.import.deleteMessage', { title: song.title }),
+      [
+        { text: t('guitar.game.import.deleteCancel'), style: 'cancel' },
+        {
+          text: t('guitar.game.import.deleteConfirm'),
+          style: 'destructive',
+          onPress: () => onDeleteUserSong(song.id),
+        },
+      ],
+    );
+  };
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -131,6 +205,7 @@ export function GuitarPlayAlongModal({
 
           <ScrollView
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
             showsVerticalScrollIndicator
             style={styles.scroll}
@@ -139,6 +214,87 @@ export function GuitarPlayAlongModal({
               <>
                 <Text style={styles.sectionTitle}>{t('guitar.game.pickSong')}</Text>
 
+                <Pressable
+                  disabled={importing}
+                  onPress={() => void handleImport()}
+                  style={({ pressed }) => [
+                    styles.importButton,
+                    pressed && styles.pressed,
+                    importing && styles.rowDisabled,
+                  ]}
+                >
+                  {importing ? (
+                    <ActivityIndicator color={colors.accent} size="small" />
+                  ) : (
+                    <Ionicons color={colors.accent} name="folder-open-outline" size={20} />
+                  )}
+                  <View style={styles.importTextWrap}>
+                    <Text style={styles.importTitle}>{t('guitar.game.import.button')}</Text>
+                    <Text style={styles.importHint}>{t('guitar.game.import.hint')}</Text>
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  disabled={importing}
+                  onPress={() => setPasteOpen(true)}
+                  style={({ pressed }) => [
+                    styles.pasteButton,
+                    pressed && styles.pressed,
+                    importing && styles.rowDisabled,
+                  ]}
+                >
+                  <Ionicons color={colors.textSecondary} name="clipboard-outline" size={18} />
+                  <Text style={styles.pasteButtonText}>
+                    {t('guitar.game.import.pasteButton')}
+                  </Text>
+                </Pressable>
+
+                <Text style={styles.sectionLabel}>{t('guitar.game.import.mySongs')}</Text>
+                {userSongs.length === 0 ? (
+                  <Text style={styles.empty}>{t('guitar.game.import.empty')}</Text>
+                ) : (
+                  userSongs.map((song) => (
+                    <View key={song.id} style={styles.userSongRow}>
+                      <Pressable
+                        onPress={() => onSelectSong(song.id)}
+                        style={({ pressed }) => [
+                          styles.listItem,
+                          styles.userSongMain,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <View style={styles.listItemMain}>
+                          <Text style={styles.listItemTitle}>{song.title}</Text>
+                          <Text style={styles.userSongMeta}>
+                            {song.artist ?? song.source.toUpperCase()}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          color={colors.textSecondary}
+                          name="chevron-forward"
+                          size={18}
+                        />
+                      </Pressable>
+                      <Pressable
+                        accessibilityLabel={t('guitar.game.import.delete')}
+                        hitSlop={8}
+                        onPress={() => confirmDelete(song)}
+                        style={({ pressed }) => [
+                          styles.deleteBtn,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Ionicons
+                          color={colors.textSecondary}
+                          name="trash-outline"
+                          size={18}
+                        />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <Text style={styles.sectionLabel}>{t('guitar.game.import.preloaded')}</Text>
                 <View style={styles.filterRow}>
                   {DIFFICULTY_FILTERS.map((option) => {
                     const selected = option === difficultyFilter;
@@ -168,7 +324,6 @@ export function GuitarPlayAlongModal({
                     );
                   })}
                 </View>
-
                 {songs.length === 0 ? (
                   <Text style={styles.empty}>{t('guitar.game.difficulty.empty')}</Text>
                 ) : (
@@ -180,6 +335,9 @@ export function GuitarPlayAlongModal({
                     >
                       <View style={styles.listItemMain}>
                         <Text style={styles.listItemTitle}>{song.title}</Text>
+                        {song.artist ? (
+                          <Text style={styles.userSongMeta}>{song.artist}</Text>
+                        ) : null}
                         <Text
                           style={[
                             styles.difficultyBadge,
@@ -194,29 +352,10 @@ export function GuitarPlayAlongModal({
                   ))
                 )}
 
-                <Pressable
-                  accessibilityRole="link"
-                  onPress={() => {
-                    void openStoreReview().catch(() => {
-                      Alert.alert(t('guitar.game.requestSongOpenFailed'));
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.requestSongButton,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Ionicons
-                    color={colors.accent}
-                    name="chatbubble-ellipses-outline"
-                    size={16}
-                  />
-                  <Text style={styles.requestSongText}>
-                    {t('guitar.game.requestSong', {
-                      store: getStoreDisplayName(),
-                    })}
-                  </Text>
-                </Pressable>
+                <RequestSongPrompt
+                  messageKey="guitar.game.requestSong"
+                  openFailedKey="guitar.game.requestSongOpenFailed"
+                />
               </>
             ) : null}
 
@@ -334,6 +473,48 @@ export function GuitarPlayAlongModal({
           </ScrollView>
         </View>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={pasteOpen}
+        onRequestClose={() => setPasteOpen(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.pasteCard}>
+            <ModalChromeHeader
+              closeLabel={t('guitar.game.close')}
+              onClose={() => setPasteOpen(false)}
+              title={t('guitar.game.import.pasteTitle')}
+            />
+            <Text style={styles.pasteHint}>{t('guitar.game.import.pasteHint')}</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              placeholder={t('guitar.game.import.pastePlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              style={styles.pasteInput}
+              textAlignVertical="top"
+              value={pasteText}
+              onChangeText={setPasteText}
+            />
+            <Pressable
+              disabled={importing || pasteText.trim().length === 0}
+              onPress={() => void handlePasteSubmit()}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+                (importing || pasteText.trim().length === 0) && styles.rowDisabled,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {t('guitar.game.import.pasteSubmit')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -349,20 +530,33 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
+    borderColor: colors.border,
     borderRadius: 16,
+    borderWidth: 1,
     maxHeight: '88%',
-    maxWidth: 440,
-    paddingBottom: 12,
+    maxWidth: 560,
     paddingHorizontal: 14,
-    paddingTop: 6,
+    paddingVertical: 12,
+    width: '100%',
+  },
+  pasteCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    maxHeight: '88%',
+    maxWidth: 560,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     width: '100%',
   },
   scroll: {
+    flexGrow: 0,
     maxHeight: 420,
   },
   scrollContent: {
     gap: 10,
-    paddingBottom: 8,
+    paddingBottom: 12,
     paddingTop: 4,
   },
   sectionTitle: {
@@ -373,9 +567,71 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginTop: 6,
+    textTransform: 'uppercase',
+  },
+  importButton: {
+    alignItems: 'center',
+    backgroundColor: `${colors.accent}18`,
+    borderColor: `${colors.accent}55`,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  importTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  importTitle: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  importHint: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  pasteButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  pasteButtonText: {
+    color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: '600',
-    marginTop: 4,
+  },
+  pasteHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  pasteInput: {
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    color: colors.text,
+    fontFamily: 'monospace',
+    fontSize: 12,
+    marginBottom: 10,
+    maxHeight: 220,
+    minHeight: 140,
+    padding: 10,
   },
   filterRow: {
     flexDirection: 'row',
@@ -386,13 +642,19 @@ const styles = StyleSheet.create({
     borderColor: '#3A3A3C',
     borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
   },
   filterChipText: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  empty: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
   },
   listItem: {
     alignItems: 'center',
@@ -406,21 +668,38 @@ const styles = StyleSheet.create({
   listItemMain: {
     flex: 1,
     gap: 2,
-    marginRight: 8,
   },
   listItemTitle: {
     color: colors.text,
     fontSize: 15,
     fontWeight: '700',
   },
+  userSongMeta: {
+    color: colors.textSecondary,
+    fontSize: 12,
+  },
   difficultyBadge: {
     fontSize: 12,
     fontWeight: '600',
   },
-  empty: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    paddingVertical: 8,
+  userSongRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  userSongMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  deleteBtn: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    width: 44,
   },
   songHeading: {
     color: colors.accent,
@@ -515,23 +794,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  requestSongButton: {
-    alignItems: 'flex-start',
-    backgroundColor: `${colors.accent}12`,
-    borderColor: `${colors.accent}44`,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  requestSongText: {
-    color: colors.textSecondary,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
+  rowDisabled: {
+    opacity: 0.55,
   },
   pressed: {
     opacity: 0.75,

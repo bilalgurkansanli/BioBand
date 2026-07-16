@@ -1,6 +1,10 @@
-import { VIOLIN_STRINGS, type ViolinStringId } from './violinSounds';
+import {
+  POSITION_COUNT,
+  VIOLIN_STRINGS,
+  type ViolinStringId,
+} from './violinSounds';
 
-export const POSITION_COUNT = 10;
+export { POSITION_COUNT };
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'] as const;
 

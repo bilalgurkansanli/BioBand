@@ -36,7 +36,6 @@ import {
 import {
   getMetronomeBpm,
   METRONOME_BPM_DEFAULT,
-  setMetronomeSubdivision,
   startMetronome,
   stopMetronome,
 } from '../instruments/piano/pianoMetronome';
@@ -93,6 +92,16 @@ export function PianoScreen({ navigation }: Props) {
     [scaleId],
   );
 
+  const [fxModalVisible, setFxModalVisible] = useState(false);
+  const [fxSettings, setFxSettings] = useState<PianoFxSettings>(() =>
+    getPianoFxSettings(),
+  );
+  const [volumeModalVisible, setVolumeModalVisible] = useState(false);
+  const [volume, setVolume] = useState(() => getMasterVolume());
+  const fxApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fxSettingsRef = useRef(fxSettings);
+  fxSettingsRef.current = fxSettings;
+
   useEffect(() => {
     let cancelled = false;
     void loadPianoUiSettings().then((settings) => {
@@ -105,6 +114,10 @@ export function PianoScreen({ navigation }: Props) {
       if (settings.scaleId) {
         setLastScaleId(settings.scaleId);
       }
+      setVoiceId(settings.voiceId);
+      fxSettingsRef.current = settings.fx;
+      setFxSettings(settings.fx);
+      applyPianoFxSettings(settings.fx);
       setSettingsHydrated(true);
     });
     return () => {
@@ -120,8 +133,10 @@ export function PianoScreen({ navigation }: Props) {
       showTonePanel,
       showSpeedHud,
       scaleId,
+      voiceId,
+      fx: fxSettings,
     });
-  }, [settingsHydrated, showTonePanel, showSpeedHud, scaleId]);
+  }, [settingsHydrated, showTonePanel, showSpeedHud, scaleId, voiceId, fxSettings]);
 
   const handleScaleIdChange = useCallback((next: PianoScaleId | null) => {
     setScaleId(next);
@@ -136,16 +151,6 @@ export function PianoScreen({ navigation }: Props) {
     setVoiceId(nextVoiceId);
     setVoiceModalVisible(false);
   }, []);
-
-  const [fxModalVisible, setFxModalVisible] = useState(false);
-  const [fxSettings, setFxSettings] = useState<PianoFxSettings>(() =>
-    getPianoFxSettings(),
-  );
-  const [volumeModalVisible, setVolumeModalVisible] = useState(false);
-  const [volume, setVolume] = useState(() => getMasterVolume());
-  const fxApplyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const fxSettingsRef = useRef(fxSettings);
-  fxSettingsRef.current = fxSettings;
 
   const applyFxNow = useCallback((settings: PianoFxSettings) => {
     if (fxApplyTimerRef.current) {
@@ -222,8 +227,7 @@ export function PianoScreen({ navigation }: Props) {
       setMetronomeOn(false);
       return;
     }
-    // Piano stays on simple quarter clicks (subdivision UI is drums-only).
-    setMetronomeSubdivision('quarter');
+
     startMetronome(metronomeBpm);
     setMetronomeOn(true);
     setMetronomeModalVisible(true);
@@ -457,6 +461,7 @@ export function PianoScreen({ navigation }: Props) {
         bpm={metronomeBpm}
         onChangeBpm={handleMetronomeBpmChange}
         onClose={() => setMetronomeModalVisible(false)}
+        showSubdivision
         visible={metronomeModalVisible && !isPortrait}
       />
 

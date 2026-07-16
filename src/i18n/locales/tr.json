@@ -1,30 +1,12 @@
 {
   "tabs": {
-    "home": "Ana Sayfa",
     "instruments": "Enstrümanlar",
     "recordings": "Kayıtlarım"
   },
-  "home": {
-    "welcome": "BioBand'a Hoş Geldin",
-    "subtitle": "Çal, kaydet, öğren — hepsi tek uygulamada.",
-    "features": {
-      "instruments": {
-        "title": "Sanal Enstrümanlar",
-        "description": "Piyano, gitar, keman, davul ve daha fazlasına dokunarak çal."
-      },
-      "recordings": {
-        "title": "Çoklu Kayıt",
-        "description": "Katman katman kaydet, kendi şarkını oluştur."
-      },
-      "learn": {
-        "title": "Eğitici Mod",
-        "description": "YouTube dersleri izle, rehberli parça çal."
-      }
-    }
-  },
   "common": {
     "back": "Geri",
-    "cancel": "İptal"
+    "cancel": "İptal",
+    "writeReview": "Yorum Yaz"
   },
   "instruments": {
     "title": "Enstrümanlar",
@@ -48,7 +30,7 @@
     "guitarLoading": "Gitar sesleri yükleniyor...",
     "guitarLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "violin": "Keman",
-    "violinDescription": "4 telli parmak tahtası — pizzicato çalmak için dokun.",
+    "violinDescription": "4 telli parmak tahtası — yaylı keman, phrase, efekt ve öğretici.",
     "violinLoading": "Keman sesleri yükleniyor...",
     "violinLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "pads": "Padler",
@@ -213,7 +195,7 @@
           "pickerUnavailable": "Dosya seçici yok — bunun yerine JSON yapıştır."
         }
       },
-      "requestSong": "İstediğin şarkıyı bulamadın ya da JSON'unu bulamadın mı? Hemen {{store}} yorumlarına şarkı adını yaz — bir sonraki sürümde ekleyelim. :)",
+      "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },
@@ -229,6 +211,89 @@
       "twinkle": "Parlayan",
       "arpeggio": "Arpej",
       "openStrings": "Açık"
+    },
+    "toolbar": {
+      "metronome": "Metronom",
+      "fx": "Efektler",
+      "volume": "Ses",
+      "voice": "Keman sesi",
+      "game": "Öğretici · Beta",
+      "settings": "Ayarlar"
+    },
+    "voices": {
+      "title": "Keman sesi seç",
+      "classic": "Klasik",
+      "bright": "Parlak",
+      "muted": "Susturulmuş",
+      "warm": "Sıcak",
+      "airy": "Hafif",
+      "electric": "Elektrik",
+      "close": "Kapat"
+    },
+    "settings": {
+      "title": "Ayarlar",
+      "showPositionNumbers": "Pozisyon numaraları",
+      "strongGuideHighlight": "Güçlü öğretici vurgu",
+      "visiblePhrases": "Çubuktaki phrase’ler",
+      "visiblePhrasesHint": "Göstermek veya gizlemek için dokun. En az biri açık kalır. Öğretici rehberi gerektiğinde yine görünür.",
+      "phrasesPresetAll": "Tümü",
+      "startTutorial": "Öğreticiyi başlat",
+      "close": "Kapat"
+    },
+    "game": {
+      "title": "Öğretici Mod",
+      "beta": "Beta",
+      "pickSong": "Çalmak için bir parça seç",
+      "difficulty": {
+        "all": "Tümü",
+        "easy": "Kolay",
+        "medium": "Orta",
+        "hard": "Zor",
+        "empty": "Bu zorlukta parça yok"
+      },
+      "pickScope": "Parçanın ne kadarını çalmak istiyorsun?",
+      "scopePartial": "Bir bölümle devam et",
+      "scopePartialHint": "Desenin kısa bir kesiti",
+      "scopeFull": "Tüm parçayla devam et",
+      "scopeFullHint": "Baştan sona her notayı çal",
+      "pickLevel": "Ne kadar destek istiyorsun?",
+      "demoFinished": "İzleme bitti — şimdi sen çal.",
+      "tempo": {
+        "label": "Hız",
+        "slow": "Yavaş",
+        "normal": "Normal",
+        "fast": "Hızlı"
+      },
+      "back": "Geri",
+      "backToSongs": "Parça listesine dön",
+      "close": "Kapat",
+      "levels": {
+        "guided": "Önce izle",
+        "guidedDesc": "Uygulama parçayı çalar — hangi pozisyon ve phrase’lerin yandığını izle.",
+        "medium": "Adım adım",
+        "mediumDesc": "Sıradaki pozisyon veya phrase yanar ve seni bekler.",
+        "free": "Desteksiz",
+        "freeDesc": "İpucu yok. Zamana uyarak çal."
+      },
+      "hud": {
+        "countdown": "Hazır ol… {{count}}",
+        "watching": "İzle… parça senin için çalıyor",
+        "tapToStart": "Yanan pozisyon veya phrase’e bas — seni bekliyor",
+        "progress": "{{done}}/{{total}} nota · {{left}} kaldı · {{hits}} isabet",
+        "progressWatch": "{{done}}/{{total}} nota · {{left}} kaldı",
+        "stop": "Durdur"
+      },
+      "results": {
+        "title": "Parça bitti!",
+        "accuracy": "İsabet: {{percent}}%",
+        "hits": "Çaldığın: {{count}}",
+        "misses": "Kaçırılan: {{count}}",
+        "wrong": "Yanlış nota: {{count}}",
+        "replay": "Tekrar çal",
+        "change": "Seviye değiştir"
+      },
+      "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
+      "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },
   "guitar": {
@@ -238,7 +303,34 @@
       "C": "C",
       "D": "D",
       "Am": "Am",
-      "E": "E"
+      "E": "E",
+      "A": "A",
+      "Dm": "Dm",
+      "Dm7": "Dm7",
+      "B7": "B7",
+      "E5": "E5",
+      "A5": "A5",
+      "G5": "G5",
+      "D5": "D5",
+      "C5": "C5",
+      "F": "F",
+      "Bm": "Bm",
+      "Gm": "Gm",
+      "Bb": "Bb",
+      "Cmaj7": "Cmaj7",
+      "Dfs": "D/F#",
+      "groups": {
+        "open": "Açık",
+        "power": "Power",
+        "barre": "Barre",
+        "rock": "Power & barre"
+      },
+      "strumHint": "Aşağı veya yukarı kaydırarak çal. Seçili akora dokunarak temizle."
+    },
+    "playModes": {
+      "strum": "Strum",
+      "arpeggio": "Arpej",
+      "rasgueado": "Rasgueado"
     },
     "toolbar": {
       "metronome": "Metronom",
@@ -250,7 +342,7 @@
     },
     "voices": {
       "title": "Gitar sesi seç",
-      "nylon": "Naylon",
+      "nylon": "Akustik",
       "steel": "Çelik",
       "muted": "Susturulmuş",
       "bright": "Parlak",
@@ -262,6 +354,14 @@
       "title": "Ayarlar",
       "showFretNumbers": "Perde numaraları",
       "strongGuideHighlight": "Güçlü öğretici vurgusu",
+      "playModesTitle": "Çalma modları",
+      "playModesHint": "Çubuğu tamamen kapatabilir veya Strum / Arpej / Rasgueado düğmelerini tek tek gizleyebilirsin. En az bir mod açık kalır.",
+      "showPlayModeBar": "Çalma modu çubuğunu göster",
+      "visibleChords": "Akord çubuğundaki akorlar",
+      "visibleChordsHint": "Göstermek veya gizlemek için dokun. En az bir akor kalır. Öğretici rehber akoru gerekirse yine görünür.",
+      "chordsPresetAll": "Tümü",
+      "chordsPresetOpen": "Sadece açık",
+      "chordsPresetRock": "Power & barre",
       "startTutorial": "Öğreticiyi başlat",
       "close": "Kapat"
     },
@@ -317,7 +417,37 @@
         "replay": "Tekrar çal",
         "change": "Seviyeyi değiştir"
       },
-      "requestSong": "Aradığın şarkıyı bulamıyor musun? {{store}} yorumuna şarkı adını yaz — sonraki sürümde ekleyelim. :)",
+      "import": {
+        "button": "Şarkı yükle",
+        "hint": "JSON/MIDI dosyası veya JSON yapıştır",
+        "preloaded": "Hazır",
+        "mySongs": "Şarkılarım",
+        "empty": "Henüz yüklenmiş şarkı yok",
+        "delete": "Sil",
+        "deleteTitle": "Şarkı silinsin mi?",
+        "deleteMessage": "\"{{title}}\" listenden kaldırılacak.",
+        "deleteConfirm": "Sil",
+        "deleteCancel": "İptal",
+        "success": "Şarkı eklendi",
+        "pasteButton": "JSON yapıştır",
+        "pasteTitle": "Şarkı JSON",
+        "pasteHint": "Başlık ve events içeren JSON yapıştır (dosya seçici yoksa kullanılır).",
+        "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"soundId\": \"s5:f7\", \"atMs\": 0 }]\n}",
+        "pasteSubmit": "Ekle",
+        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
+        "errors": {
+          "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
+          "invalidJson": "JSON dosyası okunamadı.",
+          "invalidSchema": "Geçersiz şarkı formatı. events dizisi gerekli (her öğede soundId ve atMs).",
+          "invalidSound": "Geçersiz sound id. s1:f0–s6:f12 veya chord:Em kullan (Em, G, C, D, Am, E).",
+          "emptySong": "Dosyada çalınabilir gitar notası bulunamadı.",
+          "tooManyNotes": "Çok fazla nota (en fazla 800).",
+          "midiParseFailed": "MIDI dosyası okunamadı.",
+          "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "pickerUnavailable": "Dosya seçici yok — JSON yapıştır."
+        }
+      },
+      "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },
@@ -570,7 +700,7 @@
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır ile ekleyebilirsin."
         }
       },
-      "requestSong": "İstediğin şarkıyı bulamadın ya da JSON'unu bulamadın mı? Hemen {{store}} yorumlarına şarkı adını yaz — bir sonraki sürümde ekleyelim. :)",
+      "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
     }
   },

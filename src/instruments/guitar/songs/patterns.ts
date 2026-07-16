@@ -20,7 +20,7 @@ export const OPEN_STRINGS_EVENTS: GuitarSongEvent[] = [
   e('s6:f0', 5500),
 ];
 
-/** Classic power-chord style riff on low E (Smoke-like). */
+/** Classic power-chord style riff on low E (Smoke-like single notes). */
 export const POWER_RIFF_EVENTS: GuitarSongEvent[] = [
   e('s6:f3', 0),
   e('s6:f6', 400),
@@ -36,6 +36,25 @@ export const POWER_RIFF_EVENTS: GuitarSongEvent[] = [
   e('s6:f6', 5000),
   e('s6:f9', 5400),
   e('s6:f8', 5800),
+];
+
+/** Rock shapes: E5 / A5 power, then F & Bm barre. */
+export const POWER_BARRE_EVENTS: GuitarSongEvent[] = [
+  e('chord:E5', 0),
+  e('chord:E5', 550),
+  e('chord:A5', 1100),
+  e('chord:A5', 1650),
+  e('chord:E5', 2200),
+  e('chord:A5', 2750),
+  e('chord:E5', 3300),
+  e('chord:A5', 3850),
+  e('chord:F', 4600),
+  e('chord:F', 5400),
+  e('chord:Bm', 6200),
+  e('chord:Bm', 7000),
+  e('chord:E5', 7800),
+  e('chord:A5', 8400),
+  e('chord:E5', 9000),
 ];
 
 /** Campfire chords: Em → G → C → D. */

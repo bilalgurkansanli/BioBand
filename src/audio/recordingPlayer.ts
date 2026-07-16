@@ -19,12 +19,9 @@ import {
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import {
   initViolinEngine,
-  playNote as playViolinNote,
-  playPhrase,
+  playViolinSoundId,
   releaseViolinEngine,
 } from '../instruments/violin/violinEngine';
-import type { PhraseId } from '../instruments/violin/violinPhrases';
-import type { ViolinStringId } from '../instruments/violin/violinSounds';
 import type { InstrumentId, SavedRecording } from '../types/recording';
 
 export type RecordingPlaybackHandle = {
@@ -98,20 +95,7 @@ function playInstrumentEvent(instrument: InstrumentId, soundId: string): void {
       return;
     }
     case 'violin': {
-      if (soundId.startsWith('phrase:')) {
-        playPhrase(soundId.slice('phrase:'.length) as PhraseId);
-        return;
-      }
-      const separator = soundId.lastIndexOf(':');
-      if (separator <= 0) {
-        return;
-      }
-      const stringId = soundId.slice(0, separator) as ViolinStringId;
-      const position = Number(soundId.slice(separator + 1));
-      if (!Number.isFinite(position)) {
-        return;
-      }
-      playViolinNote(stringId, position);
+      playViolinSoundId(soundId);
       return;
     }
   }

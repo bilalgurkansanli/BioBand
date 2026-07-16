@@ -5,6 +5,7 @@ import {
   loadSample,
   playSample,
   prepareSamplePlayback,
+  releaseVoiceByTag,
   stopAllVoices,
 } from '../../audio/sampleBank';
 import {
@@ -13,31 +14,54 @@ import {
   schedulePianoReverbTaps,
 } from '../piano/pianoFx';
 import type { ChordId } from './guitarChords';
-import { GUITAR_CHORDS, getChordStringNotes } from './guitarChords';
+import { getChordById, isChordId } from './guitarChords';
 import {
-  GUITAR_STRINGS,
-  STRING_SAMPLE_FILES,
-  fretToMidi,
-  getStringPlaybackRate,
-  midiToFret,
-  type GuitarStringId,
-} from './guitarSounds';
+  buildChordPatternSteps,
+  type GuitarChordGesture,
+  type GuitarChordPlayMode,
+} from './guitarChordPatterns';
+import {
+  GUITAR_ACOUSTIC_SAMPLE_FILES,
+  GUITAR_ELECTRIC_SAMPLE_FILES,
+  getGuitarNoteSampleConfig,
+  sampleBankForVoice,
+} from './guitarSamples';
+import { guitarStringGainBalance } from './guitarBalance';
+import { fretToMidi, type GuitarStringId } from './guitarSounds';
+import {
+  clampGuitarVelocity,
+  guitarAttackSecondsForVelocity,
+  guitarGainScaleForVelocity,
+  GUITAR_VELOCITY_DEFAULT,
+} from './guitarVelocity';
 import { getGuitarVoice, type GuitarVoiceId } from './guitarVoices';
 
-const STRUM_STAGGER_MS = 18;
-const STRING_GAIN = 0.55;
+const STRING_GAIN = 0.42;
+/** Soft mute when finger lifts (guitar damp). */
+const NOTE_OFF_FADE_SECONDS = 0.18;
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
 >;
 
-const buffers = new Map<GuitarStringId, AudioBuffer>();
+/** Buffer key: `${bank}:${anchorId}` so acoustic/electric share note names. */
+const buffers = new Map<string, AudioBuffer>();
 const strumTimers: ReturnType<typeof setTimeout>[] = [];
+const fingerHeld = new Set<string>();
 let initialized = false;
 let currentVoiceId: GuitarVoiceId = 'nylon';
+let pluckSerial = 0;
 
 let voiceGain: GainNode | null = null;
 let voiceFilter: BiquadFilterNode | null = null;
+
+function cellKey(stringId: GuitarStringId, fret: number): string {
+  return `${stringId}:f${fret}`;
+}
+
+function dryHeldTag(stringId: GuitarStringId, fret: number): string {
+  return `guitar:held:${cellKey(stringId, fret)}`;
+}
 
 function applyVoiceToBus(): void {
   if (!voiceGain || !voiceFilter) {
@@ -49,9 +73,9 @@ function applyVoiceToBus(): void {
   voiceFilter.frequency.value = audio.filterFrequency;
   voiceFilter.Q.value = audio.filterQ;
   if (audio.filterType === 'lowshelf') {
-    voiceFilter.gain.value = 5;
-  } else if (audio.filterType === 'peaking' && currentVoiceId === 'electric') {
-    voiceFilter.gain.value = 4;
+    voiceFilter.gain.value = audio.filterGainDb ?? 3;
+  } else if (audio.filterType === 'peaking') {
+    voiceFilter.gain.value = audio.filterGainDb ?? 0;
   } else {
     voiceFilter.gain.value = 0;
   }
@@ -79,12 +103,23 @@ export async function initGuitarEngine(): Promise<void> {
   getPianoFxInput();
   ensureVoiceBus();
 
-  await Promise.all(
-    GUITAR_STRINGS.map(async (string) => {
-      const buffer = await loadSample(STRING_SAMPLE_FILES[string.id]);
-      buffers.set(string.id, buffer);
+  const acousticIds = Object.keys(GUITAR_ACOUSTIC_SAMPLE_FILES) as Array<
+    keyof typeof GUITAR_ACOUSTIC_SAMPLE_FILES
+  >;
+  const electricIds = Object.keys(GUITAR_ELECTRIC_SAMPLE_FILES) as Array<
+    keyof typeof GUITAR_ELECTRIC_SAMPLE_FILES
+  >;
+
+  await Promise.all([
+    ...acousticIds.map(async (id) => {
+      const buffer = await loadSample(GUITAR_ACOUSTIC_SAMPLE_FILES[id]);
+      buffers.set(`acoustic:${id}`, buffer);
     }),
-  );
+    ...electricIds.map(async (id) => {
+      const buffer = await loadSample(GUITAR_ELECTRIC_SAMPLE_FILES[id]);
+      buffers.set(`electric:${id}`, buffer);
+    }),
+  ]);
 
   initialized = true;
 }
@@ -98,92 +133,198 @@ export function getCurrentGuitarVoiceId(): GuitarVoiceId {
   return currentVoiceId;
 }
 
-function voiceTag(stringId: GuitarStringId): string {
-  return `guitar:${stringId}`;
-}
-
 function triggerPluck(
-  stringId: GuitarStringId,
-  buffer: AudioBuffer,
   midi: number,
   gain: number,
-  shortTail = false,
+  tag: string,
+  options?: { shortTail?: boolean; held?: boolean; velocity?: number },
 ): void {
-  const voiceRate = getGuitarVoice(currentVoiceId).audio.playbackRate;
-  const rate = getStringPlaybackRate(stringId, midi) * voiceRate;
-  const output = ensureVoiceBus();
-
-  playSample(buffer, rate, gain, output, voiceTag(stringId), {
-    shortTail,
-    attackSeconds: shortTail ? 0.004 : 0.002,
-    holdSeconds: shortTail ? 0.45 : 1.2,
-    releaseSeconds: shortTail ? 0.35 : 0.8,
-  });
-}
-
-/**
- * Pluck a string at a fret (0 = open). Optional midi override for chord voicings
- * that may exceed the visible fretboard range after clamp.
- */
-export function pluckString(
-  stringId: GuitarStringId,
-  fretOrMidi?: number,
-  options?: { asMidi?: boolean },
-): void {
-  const buffer = buffers.get(stringId);
+  const bank = sampleBankForVoice(currentVoiceId);
+  const config = getGuitarNoteSampleConfig(midi, bank);
+  const buffer = buffers.get(`${config.bank}:${config.anchorId}`);
   if (!buffer) {
     return;
   }
 
+  const voice = getGuitarVoice(currentVoiceId).audio;
+  const rate = config.playbackRate * voice.playbackRate;
+  const output = ensureVoiceBus();
+  const shortTail = options?.shortTail ?? false;
+  const held = options?.held ?? false;
+  const velocity = clampGuitarVelocity(options?.velocity ?? GUITAR_VELOCITY_DEFAULT);
+
+  playSample(buffer, rate, gain, output, tag, {
+    shortTail,
+    held,
+    attackSeconds: guitarAttackSecondsForVelocity(velocity, shortTail),
+    // One-shots use voice envelope; held notes use sampleBank HELD ceiling.
+    holdSeconds: held ? undefined : shortTail ? 0.55 : (voice.holdSeconds ?? 3.2),
+    releaseSeconds: held ? undefined : shortTail ? 0.4 : (voice.releaseSeconds ?? 2.2),
+  });
+}
+
+function pluckGain(stringId: GuitarStringId, velocity: number): number {
+  return (
+    STRING_GAIN *
+    guitarGainScaleForVelocity(velocity) *
+    guitarStringGainBalance(stringId)
+  );
+}
+
+function resolveMidi(
+  stringId: GuitarStringId,
+  fretOrMidi: number | undefined,
+  asMidi?: boolean,
+): number {
+  if (fretOrMidi === undefined) {
+    return fretToMidi(stringId, 0);
+  }
+  if (asMidi) {
+    return fretOrMidi;
+  }
+  return fretToMidi(stringId, fretOrMidi);
+}
+
+/**
+ * One-shot pluck (chords, tutorial demo, recording replay).
+ * Rings out on its own — not tied to finger lift.
+ */
+export function pluckString(
+  stringId: GuitarStringId,
+  fretOrMidi?: number,
+  options?: { asMidi?: boolean; velocity?: number },
+): void {
   const context = getSharedAudioContext();
   if (context.state === 'suspended') {
     void context.resume();
   }
 
-  let midi: number;
-  if (fretOrMidi === undefined) {
-    midi = fretToMidi(stringId, 0);
-  } else if (options?.asMidi) {
-    midi = fretOrMidi;
-  } else {
-    midi = fretToMidi(stringId, fretOrMidi);
-  }
+  const velocity = clampGuitarVelocity(options?.velocity ?? GUITAR_VELOCITY_DEFAULT);
+  const gain = pluckGain(stringId, velocity);
+  const midi = resolveMidi(stringId, fretOrMidi, options?.asMidi);
+  pluckSerial += 1;
+  const dryTag = `guitar:shot:${stringId}:${midi}:${pluckSerial}`;
 
-  triggerPluck(stringId, buffer, midi, STRING_GAIN);
+  triggerPluck(midi, gain, dryTag, { velocity });
 
-  schedulePianoReverbTaps((gainScale) => {
-    triggerPluck(stringId, buffer, midi, STRING_GAIN * gainScale, true);
+  schedulePianoReverbTaps((gainScale, tapIndex) => {
+    triggerPluck(midi, gain * gainScale, `${dryTag}:reverb:${tapIndex}`, {
+      shortTail: true,
+      velocity,
+    });
   });
 
   schedulePianoEchoRepeats((gainScale) => {
-    triggerPluck(stringId, buffer, midi, STRING_GAIN * gainScale);
+    triggerPluck(midi, gain * gainScale, `${dryTag}:echo`, { velocity });
   });
 }
 
-export function strumChord(chordId: ChordId, direction: 'down' | 'up' = 'down'): void {
-  const chord = GUITAR_CHORDS.find((c) => c.id === chordId);
+/**
+ * Interactive fret press — held until noteOff (finger lift / slide away).
+ * `velocity` 0..1 from touch Y in the string row (soft finger → hard pick).
+ */
+export function noteOn(
+  stringId: GuitarStringId,
+  fret: number,
+  velocity: number = GUITAR_VELOCITY_DEFAULT,
+): void {
+  const context = getSharedAudioContext();
+  if (context.state === 'suspended') {
+    void context.resume();
+  }
+
+  const key = cellKey(stringId, fret);
+  const midi = fretToMidi(stringId, fret);
+  const tag = dryHeldTag(stringId, fret);
+  const v = clampGuitarVelocity(velocity);
+  const gain = pluckGain(stringId, v);
+
+  // Retrigger: damp previous hold on this cell, then pluck again.
+  releaseVoiceByTag(tag, 0.04);
+  fingerHeld.add(key);
+
+  triggerPluck(midi, gain, tag, { held: true, velocity: v });
+
+  schedulePianoReverbTaps((gainScale, tapIndex) => {
+    triggerPluck(midi, gain * gainScale, `${tag}:reverb:${tapIndex}`, {
+      shortTail: true,
+      velocity: v,
+    });
+  });
+
+  schedulePianoEchoRepeats((gainScale) => {
+    triggerPluck(midi, gain * gainScale, `${tag}:echo`, { velocity: v });
+  });
+}
+
+/** Interactive fret release — soft damp like lifting a finger. */
+export function noteOff(stringId: GuitarStringId, fret: number): void {
+  const key = cellKey(stringId, fret);
+  fingerHeld.delete(key);
+  releaseVoiceByTag(dryHeldTag(stringId, fret), NOTE_OFF_FADE_SECONDS);
+}
+
+export type GuitarStrumDirection = 'down' | 'up';
+
+export type { GuitarChordGesture, GuitarChordPlayMode };
+
+function clearStrumTimers(): void {
+  for (const timer of strumTimers) {
+    clearTimeout(timer);
+  }
+  strumTimers.length = 0;
+}
+
+/**
+ * Play an armed chord: strum, arpeggio, or rasgueado.
+ * Tap arpeggio uses a down-up-down fingerstyle pattern.
+ */
+export function playChord(
+  chordId: ChordId,
+  options?: {
+    mode?: GuitarChordPlayMode;
+    direction?: GuitarStrumDirection;
+    gesture?: GuitarChordGesture;
+  },
+): void {
+  const chord = getChordById(chordId);
   if (!chord) {
     return;
   }
 
-  let notes = getChordStringNotes(chord);
-  if (direction === 'up') {
-    notes = [...notes].reverse();
-  }
+  clearStrumTimers();
 
-  for (let i = 0; i < notes.length; i++) {
-    const { stringId, midi } = notes[i];
+  const mode = options?.mode ?? 'strum';
+  const direction = options?.direction ?? 'down';
+  const gesture = options?.gesture ?? 'swipe';
+  const steps = buildChordPatternSteps(chord, mode, direction, gesture);
+
+  for (const step of steps) {
     const timer = setTimeout(() => {
-      pluckString(stringId, midi, { asMidi: true });
-    }, i * STRUM_STAGGER_MS);
+      pluckString(step.stringId, step.midi, {
+        asMidi: true,
+        velocity: step.velocity,
+      });
+    }, step.atMs);
     strumTimers.push(timer);
   }
+}
+
+/** Convenience wrapper — full strum cascade. */
+export function strumChord(
+  chordId: ChordId,
+  direction: GuitarStrumDirection = 'down',
+): void {
+  playChord(chordId, { mode: 'strum', direction, gesture: 'swipe' });
 }
 
 /** Play a recording / tutorial sound id (`s3:f5`, `chord:Em`, or legacy `s3`). */
 export function playGuitarSoundId(soundId: string): void {
   if (soundId.startsWith('chord:')) {
-    strumChord(soundId.slice('chord:'.length) as ChordId);
+    const chordId = soundId.slice('chord:'.length);
+    if (isChordId(chordId)) {
+      strumChord(chordId);
+    }
     return;
   }
 
@@ -199,14 +340,12 @@ export function playGuitarSoundId(soundId: string): void {
 }
 
 export function releaseGuitarEngine(): void {
-  for (const timer of strumTimers) {
-    clearTimeout(timer);
-  }
-  strumTimers.length = 0;
+  clearStrumTimers();
+  fingerHeld.clear();
   stopAllVoices();
   voiceGain = null;
   voiceFilter = null;
   initialized = false;
 }
 
-export { midiToFret };
+export { midiToFret } from './guitarSounds';

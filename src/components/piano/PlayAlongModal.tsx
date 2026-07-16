@@ -27,12 +27,9 @@ import type {
   SongScope,
 } from '../../instruments/piano/songs/types';
 import type { UserSong } from '../../storage/userSongsStorage';
+import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
-import {
-  getStoreDisplayName,
-  openStoreReview,
-} from '../../utils/openStoreReview';
 import { ModalChromeHeader } from './ModalChromeHeader';
 
 type DifficultyFilter = 'all' | SongDifficulty;
@@ -465,29 +462,10 @@ export function PlayAlongModal({
                   })
                 )}
 
-                <Pressable
-                  accessibilityRole="link"
-                  onPress={() => {
-                    void openStoreReview().catch(() => {
-                      Alert.alert(t('piano.game.requestSongOpenFailed'));
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.requestSongButton,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Ionicons
-                    color={colors.accent}
-                    name="chatbubble-ellipses-outline"
-                    size={16}
-                  />
-                  <Text style={styles.requestSongText}>
-                    {t('piano.game.requestSong', {
-                      store: getStoreDisplayName(),
-                    })}
-                  </Text>
-                </Pressable>
+                <RequestSongPrompt
+                  messageKey="piano.game.requestSong"
+                  openFailedKey="piano.game.requestSongOpenFailed"
+                />
               </>
             ) : null}
 
@@ -825,24 +803,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     paddingHorizontal: 4,
     paddingVertical: 4,
-  },
-  requestSongButton: {
-    alignItems: 'flex-start',
-    backgroundColor: `${colors.accent}12`,
-    borderColor: `${colors.accent}44`,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  requestSongText: {
-    color: colors.textSecondary,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
   },
   userSongRow: {
     alignItems: 'center',
