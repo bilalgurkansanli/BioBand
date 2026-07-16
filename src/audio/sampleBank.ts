@@ -100,7 +100,8 @@ export function getMasterInput(): GainNodeT {
 // therefore tracked: polyphony is capped by stealing the oldest voice, and
 // each voice fades out after a few seconds — inaudible for decaying samples,
 // but it keeps the render load flat no matter how fast the user plays.
-const MAX_VOICES = 10;
+/** Dry notes + FX taps; keep high enough for multi-touch chords. */
+const MAX_VOICES = 16;
 const VOICE_HOLD_SECONDS = 3;
 const VOICE_RELEASE_SECONDS = 1.5;
 const STEAL_FADE_SECONDS = 0.1;

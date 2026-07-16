@@ -21,37 +21,39 @@ User invokes `/goal`, asks to continue until done, or sets an instrument-parity 
 5. Do not edit the plan file unless the user asks.
 6. Commit only when the user explicitly asks.
 
-## Current goal: Guitar = piano style (Band Mode excluded)
+## Current goal: Violin = Guitar style (Band Mode excluded)
 
 ### Acceptance criteria
 
-- [x] Landscape fretboard: 6×(0–12) plays fretted pitches
-- [x] ChordBar strums still work
+- [x] Landscape fingerboard: 4×(0–9) plays fretted pitches
+- [x] PhraseBar phrases still work
 - [x] Toolbar: back, metro, record, FX, volume, voice, game, settings
 - [x] Metronome + BPM modal (shared)
 - [x] Master volume modal
-- [x] Event + mic recording; replay understands `sN:fF` + `chord:` + legacy `sN`
+- [x] Event + mic recording; replay understands `vN:position` + `phrase:`
 - [x] Hits through shared FX bus; FX modal audible
 - [x] 6 voices (filter/rate/gain) + voice modal + theme accent
 - [x] Settings (2 toggles) + persist
 - [x] Öğretici: song → scope → level → countdown → demo/play → results
 - [x] Levels guided / medium / free; score `hits/(hits+misses+wrong)`
-- [x] Guide highlight on fret/chord during demo/play
-- [x] i18n `guitar.*` / `guitar.game.*` in tr + en
+- [x] Guide highlight on position/phrase during demo/play
+- [x] i18n `violin.*` / `violin.game.*` in tr + en
 
 ### Non-goals
 
-- Band Mode / backing / calibrate / pickMode
-- Sustain, tone ±12, scale lights, speed HUD
-- New sample banks, capo, alternate tunings, MIDI import
+- Band Mode / backing / calibrate
+- Arco / bow continuous tone
+- Strum / arpeggio / rasgueado play-mode bar
+- New sample banks, alternate tunings, MIDI import
 - Multi-track overdub
 
 ### Phase order
 
 0. Goal skill updated
-1. Fretboard + fretted engine + recording IDs
-2. Toolbar + metronome + volume + voices
-3. FX + settings
+1. Sound ID helpers + engine FX bus + voices
+2. Toolbar + metronome + volume + voice modal
+3. FX + settings + fingerboard guide/theme
 4. Play-along catalog + hook + UI
+5. i18n tr + en for all new keys
 
 When all acceptance boxes are green, summarize for the user and stop.

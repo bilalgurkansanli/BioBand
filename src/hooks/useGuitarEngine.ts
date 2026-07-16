@@ -2,13 +2,21 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
 import type { ChordId } from '../instruments/guitar/guitarChords';
+import type {
+  GuitarChordGesture,
+  GuitarChordPlayMode,
+} from '../instruments/guitar/guitarChordPatterns';
 import {
   initGuitarEngine,
+  noteOff as engineNoteOff,
+  noteOn as engineNoteOn,
+  playChord as enginePlayChord,
   playGuitarSoundId,
   pluckString as enginePluckString,
   releaseGuitarEngine,
   setGuitarVoice as engineSetGuitarVoice,
   strumChord as engineStrumChord,
+  type GuitarStrumDirection,
 } from '../instruments/guitar/guitarEngine';
 import type { GuitarStringId } from '../instruments/guitar/guitarSounds';
 import type { GuitarVoiceId } from '../instruments/guitar/guitarVoices';
@@ -54,17 +62,59 @@ export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
     }
   }, [voiceId, ready]);
 
-  const pluckString = useCallback((stringId: GuitarStringId, fret = 0) => {
-    enginePluckString(stringId, fret);
+  const pluckString = useCallback(
+    (stringId: GuitarStringId, fret = 0, velocity?: number) => {
+      enginePluckString(stringId, fret, { velocity });
+    },
+    [],
+  );
+
+  const noteOn = useCallback(
+    (stringId: GuitarStringId, fret = 0, velocity?: number) => {
+      engineNoteOn(stringId, fret, velocity);
+    },
+    [],
+  );
+
+  const noteOff = useCallback((stringId: GuitarStringId, fret = 0) => {
+    engineNoteOff(stringId, fret);
   }, []);
 
-  const strumChord = useCallback((chordId: ChordId) => {
-    engineStrumChord(chordId, 'down');
-  }, []);
+  const playChord = useCallback(
+    (
+      chordId: ChordId,
+      options?: {
+        mode?: GuitarChordPlayMode;
+        direction?: GuitarStrumDirection;
+        gesture?: GuitarChordGesture;
+      },
+    ) => {
+      enginePlayChord(chordId, options);
+    },
+    [],
+  );
+
+  const strumChord = useCallback(
+    (chordId: ChordId, direction: GuitarStrumDirection = 'down') => {
+      engineStrumChord(chordId, direction);
+    },
+    [],
+  );
 
   const playSoundId = useCallback((soundId: string) => {
     playGuitarSoundId(soundId);
   }, []);
 
-  return { ready, error, pluckString, strumChord, playSoundId };
+  return {
+    ready,
+    error,
+    pluckString,
+    noteOn,
+    noteOff,
+    playChord,
+    strumChord,
+    playSoundId,
+  };
 }
+
+export type { GuitarStrumDirection, GuitarChordPlayMode, GuitarChordGesture };

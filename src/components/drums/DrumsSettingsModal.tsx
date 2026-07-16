@@ -1,6 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
 import {
-  Alert,
   Modal,
   Pressable,
   ScrollView,
@@ -11,11 +9,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
-import {
-  getStoreDisplayName,
-  openStoreReview,
-} from '../../utils/openStoreReview';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
 type DrumsSettingsModalProps = {
@@ -88,29 +83,10 @@ export function DrumsSettingsModal({
               </Text>
             </Pressable>
 
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => {
-                void openStoreReview().catch(() => {
-                  Alert.alert(t('drums.game.requestSongOpenFailed'));
-                });
-              }}
-              style={({ pressed }) => [
-                styles.requestSongButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons
-                color={colors.accent}
-                name="chatbubble-ellipses-outline"
-                size={16}
-              />
-              <Text style={styles.requestSongText}>
-                {t('drums.game.requestSong', {
-                  store: getStoreDisplayName(),
-                })}
-              </Text>
-            </Pressable>
+            <RequestSongPrompt
+              messageKey="drums.game.requestSong"
+              openFailedKey="drums.game.requestSongOpenFailed"
+            />
           </ScrollView>
         </Pressable>
       </Pressable>
@@ -137,7 +113,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   scroll: {
-    maxHeight: 360,
+    maxHeight: 320,
   },
   scrollContent: {
     gap: 12,
@@ -169,23 +145,6 @@ const styles = StyleSheet.create({
     color: '#FFD54F',
     fontSize: 15,
     fontWeight: '700',
-  },
-  requestSongButton: {
-    alignItems: 'flex-start',
-    backgroundColor: `${colors.accent}12`,
-    borderColor: `${colors.accent}44`,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  requestSongText: {
-    color: colors.textSecondary,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
   },
   pressed: {
     opacity: 0.75,

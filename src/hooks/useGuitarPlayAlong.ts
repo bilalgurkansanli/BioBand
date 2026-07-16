@@ -62,7 +62,10 @@ function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   return 0;
 }
 
-export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
+export function useGuitarPlayAlong(
+  playSoundId: (soundId: string) => void,
+  extraSongs: GuitarSongDefinition[] = [],
+) {
   const [phase, setPhase] = useState<GuitarPlayAlongPhase>('idle');
   const [selectedSong, setSelectedSong] = useState<GuitarSongDefinition | null>(null);
   const [songScope, setSongScope] = useState<GuitarSongScope | null>(null);
@@ -78,6 +81,8 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
   const [results, setResults] = useState<GuitarPlayAlongResults | null>(null);
   const [demoJustFinished, setDemoJustFinished] = useState(false);
 
+  const extraSongsRef = useRef(extraSongs);
+  extraSongsRef.current = extraSongs;
   const songRef = useRef<GuitarSongDefinition | null>(null);
   const sessionRef = useRef<ResolvedGuitarSession | null>(null);
   const eventsRef = useRef<GuitarSongEvent[]>([]);
@@ -326,7 +331,9 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
   }, [resetWizard]);
 
   const selectSong = useCallback((songId: string) => {
-    const song = getGuitarSongById(songId);
+    const song =
+      getGuitarSongById(songId) ??
+      extraSongsRef.current.find((entry) => entry.id === songId);
     if (!song) {
       return;
     }
@@ -406,12 +413,18 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
   }, []);
 
   const handleSoundPress = useCallback(
-    (soundId: string) => {
+    (soundId: string, options?: { skipPlayback?: boolean }) => {
+      const play = () => {
+        if (!options?.skipPlayback) {
+          playSoundId(soundId);
+        }
+      };
+
       if (phaseRef.current === 'demo') {
         return;
       }
       if (phaseRef.current !== 'playing') {
-        playSoundId(soundId);
+        play();
         return;
       }
 
@@ -424,11 +437,11 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
 
       if (levelRef.current === 'medium') {
         if (soundId === expected.soundId) {
-          playSoundId(soundId);
+          play();
           statsRef.current.hits += 1;
           advancePointer();
         } else {
-          playSoundId(soundId);
+          play();
           statsRef.current.wrongPresses += 1;
         }
         return;
@@ -437,11 +450,11 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
       const elapsed = getElapsedMs();
       const delta = Math.abs(elapsed - expected.atMs);
       if (soundId === expected.soundId && delta <= HIT_WINDOW_MS) {
-        playSoundId(soundId);
+        play();
         statsRef.current.hits += 1;
         advancePointer();
       } else {
-        playSoundId(soundId);
+        play();
         statsRef.current.wrongPresses += 1;
       }
     },
@@ -449,6 +462,7 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
   );
 
   const isActive = phase !== 'idle';
+  const songs = [...GUITAR_SONGS, ...extraSongs];
 
   return {
     phase,
@@ -462,7 +476,7 @@ export function useGuitarPlayAlong(playSoundId: (soundId: string) => void) {
     results,
     demoJustFinished,
     isActive,
-    songs: GUITAR_SONGS,
+    songs,
     open,
     close,
     selectSong,

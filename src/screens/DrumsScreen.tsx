@@ -95,6 +95,10 @@ export function DrumsScreen({ navigation }: Props) {
       }
       setShowPadLabels(settings.showPadLabels);
       setStrongGuideHighlight(settings.strongGuideHighlight);
+      setKitId(settings.kitId);
+      fxSettingsRef.current = settings.fx;
+      setFxSettings(settings.fx);
+      applyPianoFxSettings(settings.fx);
       setSettingsHydrated(true);
     });
     return () => {
@@ -106,8 +110,13 @@ export function DrumsScreen({ navigation }: Props) {
     if (!settingsHydrated) {
       return;
     }
-    void saveDrumsUiSettings({ showPadLabels, strongGuideHighlight });
-  }, [settingsHydrated, showPadLabels, strongGuideHighlight]);
+    void saveDrumsUiSettings({
+      showPadLabels,
+      strongGuideHighlight,
+      kitId,
+      fx: fxSettings,
+    });
+  }, [settingsHydrated, showPadLabels, strongGuideHighlight, kitId, fxSettings]);
 
   useEffect(() => {
     return () => {

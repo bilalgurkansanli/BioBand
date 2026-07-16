@@ -27,12 +27,9 @@ import type {
   DrumSongScope,
 } from '../../instruments/drums/songs/types';
 import type { UserDrumSong } from '../../storage/userDrumSongsStorage';
+import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
-import {
-  getStoreDisplayName,
-  openStoreReview,
-} from '../../utils/openStoreReview';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
 type DifficultyFilter = 'all' | DrumSongDifficulty;
@@ -352,29 +349,10 @@ export function DrumsPlayAlongModal({
                   ))
                 )}
 
-                <Pressable
-                  accessibilityRole="link"
-                  onPress={() => {
-                    void openStoreReview().catch(() => {
-                      Alert.alert(t('drums.game.requestSongOpenFailed'));
-                    });
-                  }}
-                  style={({ pressed }) => [
-                    styles.requestSongButton,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Ionicons
-                    color={colors.accent}
-                    name="chatbubble-ellipses-outline"
-                    size={16}
-                  />
-                  <Text style={styles.requestSongText}>
-                    {t('drums.game.requestSong', {
-                      store: getStoreDisplayName(),
-                    })}
-                  </Text>
-                </Pressable>
+                <RequestSongPrompt
+                  messageKey="drums.game.requestSong"
+                  openFailedKey="drums.game.requestSongOpenFailed"
+                />
               </>
             ) : null}
 
@@ -729,24 +707,6 @@ const styles = StyleSheet.create({
     height: 52,
     justifyContent: 'center',
     width: 44,
-  },
-  requestSongButton: {
-    alignItems: 'flex-start',
-    backgroundColor: `${colors.accent}12`,
-    borderColor: `${colors.accent}44`,
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  requestSongText: {
-    color: colors.textSecondary,
-    flex: 1,
-    fontSize: 12,
-    lineHeight: 18,
   },
   choiceCard: {
     backgroundColor: colors.surfaceLight,

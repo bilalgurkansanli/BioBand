@@ -1,30 +1,12 @@
 {
   "tabs": {
-    "home": "Home",
     "instruments": "Instruments",
     "recordings": "My Recordings"
   },
-  "home": {
-    "welcome": "Welcome to BioBand",
-    "subtitle": "Play, record, learn — all in one app.",
-    "features": {
-      "instruments": {
-        "title": "Virtual Instruments",
-        "description": "Play piano, guitar, violin, drums and more with a tap."
-      },
-      "recordings": {
-        "title": "Multi-track Recording",
-        "description": "Layer your tracks and build your own songs."
-      },
-      "learn": {
-        "title": "Learn Mode",
-        "description": "Watch YouTube lessons and play guided songs."
-      }
-    }
-  },
   "common": {
     "back": "Back",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "writeReview": "Write a Review"
   },
   "instruments": {
     "title": "Instruments",
@@ -48,7 +30,7 @@
     "guitarLoading": "Loading guitar sounds...",
     "guitarLoadError": "Could not load sounds. Go back and try again.",
     "violin": "Violin",
-    "violinDescription": "4-string fingerboard — tap positions to play pizzicato.",
+    "violinDescription": "4-string fingerboard — arco violin, phrases, FX, and tutorial.",
     "violinLoading": "Loading violin sounds...",
     "violinLoadError": "Could not load sounds. Go back and try again.",
     "pads": "Pads",
@@ -213,7 +195,7 @@
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
-      "requestSong": "Can't find the song you want, or its JSON? Drop the song name in a {{store}} review — we'll add it in the next version. :)",
+      "requestSong": "Can't find the song you're looking for? Write the song name in a review — we'll add it in the next version.",
       "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
@@ -229,6 +211,89 @@
       "twinkle": "Twinkle",
       "arpeggio": "Arpeggio",
       "openStrings": "Open"
+    },
+    "toolbar": {
+      "metronome": "Metronome",
+      "fx": "Effects",
+      "volume": "Volume",
+      "voice": "Violin sound",
+      "game": "Tutorial · Beta",
+      "settings": "Settings"
+    },
+    "voices": {
+      "title": "Choose violin sound",
+      "classic": "Classic",
+      "bright": "Bright",
+      "muted": "Muted",
+      "warm": "Warm",
+      "airy": "Airy",
+      "electric": "Electric",
+      "close": "Close"
+    },
+    "settings": {
+      "title": "Settings",
+      "showPositionNumbers": "Position number labels",
+      "strongGuideHighlight": "Strong tutorial highlight",
+      "visiblePhrases": "Phrases on the bar",
+      "visiblePhrasesHint": "Tap to show or hide. At least one phrase stays on. Tutorial guide phrases still appear when needed.",
+      "phrasesPresetAll": "All",
+      "startTutorial": "Start tutorial",
+      "close": "Close"
+    },
+    "game": {
+      "title": "Tutorial Mode",
+      "beta": "Beta",
+      "pickSong": "Choose a song to play",
+      "difficulty": {
+        "all": "All",
+        "easy": "Easy",
+        "medium": "Medium",
+        "hard": "Hard",
+        "empty": "No songs in this difficulty"
+      },
+      "pickScope": "How much of the song do you want to play?",
+      "scopePartial": "Continue with a part",
+      "scopePartialHint": "A short excerpt of the pattern",
+      "scopeFull": "Continue with the full song",
+      "scopeFullHint": "Play every note from start to end",
+      "pickLevel": "How much support do you want?",
+      "demoFinished": "Watching done — now you play.",
+      "tempo": {
+        "label": "Speed",
+        "slow": "Slow",
+        "normal": "Normal",
+        "fast": "Fast"
+      },
+      "back": "Back",
+      "backToSongs": "Back to song list",
+      "close": "Close",
+      "levels": {
+        "guided": "Watch first",
+        "guidedDesc": "The app plays the song for you — watch which positions and phrases light up.",
+        "medium": "Step by step",
+        "mediumDesc": "The next position or phrase lights up and waits for you.",
+        "free": "No support",
+        "freeDesc": "No hints. Play in time."
+      },
+      "hud": {
+        "countdown": "Get ready… {{count}}",
+        "watching": "Watch… the song is playing for you",
+        "tapToStart": "Press the glowing position or phrase — it waits for you",
+        "progress": "{{done}}/{{total}} notes · {{left}} left · {{hits}} hits",
+        "progressWatch": "{{done}}/{{total}} notes · {{left}} left",
+        "stop": "Stop"
+      },
+      "results": {
+        "title": "Song finished!",
+        "accuracy": "Accuracy: {{percent}}%",
+        "hits": "You played: {{count}}",
+        "misses": "Missed: {{count}}",
+        "wrong": "Wrong notes: {{count}}",
+        "replay": "Play again",
+        "change": "Change level"
+      },
+      "requestSong": "Can't find the song you're looking for? Write the song name in a review — we'll add it in the next version.",
+      "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
   "guitar": {
@@ -238,7 +303,34 @@
       "C": "C",
       "D": "D",
       "Am": "Am",
-      "E": "E"
+      "E": "E",
+      "A": "A",
+      "Dm": "Dm",
+      "Dm7": "Dm7",
+      "B7": "B7",
+      "E5": "E5",
+      "A5": "A5",
+      "G5": "G5",
+      "D5": "D5",
+      "C5": "C5",
+      "F": "F",
+      "Bm": "Bm",
+      "Gm": "Gm",
+      "Bb": "Bb",
+      "Cmaj7": "Cmaj7",
+      "Dfs": "D/F#",
+      "groups": {
+        "open": "Open",
+        "power": "Power",
+        "barre": "Barre",
+        "rock": "Power & barre"
+      },
+      "strumHint": "Swipe down or up to play. Tap the selected chord to clear."
+    },
+    "playModes": {
+      "strum": "Strum",
+      "arpeggio": "Arpeggio",
+      "rasgueado": "Rasgueado"
     },
     "toolbar": {
       "metronome": "Metronome",
@@ -250,7 +342,7 @@
     },
     "voices": {
       "title": "Choose guitar sound",
-      "nylon": "Nylon",
+      "nylon": "Acoustic",
       "steel": "Steel",
       "muted": "Muted",
       "bright": "Bright",
@@ -262,6 +354,14 @@
       "title": "Settings",
       "showFretNumbers": "Fret number labels",
       "strongGuideHighlight": "Strong tutorial highlight",
+      "playModesTitle": "Play modes",
+      "playModesHint": "Turn the bar off entirely, or tap Strum / Arpeggio / Rasgueado to hide individual buttons. At least one mode stays on.",
+      "showPlayModeBar": "Show play mode bar",
+      "visibleChords": "Chords on the bar",
+      "visibleChordsHint": "Tap to show or hide. At least one chord stays on. Tutorial guide chords still appear when needed.",
+      "chordsPresetAll": "All",
+      "chordsPresetOpen": "Open only",
+      "chordsPresetRock": "Power & barre",
       "startTutorial": "Start tutorial",
       "close": "Close"
     },
@@ -317,7 +417,37 @@
         "replay": "Play again",
         "change": "Change level"
       },
-      "requestSong": "Can't find the song you want? Drop the song name in a {{store}} review — we'll add it in the next version. :)",
+      "import": {
+        "button": "Import song",
+        "hint": "JSON/MIDI file or paste JSON",
+        "preloaded": "Preloaded",
+        "mySongs": "My songs",
+        "empty": "No imported songs yet",
+        "delete": "Delete",
+        "deleteTitle": "Delete song?",
+        "deleteMessage": "\"{{title}}\" will be removed from your list.",
+        "deleteConfirm": "Delete",
+        "deleteCancel": "Cancel",
+        "success": "Song added",
+        "pasteButton": "Paste JSON",
+        "pasteTitle": "Song JSON",
+        "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
+        "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"soundId\": \"s5:f7\", \"atMs\": 0 }]\n}",
+        "pasteSubmit": "Add",
+        "pickerUnavailable": "No file picker — paste JSON to add a song.",
+        "errors": {
+          "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
+          "invalidJson": "Could not read the JSON file.",
+          "invalidSchema": "Invalid song format. An events array is required (each item needs soundId and atMs).",
+          "invalidSound": "Invalid sound id. Use s1:f0–s6:f12 or chord:Em (Em, G, C, D, Am, E).",
+          "emptySong": "No playable guitar notes found in the file.",
+          "tooManyNotes": "Too many notes (max 800).",
+          "midiParseFailed": "Could not read the MIDI file.",
+          "readFailed": "Could not read the file. Try again.",
+          "pickerUnavailable": "No file picker — paste JSON instead."
+        }
+      },
+      "requestSong": "Can't find the song you're looking for? Write the song name in a review — we'll add it in the next version.",
       "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
@@ -570,7 +700,7 @@
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
-      "requestSong": "Can't find the song you want, or its JSON? Drop the song name in a {{store}} review — we'll add it in the next version. :)",
+      "requestSong": "Can't find the song you're looking for? Write the song name in a review — we'll add it in the next version.",
       "requestSongOpenFailed": "Couldn't open the store page. Try again later."
     }
   },
