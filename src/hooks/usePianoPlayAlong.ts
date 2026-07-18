@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { awardPlayAlongCompletion } from '../profile/awardPlayAlong';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import { getSongById, PIANO_SONGS } from '../instruments/piano/songs/catalog';
 import {
@@ -209,6 +210,7 @@ export function usePianoPlayAlong(
     const scored =
       stats.hits + stats.misses + stats.wrongPresses;
     const accuracy = scored > 0 ? stats.hits / scored : 0;
+    const stars = computeStars(accuracy);
 
     setResults({
       totalNotes,
@@ -216,14 +218,21 @@ export function usePianoPlayAlong(
       misses: stats.misses,
       wrongPresses: stats.wrongPresses,
       accuracy,
-      stars: computeStars(accuracy),
+      stars,
+    });
+
+    void awardPlayAlongCompletion({
+      instrument: 'piano',
+      songId: songRef.current?.id ?? null,
+      stars,
+      elapsedMs: getElapsedMs(),
     });
 
     const timer = setTimeout(() => {
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers, stopSessionAudio]);
+  }, [clearTimers, getElapsedMs, stopSessionAudio]);
 
   const maybeFinishAfterNotes = useCallback(() => {
     const session = sessionRef.current;

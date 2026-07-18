@@ -13,6 +13,7 @@ import { GuitarToolbar } from '../components/guitar/GuitarToolbar';
 import { GuitarVoiceModal } from '../components/guitar/GuitarVoiceModal';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
+import { StudioOverdubBanner } from '../components/studio/StudioOverdubBanner';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
@@ -108,8 +109,16 @@ export function GuitarScreen({ navigation }: Props) {
     ...ALL_GUITAR_CHORD_IDS,
   ]);
 
-  const { isRecording, mode, handleRecordPress, captureEvent } =
-    useInstrumentRecording('guitar');
+  const {
+    isRecording,
+    mode,
+    handleRecordPress,
+    captureEvent,
+    studioArmed,
+    studioProjectTitle,
+    countdown,
+    cancelStudioOverdub,
+  } = useInstrumentRecording('guitar');
   const { isPortrait } = usePianoOrientation(navigation);
   const userSongs = useUserGuitarSongs();
   const playAlong = useGuitarPlayAlong(playSoundId, userSongs.songs);
@@ -360,7 +369,15 @@ export function GuitarScreen({ navigation }: Props) {
         volume={volume}
       />
 
-      <RecordingBanner isRecording={isRecording} mode={mode} />
+      {studioArmed && studioProjectTitle ? (
+        <StudioOverdubBanner
+          countdown={countdown}
+          projectTitle={studioProjectTitle}
+          onCancel={cancelStudioOverdub}
+        />
+      ) : (
+        <RecordingBanner isRecording={isRecording} mode={mode} />
+      )}
 
       <GuitarPlayAlongHud
         countdownValue={playAlong.countdownValue}

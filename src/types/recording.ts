@@ -11,6 +11,8 @@ export type InstrumentEvent = {
   atMs: number;
 };
 
+export type RecordingSource = 'instrument' | 'drumMachine';
+
 export type SavedRecording = {
   id: string;
   createdAt: number;
@@ -19,6 +21,10 @@ export type SavedRecording = {
   durationMs: number;
   events?: InstrumentEvent[];
   audioUri?: string;
+  /** Optional display name (e.g. drum-machine pattern title). */
+  title?: string;
+  /** Origin of the take — drum machine patterns also appear in Kayıtlarım. */
+  source?: RecordingSource;
 };
 
 // Piano note ids are the canonical sound ids for the piano track.

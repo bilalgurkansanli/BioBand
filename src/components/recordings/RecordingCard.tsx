@@ -15,6 +15,7 @@ type RecordingCardProps = {
   onPlayPress: () => void;
   onSharePress: () => void;
   onDownloadPress: () => void;
+  onDeletePress?: () => void;
 };
 
 export function RecordingCard({
@@ -25,6 +26,7 @@ export function RecordingCard({
   onPlayPress,
   onSharePress,
   onDownloadPress,
+  onDeletePress,
 }: RecordingCardProps) {
   const { t, i18n } = useTranslation();
 
@@ -39,27 +41,38 @@ export function RecordingCard({
     },
   );
 
-  const modeLabel =
-    recording.mode === 'microphone'
+  const isDrumMachine = recording.source === 'drumMachine';
+
+  const title = recording.title?.trim()
+    ? recording.title.trim()
+    : t(INSTRUMENT_TITLE_KEYS[recording.instrument]);
+
+  const modeLabel = isDrumMachine
+    ? t('recordings.modeDrumMachine')
+    : recording.mode === 'microphone'
       ? t('recordings.modeMicrophone')
       : t('recordings.modeInstrument');
 
-  const detailLabel =
-    recording.mode === 'instrument'
+  const detailLabel = isDrumMachine
+    ? t(INSTRUMENT_TITLE_KEYS[recording.instrument])
+    : recording.mode === 'instrument'
       ? t('recordings.eventCount', { count: recording.events?.length ?? 0 })
       : t('recordings.audioTrack');
 
   const playLabel = isPlaying ? t('recordings.stopPlayback') : t('recordings.play');
   const actionsDisabled = isLoading || isBusy;
+  const iconName = isDrumMachine
+    ? 'grid-outline'
+    : INSTRUMENT_ICONS[recording.instrument];
 
   return (
     <View style={[styles.card, isPlaying && styles.cardPlaying]}>
       <View style={styles.iconWrap}>
-        <Ionicons color={colors.accent} name={INSTRUMENT_ICONS[recording.instrument]} size={24} />
+        <Ionicons color={colors.accent} name={iconName} size={24} />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.title}>{t(INSTRUMENT_TITLE_KEYS[recording.instrument])}</Text>
+        <Text style={styles.title}>{title}</Text>
         <Text style={styles.date}>{dateLabel}</Text>
         <View style={styles.metaRow}>
           <Text style={styles.meta}>{modeLabel}</Text>
@@ -71,6 +84,14 @@ export function RecordingCard({
       </View>
 
       <View style={styles.actions}>
+        {onDeletePress ? (
+          <ActionButton
+            disabled={actionsDisabled}
+            icon="trash-outline"
+            label={t('recordings.delete')}
+            onPress={onDeletePress}
+          />
+        ) : null}
         <ActionButton
           disabled={actionsDisabled}
           icon="download-outline"

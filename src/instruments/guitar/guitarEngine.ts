@@ -328,6 +328,12 @@ export function playGuitarSoundId(soundId: string): void {
     return;
   }
 
+  const midiMatch = soundId.match(/^midi:(\d{1,3})$/);
+  if (midiMatch) {
+    pluckString('s6', Number(midiMatch[1]), { asMidi: true });
+    return;
+  }
+
   const fretted = soundId.match(/^(s[1-6]):f(\d{1,2})$/);
   if (fretted) {
     pluckString(fretted[1] as GuitarStringId, Number(fretted[2]));

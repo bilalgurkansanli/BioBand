@@ -22,3 +22,11 @@ export async function loadRecordings(): Promise<SavedRecording[]> {
     return [];
   }
 }
+
+export async function deleteRecording(recordingId: string): Promise<void> {
+  const existing = await loadRecordings();
+  await AsyncStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(existing.filter((entry) => entry.id !== recordingId)),
+  );
+}

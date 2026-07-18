@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { InstrumentsStack } from './InstrumentsStack';
+import { RecordingsStack } from './RecordingsStack';
 import { RootTabBar } from './RootTabBar';
 import { getTabBarStyle, ROOT_TABS_ID } from './tabBarStyles';
-import { RecordingsScreen } from '../screens/RecordingsScreen';
+import { ProfileStack } from './ProfileStack';
 import { colors } from '../theme/colors';
 import type { RootTabParamList } from '../types/navigation';
 
@@ -45,11 +46,21 @@ export function RootNavigator() {
       />
       <Tab.Screen
         name="Recordings"
-        component={RecordingsScreen}
+        component={RecordingsStack}
         options={{
           tabBarLabel: t('tabs.recordings'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons color={color} name="recording" size={size} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileStack}
+        options={{
+          tabBarLabel: t('tabs.profile'),
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons color={color} name="person-circle" size={size} />
           ),
         }}
       />

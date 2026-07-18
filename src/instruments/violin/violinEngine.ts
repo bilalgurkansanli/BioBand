@@ -121,9 +121,9 @@ function triggerNote(
 
   playSample(buffer, rate, gain, output, tag, {
     shortTail,
-    // Arco files are 14s+; keep a short détaché stroke so taps don't ring forever.
-    holdSeconds: shortTail ? 0.18 : (voice.audio.holdSeconds ?? 0.4),
-    releaseSeconds: shortTail ? 0.22 : (voice.audio.releaseSeconds ?? 0.55),
+    // Arco files are 14s+; keep a snappy détaché so taps clear quickly.
+    holdSeconds: shortTail ? 0.1 : (voice.audio.holdSeconds ?? 0.22),
+    releaseSeconds: shortTail ? 0.14 : (voice.audio.releaseSeconds ?? 0.32),
   });
 }
 
