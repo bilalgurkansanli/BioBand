@@ -32,3 +32,15 @@ export async function prepareRecordingAudioMode(): Promise<void> {
     shouldRouteThroughEarpiece: false,
   });
 }
+
+/** Mic overdub: allow beds to keep playing while recording. */
+export async function prepareOverdubRecordingAudioMode(): Promise<void> {
+  await setIsAudioActiveAsync(true);
+  await setAudioModeAsync({
+    playsInSilentMode: true,
+    allowsRecording: true,
+    interruptionMode: 'mixWithOthers',
+    shouldPlayInBackground: false,
+    shouldRouteThroughEarpiece: false,
+  });
+}

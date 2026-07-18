@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getMasterVolume, setMasterVolume } from '../audio/sampleBank';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
+import { StudioOverdubBanner } from '../components/studio/StudioOverdubBanner';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
@@ -89,8 +90,16 @@ export function ViolinScreen({ navigation }: Props) {
     () => [...DEFAULT_VIOLIN_UI_SETTINGS.visiblePhraseIds],
   );
 
-  const { isRecording, mode, handleRecordPress, captureEvent } =
-    useInstrumentRecording('violin');
+  const {
+    isRecording,
+    mode,
+    handleRecordPress,
+    captureEvent,
+    studioArmed,
+    studioProjectTitle,
+    countdown,
+    cancelStudioOverdub,
+  } = useInstrumentRecording('violin');
   const { isPortrait } = usePianoOrientation(navigation);
   const playAlong = useViolinPlayAlong(playSoundId);
 
@@ -293,7 +302,15 @@ export function ViolinScreen({ navigation }: Props) {
         volume={volume}
       />
 
-      <RecordingBanner isRecording={isRecording} mode={mode} />
+      {studioArmed && studioProjectTitle ? (
+        <StudioOverdubBanner
+          countdown={countdown}
+          projectTitle={studioProjectTitle}
+          onCancel={cancelStudioOverdub}
+        />
+      ) : (
+        <RecordingBanner isRecording={isRecording} mode={mode} />
+      )}
 
       <ViolinPlayAlongHud
         countdownValue={playAlong.countdownValue}

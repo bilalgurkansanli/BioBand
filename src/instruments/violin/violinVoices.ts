@@ -82,9 +82,9 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterType: 'lowpass',
       filterFrequency: 9800,
       filterQ: 0.45,
-      // Short détaché — arco samples are long, envelope truncates them.
-      holdSeconds: 0.38,
-      releaseSeconds: 0.55,
+      // Snappy détaché — total ~0.5s sounding.
+      holdSeconds: 0.2,
+      releaseSeconds: 0.3,
     },
   },
   {
@@ -113,8 +113,8 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterType: 'highpass',
       filterFrequency: 140,
       filterQ: 0.6,
-      holdSeconds: 0.32,
-      releaseSeconds: 0.48,
+      holdSeconds: 0.18,
+      releaseSeconds: 0.26,
     },
   },
   {
@@ -144,8 +144,8 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterType: 'lowpass',
       filterFrequency: 2200,
       filterQ: 0.95,
-      holdSeconds: 0.18,
-      releaseSeconds: 0.28,
+      holdSeconds: 0.12,
+      releaseSeconds: 0.18,
     },
   },
   {
@@ -175,8 +175,8 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterFrequency: 280,
       filterQ: 0.7,
       filterGainDb: 3.2,
-      holdSeconds: 0.48,
-      releaseSeconds: 0.7,
+      holdSeconds: 0.26,
+      releaseSeconds: 0.38,
     },
   },
   {
@@ -205,8 +205,8 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterType: 'highpass',
       filterFrequency: 100,
       filterQ: 0.5,
-      holdSeconds: 0.35,
-      releaseSeconds: 0.5,
+      holdSeconds: 0.2,
+      releaseSeconds: 0.28,
     },
   },
   {
@@ -236,8 +236,8 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterFrequency: 2100,
       filterQ: 0.9,
       filterGainDb: 4,
-      holdSeconds: 0.3,
-      releaseSeconds: 0.45,
+      holdSeconds: 0.16,
+      releaseSeconds: 0.24,
     },
   },
 ];

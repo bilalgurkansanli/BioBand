@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { awardPlayAlongCompletion } from '../profile/awardPlayAlong';
 import { getViolinSongById, VIOLIN_SONGS } from '../instruments/violin/songs/catalog';
 import { resolveViolinPlaySession } from '../instruments/violin/songs/resolvePlaySession';
 import type {
@@ -143,6 +144,7 @@ export function useViolinPlayAlong(
     const stats = statsRef.current;
     const scored = stats.hits + stats.misses + stats.wrongPresses;
     const accuracy = scored > 0 ? stats.hits / scored : 0;
+    const stars = computeStars(accuracy);
 
     setResults({
       totalNotes: events.length,
@@ -150,14 +152,21 @@ export function useViolinPlayAlong(
       misses: stats.misses,
       wrongPresses: stats.wrongPresses,
       accuracy,
-      stars: computeStars(accuracy),
+      stars,
+    });
+
+    void awardPlayAlongCompletion({
+      instrument: 'violin',
+      songId: songRef.current?.id ?? null,
+      stars,
+      elapsedMs: getElapsedMs(),
     });
 
     const timer = setTimeout(() => {
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers]);
+  }, [clearTimers, getElapsedMs]);
 
   const advancePointer = useCallback(() => {
     pointerRef.current += 1;

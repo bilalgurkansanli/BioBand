@@ -7,6 +7,7 @@ import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 const INSTRUMENT_SCREENS = new Set([
   'Piano',
   'Drums',
+  'DrumMachine',
   'Guitar',
   'Violin',
   'Pads',

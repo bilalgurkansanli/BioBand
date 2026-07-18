@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { awardPlayAlongCompletion } from '../profile/awardPlayAlong';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
 import { getDrumSongById, DRUM_SONGS } from '../instruments/drums/songs/catalog';
 import { resolveDrumPlaySession } from '../instruments/drums/songs/resolvePlaySession';
@@ -144,6 +145,7 @@ export function useDrumsPlayAlong(
     const stats = statsRef.current;
     const scored = stats.hits + stats.misses + stats.wrongPresses;
     const accuracy = scored > 0 ? stats.hits / scored : 0;
+    const stars = computeStars(accuracy);
 
     setResults({
       totalNotes: events.length,
@@ -151,14 +153,21 @@ export function useDrumsPlayAlong(
       misses: stats.misses,
       wrongPresses: stats.wrongPresses,
       accuracy,
-      stars: computeStars(accuracy),
+      stars,
+    });
+
+    void awardPlayAlongCompletion({
+      instrument: 'drums',
+      songId: songRef.current?.id ?? null,
+      stars,
+      elapsedMs: getElapsedMs(),
     });
 
     const timer = setTimeout(() => {
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers]);
+  }, [clearTimers, getElapsedMs]);
 
   const advancePointer = useCallback(() => {
     pointerRef.current += 1;

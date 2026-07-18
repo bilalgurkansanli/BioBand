@@ -1,5 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
+import { DrumMachineScreen } from '../screens/DrumMachineScreen';
 import { DrumsScreen } from '../screens/DrumsScreen';
 import { GuitarScreen } from '../screens/GuitarScreen';
 import { InstrumentsListScreen } from '../screens/InstrumentsListScreen';
@@ -33,6 +34,11 @@ export function InstrumentsStack() {
       <Stack.Screen
         component={DrumsScreen}
         name="Drums"
+        options={instrumentScreenOptions}
+      />
+      <Stack.Screen
+        component={DrumMachineScreen}
+        name="DrumMachine"
         options={instrumentScreenOptions}
       />
       <Stack.Screen

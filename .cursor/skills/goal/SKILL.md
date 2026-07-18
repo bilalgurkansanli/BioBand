@@ -10,7 +10,7 @@ description: >-
 
 ## When to use
 
-User invokes `/goal`, asks to continue until done, or sets an instrument-parity target (e.g. drums like piano).
+User invokes `/goal`, asks to continue until done, or sets an instrument-parity target.
 
 ## How to run
 
@@ -21,39 +21,21 @@ User invokes `/goal`, asks to continue until done, or sets an instrument-parity 
 5. Do not edit the plan file unless the user asks.
 6. Commit only when the user explicitly asks.
 
-## Current goal: Violin = Guitar style (Band Mode excluded)
+## Current goal: Bateri Makinesi — icons, types, settings
 
 ### Acceptance criteria
 
-- [x] Landscape fingerboard: 4×(0–9) plays fretted pitches
-- [x] PhraseBar phrases still work
-- [x] Toolbar: back, metro, record, FX, volume, voice, game, settings
-- [x] Metronome + BPM modal (shared)
-- [x] Master volume modal
-- [x] Event + mic recording; replay understands `vN:position` + `phrase:`
-- [x] Hits through shared FX bus; FX modal audible
-- [x] 6 voices (filter/rate/gain) + voice modal + theme accent
-- [x] Settings (2 toggles) + persist
-- [x] Öğretici: song → scope → level → countdown → demo/play → results
-- [x] Levels guided / medium / free; score `hits/(hits+misses+wrong)`
-- [x] Guide highlight on position/phrase during demo/play
-- [x] i18n `violin.*` / `violin.game.*` in tr + en
+- [x] Satır solunda kısa yazı yok; ikon + a11y label
+- [x] Rastgele = zar + metin; Play yanında Başlat/Durdur
+- [x] Davul: max 2 tom; çeşitlendirilmiş satırlar
+- [x] Ayarlar: 5 makine türü (davul/piyano/gitar/keman/padler)
+- [x] Tür = ses bankası + tema renkleri
+- [x] 8+ satırda dikey scroll; önemliler üstte
+- [x] Pattern `machineType` persist
+- [x] i18n tr/en; Expo Go
 
 ### Non-goals
 
-- Band Mode / backing / calibrate
-- Arco / bow continuous tone
-- Strum / arpeggio / rasgueado play-mode bar
-- New sample banks, alternate tunings, MIDI import
-- Multi-track overdub
-
-### Phase order
-
-0. Goal skill updated
-1. Sound ID helpers + engine FX bus + voices
-2. Toolbar + metronome + volume + voice modal
-3. FX + settings + fingerboard guide/theme
-4. Play-along catalog + hook + UI
-5. i18n tr + en for all new keys
+- Velocity / swing / mic / Studio / ayrı route per type
 
 When all acceptance boxes are green, summarize for the user and stop.

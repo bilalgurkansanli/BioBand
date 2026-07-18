@@ -1,4 +1,6 @@
-import { useCallback, useRef, useState } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
@@ -7,19 +9,79 @@ import {
   useAudioRecorder,
 } from 'expo-audio';
 
-import { prepareRecordingAudioMode, restorePlaybackAudioMode } from '../audio/initAudio';
+import {
+  prepareOverdubRecordingAudioMode,
+  prepareRecordingAudioMode,
+  restorePlaybackAudioMode,
+} from '../audio/initAudio';
+import {
+  playStudioProject,
+  stopStudioPlayback,
+  type StudioPlaybackHandle,
+} from '../audio/studioPlayer';
+import { awardRecordingPractice } from '../profile/awardPlayAlong';
 import { saveRecording } from '../storage/recordingsStorage';
-import type { InstrumentEvent, InstrumentId, RecordingMode } from '../types/recording';
+import { appendRecordedTrack, getStudioProject } from '../storage/studioProjectsStorage';
+import {
+  clearStudioOverdubSession,
+  getStudioOverdubSession,
+  subscribeStudioOverdubSession,
+  type StudioOverdubSession,
+} from '../studio/studioOverdubSession';
+import type { InstrumentEvent, InstrumentId, RecordingMode, SavedRecording } from '../types/recording';
+import type { RootTabParamList } from '../types/navigation';
+
+const COUNTDOWN_SECONDS = 3;
 
 export function useInstrumentRecording(instrument: InstrumentId) {
   const { t } = useTranslation();
+  const navigation = useNavigation<NavigationProp<RootTabParamList>>();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
   const [isRecording, setIsRecording] = useState(false);
   const [mode, setMode] = useState<RecordingMode | null>(null);
+  const [studioSession, setStudioSession] = useState<StudioOverdubSession | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const startTimeRef = useRef(0);
   const eventsRef = useRef<InstrumentEvent[]>([]);
+  const bedsHandleRef = useRef<StudioPlaybackHandle | null>(null);
+  const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const studioArmed = studioSession?.active && studioSession.instrument === instrument;
+
+  useEffect(() => {
+    return subscribeStudioOverdubSession((session) => {
+      if (session?.active && session.instrument === instrument) {
+        setStudioSession(session);
+      } else {
+        setStudioSession(null);
+      }
+    });
+  }, [instrument]);
+
+  const clearCountdown = useCallback(() => {
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+      countdownTimerRef.current = null;
+    }
+    setCountdown(null);
+  }, []);
+
+  const stopBeds = useCallback(() => {
+    bedsHandleRef.current?.stop();
+    bedsHandleRef.current = null;
+    stopStudioPlayback();
+  }, []);
+
+  const navigateBackToStudio = useCallback(
+    (projectId: string) => {
+      navigation.navigate('Recordings', {
+        screen: 'StudioProject',
+        params: { projectId },
+      });
+    },
+    [navigation],
+  );
 
   const startInstrumentRecording = useCallback(() => {
     startTimeRef.current = Date.now();
@@ -28,52 +90,152 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     setIsRecording(true);
   }, []);
 
-  const startMicRecording = useCallback(async () => {
-    const { granted } = await requestRecordingPermissionsAsync();
-    if (!granted) {
-      Alert.alert(t('recording.permissionDenied'));
-      return;
-    }
+  const startMicRecording = useCallback(
+    async (overdub: boolean) => {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        Alert.alert(t('recording.permissionDenied'));
+        return false;
+      }
 
-    await prepareRecordingAudioMode();
-    await audioRecorder.prepareToRecordAsync();
-    audioRecorder.record();
-    startTimeRef.current = Date.now();
-    setMode('microphone');
-    setIsRecording(true);
-  }, [audioRecorder, t]);
+      if (overdub) {
+        await prepareOverdubRecordingAudioMode();
+      } else {
+        await prepareRecordingAudioMode();
+      }
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      startTimeRef.current = Date.now();
+      setMode('microphone');
+      setIsRecording(true);
+      return true;
+    },
+    [audioRecorder, t],
+  );
+
+  const finishSave = useCallback(
+    async (currentMode: RecordingMode, durationMs: number): Promise<SavedRecording | null> => {
+      const session = getStudioOverdubSession();
+      const recordingId = `${Date.now()}`;
+
+      if (currentMode === 'microphone') {
+        const take: SavedRecording = {
+          id: recordingId,
+          createdAt: Date.now(),
+          instrument,
+          mode: 'microphone',
+          durationMs,
+          audioUri: audioRecorder.uri ?? undefined,
+        };
+        await saveRecording(take);
+        void awardRecordingPractice(instrument, durationMs);
+        if (session?.active && session.instrument === instrument) {
+          await appendRecordedTrack(session.projectId, take);
+          clearStudioOverdubSession();
+          setStudioSession(null);
+          Alert.alert(t('studio.overdubSaved'));
+          navigateBackToStudio(session.projectId);
+        }
+        return take;
+      }
+
+      if (currentMode === 'instrument') {
+        const take: SavedRecording = {
+          id: recordingId,
+          createdAt: Date.now(),
+          instrument,
+          mode: 'instrument',
+          durationMs,
+          events: [...eventsRef.current],
+        };
+        await saveRecording(take);
+        void awardRecordingPractice(instrument, durationMs);
+        if (session?.active && session.instrument === instrument) {
+          await appendRecordedTrack(session.projectId, take);
+          clearStudioOverdubSession();
+          setStudioSession(null);
+          Alert.alert(t('studio.overdubSaved'));
+          navigateBackToStudio(session.projectId);
+        }
+        return take;
+      }
+
+      return null;
+    },
+    [audioRecorder, instrument, navigateBackToStudio, t],
+  );
 
   const stopRecording = useCallback(async () => {
     const durationMs = Date.now() - startTimeRef.current;
     const currentMode = mode;
+    const wasStudio = !!getStudioOverdubSession()?.active;
+
+    stopBeds();
+    clearCountdown();
 
     if (currentMode === 'microphone') {
       await audioRecorder.stop();
-      await saveRecording({
-        id: `${Date.now()}`,
-        createdAt: Date.now(),
-        instrument,
-        mode: 'microphone',
-        durationMs,
-        audioUri: audioRecorder.uri ?? undefined,
-      });
-    } else if (currentMode === 'instrument') {
-      await saveRecording({
-        id: `${Date.now()}`,
-        createdAt: Date.now(),
-        instrument,
-        mode: 'instrument',
-        durationMs,
-        events: [...eventsRef.current],
-      });
+    }
+
+    if (currentMode) {
+      await finishSave(currentMode, durationMs);
     }
 
     await restorePlaybackAudioMode();
-
     setIsRecording(false);
     setMode(null);
     eventsRef.current = [];
-  }, [audioRecorder, instrument, mode]);
+
+    if (wasStudio && !getStudioOverdubSession()) {
+      // Already navigated in finishSave.
+    }
+  }, [audioRecorder, clearCountdown, finishSave, mode, stopBeds]);
+
+  const beginStudioCapture = useCallback(async () => {
+    const session = getStudioOverdubSession();
+    if (!session || session.instrument !== instrument) {
+      return;
+    }
+
+    const project = await getStudioProject(session.projectId);
+    if (project && project.tracks.length > 0) {
+      const handle = await playStudioProject(project);
+      bedsHandleRef.current = handle;
+    }
+
+    if (session.mode === 'microphone') {
+      const ok = await startMicRecording(true);
+      if (!ok) {
+        stopBeds();
+      }
+      return;
+    }
+
+    startInstrumentRecording();
+  }, [instrument, startInstrumentRecording, startMicRecording, stopBeds]);
+
+  const startStudioOverdub = useCallback(() => {
+    clearCountdown();
+    let remaining = COUNTDOWN_SECONDS;
+    setCountdown(remaining);
+
+    countdownTimerRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearCountdown();
+        void beginStudioCapture();
+        return;
+      }
+      setCountdown(remaining);
+    }, 1000);
+  }, [beginStudioCapture, clearCountdown]);
+
+  const cancelStudioOverdub = useCallback(() => {
+    clearCountdown();
+    stopBeds();
+    clearStudioOverdubSession();
+    setStudioSession(null);
+  }, [clearCountdown, stopBeds]);
 
   const captureEvent = useCallback(
     (soundId: string) => {
@@ -95,17 +257,52 @@ export function useInstrumentRecording(instrument: InstrumentId) {
       return;
     }
 
+    if (countdown !== null) {
+      return;
+    }
+
+    if (studioArmed && studioSession) {
+      startStudioOverdub();
+      return;
+    }
+
     Alert.alert(t('recording.chooseModeTitle'), t('recording.chooseModeMessage'), [
       { text: t('recording.modeInstrument'), onPress: startInstrumentRecording },
-      { text: t('recording.modeMicrophone'), onPress: () => void startMicRecording() },
+      {
+        text: t('recording.modeMicrophone'),
+        onPress: () => {
+          void startMicRecording(false);
+        },
+      },
       { text: t('common.cancel'), style: 'cancel' },
     ]);
-  }, [isRecording, startInstrumentRecording, startMicRecording, stopRecording, t]);
+  }, [
+    countdown,
+    isRecording,
+    startInstrumentRecording,
+    startMicRecording,
+    startStudioOverdub,
+    stopRecording,
+    studioArmed,
+    studioSession,
+    t,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearCountdown();
+      stopBeds();
+    };
+  }, [clearCountdown, stopBeds]);
 
   return {
     isRecording,
     mode,
     handleRecordPress,
     captureEvent,
+    studioArmed: !!studioArmed,
+    studioProjectTitle: studioSession?.projectTitle ?? null,
+    countdown,
+    cancelStudioOverdub,
   };
 }

@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useState } from 'react';
 
+import { syncDrumMachinePatternsToRecordings } from '../storage/drumMachinePatternsStorage';
 import { loadRecordings } from '../storage/recordingsStorage';
 import type { SavedRecording } from '../types/recording';
 
@@ -11,6 +12,7 @@ export function useRecordings() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
+      await syncDrumMachinePatternsToRecordings();
       const items = await loadRecordings();
       setRecordings(items);
     } finally {

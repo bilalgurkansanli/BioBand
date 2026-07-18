@@ -13,6 +13,7 @@ import { DrumsSettingsModal } from '../components/drums/DrumsSettingsModal';
 import { DrumsToolbar } from '../components/drums/DrumsToolbar';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
+import { StudioOverdubBanner } from '../components/studio/StudioOverdubBanner';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
@@ -80,8 +81,16 @@ export function DrumsScreen({ navigation }: Props) {
     DEFAULT_DRUMS_UI_SETTINGS.strongGuideHighlight,
   );
 
-  const { isRecording, mode, handleRecordPress, captureEvent } =
-    useInstrumentRecording('drums');
+  const {
+    isRecording,
+    mode,
+    handleRecordPress,
+    captureEvent,
+    studioArmed,
+    studioProjectTitle,
+    countdown,
+    cancelStudioOverdub,
+  } = useInstrumentRecording('drums');
   const { isPortrait } = usePianoOrientation(navigation);
 
   const userSongs = useUserDrumSongs();
@@ -257,7 +266,15 @@ export function DrumsScreen({ navigation }: Props) {
         volume={volume}
       />
 
-      <RecordingBanner isRecording={isRecording} mode={mode} />
+      {studioArmed && studioProjectTitle ? (
+        <StudioOverdubBanner
+          countdown={countdown}
+          projectTitle={studioProjectTitle}
+          onCancel={cancelStudioOverdub}
+        />
+      ) : (
+        <RecordingBanner isRecording={isRecording} mode={mode} />
+      )}
 
       <DrumsPlayAlongHud
         countdownValue={playAlong.countdownValue}

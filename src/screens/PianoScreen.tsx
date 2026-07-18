@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
+import { StudioOverdubBanner } from '../components/studio/StudioOverdubBanner';
 import { getMasterVolume, setMasterVolume } from '../audio/sampleBank';
 import { setPianoToneOffset } from '../instruments/piano/pianoEngine';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
@@ -259,8 +260,16 @@ export function PianoScreen({ navigation }: Props) {
     setPianoToneOffset(playAlong.isActive ? 0 : tone.semitoneOffset);
   }, [playAlong.isActive, tone.semitoneOffset]);
 
-  const { isRecording, mode, handleRecordPress, captureEvent } =
-    useInstrumentRecording('piano');
+  const {
+    isRecording,
+    mode,
+    handleRecordPress,
+    captureEvent,
+    studioArmed,
+    studioProjectTitle,
+    countdown,
+    cancelStudioOverdub,
+  } = useInstrumentRecording('piano');
 
   const { isPortrait } = usePianoOrientation(navigation);
 
@@ -376,7 +385,15 @@ export function PianoScreen({ navigation }: Props) {
         />
       ) : null}
 
-      <RecordingBanner isRecording={isRecording} mode={mode} />
+      {studioArmed && studioProjectTitle ? (
+        <StudioOverdubBanner
+          countdown={countdown}
+          projectTitle={studioProjectTitle}
+          onCancel={cancelStudioOverdub}
+        />
+      ) : (
+        <RecordingBanner isRecording={isRecording} mode={mode} />
+      )}
 
       <PlayAlongHud
         countdownValue={playAlong.countdownValue}

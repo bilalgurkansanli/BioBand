@@ -1,17 +1,18 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { LanguageToggle } from './LanguageToggle';
 import { colors } from '../theme/colors';
 
 type ScreenHeaderProps = {
   title: string;
+  right?: ReactNode;
 };
 
-export function ScreenHeader({ title }: ScreenHeaderProps) {
+export function ScreenHeader({ title, right }: ScreenHeaderProps) {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
-      <LanguageToggle />
+      {right}
     </View>
   );
 }
@@ -30,3 +31,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
+
