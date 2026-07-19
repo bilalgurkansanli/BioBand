@@ -1,10 +1,18 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import type { GuitarFretboardColors } from '../../instruments/guitar/guitarVoices';
-import { GUITAR_MAX_FRET } from '../../instruments/guitar/guitarSounds';
+import {
+  GUITAR_MAX_FRET,
+  type GuitarStringId,
+} from '../../instruments/guitar/guitarSounds';
 import { colors } from '../../theme/colors';
 
+/** Imperative wobble trigger — called straight from the engine pluck signal. */
+export type StringPulseHandler = (velocity: number, fret: number) => void;
+
 type GuitarStringRowProps = {
+  stringId: GuitarStringId;
   label: string;
   stringThickness: number;
   showFretNumbers: boolean;
@@ -17,14 +25,29 @@ type GuitarStringRowProps = {
   chordMuted?: boolean;
   /** Index-finger barre fret for barre shapes (visual guide). */
   barreFret?: number | null;
+  /** Highest fret rendered (fret-range setting). */
+  maxFret?: number;
+  /**
+   * Register this row's wobble trigger; returns cleanup. Plucks then animate
+   * without any React re-render (values update imperatively on native nodes).
+   */
+  registerPulse?: (
+    stringId: GuitarStringId,
+    handler: StringPulseHandler,
+  ) => () => void;
   strongGuide: boolean;
   accent: string;
   fretboard: GuitarFretboardColors;
 };
 
+/** Decaying wobble offsets (× amplitude) — one shot per pluck, no loop. */
+const WOBBLE_STEPS = [-1, 1, -0.75, 0.75, -0.5, 0.45, -0.3, 0.2, -0.1, 0];
+const WOBBLE_STEP_MS = 36;
+
 const FRET_MARKERS = new Set([3, 5, 7, 9, 12]);
 
 export function GuitarStringRow({
+  stringId,
   label,
   stringThickness,
   showFretNumbers,
@@ -33,11 +56,73 @@ export function GuitarStringRow({
   chordFret,
   chordMuted = false,
   barreFret = null,
+  maxFret = GUITAR_MAX_FRET,
+  registerPulse,
   strongGuide,
   accent,
   fretboard,
 }: GuitarStringRowProps) {
-  const frets = Array.from({ length: GUITAR_MAX_FRET + 1 }, (_, i) => i);
+  const frets = Array.from({ length: maxFret + 1 }, (_, i) => i);
+  const wobble = useRef(new Animated.Value(0)).current;
+  // Per-cell standing-wave factors + cached multiply nodes. Built once and
+  // reused forever — plucks only setValue on them, so the native animation
+  // graph never churns and no render happens per pluck.
+  const cellFactorsRef = useRef<Animated.Value[]>([]);
+  const cellTranslatesRef = useRef<ReturnType<typeof Animated.multiply>[]>([]);
+  const maxFretRef = useRef(maxFret);
+  maxFretRef.current = maxFret;
+
+  const cellTranslate = (fret: number): ReturnType<typeof Animated.multiply> => {
+    if (!cellTranslatesRef.current[fret]) {
+      const factor = new Animated.Value(0);
+      cellFactorsRef.current[fret] = factor;
+      cellTranslatesRef.current[fret] = Animated.multiply(wobble, factor);
+    }
+    return cellTranslatesRef.current[fret];
+  };
+
+  const triggerPulse = useCallback<StringPulseHandler>(
+    (velocity, fret) => {
+      // Only the sounding segment vibrates — the finger stops the string at
+      // its fret; open (fret 0) rings the whole string. Standing-wave profile:
+      // pinned at both ends, max swing in the middle.
+      const top = maxFretRef.current;
+      const segmentEnd = fret <= 0 ? top : Math.min(fret, top);
+      for (let i = 0; i < cellFactorsRef.current.length; i++) {
+        const factor = cellFactorsRef.current[i];
+        if (!factor) {
+          continue;
+        }
+        factor.setValue(
+          i <= segmentEnd
+            ? Math.sin((Math.PI * (i + 0.5)) / (segmentEnd + 1))
+            : 0,
+        );
+      }
+
+      // Soft pluck barely shivers, hard pick swings visibly.
+      const amplitude = 1.6 + velocity * 2.6;
+      wobble.stopAnimation();
+      wobble.setValue(0);
+      Animated.sequence(
+        WOBBLE_STEPS.map((step, index) =>
+          Animated.timing(wobble, {
+            toValue: step * amplitude,
+            duration: index === 0 ? 18 : WOBBLE_STEP_MS,
+            useNativeDriver: true,
+          }),
+        ),
+      ).start();
+    },
+    [wobble],
+  );
+
+  useEffect(() => {
+    if (!registerPulse) {
+      return;
+    }
+    return registerPulse(stringId, triggerPulse);
+  }, [registerPulse, stringId, triggerPulse]);
 
   return (
     <View pointerEvents="none" style={[styles.row, chordMuted && styles.rowMuted]}>
@@ -87,7 +172,7 @@ export function GuitarStringRow({
                 },
               ]}
             >
-              <View
+              <Animated.View
                 style={[
                   styles.stringLine,
                   {
@@ -95,6 +180,7 @@ export function GuitarStringRow({
                     backgroundColor:
                       isActive || isShapeCell ? accent : fretboard.stringIdle,
                     opacity: chordMuted ? 0.25 : 1,
+                    transform: [{ translateY: cellTranslate(fret) }],
                   },
                 ]}
               />

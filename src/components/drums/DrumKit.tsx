@@ -1,19 +1,33 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { DrumPiece, getDrumPieceBounds } from './DrumPiece';
 import { DRUM_KIT_LAYOUT } from '../../instruments/drums/drumKitLayout';
 import { DRUM_PADS, type DrumSoundId } from '../../instruments/drums/drumsSounds';
+import { tint } from '../../utils/colorMix';
 
 type DrumKitProps = {
   width: number;
   height: number;
-  onHit: (id: DrumSoundId) => void;
+  onHit: (id: DrumSoundId, velocity: number) => void;
+  /** Grab-choke a ringing cymbal (long-press). */
+  onChoke?: (id: DrumSoundId) => void;
   guidePadId?: DrumSoundId | null;
   strongGuide?: boolean;
   showPadLabels?: boolean;
   stageBg?: string;
   stageOverlay?: string;
+  /** Kit theme accent — badge / detail tint. */
+  accent?: string;
+  /** Kit shell wrap color. */
+  shellColor?: string;
+  /** Kit cymbal alloy color. */
+  cymbalColor?: string;
+  /** Kit drum head color. */
+  headColor?: string;
+  /** Piece size multiplier (settings: small hands / big pads). */
+  sizeScale?: number;
 };
 
 const STAGE_BG = '#12161E';
@@ -24,12 +38,19 @@ function StageBackdrop({
   height,
   stageBg,
   stageOverlay,
+  accent,
+  glowOpacity,
 }: {
   width: number;
   height: number;
   stageBg: string;
   stageOverlay: string;
+  accent?: string;
+  /** Animated 0.08 base — pulses briefly on kick hits. */
+  glowOpacity: Animated.AnimatedInterpolation<number>;
 }) {
+  const glowSize = Math.min(width, height) * 1.5;
+
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: stageBg }]}>
       <View
@@ -38,10 +59,30 @@ function StageBackdrop({
           { backgroundColor: stageOverlay, height: height * 0.35 },
         ]}
       />
+      {/* Soft accent “stage light” pooling behind the kit. */}
+      {accent ? (
+        <Animated.View
+          style={[
+            styles.accentGlow,
+            {
+              backgroundColor: accent,
+              opacity: glowOpacity,
+              width: glowSize,
+              height: glowSize,
+              borderRadius: glowSize / 2,
+              left: width * 0.47 - glowSize / 2,
+              top: height * 0.5 - glowSize / 2,
+            },
+          ]}
+        />
+      ) : null}
+      {/* Drum rug, tinted from the stage color. */}
       <View
         style={[
           styles.floorOval,
           {
+            backgroundColor: tint(stageBg, 0.09),
+            borderColor: tint(stageBg, 0.22),
             width: width * 0.84,
             height: height * 0.42,
             left: width * 0.08,
@@ -140,19 +181,48 @@ export function DrumKit({
   width,
   height,
   onHit,
+  onChoke,
   guidePadId = null,
   strongGuide = true,
   showPadLabels = false,
   stageBg = STAGE_BG,
   stageOverlay = STAGE_BG_LIGHT,
+  accent,
+  shellColor,
+  cymbalColor,
+  headColor,
+  sizeScale = 1,
 }: DrumKitProps) {
   const { t } = useTranslation();
   const base = Math.min(width, height);
 
+  // Kick punch: a brief pulse of the accent stage light.
+  const kickAnim = useRef(new Animated.Value(0)).current;
+  const glowOpacity = kickAnim.interpolate({
+    inputRange: [0, 0.25, 1],
+    outputRange: [0.08, 0.2, 0.08],
+  });
+
+  const handleHit = useCallback(
+    (id: DrumSoundId, velocity: number) => {
+      if (id === 'kick') {
+        kickAnim.setValue(0);
+        Animated.timing(kickAnim, {
+          toValue: 1,
+          duration: 380,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }).start();
+      }
+      onHit(id, velocity);
+    },
+    [kickAnim, onHit],
+  );
+
   const labelById = Object.fromEntries(DRUM_PADS.map((p) => [p.id, t(p.labelKey)]));
 
   const positions = DRUM_KIT_LAYOUT.map((item) => {
-    const size = Math.floor(item.size * base);
+    const size = Math.floor(item.size * base * sizeScale);
     const cx = item.cx * width;
     const cy = item.cy * height;
     const bounds = getDrumPieceBounds(item.kind, size);
@@ -177,6 +247,8 @@ export function DrumKit({
   return (
     <View style={[styles.stage, { width, height, backgroundColor: stageBg }]}>
       <StageBackdrop
+        accent={accent}
+        glowOpacity={glowOpacity}
         height={height}
         stageBg={stageBg}
         stageOverlay={stageOverlay}
@@ -197,10 +269,15 @@ export function DrumKit({
           ]}
         >
           <DrumPiece
+            accent={accent}
             accessibilityLabel={labelById[item.id]}
+            cymbalColor={cymbalColor}
             guided={guidePadId === item.id}
+            headColor={headColor}
             kind={item.kind}
-            onHit={() => onHit(item.id)}
+            onChoke={onChoke}
+            onHit={handleHit}
+            shellColor={shellColor}
             size={item.size}
             soundId={item.id}
             strongGuide={strongGuide}
@@ -228,9 +305,10 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
   },
+  accentGlow: {
+    position: 'absolute',
+  },
   floorOval: {
-    backgroundColor: '#1E2636',
-    borderColor: '#3A4558',
     borderRadius: 999,
     borderWidth: 1,
     opacity: 0.55,

@@ -21,6 +21,8 @@ export function usePadNoteRepeat(
   onRepeat: (id: PadSoundId) => void,
 ) {
   const timersRef = useRef<Map<PadSoundId, ReturnType<typeof setInterval>>>(new Map());
+  /** Currently held pads — lets an enable/rate change start rolls mid-hold. */
+  const heldPadsRef = useRef<ReadonlySet<PadSoundId>>(new Set());
   const onRepeatRef = useRef(onRepeat);
   onRepeatRef.current = onRepeat;
   const rateRef = useRef(rate);
@@ -66,6 +68,7 @@ export function usePadNoteRepeat(
   /** Sync rolling set with currently held pads. */
   const syncHeldPads = useCallback(
     (held: ReadonlySet<PadSoundId>) => {
+      heldPadsRef.current = held;
       if (!enabledRef.current) {
         clearAll();
         return;
@@ -82,15 +85,16 @@ export function usePadNoteRepeat(
     [clearAll, startRoll, stopRoll],
   );
 
-  // Rate / BPM / enable changes: restart active rolls with new interval.
+  // Rate / BPM / enable changes: restart rolls for pads that are held right
+  // now — including pads pressed BEFORE note repeat was switched on (the
+  // toolbar toggle is often hit with a second finger mid-hold).
   useEffect(() => {
     if (!enabled) {
       clearAll();
       return;
     }
-    const active = [...timersRef.current.keys()];
     clearAll();
-    for (const padId of active) {
+    for (const padId of heldPadsRef.current) {
       startRoll(padId);
     }
   }, [enabled, rate, bpm, clearAll, startRoll]);

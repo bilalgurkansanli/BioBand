@@ -71,6 +71,8 @@ export type PadsPlayAlongProgress = {
 };
 
 const HIT_WINDOW_MS = 350;
+/** Practice-time award ceiling — a stale clock must not bank hours. */
+const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
 const HIT_WINDOW_BAND_MS = 480;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
@@ -217,7 +219,7 @@ export function usePadsPlayAlong(
       instrument: 'pads',
       songId: songRef.current?.id ?? null,
       stars,
-      elapsedMs: getElapsedMs(),
+      elapsedMs: Math.max(0, Math.min(getElapsedMs(), MAX_AWARD_ELAPSED_MS)),
     });
 
     const timer = setTimeout(() => {
@@ -466,6 +468,9 @@ export function usePadsPlayAlong(
     clearTimers();
     setResults(null);
     notesFinishedRef.current = false;
+    // Without this, finishing step mode with no backing track computed the
+    // award elapsed from a stale/zero start (same bug fixed in drums/guitar).
+    startTimeRef.current = Date.now();
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
     setProgress({ resolved: 0, total: session.events.length, hits: 0 });
@@ -778,7 +783,7 @@ export function usePadsPlayAlong(
   const selectScope = useCallback((scope: PadSongScope) => {
     setSongScope(scope);
     songScopeRef.current = scope;
-    setPhase('pickMode');
+    setPhase('pickLevel');
   }, []);
 
   const startForLevel = useCallback(
@@ -848,7 +853,7 @@ export function usePadsPlayAlong(
         setPhase('pickLevel');
         return;
       }
-      setPhase('pickMode');
+      setPhase('pickScope');
     }
   }, [clearTimers, phase, stopCalibratePreview, stopSessionAudio]);
 

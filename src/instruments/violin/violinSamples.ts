@@ -30,25 +30,40 @@ export const VIOLIN_SAMPLE_FILES: Record<ViolinSampleId, number> = {
   E6: require('../../../assets/samples/violin/E6.mp3'),
 };
 
-const ANCHORS: { id: ViolinSampleId; midi: number }[] = [
-  { id: 'G3', midi: 55 },
-  { id: 'A3', midi: 57 },
-  { id: 'C4', midi: 60 },
-  { id: 'E4', midi: 64 },
-  { id: 'G4', midi: 67 },
-  { id: 'A4', midi: 69 },
-  { id: 'C5', midi: 72 },
-  { id: 'E5', midi: 76 },
-  { id: 'G5', midi: 79 },
-  { id: 'A5', midi: 81 },
-  { id: 'C6', midi: 84 },
-  { id: 'E6', midi: 88 },
+// tuneCents / offsetSeconds / gainTrim are measured, not tuned by ear:
+// ffmpeg-decoded, f0 via autocorrelation (median of 7 windows, A4 = 440),
+// offset = where the bowed tone is developed (several recordings spend their
+// first seconds on a slow crescendo that sounds thin in short strokes),
+// gainTrim = RMS at that entry point normalized toward the bank median.
+type ViolinAnchor = {
+  id: ViolinSampleId;
+  midi: number;
+  tuneCents: number;
+  offsetSeconds: number;
+  gainTrim: number;
+};
+
+const ANCHORS: ViolinAnchor[] = [
+  { id: 'G3', midi: 55, tuneCents: -2, offsetSeconds: 0, gainTrim: 0.96 },
+  { id: 'A3', midi: 57, tuneCents: 0, offsetSeconds: 0, gainTrim: 1.13 },
+  { id: 'C4', midi: 60, tuneCents: 5, offsetSeconds: 0, gainTrim: 0.9 },
+  { id: 'E4', midi: 64, tuneCents: -3, offsetSeconds: 3.92, gainTrim: 0.99 },
+  { id: 'G4', midi: 67, tuneCents: 4, offsetSeconds: 1.18, gainTrim: 0.95 },
+  { id: 'A4', midi: 69, tuneCents: 10, offsetSeconds: 0, gainTrim: 1.23 },
+  { id: 'C5', midi: 72, tuneCents: 7, offsetSeconds: 1.97, gainTrim: 0.82 },
+  { id: 'E5', midi: 76, tuneCents: 15, offsetSeconds: 1.51, gainTrim: 1.09 },
+  { id: 'G5', midi: 79, tuneCents: 4, offsetSeconds: 0.04, gainTrim: 1.14 },
+  { id: 'A5', midi: 81, tuneCents: 3, offsetSeconds: 0, gainTrim: 0.85 },
+  { id: 'C6', midi: 84, tuneCents: -11, offsetSeconds: 0, gainTrim: 1.01 },
+  { id: 'E6', midi: 88, tuneCents: 16, offsetSeconds: 2.6, gainTrim: 1.11 },
 ];
 
 export type ViolinNoteSampleConfig = {
   anchorId: ViolinSampleId;
   source: number;
   playbackRate: number;
+  offsetSeconds: number;
+  gainTrim: number;
 };
 
 export function getViolinNoteSampleConfig(midi: number): ViolinNoteSampleConfig {
@@ -61,6 +76,9 @@ export function getViolinNoteSampleConfig(midi: number): ViolinNoteSampleConfig 
   return {
     anchorId: closest.id,
     source: VIOLIN_SAMPLE_FILES[closest.id],
-    playbackRate: 2 ** ((midi - closest.midi) / 12),
+    // Interval shift + correction of the recording's own detune.
+    playbackRate: 2 ** ((midi - closest.midi) / 12 - closest.tuneCents / 1200),
+    offsetSeconds: closest.offsetSeconds,
+    gainTrim: closest.gainTrim,
   };
 }

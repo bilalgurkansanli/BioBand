@@ -223,6 +223,39 @@ function bridge(startBar: number): Ev[] {
   ];
 }
 
+/**
+ * "(Kalbinde) yorulduysa yolculuklardan / Vazgeç artık yıldızlardan" —
+ * pre-chorus ramp that was missing between the bridge and the chorus hook;
+ * added from the kolaynota.com sheet (was previously skipped, making the
+ * jump into "Aya benzer" feel abrupt).
+ */
+function preChorus(startBar: number): Ev[] {
+  const b = startBar;
+  return [
+    // de yorulduysa yolculuklardan
+    at(b, 0, 'A4'),
+    at(b, E, 'E5'),
+    at(b, Q, 'D5'),
+    at(b, Q + E, 'C5'),
+    at(b, 2 * Q, 'B4'),
+    at(b, 2 * Q + E, 'A4'),
+    at(b, 3 * Q, 'A4'),
+    at(b, 3 * Q + E, 'G4'),
+    // lar dan — Vazgeç
+    at(b + 1, 0, 'B4'),
+    at(b + 1, E, 'A4'),
+    at(b + 1, Q, 'G4'),
+    at(b + 1, Q + E, 'A4'),
+    // artık yıldızlardan
+    at(b + 1, 2 * Q, 'E5'),
+    at(b + 1, 2 * Q + E, 'D5'),
+    at(b + 1, 3 * Q, 'C5'),
+    at(b + 1, 3 * Q + E, 'B4'),
+    at(b + 2, 0, 'A4'),
+    at(b + 2, Q, 'B4'),
+  ];
+}
+
 /** "Aya benzer yüreğim / E doğal olarak takipteyim…" */
 function chorusBody(startBar: number): Ev[] {
   const b = startBar;
@@ -298,10 +331,11 @@ const AYA_EVENTS: Ev[] = [
   ...verseA(9),
   ...verseB(14),
   ...bridge(19),
-  ...chorusBody(25),
-  ...endingBekle(29),
-  ...chorusBody(31),
-  ...endingSeni(35),
+  ...preChorus(25),
+  ...chorusBody(28),
+  ...endingBekle(32),
+  ...chorusBody(34),
+  ...endingSeni(38),
 ];
 
 const LAST_MS = AYA_EVENTS[AYA_EVENTS.length - 1]?.atMs ?? 0;

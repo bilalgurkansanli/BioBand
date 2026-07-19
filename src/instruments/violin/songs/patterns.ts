@@ -63,26 +63,21 @@ export const CROSS_STRING_EVENTS: ViolinSongEvent[] = [
   e('v4:0', 4900),
 ];
 
-/** Phrase presets as timed targets (ChordBar analogue). */
-export const PHRASE_PRACTICE_EVENTS: ViolinSongEvent[] = [
-  e('phrase:openStrings', 0),
-  e('phrase:scale', 1200),
-  e('phrase:arpeggio', 2600),
-  e('phrase:twinkle', 4000),
-  e('phrase:openStrings', 5600),
-  e('phrase:scale', 6800),
-];
-
-/** Mixed: single notes then a phrase. */
+/** Mixed warm-up: scale steps, an arpeggio run, then open strings home. */
 export const MIXED_WARMUP_EVENTS: ViolinSongEvent[] = [
   e('v4:0', 0),
   e('v4:2', 400),
   e('v4:4', 800),
   e('v3:0', 1200),
   e('v3:2', 1600),
-  e('phrase:arpeggio', 2200),
+  e('v4:0', 2200),
+  e('v4:4', 2400),
+  e('v3:0', 2600),
+  e('v3:5', 2800),
   e('v2:0', 3200),
   e('v2:2', 3600),
   e('v1:0', 4000),
-  e('phrase:openStrings', 4600),
+  e('v2:0', 4600),
+  e('v3:0', 4800),
+  e('v4:0', 5000),
 ];

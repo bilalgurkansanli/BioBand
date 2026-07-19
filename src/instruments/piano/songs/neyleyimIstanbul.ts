@@ -273,7 +273,9 @@ const NEYLEYIM_EVENTS: Ev[] = [
   ...phrase(29 * BAR, ['A4', 'A4', 'A4', 'E4', 'D4', 'C4', 'B4']),
   ...phrase(30 * BAR, ['G4', 'D4', 'C4', 'C4', 'B4', 'A4', 'F4', 'F4']),
   ...phrase(31 * BAR, ['G4', 'B4', 'B4', 'B4', 'C5'], 2 * Q),
-];
+  // Stable sort: a few dense intro figures interleave in time; play-along
+  // modes step the array in order, so it must match the audible timeline.
+].sort((a, b) => a.atMs - b.atMs);
 
 const LAST_MS = NEYLEYIM_EVENTS[NEYLEYIM_EVENTS.length - 1]?.atMs ?? 0;
 

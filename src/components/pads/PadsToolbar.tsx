@@ -11,6 +11,10 @@ type PadsToolbarProps = {
   metronomeOn: boolean;
   noteRepeatOn?: boolean;
   fxOn?: boolean;
+  looperOn?: boolean;
+  xyOn?: boolean;
+  editVisible?: boolean;
+  editOn?: boolean;
   volume?: number;
   kitAccent?: string;
   onBack: () => void;
@@ -20,6 +24,9 @@ type PadsToolbarProps = {
   onNoteRepeatPress?: () => void;
   onNoteRepeatLongPress?: () => void;
   onFxPress: () => void;
+  onLooperPress?: () => void;
+  onXyPress?: () => void;
+  onEditPress?: () => void;
   onVolumePress: () => void;
   onKitPress: () => void;
   onSettingsPress: () => void;
@@ -95,6 +102,10 @@ export function PadsToolbar({
   metronomeOn,
   noteRepeatOn = false,
   fxOn = false,
+  looperOn = false,
+  xyOn = false,
+  editVisible = false,
+  editOn = false,
   volume = 1,
   kitAccent,
   onBack,
@@ -104,6 +115,9 @@ export function PadsToolbar({
   onNoteRepeatPress,
   onNoteRepeatLongPress,
   onFxPress,
+  onLooperPress,
+  onXyPress,
+  onEditPress,
   onVolumePress,
   onKitPress,
   onSettingsPress,
@@ -114,6 +128,12 @@ export function PadsToolbar({
   return (
     <View style={styles.bar}>
       <IconButton icon="arrow-back" label={t('common.back')} onPress={onBack} />
+      <IconButton
+        active={looperOn}
+        icon="infinite"
+        label={t('pads.toolbar.looper')}
+        onPress={onLooperPress ?? (() => {})}
+      />
       <IconButton
         active={metronomeOn}
         icon="pulse-outline"
@@ -141,6 +161,20 @@ export function PadsToolbar({
         label={t('pads.toolbar.fx')}
         onPress={onFxPress}
       />
+      <IconButton
+        active={xyOn}
+        icon="move"
+        label={t('pads.toolbar.xy')}
+        onPress={onXyPress ?? (() => {})}
+      />
+      {editVisible ? (
+        <IconButton
+          active={editOn}
+          icon="create-outline"
+          label={t('pads.toolbar.edit')}
+          onPress={onEditPress ?? (() => {})}
+        />
+      ) : null}
       <IconButton
         active={volume < 1}
         colorOverride={volume <= 0 ? '#FF7043' : undefined}

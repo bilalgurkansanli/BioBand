@@ -9,58 +9,37 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import {
-  ALL_PHRASE_IDS,
-  normalizeVisiblePhraseIds,
-  VIOLIN_PHRASES,
-  type PhraseId,
-} from '../../instruments/violin/violinPhrases';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
+import type { ViolinNoteLabelMode } from '../../storage/violinSettingsStorage';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
-const PHRASE_ACCENT = '#81C784';
+const NOTE_LABEL_MODES: ViolinNoteLabelMode[] = ['off', 'note', 'finger'];
 
 type ViolinSettingsModalProps = {
   visible: boolean;
-  showPositionNumbers: boolean;
+  noteLabelMode: ViolinNoteLabelMode;
   strongGuideHighlight: boolean;
-  visiblePhraseIds: PhraseId[];
-  onChangeShowPositionNumbers: (value: boolean) => void;
+  haptics: boolean;
+  onChangeNoteLabelMode: (mode: ViolinNoteLabelMode) => void;
   onChangeStrongGuideHighlight: (value: boolean) => void;
-  onChangeVisiblePhraseIds: (ids: PhraseId[]) => void;
+  onChangeHaptics: (value: boolean) => void;
   onStartTutorial: () => void;
   onClose: () => void;
 };
 
 export function ViolinSettingsModal({
   visible,
-  showPositionNumbers,
+  noteLabelMode,
   strongGuideHighlight,
-  visiblePhraseIds,
-  onChangeShowPositionNumbers,
+  haptics,
+  onChangeNoteLabelMode,
   onChangeStrongGuideHighlight,
-  onChangeVisiblePhraseIds,
+  onChangeHaptics,
   onStartTutorial,
   onClose,
 }: ViolinSettingsModalProps) {
   const { t } = useTranslation();
-  const visibleSet = new Set(visiblePhraseIds);
-
-  const setVisible = (ids: PhraseId[]) => {
-    onChangeVisiblePhraseIds(normalizeVisiblePhraseIds(ids));
-  };
-
-  const togglePhrase = (phraseId: PhraseId) => {
-    if (visibleSet.has(phraseId)) {
-      if (visiblePhraseIds.length <= 1) {
-        return;
-      }
-      setVisible(visiblePhraseIds.filter((id) => id !== phraseId));
-      return;
-    }
-    setVisible([...visiblePhraseIds, phraseId]);
-  };
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -85,16 +64,30 @@ export function ViolinSettingsModal({
             showsVerticalScrollIndicator
             style={styles.scroll}
           >
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>
-                {t('violin.settings.showPositionNumbers')}
-              </Text>
-              <Switch
-                onValueChange={onChangeShowPositionNumbers}
-                thumbColor={showPositionNumbers ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
-                value={showPositionNumbers}
-              />
+            <Text style={styles.sectionTitle}>
+              {t('violin.settings.noteLabels')}
+            </Text>
+            <View style={styles.chipRow}>
+              {NOTE_LABEL_MODES.map((mode) => {
+                const on = noteLabelMode === mode;
+                return (
+                  <Pressable
+                    key={mode}
+                    onPress={() => onChangeNoteLabelMode(mode)}
+                    style={[
+                      styles.chip,
+                      on && {
+                        backgroundColor: `${colors.accent}33`,
+                        borderColor: colors.accent,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, on && { color: colors.accent }]}>
+                      {t(`violin.settings.noteLabelModes.${mode}`)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <View style={styles.row}>
@@ -109,35 +102,15 @@ export function ViolinSettingsModal({
               />
             </View>
 
-            <Text style={styles.sectionTitle}>{t('violin.settings.visiblePhrases')}</Text>
-            <Text style={styles.hint}>{t('violin.settings.visiblePhrasesHint')}</Text>
-
-            <View style={styles.chipRow}>
-              {VIOLIN_PHRASES.map((phrase) => {
-                const on = visibleSet.has(phrase.id);
-                return (
-                  <Pressable
-                    key={phrase.id}
-                    onPress={() => togglePhrase(phrase.id)}
-                    style={[
-                      styles.chip,
-                      on && { backgroundColor: `${PHRASE_ACCENT}33`, borderColor: PHRASE_ACCENT },
-                    ]}
-                  >
-                    <Text style={[styles.chipText, on && { color: PHRASE_ACCENT }]}>
-                      {t(phrase.labelKey)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('violin.settings.haptics')}</Text>
+              <Switch
+                onValueChange={onChangeHaptics}
+                thumbColor={haptics ? colors.accent : '#7A7A7E'}
+                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                value={haptics}
+              />
             </View>
-
-            <Pressable
-              onPress={() => setVisible([...ALL_PHRASE_IDS])}
-              style={({ pressed }) => [styles.presetButton, pressed && styles.pressed]}
-            >
-              <Text style={styles.presetText}>{t('violin.settings.phrasesPresetAll')}</Text>
-            </Pressable>
 
             <Pressable
               onPress={() => {
@@ -182,7 +155,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   scroll: {
-    maxHeight: 420,
+    // Let the card's maxHeight bound it — a fixed height here made the list
+    // unscrollable when the window was shorter than the cap (landscape).
+    flexGrow: 0,
   },
   scrollContent: {
     paddingBottom: 16,
@@ -208,11 +183,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 4,
   },
-  hint: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginBottom: 10,
-  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -229,19 +199,6 @@ const styles = StyleSheet.create({
   },
   chipText: {
     color: colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  presetButton: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 8,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  presetText: {
-    color: colors.accent,
     fontSize: 13,
     fontWeight: '700',
   },

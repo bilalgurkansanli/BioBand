@@ -87,8 +87,18 @@ let bpm = METRONOME_BPM_DEFAULT;
 let soundId: MetronomeSoundId = 'classic';
 let subdivision: MetronomeSubdivision = 'quarter';
 let running = false;
-let intervalId: ReturnType<typeof setInterval> | null = null;
-/** Advances every timer tick (subdivision unit or quarter for backbeat). */
+
+// Lookahead scheduler ("A Tale of Two Clocks"): a coarse JS timer wakes up
+// often and schedules the upcoming clicks precisely on the audio clock via
+// osc.start(when). This keeps the beat rock-solid even when the JS thread is
+// busy — a plain setInterval that plays "now" on each fire drifts audibly.
+const SCHEDULER_INTERVAL_MS = 25;
+const SCHEDULE_AHEAD_SECONDS = 0.12;
+
+let schedulerId: ReturnType<typeof setInterval> | null = null;
+/** Audio-clock time of the next tick to schedule. */
+let nextTickTime = 0;
+/** Advances every tick (subdivision unit or quarter for backbeat). */
 let tickIndex = 0;
 
 function clampBpm(value: number): number {
@@ -132,6 +142,7 @@ function isAccentTick(index: number): boolean {
 }
 
 function playClick(
+  when: number,
   profile = getSoundProfile(soundId),
   accent = false,
 ): void {
@@ -141,7 +152,6 @@ function playClick(
       void context.resume();
     }
 
-    const now = context.currentTime;
     const attack = profile.attackMs / 1000;
     const release = profile.releaseMs / 1000;
     const peak = accent ? profile.peakGain * 1.4 : profile.peakGain * 0.72;
@@ -152,31 +162,102 @@ function playClick(
     osc.frequency.value = freq;
 
     const gain = context.createGain();
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(peak, now + attack);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + attack + release);
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.linearRampToValueAtTime(peak, when + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + attack + release);
 
     osc.connect(gain);
     gain.connect(getMasterInput());
-    osc.start(now);
-    osc.stop(now + attack + release + 0.01);
+    osc.start(when);
+    osc.stop(when + attack + release + 0.01);
   } catch (error) {
     console.warn('Metronome click failed', error);
   }
 }
 
-function clearTimer(): void {
-  if (intervalId) {
-    clearInterval(intervalId);
-    intervalId = null;
+/** Play a click immediately (sound preview from the settings modal). */
+function previewClick(profile: MetronomeSoundProfile, accent = false): void {
+  playClick(getSharedAudioContext().currentTime, profile, accent);
+}
+
+/**
+ * Schedule one click at an exact audio-clock time with the user's chosen
+ * metronome sound — count-ins (pads looper) reuse the same click.
+ * Returns a cancel: pre-scheduled clicks must die when the count-in aborts.
+ */
+export function scheduleCountInClickAt(when: number, accent = false): () => void {
+  try {
+    const context = getSharedAudioContext();
+    if (context.state === 'suspended') {
+      void context.resume();
+    }
+
+    const profile = getSoundProfile(soundId);
+    const attack = profile.attackMs / 1000;
+    const release = profile.releaseMs / 1000;
+    const peak = accent ? profile.peakGain * 1.4 : profile.peakGain * 0.72;
+
+    const osc = context.createOscillator();
+    osc.type = profile.type;
+    osc.frequency.value = accent ? profile.frequency * 1.18 : profile.frequency;
+
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, when);
+    gain.gain.linearRampToValueAtTime(peak, when + attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, when + attack + release);
+
+    osc.connect(gain);
+    gain.connect(getMasterInput());
+    osc.start(when);
+    osc.stop(when + attack + release + 0.01);
+
+    return () => {
+      try {
+        osc.stop();
+        gain.disconnect();
+      } catch {
+        // Already finished.
+      }
+    };
+  } catch (error) {
+    console.warn('Count-in click failed', error);
+    return () => {};
   }
 }
 
-function fireTick(): void {
-  if (shouldPlayTick(tickIndex)) {
-    playClick(getSoundProfile(soundId), isAccentTick(tickIndex));
+function clearTimer(): void {
+  if (schedulerId) {
+    clearInterval(schedulerId);
+    schedulerId = null;
   }
-  tickIndex += 1;
+}
+
+/** Seconds between successive ticks at the current tempo / subdivision. */
+function tickIntervalSeconds(): number {
+  return 60 / bpm / ticksPerBeat();
+}
+
+/** Schedule a single tick at an exact audio-clock time. */
+function scheduleTick(index: number, when: number): void {
+  if (shouldPlayTick(index)) {
+    playClick(when, getSoundProfile(soundId), isAccentTick(index));
+  }
+}
+
+/** Schedule every tick that falls inside the lookahead window. */
+function runScheduler(): void {
+  if (!running) {
+    return;
+  }
+  const context = getSharedAudioContext();
+  if (context.state === 'suspended') {
+    void context.resume();
+  }
+  while (nextTickTime < context.currentTime + SCHEDULE_AHEAD_SECONDS) {
+    scheduleTick(tickIndex, nextTickTime);
+    nextTickTime += tickIntervalSeconds();
+    tickIndex += 1;
+  }
 }
 
 function armTimer(): void {
@@ -185,9 +266,10 @@ function armTimer(): void {
     return;
   }
   tickIndex = 0;
-  const ms = 60_000 / bpm / ticksPerBeat();
-  fireTick();
-  intervalId = setInterval(fireTick, ms);
+  // Start a hair in the future so the first click is scheduled, never late.
+  nextTickTime = getSharedAudioContext().currentTime + 0.06;
+  runScheduler();
+  schedulerId = setInterval(runScheduler, SCHEDULER_INTERVAL_MS);
 }
 
 export function getMetronomeBpm(): number {
@@ -216,7 +298,7 @@ export function setMetronomeBpm(nextBpm: number): void {
 export function setMetronomeSound(nextSoundId: MetronomeSoundId): void {
   soundId = nextSoundId;
   // Preview the chosen click immediately.
-  playClick(getSoundProfile(nextSoundId), true);
+  previewClick(getSoundProfile(nextSoundId), true);
   if (running) {
     armTimer();
   }

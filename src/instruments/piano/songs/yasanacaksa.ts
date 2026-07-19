@@ -171,42 +171,46 @@ function preChorus(startBar: number): Ev[] {
   ];
 }
 
+/**
+ * Chorus hook, verified against the kolaynota.com sheet: the FIRST statement
+ * (right after "bitmezmiş") starts clean on the downbeat with no pickup —
+ * "Do Si Do Do Mi Do Si Do" — not the "Mi Do Si" anacrusis this used to open
+ * with. That pickup only belongs before the REPEAT (see the manual pickup
+ * added in EVENTS ahead of the second chorusBody call, matching the sheet's
+ * "[1.]" first-ending bracket).
+ */
 function chorusBody(startBar: number): Ev[] {
   const b = startBar;
   return [
-    // pickup Yaşa na — Mi Do Si
+    // Yaşanacaksa yaşana — Do Si Do Do Mi Do Si Do
+    at(b, 0, 'C5'),
+    at(b, E, 'B4'),
+    at(b, Q, 'C5'),
+    at(b, Q + E, 'C5'),
     at(b, 2 * Q, 'E5'),
     at(b, 2 * Q + E, 'C5'),
     at(b, 3 * Q, 'B4'),
-    // caksa yaşanacak — Do Do Mi Do Si Do | Do Do
+    at(b, 3 * Q + E, 'C5'),
+    // cak Ayrılıklar mutsuzluklar — Do Do Si Si La Sol La
     at(b + 1, 0, 'C5'),
     at(b + 1, E, 'C5'),
-    at(b + 1, Q, 'E5'),
-    at(b + 1, Q + S, 'C5'),
-    at(b + 1, Q + 2 * S, 'B4'),
-    at(b + 1, Q + 3 * S, 'C5'),
-    at(b + 1, 2 * Q, 'C5'),
-    at(b + 1, 3 * Q, 'C5'),
-    // Ayrılıklar mutsuzluklar — Si Si La Sol La | Si Si
-    at(b + 2, 0, 'B4'),
-    at(b + 2, E, 'B4'),
-    at(b + 2, Q, 'A4'),
-    at(b + 2, Q + E, 'G4'),
-    at(b + 2, 2 * Q, 'A4'),
-    at(b + 2, 3 * Q, 'B4'),
-    at(b + 2, 3 * Q + E, 'B4'),
-    // Ölüm yok ya… — La La Sol Fa Sol La La
+    at(b + 1, Q, 'B4'),
+    at(b + 1, Q + E, 'B4'),
+    at(b + 1, 2 * Q, 'A4'),
+    at(b + 1, 2 * Q + E, 'G4'),
+    at(b + 1, 3 * Q, 'A4'),
+    // Ölüm yok ya bunun sonun da — La La Sol Fa Sol La La
+    at(b + 2, 0, 'A4'),
+    at(b + 2, E, 'A4'),
+    at(b + 2, Q, 'G4'),
+    at(b + 2, Q + E, 'F4'),
+    at(b + 2, 2 * Q, 'G4'),
+    at(b + 2, 2 * Q + E, 'A4'),
+    at(b + 2, 3 * Q, 'A4'),
+    // Tüm acı — La La La
     at(b + 3, 0, 'A4'),
     at(b + 3, E, 'A4'),
-    at(b + 3, Q, 'G4'),
-    at(b + 3, Q + E, 'F4'),
-    at(b + 3, 2 * Q, 'G4'),
-    at(b + 3, 2 * Q + E, 'A4'),
-    at(b + 3, 3 * Q, 'A4'),
-    // Tüm acı — La La La
-    at(b + 4, 0, 'A4'),
-    at(b + 4, E, 'A4'),
-    at(b + 4, Q, 'A4'),
+    at(b + 3, Q, 'A4'),
   ];
 }
 
@@ -268,15 +272,18 @@ const EVENTS: Ev[] = [
   ...verseA(0),
   ...verseB(8),
   ...preChorus(16),
+  // 1st (clean, no pickup) chorus statement — matches the sheet right after
+  // "bitmezmiş".
   ...chorusBody(20),
-  ...endingSolSharp(25),
-  // 1st ending pickup back into chorus
-  at(26, 2 * Q, 'E5'),
-  at(26, 2 * Q + E, 'C5'),
-  at(26, 3 * Q, 'B4'),
-  ...chorusBody(27).slice(3), // skip pickup (already played)
-  ...endingSolSharp(31),
-  ...bridgeCoda(32),
+  ...endingSolSharp(24),
+  // "[1.]" first-ending pickup back into the repeat — "Ya-şa-na" anacrusis,
+  // only used here, not on the first statement.
+  at(25, 2 * Q, 'E5'),
+  at(25, 2 * Q + E, 'C5'),
+  at(25, 3 * Q, 'B4'),
+  ...chorusBody(26),
+  ...endingSolSharp(30),
+  ...bridgeCoda(31),
 ];
 
 const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;

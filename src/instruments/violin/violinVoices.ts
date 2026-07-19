@@ -82,9 +82,10 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterType: 'lowpass',
       filterFrequency: 9800,
       filterQ: 0.45,
-      // Snappy détaché — total ~0.5s sounding.
-      holdSeconds: 0.2,
-      releaseSeconds: 0.3,
+      // Notes enter at the sample's developed-tone offset, so the stroke is
+      // full from the start — ~0.85s total reads as a crisp bow.
+      holdSeconds: 0.45,
+      releaseSeconds: 0.4,
     },
   },
   {
@@ -108,13 +109,15 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       },
     },
     audio: {
-      playbackRate: 1.008,
+      // Pitch-neutral: character comes from the EQ, not detune — the old
+      // +14-cent rate sounded out of tune next to other instruments.
+      playbackRate: 1,
       gainScale: 1.04,
       filterType: 'highpass',
       filterFrequency: 140,
       filterQ: 0.6,
-      holdSeconds: 0.18,
-      releaseSeconds: 0.26,
+      holdSeconds: 0.4,
+      releaseSeconds: 0.35,
     },
   },
   {
@@ -138,14 +141,15 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       },
     },
     audio: {
-      // Short bow / sordino-like: cut sustain + dull highs.
+      // Sordino-like: duller highs and the shortest bow of the set — but
+      // still long enough to hear actual tone.
       playbackRate: 1,
       gainScale: 0.9,
       filterType: 'lowpass',
       filterFrequency: 2200,
       filterQ: 0.95,
-      holdSeconds: 0.12,
-      releaseSeconds: 0.18,
+      holdSeconds: 0.2,
+      releaseSeconds: 0.25,
     },
   },
   {
@@ -169,14 +173,15 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       },
     },
     audio: {
-      playbackRate: 0.997,
+      playbackRate: 1,
       gainScale: 1,
       filterType: 'lowshelf',
       filterFrequency: 280,
       filterQ: 0.7,
       filterGainDb: 3.2,
-      holdSeconds: 0.26,
-      releaseSeconds: 0.38,
+      // Longest bow of the set — warm legato character.
+      holdSeconds: 0.55,
+      releaseSeconds: 0.45,
     },
   },
   {
@@ -200,13 +205,13 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       },
     },
     audio: {
-      playbackRate: 1.01,
+      playbackRate: 1,
       gainScale: 1.02,
       filterType: 'highpass',
       filterFrequency: 100,
       filterQ: 0.5,
-      holdSeconds: 0.2,
-      releaseSeconds: 0.28,
+      holdSeconds: 0.42,
+      releaseSeconds: 0.38,
     },
   },
   {
@@ -236,12 +241,18 @@ export const VIOLIN_VOICES: ViolinVoiceDefinition[] = [
       filterFrequency: 2100,
       filterQ: 0.9,
       filterGainDb: 4,
-      holdSeconds: 0.16,
-      releaseSeconds: 0.24,
+      holdSeconds: 0.32,
+      releaseSeconds: 0.3,
     },
   },
 ];
 
 export function getViolinVoice(id: ViolinVoiceId): ViolinVoiceDefinition {
   return VIOLIN_VOICES.find((voice) => voice.id === id) ?? VIOLIN_VOICES[0];
+}
+
+export function isViolinVoiceId(value: unknown): value is ViolinVoiceId {
+  return (
+    typeof value === 'string' && VIOLIN_VOICES.some((voice) => voice.id === value)
+  );
 }

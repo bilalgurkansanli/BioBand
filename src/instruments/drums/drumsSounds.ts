@@ -1,6 +1,8 @@
 // Drum kit one-shots — sampled hits (see assets/samples/drums/README.md).
 // One sample per pad (toms are pitch variants of a single tom).
 
+import type { DrumKitId } from './drumsKits';
+
 export type DrumSoundId =
   | 'crash'
   | 'hihatClosed'
@@ -10,6 +12,8 @@ export type DrumSoundId =
   | 'tomMid'
   | 'tomLow'
   | 'snare'
+  /** Side-stick / rim click — played by hitting the snare's outer rim zone. */
+  | 'snareRim'
   | 'kick';
 
 export const DRUM_SOUND_FILES: Record<DrumSoundId, number> = {
@@ -21,22 +25,44 @@ export const DRUM_SOUND_FILES: Record<DrumSoundId, number> = {
   tomMid: require('../../../assets/samples/drums/tom_mid.mp3'),
   tomLow: require('../../../assets/samples/drums/tom_low.mp3'),
   snare: require('../../../assets/samples/drums/snare.mp3'),
+  snareRim: require('../../../assets/samples/drums/sidestick.mp3'),
   kick: require('../../../assets/samples/drums/kick.mp3'),
 };
 
 /**
- * Per-pad gains after peak-normalize. Crash stays quieter — old 1.25 was harsh.
+ * Per-kit sample replacements. Kits not listed keep the acoustic set
+ * (shaped by their bus filter); the electronic kit swaps in real
+ * synthesized 808 one-shots (see scripts/make_extra_drum_samples.py).
  */
+export const KIT_SOUND_OVERRIDES: Partial<
+  Record<DrumKitId, Partial<Record<DrumSoundId, number>>>
+> = {
+  electronic: {
+    crash: require('../../../assets/samples/drums/808/crash.mp3'),
+    hihatClosed: require('../../../assets/samples/drums/808/hihat_closed.mp3'),
+    hihatOpen: require('../../../assets/samples/drums/808/hihat_open.mp3'),
+    ride: require('../../../assets/samples/drums/808/ride.mp3'),
+    tomHi: require('../../../assets/samples/drums/808/tom_hi.mp3'),
+    tomMid: require('../../../assets/samples/drums/808/tom_mid.mp3'),
+    tomLow: require('../../../assets/samples/drums/808/tom_low.mp3'),
+    snare: require('../../../assets/samples/drums/808/snare.mp3'),
+    snareRim: require('../../../assets/samples/drums/808/rim.mp3'),
+    kick: require('../../../assets/samples/drums/808/kick.mp3'),
+  },
+};
+
+/** Per-pad gains after peak-normalize. */
 export const DRUM_HIT_GAINS: Record<DrumSoundId, number> = {
-  kick: 0.85,
+  kick: 0.95,
   tomLow: 1.15,
   tomMid: 1.15,
   tomHi: 1.15,
   snare: 1.15,
+  snareRim: 1.1,
   hihatClosed: 1.2,
   hihatOpen: 1.15,
   ride: 1.05,
-  crash: 0.78,
+  crash: 0.82,
 };
 
 export type DrumPad = {

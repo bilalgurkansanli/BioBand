@@ -164,6 +164,10 @@ export function usePianoPlayAlong(
     void stopBackingTrack();
   }, []);
 
+  const clearGuides = useCallback(() => {
+    setGuideNoteId(null);
+  }, []);
+
   useEffect(() => {
     return () => {
       clearTimers();
@@ -189,20 +193,20 @@ export function usePianoPlayAlong(
   const updateGuide = useCallback(() => {
     const events = eventsRef.current;
     if (events.length === 0 || pointerRef.current >= events.length) {
-      setGuideNoteId(null);
+      clearGuides();
       return;
     }
     if (levelRef.current === 'free' && playModeRef.current !== 'fullBand') {
-      setGuideNoteId(null);
+      clearGuides();
       return;
     }
     setGuideNoteId(events[pointerRef.current]?.noteId ?? null);
-  }, []);
+  }, [clearGuides]);
 
   const finishSong = useCallback(() => {
     clearTimers();
     stopSessionAudio();
-    setGuideNoteId(null);
+    clearGuides();
 
     const events = eventsRef.current;
     const stats = statsRef.current;
@@ -232,7 +236,7 @@ export function usePianoPlayAlong(
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers, getElapsedMs, stopSessionAudio]);
+  }, [clearGuides, clearTimers, getElapsedMs, stopSessionAudio]);
 
   const maybeFinishAfterNotes = useCallback(() => {
     const session = sessionRef.current;
@@ -241,7 +245,7 @@ export function usePianoPlayAlong(
       return;
     }
     notesFinishedRef.current = true;
-    setGuideNoteId(null);
+    clearGuides();
 
     if (session?.useBacking && songScopeRef.current === 'full') {
       return;
@@ -250,7 +254,7 @@ export function usePianoPlayAlong(
       return;
     }
     finishSong();
-  }, [finishSong]);
+  }, [clearGuides, finishSong]);
 
   const advancePointer = useCallback(() => {
     pointerRef.current += 1;
@@ -284,10 +288,10 @@ export function usePianoPlayAlong(
   const finishDemo = useCallback(() => {
     clearTimers();
     stopSessionAudio();
-    setGuideNoteId(null);
+    clearGuides();
     setDemoJustFinished(true);
     setPhase('pickLevel');
-  }, [clearTimers, stopSessionAudio]);
+  }, [clearGuides, clearTimers, stopSessionAudio]);
 
   const ensureBackingReady = useCallback(
     async (session: ResolvedPlaySession) => {
@@ -497,7 +501,7 @@ export function usePianoPlayAlong(
     setResults(null);
     setCountdownValue(COUNTDOWN_START);
     setPhase('countdown');
-    setGuideNoteId(null);
+    clearGuides();
 
     await ensureBackingReady(session);
 
@@ -512,7 +516,7 @@ export function usePianoPlayAlong(
       }, step * COUNTDOWN_STEP_MS);
       timersRef.current.push(timer);
     }
-  }, [buildSession, clearTimers, ensureBackingReady, startPlaying]);
+  }, [buildSession, clearGuides, clearTimers, ensureBackingReady, startPlaying]);
 
   const resetWizardSong = useCallback(() => {
     clearTimers();
@@ -524,12 +528,12 @@ export function usePianoPlayAlong(
     setPlayMode(null);
     setSongScope(null);
     setResults(null);
-    setGuideNoteId(null);
+    clearGuides();
     setDemoJustFinished(false);
     setCalibrateOffsetMs(0);
     setCalibratePreviewing(false);
     hadSavedBindingRef.current = false;
-  }, [clearTimers, stopSessionAudio]);
+  }, [clearGuides, clearTimers, stopSessionAudio]);
 
   const open = useCallback(() => {
     resetWizardSong();
@@ -550,9 +554,10 @@ export function usePianoPlayAlong(
         return;
       }
 
-      // Piano play-along: choose excerpt vs full chart, then support level.
+      // Piano play-along: excerpt vs full chart, then piano-only vs band.
       const merged = await mergeSongWithAudioBinding(base);
       applySong(merged);
+      hadSavedBindingRef.current = songHasBackingAudio(merged.backingTrack);
       setPlayMode('piano');
       playModeRef.current = 'piano';
       setSongScope(null);
@@ -570,14 +575,20 @@ export function usePianoPlayAlong(
     setPhase('calibrateOffset');
   }, []);
 
+  /** Band play skips level selection — always free play over the mix. */
+  const startBandPlay = useCallback(() => {
+    setLevel('free');
+    levelRef.current = 'free';
+    void startCountdown();
+  }, [startCountdown]);
+
   const selectPlayMode = useCallback(
     (mode: PlayMode) => {
       setPlayMode(mode);
       playModeRef.current = mode;
-      setSongScope(null);
 
       if (mode === 'piano') {
-        setPhase('pickScope');
+        setPhase('pickLevel');
         return;
       }
 
@@ -588,13 +599,13 @@ export function usePianoPlayAlong(
       }
 
       if (hadSavedBindingRef.current) {
-        setPhase('pickScope');
+        startBandPlay();
         return;
       }
 
       enterCalibrate();
     },
-    [enterCalibrate],
+    [enterCalibrate, startBandPlay],
   );
 
   const pickBackingAudio = useCallback(
@@ -732,7 +743,7 @@ export function usePianoPlayAlong(
 
       const endTimer = setTimeout(() => {
         void stopBackingTrack();
-        setGuideNoteId(null);
+        clearGuides();
         setCalibratePreviewing(false);
       }, CALIBRATE_PREVIEW_MS);
       timersRef.current.push(endTimer);
@@ -740,14 +751,14 @@ export function usePianoPlayAlong(
       setCalibratePreviewing(false);
       void stopBackingTrack();
     }
-  }, [calibrateOffsetMs, clearTimers, playNote]);
+  }, [calibrateOffsetMs, clearGuides, clearTimers, playNote]);
 
   const stopCalibratePreview = useCallback(() => {
     clearTimers();
     void stopBackingTrack();
-    setGuideNoteId(null);
+    clearGuides();
     setCalibratePreviewing(false);
-  }, [clearTimers]);
+  }, [clearGuides, clearTimers]);
 
   const confirmCalibrate = useCallback(async () => {
     const song = songRef.current;
@@ -776,11 +787,12 @@ export function usePianoPlayAlong(
     applySong(next);
     hadSavedBindingRef.current = true;
     onUserSongOffsetSaved?.(song.id, eventsStartMs);
-    setPhase('pickScope');
+    startBandPlay();
   }, [
     applySong,
     calibrateOffsetMs,
     onUserSongOffsetSaved,
+    startBandPlay,
     stopCalibratePreview,
   ]);
 
@@ -788,22 +800,11 @@ export function usePianoPlayAlong(
     enterCalibrate();
   }, [enterCalibrate]);
 
-  const selectScope = useCallback(
-    (scope: SongScope) => {
-      setSongScope(scope);
-      songScopeRef.current = scope;
-
-      if (playModeRef.current === 'fullBand') {
-        setLevel('free');
-        levelRef.current = 'free';
-        void startCountdown();
-        return;
-      }
-
-      setPhase('pickLevel');
-    },
-    [startCountdown],
-  );
+  const selectScope = useCallback((scope: SongScope) => {
+    setSongScope(scope);
+    songScopeRef.current = scope;
+    setPhase('pickLevel');
+  }, []);
 
   const startForLevel = useCallback(
     (targetLevel: SupportLevel) => {
@@ -847,6 +848,21 @@ export function usePianoPlayAlong(
       setPhase('pickSong');
       return;
     }
+    if (phase === 'pickMode') {
+      setPlayMode('piano');
+      playModeRef.current = 'piano';
+      setPhase('pickScope');
+      return;
+    }
+    if (phase === 'pickAudio') {
+      setPhase('pickMode');
+      return;
+    }
+    if (phase === 'calibrateOffset') {
+      stopCalibratePreview();
+      setPhase('pickMode');
+      return;
+    }
     if (phase === 'pickLevel' || phase === 'results') {
       setDemoJustFinished(false);
       clearTimers();
@@ -857,7 +873,7 @@ export function usePianoPlayAlong(
       }
       setPhase('pickScope');
     }
-  }, [clearTimers, phase, stopSessionAudio]);
+  }, [clearTimers, phase, stopCalibratePreview, stopSessionAudio]);
 
   const replay = useCallback(() => {
     if (!songRef.current) {

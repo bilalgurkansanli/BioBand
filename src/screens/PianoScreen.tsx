@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  LayoutChangeEvent,
+  StyleSheet,
+  Text,
+  Vibration,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -42,13 +49,21 @@ import {
 } from '../instruments/piano/pianoMetronome';
 import {
   getScaleNoteIds,
+  snapToScale,
   type PianoScaleId,
 } from '../instruments/piano/pianoScales';
+import { buildChord } from '../instruments/piano/pianoChords';
+import { resolveKeyboardTheme } from '../instruments/piano/pianoKeyThemes';
 import { getPianoVoice, type PianoVoiceId } from '../instruments/piano/pianoVoices';
 import {
   DEFAULT_PIANO_UI_SETTINGS,
   loadPianoUiSettings,
   savePianoUiSettings,
+  type PianoChordMode,
+  type PianoKeyThemeId,
+  type PianoLabelMode,
+  type PianoScaleLockMode,
+  type PianoUiSettings,
 } from '../storage/pianoSettingsStorage';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList } from '../types/navigation';
@@ -86,6 +101,21 @@ export function PianoScreen({ navigation }: Props) {
   const [lastScaleId, setLastScaleId] = useState<PianoScaleId>('cMajor');
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
+  const [labelMode, setLabelMode] = useState<PianoLabelMode>(
+    DEFAULT_PIANO_UI_SETTINGS.labelMode,
+  );
+  const [keyTheme, setKeyTheme] = useState<PianoKeyThemeId>(
+    DEFAULT_PIANO_UI_SETTINGS.keyTheme,
+  );
+  const [haptics, setHaptics] = useState<boolean>(
+    DEFAULT_PIANO_UI_SETTINGS.haptics,
+  );
+  const [scaleLock, setScaleLock] = useState<PianoScaleLockMode>(
+    DEFAULT_PIANO_UI_SETTINGS.scaleLock,
+  );
+  const [chordMode, setChordMode] = useState<PianoChordMode>(
+    DEFAULT_PIANO_UI_SETTINGS.chordMode,
+  );
   const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed();
 
   const scaleNoteIds = useMemo(
@@ -119,6 +149,14 @@ export function PianoScreen({ navigation }: Props) {
       fxSettingsRef.current = settings.fx;
       setFxSettings(settings.fx);
       applyPianoFxSettings(settings.fx);
+      setVolume(settings.volume);
+      setMasterVolume(settings.volume);
+      tone.setTonePosition(settings.tonePosition);
+      setLabelMode(settings.labelMode);
+      setKeyTheme(settings.keyTheme);
+      setHaptics(settings.haptics);
+      setScaleLock(settings.scaleLock);
+      setChordMode(settings.chordMode);
       setSettingsHydrated(true);
     });
     return () => {
@@ -126,18 +164,68 @@ export function PianoScreen({ navigation }: Props) {
     };
   }, []);
 
+  // Debounce persistence so scrubbing an FX slider does not hammer
+  // AsyncStorage with dozens of writes. A pending change is flushed on unmount
+  // (below) so the last tweak is never lost.
+  const pendingSettingsRef = useRef<PianoUiSettings | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!settingsHydrated) {
       return;
     }
-    void savePianoUiSettings({
+    const settings: PianoUiSettings = {
       showTonePanel,
       showSpeedHud,
       scaleId,
       voiceId,
       fx: fxSettings,
-    });
-  }, [settingsHydrated, showTonePanel, showSpeedHud, scaleId, voiceId, fxSettings]);
+      volume,
+      tonePosition: tone.tonePosition,
+      labelMode,
+      keyTheme,
+      haptics,
+      scaleLock,
+      chordMode,
+    };
+    pendingSettingsRef.current = settings;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      pendingSettingsRef.current = null;
+      void savePianoUiSettings(settings);
+    }, 300);
+  }, [
+    settingsHydrated,
+    showTonePanel,
+    showSpeedHud,
+    scaleId,
+    voiceId,
+    fxSettings,
+    volume,
+    tone.tonePosition,
+    labelMode,
+    keyTheme,
+    haptics,
+    scaleLock,
+    chordMode,
+  ]);
+
+  // Flush any not-yet-written settings when leaving the screen.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      if (pendingSettingsRef.current) {
+        void savePianoUiSettings(pendingSettingsRef.current);
+        pendingSettingsRef.current = null;
+      }
+    };
+  }, []);
 
   const handleScaleIdChange = useCallback((next: PianoScaleId | null) => {
     setScaleId(next);
@@ -147,6 +235,10 @@ export function PianoScreen({ navigation }: Props) {
   }, []);
 
   const voice = getPianoVoice(voiceId);
+  const keyboardTheme = useMemo(
+    () => resolveKeyboardTheme(voice.theme, keyTheme),
+    [voice.theme, keyTheme],
+  );
 
   const handleSelectVoice = useCallback((nextVoiceId: PianoVoiceId) => {
     setVoiceId(nextVoiceId);
@@ -222,6 +314,7 @@ export function PianoScreen({ navigation }: Props) {
     setMasterVolume(nextVolume);
   }, []);
 
+
   const handleMetronomePress = useCallback(() => {
     if (metronomeOn) {
       stopMetronome();
@@ -278,19 +371,73 @@ export function PianoScreen({ navigation }: Props) {
     setKeyboardSize({ width, height });
   };
 
+  // Remembers which notes each pressed key actually sounded (chord expansion /
+  // scale snap), so the matching keys are released on lift.
+  const activePressRef = useRef<Map<NoteId, NoteId[]>>(new Map());
+  // Chord mode can expand two different pressed keys into overlapping sounded
+  // notes (e.g. two chords that share a third). Tracks, per sounded note,
+  // which pressed keys are currently holding it — a note only actually stops
+  // when its last holder key releases, not the first.
+  const soundedNoteHoldersRef = useRef<Map<NoteId, Set<NoteId>>>(new Map());
+
+  // Resolve a pressed key into the notes that should sound, applying scale
+  // lock first (mute or snap out-of-scale keys) then chord expansion.
+  const resolveSoundedNotes = useCallback(
+    (pressed: NoteId): NoteId[] => {
+      let base = pressed;
+      if (
+        scaleId &&
+        scaleLock !== 'off' &&
+        scaleNoteIds &&
+        !scaleNoteIds.has(pressed)
+      ) {
+        if (scaleLock === 'mute') {
+          return [];
+        }
+        base = snapToScale(pressed, scaleId);
+      }
+      return buildChord(base, chordMode, scaleId);
+    },
+    [scaleId, scaleLock, scaleNoteIds, chordMode],
+  );
+
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
-      captureEvent(noteId);
+      if (haptics) {
+        // Crisp tick for tactile feedback. The [wait, duration] pattern form is
+        // honored more reliably than a bare number across Android vibrators;
+        // ~35ms sits clearly above the perceptible threshold. iOS ignores the
+        // duration and plays its default tap.
+        Vibration.vibrate([0, 35]);
+      }
 
       if (playAlong.isActive) {
+        captureEvent(noteId);
         playAlong.handleNotePress(noteId);
         return;
       }
 
+      const sounded = resolveSoundedNotes(noteId);
+      activePressRef.current.set(noteId, sounded);
+      if (sounded.length === 0) {
+        return;
+      }
+
       recordNoteOn();
-      noteOn(noteId);
+      for (const id of sounded) {
+        let holders = soundedNoteHoldersRef.current.get(id);
+        if (!holders) {
+          holders = new Set();
+          soundedNoteHoldersRef.current.set(id, holders);
+        }
+        holders.add(noteId);
+        captureEvent(id);
+        // Always retrigger — same as pressing an already-ringing key again
+        // on a real piano. Only release (below) is gated by other holders.
+        noteOn(id);
+      }
     },
-    [captureEvent, noteOn, playAlong, recordNoteOn],
+    [captureEvent, haptics, noteOn, playAlong, recordNoteOn, resolveSoundedNotes],
   );
 
   const onNotePressOut = useCallback(
@@ -298,7 +445,19 @@ export function PianoScreen({ navigation }: Props) {
       if (playAlong.isActive) {
         return;
       }
-      noteOff(noteId);
+      const sounded = activePressRef.current.get(noteId);
+      activePressRef.current.delete(noteId);
+      for (const id of sounded ?? [noteId]) {
+        const holders = soundedNoteHoldersRef.current.get(id);
+        holders?.delete(noteId);
+        if (holders && holders.size > 0) {
+          // Another still-held key's chord also sounds this note — keep it
+          // ringing.
+          continue;
+        }
+        soundedNoteHoldersRef.current.delete(id);
+        noteOff(id);
+      }
     },
     [noteOff, playAlong.isActive],
   );
@@ -318,6 +477,9 @@ export function PianoScreen({ navigation }: Props) {
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
     playAlong.phase === 'pickScope' ||
+    playAlong.phase === 'pickMode' ||
+    playAlong.phase === 'pickAudio' ||
+    playAlong.phase === 'calibrateOffset' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
 
@@ -418,33 +580,52 @@ export function PianoScreen({ navigation }: Props) {
           <PianoKeyboard
             guideNoteId={playAlong.guideNoteId}
             height={keyboardSize.height}
+            labelMode={labelMode}
             onNotePressIn={onNotePressIn}
             onNotePressOut={onNotePressOut}
             scaleNoteIds={scaleNoteIds}
-            theme={voice.theme}
+            theme={keyboardTheme}
             width={keyboardSize.width}
           />
         ) : null}
       </View>
 
       <PlayAlongModal
+        audioBusy={playAlong.audioBusy}
+        calibrateOffsetMs={playAlong.calibrateOffsetMs}
+        calibratePreviewing={playAlong.calibratePreviewing}
         demoJustFinished={playAlong.demoJustFinished}
         importing={userSongs.importing}
+        offsetMaxMs={playAlong.offsetMaxMs}
+        offsetMinMs={playAlong.offsetMinMs}
         onBackToSongList={playAlong.backToSongList}
         onClose={playAlong.close}
+        onConfirmCalibrate={() => {
+          void playAlong.confirmCalibrate();
+        }}
         onDeleteUserSong={(songId) => {
           void userSongs.removeSong(songId);
         }}
         onGoBack={playAlong.goBack}
         onImportSong={userSongs.importSong}
         onImportSongFromJsonText={userSongs.importSongFromJsonText}
+        onPickBackingAudio={async (uri, hint) => {
+          const result = await playAlong.pickBackingAudio(uri, hint);
+          return { ok: result.ok };
+        }}
+        onPreviewCalibrate={() => {
+          void playAlong.previewCalibrate();
+        }}
         onReplay={playAlong.replay}
         onSelectLevel={playAlong.selectLevel}
+        onSelectPlayMode={playAlong.selectPlayMode}
         onSelectScope={playAlong.selectScope}
         onSelectSong={(songId) => {
           void playAlong.selectSong(songId);
         }}
         onSelectTempo={playAlong.setTempo}
+        onSetCalibrateOffset={playAlong.setCalibrateOffset}
+        onStopCalibratePreview={playAlong.stopCalibratePreview}
         phase={playAlong.phase}
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}
@@ -483,13 +664,23 @@ export function PianoScreen({ navigation }: Props) {
       />
 
       <PianoSettingsModal
+        chordMode={chordMode}
+        haptics={haptics}
+        keyTheme={keyTheme}
+        labelMode={labelMode}
         lastScaleId={lastScaleId}
+        onChangeChordMode={setChordMode}
+        onChangeHaptics={setHaptics}
+        onChangeKeyTheme={setKeyTheme}
+        onChangeLabelMode={setLabelMode}
         onChangeScaleId={handleScaleIdChange}
+        onChangeScaleLock={setScaleLock}
         onChangeShowSpeedHud={setShowSpeedHud}
         onChangeShowTonePanel={setShowTonePanel}
         onClose={() => setSettingsModalVisible(false)}
         onStartTutorial={handleStartTutorialFromSettings}
         scaleId={scaleId}
+        scaleLock={scaleLock}
         showSpeedHud={showSpeedHud}
         showTonePanel={showTonePanel}
         visible={settingsModalVisible && !isPortrait}

@@ -9,18 +9,14 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { POSITION_COUNT } from '../../instruments/violin/violinNotes';
-import {
-  VIOLIN_PHRASES,
-  type PhraseId,
-} from '../../instruments/violin/violinPhrases';
+import { getNoteLabel, POSITION_COUNT } from '../../instruments/violin/violinNotes';
 import {
   parseViolinSoundId,
   VIOLIN_STRINGS,
   type ViolinStringId,
 } from '../../instruments/violin/violinSounds';
 import type { ViolinVoiceTheme } from '../../instruments/violin/violinVoices';
-import { PhraseBar } from './PhraseBar';
+import type { ViolinNoteLabelMode } from '../../storage/violinSettingsStorage';
 import { ViolinNoteCell } from './ViolinNoteCell';
 
 /** G thickest → E thinnest (player view: E on top). */
@@ -32,12 +28,35 @@ const STRING_THICKNESS: Record<ViolinStringId, number> = {
 };
 
 const SCROLL_WIDTH = 36;
+const SCROLL_MARGIN_RIGHT = 2;
 const BRIDGE_WIDTH = 14;
 const LABEL_WIDTH = 22;
-const ROW_HEIGHT = 36;
+/** Rows stretch to the available height between these bounds. */
+const MIN_ROW_HEIGHT = 36;
+const MAX_ROW_HEIGHT = 84;
 const ROW_GAP = 2;
 const MIN_CELL_WIDTH = 26;
 const STRING_COUNT = VIOLIN_STRINGS.length;
+/** Card paddings + safety margin around the four string rows. */
+const CARD_CHROME_HEIGHT = 34;
+
+const STRING_INDEX: Record<ViolinStringId, number> = Object.fromEntries(
+  VIOLIN_STRINGS.map((string, index) => [string.id, index]),
+) as Record<ViolinStringId, number>;
+
+/** Bow-sweep arpeggio spacing for strings crossed in one gesture. */
+const SWEEP_STAGGER_MS = 22;
+
+/** Pedagogic first-position fingering for semitone positions 0..9. */
+const FINGER_LABELS = ['0', '1', '1', '2', '2', '3', '3', '4', '4', '4'];
+
+/** Four tuning pegs — two per side, like the real pegbox. */
+const PEG_SLOTS = [
+  { key: 'peg1', top: '12%', side: 'left' },
+  { key: 'peg2', top: '30%', side: 'right' },
+  { key: 'peg3', top: '48%', side: 'left' },
+  { key: 'peg4', top: '66%', side: 'right' },
+] as const;
 
 type FingerCell = {
   stringId: ViolinStringId;
@@ -48,6 +67,8 @@ type BoardLayout = {
   width: number;
   height: number;
   labelWidth: number;
+  /** Fixed visual cell width — the touch grid must match it exactly. */
+  cellWidth: number;
 };
 
 function cellKey(cell: FingerCell): string {
@@ -59,8 +80,8 @@ function resolveCellAtPoint(
   y: number,
   layout: BoardLayout,
 ): FingerCell | null {
-  const { width, height, labelWidth } = layout;
-  if (width <= 0 || height <= 0) {
+  const { width, height, labelWidth, cellWidth } = layout;
+  if (width <= 0 || height <= 0 || cellWidth <= 0) {
     return null;
   }
 
@@ -74,10 +95,11 @@ function resolveCellAtPoint(
   );
   const stringId = VIOLIN_STRINGS[stringIndex].id;
 
-  const playableWidth = width - labelWidth;
+  // Cells are laid out at a fixed cellWidth from the strip's left edge, so
+  // divide by that — a proportional split drifted a few px at the right end.
   const position = Math.min(
     POSITION_COUNT - 1,
-    Math.max(0, Math.floor(((x - labelWidth) / playableWidth) * POSITION_COUNT)),
+    Math.max(0, Math.floor((x - labelWidth) / cellWidth)),
   );
 
   return { stringId, position };
@@ -85,75 +107,37 @@ function resolveCellAtPoint(
 
 type ViolinFingerboardProps = {
   onPlayNote: (stringId: ViolinStringId, position: number) => void;
-  onPlayPhrase: (phraseId: PhraseId) => void;
   theme: ViolinVoiceTheme;
-  showPositionNumbers?: boolean;
-  visiblePhraseIds?: PhraseId[];
+  noteLabelMode?: ViolinNoteLabelMode;
   guideSoundId?: string | null;
   strongGuide?: boolean;
 };
 
 export function ViolinFingerboard({
   onPlayNote,
-  onPlayPhrase,
   theme,
-  showPositionNumbers = true,
-  visiblePhraseIds,
+  noteLabelMode = 'note',
   guideSoundId = null,
   strongGuide = false,
 }: ViolinFingerboardProps) {
   const { t } = useTranslation();
   const [boardWidth, setBoardWidth] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
   const [touchSize, setTouchSize] = useState({ width: 0, height: 0 });
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
   const touchCellsRef = useRef<Map<string, FingerCell>>(new Map());
+  const sweepTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  const boardLayout = useMemo<BoardLayout>(
-    () => ({
-      width: touchSize.width,
-      height: touchSize.height,
-      labelWidth: LABEL_WIDTH,
-    }),
-    [touchSize],
-  );
-
-  useEffect(() => {
-    touchCellsRef.current.clear();
-    setActiveKeys(new Set());
-  }, [touchSize.width, touchSize.height]);
-
-  const parsedGuide = guideSoundId ? parseViolinSoundId(guideSoundId) : null;
-  const guidePhraseId =
-    parsedGuide?.kind === 'phrase' ? parsedGuide.phraseId : null;
-  const guideNoteKey =
-    parsedGuide?.kind === 'note'
-      ? `${parsedGuide.stringId}:${parsedGuide.position}`
-      : null;
-
-  const phrases = useMemo(() => {
-    const list = VIOLIN_PHRASES.filter((phrase) =>
-      visiblePhraseIds ? visiblePhraseIds.includes(phrase.id) : true,
-    ).map((phrase) => ({
-      id: phrase.id,
-      label: t(phrase.labelKey),
-    }));
-
-    if (
-      guidePhraseId &&
-      !list.some((phrase) => phrase.id === guidePhraseId)
-    ) {
-      const guidePhrase = VIOLIN_PHRASES.find(
-        (phrase) => phrase.id === guidePhraseId,
-      );
-      if (guidePhrase) {
-        list.unshift({
-          id: guidePhrase.id,
-          label: t(guidePhrase.labelKey),
-        });
-      }
+  // Fill the vertical space instead of a fixed 36px strip — the violin used
+  // to float small in the middle of a landscape screen.
+  const rowHeight = useMemo(() => {
+    if (containerHeight <= 0) {
+      return MIN_ROW_HEIGHT;
     }
-    return list;
-  }, [guidePhraseId, t, visiblePhraseIds]);
+    const available = containerHeight - CARD_CHROME_HEIGHT;
+    const perRow = Math.floor(available / STRING_COUNT) - ROW_GAP;
+    return Math.min(MAX_ROW_HEIGHT, Math.max(MIN_ROW_HEIGHT, perRow));
+  }, [containerHeight]);
 
   const cellWidth = useMemo(() => {
     if (boardWidth <= 0) {
@@ -164,10 +148,31 @@ export function ViolinFingerboard({
     return Math.max(MIN_CELL_WIDTH, Math.floor(available / POSITION_COUNT));
   }, [boardWidth]);
 
+  const boardLayout = useMemo<BoardLayout>(
+    () => ({
+      width: touchSize.width,
+      height: touchSize.height,
+      labelWidth: LABEL_WIDTH,
+      cellWidth,
+    }),
+    [cellWidth, touchSize],
+  );
+
+  useEffect(() => {
+    touchCellsRef.current.clear();
+    setActiveKeys(new Set());
+  }, [touchSize.width, touchSize.height]);
+
+  const parsedGuide = guideSoundId ? parseViolinSoundId(guideSoundId) : null;
+  const guideNoteKey =
+    parsedGuide?.kind === 'note'
+      ? `${parsedGuide.stringId}:${parsedGuide.position}`
+      : null;
+
   const syncTouches = useCallback(
     (touches: readonly NativeTouchEvent[]) => {
       const nextTouchMap = new Map<string, FingerCell>();
-      const cellsToTrigger: FingerCell[] = [];
+      const cellsToTrigger: { cell: FingerCell; delayMs: number }[] = [];
       const previousTouchMap = touchCellsRef.current;
 
       for (const touch of touches) {
@@ -188,19 +193,59 @@ export function ViolinFingerboard({
           prev.stringId !== cell.stringId ||
           prev.position !== cell.position
         ) {
-          cellsToTrigger.push(cell);
+          // Bow sweep: a fast vertical swipe can jump rows between move
+          // events — fill the skipped strings (position interpolated along
+          // the gesture) with a short stagger so the arpeggio speaks.
+          let delayMs = 0;
+          if (prev && prev.stringId !== cell.stringId) {
+            const from = STRING_INDEX[prev.stringId];
+            const to = STRING_INDEX[cell.stringId];
+            const step = to > from ? 1 : -1;
+            const gap = Math.abs(to - from);
+            let crossed = 0;
+            for (let i = from + step; i !== to; i += step) {
+              crossed += 1;
+              const position = Math.round(
+                prev.position + ((cell.position - prev.position) * crossed) / gap,
+              );
+              cellsToTrigger.push({
+                cell: { stringId: VIOLIN_STRINGS[i].id, position },
+                delayMs: (crossed - 1) * SWEEP_STAGGER_MS,
+              });
+              delayMs = crossed * SWEEP_STAGGER_MS;
+            }
+          }
+          cellsToTrigger.push({ cell, delayMs });
         }
       }
 
       touchCellsRef.current = nextTouchMap;
       setActiveKeys(new Set([...nextTouchMap.values()].map((cell) => cellKey(cell))));
 
-      for (const cell of cellsToTrigger) {
-        onPlayNote(cell.stringId, cell.position);
+      for (const { cell, delayMs } of cellsToTrigger) {
+        if (delayMs <= 0) {
+          onPlayNote(cell.stringId, cell.position);
+        } else {
+          const timer = setTimeout(() => {
+            sweepTimersRef.current.delete(timer);
+            onPlayNote(cell.stringId, cell.position);
+          }, delayMs);
+          sweepTimersRef.current.add(timer);
+        }
       }
     },
     [boardLayout, onPlayNote],
   );
+
+  useEffect(() => {
+    const timers = sweepTimersRef.current;
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+      timers.clear();
+    };
+  }, []);
 
   const handleTouchStart = useCallback(
     (event: GestureResponderEvent) => {
@@ -237,19 +282,12 @@ export function ViolinFingerboard({
   };
 
   const board = theme.fingerboard;
-  const playableWidth = cellWidth * POSITION_COUNT;
 
   return (
-    <View style={styles.container}>
-      <PhraseBar
-        accent={theme.accent}
-        guidePhraseId={guidePhraseId}
-        phrases={phrases}
-        strongGuide={strongGuide}
-        wood={board.wood}
-        onPlayPhrase={(id) => onPlayPhrase(id as PhraseId)}
-      />
-
+    <View
+      onLayout={(event) => setContainerHeight(event.nativeEvent.layout.height)}
+      style={styles.container}
+    >
       <View
         onLayout={handleInstrumentLayout}
         style={[
@@ -265,45 +303,60 @@ export function ViolinFingerboard({
           style={[styles.woodWash, { backgroundColor: `${board.woodEdge}33` }]}
         />
 
-        {showPositionNumbers ? (
-          <View pointerEvents="none" style={styles.headerRow}>
-            <View style={{ width: SCROLL_WIDTH + LABEL_WIDTH }} />
-            <View style={[styles.positionRow, { width: playableWidth }]}>
-              {Array.from({ length: POSITION_COUNT }, (_, position) => (
-                <Text
-                  key={position}
-                  style={[
-                    styles.positionLabel,
-                    {
-                      color: board.positionLabel,
-                      width: cellWidth,
-                    },
-                  ]}
-                >
-                  {position}
-                </Text>
-              ))}
-            </View>
-            <View style={{ width: BRIDGE_WIDTH }} />
-          </View>
-        ) : null}
-
         <View style={styles.neckRow}>
           <View
             pointerEvents="none"
             style={[styles.scroll, { backgroundColor: board.wood }]}
           >
-            <View
-              style={[styles.scrollCurve, { borderColor: board.woodEdge }]}
-            />
-            <View style={[styles.peg, { backgroundColor: board.woodEdge }]} />
+            {/* Volute: two offset rings + a core dot read as the spiral. */}
             <View
               style={[
-                styles.peg,
-                styles.pegLower,
-                { backgroundColor: board.woodEdge },
+                styles.volute,
+                {
+                  borderColor: board.woodEdge,
+                  backgroundColor: `${board.woodEdge}22`,
+                },
               ]}
-            />
+            >
+              <View
+                style={[styles.voluteInner, { borderColor: board.woodEdge }]}
+              />
+              <View
+                style={[styles.voluteDot, { backgroundColor: board.woodEdge }]}
+              />
+            </View>
+
+            {/* Ebony pegbox with four protruding tuning pegs. */}
+            <View
+              style={[
+                styles.pegbox,
+                {
+                  backgroundColor: board.board,
+                  borderColor: `${board.woodEdge}66`,
+                },
+              ]}
+            >
+              {PEG_SLOTS.map((slot) => (
+                <View
+                  key={slot.key}
+                  style={[
+                    styles.peg,
+                    { top: slot.top, backgroundColor: board.woodEdge },
+                    slot.side === 'left' ? styles.pegLeft : styles.pegRight,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.pegTip,
+                      { backgroundColor: board.nut },
+                      slot.side === 'left'
+                        ? styles.pegTipLeft
+                        : styles.pegTipRight,
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
           </View>
 
           {/* Multi-touch surface — same pattern as guitar fretboard. */}
@@ -321,7 +374,7 @@ export function ViolinFingerboard({
                 <View
                   key={string.id}
                   pointerEvents="none"
-                  style={[styles.stringRow, { height: ROW_HEIGHT }]}
+                  style={[styles.stringRow, { height: rowHeight }]}
                 >
                   <Text style={[styles.stringLabel, { color: board.label }]}>
                     {t(string.labelKey)}
@@ -338,7 +391,7 @@ export function ViolinFingerboard({
                         styles.stringWire,
                         {
                           height: thickness,
-                          top: (ROW_HEIGHT - thickness) / 2,
+                          top: (rowHeight - thickness) / 2,
                           backgroundColor: board.string,
                           shadowColor: board.string,
                         },
@@ -368,6 +421,12 @@ export function ViolinFingerboard({
                       {Array.from({ length: POSITION_COUNT }, (_, position) => {
                         const key = `${string.id}:${position}`;
                         const isOpen = position === 0;
+                        const label =
+                          noteLabelMode === 'note'
+                            ? getNoteLabel(string.id, position)
+                            : noteLabelMode === 'finger'
+                              ? FINGER_LABELS[position]
+                              : undefined;
                         return (
                           <View
                             key={key}
@@ -382,10 +441,12 @@ export function ViolinFingerboard({
                           >
                             <ViolinNoteCell
                               guideAccent={theme.accent}
-                              height={ROW_HEIGHT}
+                              height={rowHeight}
                               isActive={activeKeys.has(key)}
                               isGuide={guideNoteKey === key}
                               isOpenString={isOpen}
+                              label={label}
+                              labelColor={board.positionLabel}
                               nutColor={board.nut}
                               positionDotColor={board.positionDot}
                               stringColor={board.string}
@@ -446,47 +507,73 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     opacity: 0.35,
   },
-  headerRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  positionRow: {
-    flexDirection: 'row',
-  },
-  positionLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
   neckRow: {
     alignItems: 'stretch',
     flexDirection: 'row',
   },
   scroll: {
     alignItems: 'center',
-    borderBottomLeftRadius: 20,
-    borderTopLeftRadius: 20,
-    justifyContent: 'center',
-    marginRight: 2,
-    paddingVertical: 8,
+    marginRight: SCROLL_MARGIN_RIGHT,
+    paddingBottom: 6,
+    paddingTop: 4,
     width: SCROLL_WIDTH,
   },
-  scrollCurve: {
+  volute: {
     borderRadius: 14,
-    borderWidth: 2,
+    borderWidth: 2.5,
     height: 28,
-    marginBottom: 10,
-    width: 22,
+    width: 28,
   },
-  peg: {
-    borderRadius: 4,
-    height: 8,
-    marginVertical: 3,
+  voluteInner: {
+    borderRadius: 7,
+    borderWidth: 2,
+    height: 14,
+    marginLeft: 5,
+    marginTop: 5,
     width: 14,
   },
-  pegLower: {
-    opacity: 0.75,
+  voluteDot: {
+    borderRadius: 2,
+    height: 4,
+    left: 12,
+    position: 'absolute',
+    top: 12,
+    width: 4,
+  },
+  pegbox: {
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+    borderWidth: 1,
+    flex: 1,
+    marginTop: 3,
+    width: 16,
+  },
+  peg: {
+    borderRadius: 3,
+    height: 5,
+    position: 'absolute',
+    width: 12,
+  },
+  pegLeft: {
+    left: -9,
+  },
+  pegRight: {
+    right: -9,
+  },
+  pegTip: {
+    borderRadius: 1.5,
+    height: 3,
+    position: 'absolute',
+    top: 1,
+    width: 3,
+  },
+  pegTipLeft: {
+    left: 1,
+  },
+  pegTipRight: {
+    right: 1,
   },
   stringsBlock: {
     flex: 1,
@@ -497,7 +584,7 @@ const styles = StyleSheet.create({
     marginBottom: ROW_GAP,
   },
   stringLabel: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0.5,
     textAlign: 'center',

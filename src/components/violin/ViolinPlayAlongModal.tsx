@@ -1,11 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type {
   ViolinPlayAlongPhase,
   ViolinPlayAlongResults,
+  PlayMode,
   PlayTempo,
   SupportLevel,
 } from '../../hooks/useViolinPlayAlong';
@@ -16,7 +25,13 @@ import type {
   ViolinSongScope,
 } from '../../instruments/violin/songs/types';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
+import {
+  TutorialChoiceRow,
+  TutorialSongChip,
+} from '../instrument/TutorialChoices';
 import { colors } from '../../theme/colors';
+import { isDocumentPickerAvailable } from '../../utils/documentPicker';
+import { HorizontalSlider } from '../piano/HorizontalSlider';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
 type DifficultyFilter = 'all' | ViolinSongDifficulty;
@@ -43,14 +58,28 @@ type ViolinPlayAlongModalProps = {
   results: ViolinPlayAlongResults | null;
   tempo: PlayTempo;
   demoJustFinished?: boolean;
+  calibrateOffsetMs: number;
+  calibratePreviewing: boolean;
+  audioBusy: boolean;
+  offsetMinMs: number;
+  offsetMaxMs: number;
   onClose: () => void;
   onSelectSong: (songId: string) => void;
+  onSelectPlayMode: (mode: PlayMode) => void;
   onSelectScope: (scope: ViolinSongScope) => void;
   onSelectLevel: (level: SupportLevel) => void;
   onSelectTempo: (tempo: PlayTempo) => void;
   onGoBack: () => void;
   onBackToSongList: () => void;
   onReplay: () => void;
+  onPickBackingAudio: (
+    sourceUri: string,
+    fileNameHint?: string,
+  ) => Promise<{ ok: boolean }>;
+  onSetCalibrateOffset: (ms: number) => void;
+  onPreviewCalibrate: () => void;
+  onStopCalibratePreview: () => void;
+  onConfirmCalibrate: () => void;
 };
 
 const TEMPO_OPTIONS: PlayTempo[] = ['slow', 'normal', 'fast'];
@@ -88,14 +117,25 @@ export function ViolinPlayAlongModal({
   results,
   tempo,
   demoJustFinished = false,
+  calibrateOffsetMs,
+  calibratePreviewing,
+  audioBusy,
+  offsetMinMs,
+  offsetMaxMs,
   onClose,
   onSelectSong,
+  onSelectPlayMode,
   onSelectScope,
   onSelectLevel,
   onSelectTempo,
   onGoBack,
   onBackToSongList,
   onReplay,
+  onPickBackingAudio,
+  onSetCalibrateOffset,
+  onPreviewCalibrate,
+  onStopCalibratePreview,
+  onConfirmCalibrate,
 }: ViolinPlayAlongModalProps) {
   const { t } = useTranslation();
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
@@ -106,7 +146,24 @@ export function ViolinPlayAlongModal({
       : VIOLIN_SONG_CATALOG.filter((s) => s.difficulty === difficultyFilter);
 
   const showBack =
-    phase === 'pickScope' || phase === 'pickLevel' || phase === 'results';
+    phase === 'pickScope' ||
+    phase === 'pickMode' ||
+    phase === 'pickAudio' ||
+    phase === 'calibrateOffset' ||
+    phase === 'pickLevel' ||
+    phase === 'results';
+
+  const handlePickAudio = async () => {
+    if (!isDocumentPickerAvailable()) {
+      return;
+    }
+    const { pickAudioDocument } = await import('../../utils/documentPicker');
+    const picked = await pickAudioDocument();
+    if (!picked.ok) {
+      return;
+    }
+    await onPickBackingAudio(picked.asset.uri, picked.asset.name);
+  };
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -203,32 +260,115 @@ export function ViolinPlayAlongModal({
 
             {phase === 'pickScope' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
-                <Text style={styles.sectionTitle}>{t('violin.game.pickScope')}</Text>
-                <Pressable
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('violin.game.pickScope')}</Text>
+                <TutorialChoiceRow
+                  icon="cut-outline"
                   onPress={() => onSelectScope('partial')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <Text style={styles.choiceTitle}>{t('violin.game.scopePartial')}</Text>
-                  <Text style={styles.choiceHint}>{t('violin.game.scopePartialHint')}</Text>
-                </Pressable>
-                <Pressable
+                  subtitle={t('violin.game.scopePartialHint')}
+                  title={t('violin.game.scopePartial')}
+                />
+                <TutorialChoiceRow
+                  icon="musical-notes-outline"
                   onPress={() => onSelectScope('full')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
+                  subtitle={t('violin.game.scopeFullHint')}
+                  title={t('violin.game.scopeFull')}
+                />
+              </>
+            ) : null}
+
+            {phase === 'pickAudio' && selectedSong ? (
+              <>
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('violin.game.pickAudio')}</Text>
+                <Text style={styles.choiceHint}>{t('violin.game.pickAudioHint')}</Text>
+                <Pressable
+                  disabled={audioBusy}
+                  onPress={() => void handlePickAudio()}
+                  style={({ pressed }) => [
+                    styles.audioButton,
+                    pressed && styles.pressed,
+                    audioBusy && styles.rowDisabled,
+                  ]}
                 >
-                  <Text style={styles.choiceTitle}>{t('violin.game.scopeFull')}</Text>
-                  <Text style={styles.choiceHint}>{t('violin.game.scopeFullHint')}</Text>
+                  {audioBusy ? (
+                    <ActivityIndicator color={colors.accent} size="small" />
+                  ) : (
+                    <Ionicons
+                      color={colors.accent}
+                      name="musical-notes-outline"
+                      size={20}
+                    />
+                  )}
+                  <Text style={styles.audioButtonText}>
+                    {t('violin.game.pickAudioButton')}
+                  </Text>
                 </Pressable>
+              </>
+            ) : null}
+
+            {phase === 'calibrateOffset' && selectedSong ? (
+              <>
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('violin.game.calibrate')}</Text>
+                <Text style={styles.choiceHint}>{t('violin.game.calibrateHint')}</Text>
+
+                <Text style={styles.offsetLabel}>
+                  {t('violin.game.calibrateOffset', {
+                    ms: Math.round(calibrateOffsetMs),
+                  })}
+                </Text>
+                <HorizontalSlider
+                  accentColor={colors.accent}
+                  max={Math.min(offsetMaxMs, 30000)}
+                  min={Math.max(offsetMinMs, 0)}
+                  onValueChange={(value) =>
+                    onSetCalibrateOffset(Math.round(value / 100) * 100)
+                  }
+                  style={styles.slider}
+                  value={calibrateOffsetMs}
+                />
+
+                <View style={styles.calibrateActions}>
+                  <Pressable
+                    onPress={
+                      calibratePreviewing
+                        ? onStopCalibratePreview
+                        : onPreviewCalibrate
+                    }
+                    style={({ pressed }) => [
+                      styles.secondaryAction,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryActionText}>
+                      {calibratePreviewing
+                        ? t('violin.game.calibrateStop')
+                        : t('violin.game.calibratePreview')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={onConfirmCalibrate}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {t('violin.game.calibrateConfirm')}
+                    </Text>
+                  </Pressable>
+                </View>
               </>
             ) : null}
 
             {phase === 'pickLevel' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
+                <TutorialSongChip title={selectedSong.title} />
                 {demoJustFinished ? (
                   <Text style={styles.demoFinished}>{t('violin.game.demoFinished')}</Text>
                 ) : null}
-                <Text style={styles.sectionTitle}>{t('violin.game.pickLevel')}</Text>
+                <Text style={styles.stepSubtitle}>{t('violin.game.pickLevel')}</Text>
 
                 <Text style={styles.tempoLabel}>{t('violin.game.tempo.label')}</Text>
                 <View style={styles.tempoRow}>
@@ -258,17 +398,13 @@ export function ViolinPlayAlongModal({
                 </View>
 
                 {LEVELS.map((entry) => (
-                  <Pressable
+                  <TutorialChoiceRow
+                    icon={entry.icon}
                     key={entry.id}
                     onPress={() => onSelectLevel(entry.id)}
-                    style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                  >
-                    <View style={styles.levelHeader}>
-                      <Ionicons color="#FFD54F" name={entry.icon} size={20} />
-                      <Text style={styles.choiceTitle}>{t(entry.titleKey)}</Text>
-                    </View>
-                    <Text style={styles.choiceHint}>{t(entry.descriptionKey)}</Text>
-                  </Pressable>
+                    subtitle={t(entry.descriptionKey)}
+                    title={t(entry.titleKey)}
+                  />
                 ))}
 
                 <Pressable onPress={onBackToSongList} style={styles.backLink}>
@@ -340,8 +476,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   scroll: {
+    // Let the card's maxHeight bound it — a fixed height here made the list
+    // unscrollable when the window was shorter than the cap (landscape).
     flexGrow: 0,
-    maxHeight: 420,
   },
   scrollContent: {
     gap: 10,
@@ -403,32 +540,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  songHeading: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  choiceCard: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  choiceTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
+  stepSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   choiceHint: {
     color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
-  levelHeader: {
+  audioButton: {
     alignItems: 'center',
+    backgroundColor: `${colors.accent}18`,
+    borderColor: `${colors.accent}55`,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: 1,
     flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  audioButtonText: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  offsetLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  slider: {
+    height: 36,
+    marginHorizontal: 4,
+  },
+  calibrateActions: {
     gap: 8,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+  },
+  secondaryActionText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  rowDisabled: {
+    opacity: 0.55,
   },
   tempoLabel: {
     color: colors.textSecondary,

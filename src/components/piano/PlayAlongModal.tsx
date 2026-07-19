@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import type {
   PlayAlongPhase,
   PlayAlongResults,
+  PlayMode,
   PlayTempo,
   SupportLevel,
 } from '../../hooks/usePianoPlayAlong';
@@ -28,8 +29,13 @@ import type {
 } from '../../instruments/piano/songs/types';
 import type { UserSong } from '../../storage/userSongsStorage';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
+import {
+  TutorialChoiceRow,
+  TutorialSongChip,
+} from '../instrument/TutorialChoices';
 import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
+import { HorizontalSlider } from './HorizontalSlider';
 import { ModalChromeHeader } from './ModalChromeHeader';
 
 type DifficultyFilter = 'all' | SongDifficulty;
@@ -58,8 +64,14 @@ type PlayAlongModalProps = {
   demoJustFinished?: boolean;
   userSongs: UserSong[];
   importing: boolean;
+  calibrateOffsetMs: number;
+  calibratePreviewing: boolean;
+  audioBusy: boolean;
+  offsetMinMs: number;
+  offsetMaxMs: number;
   onClose: () => void;
   onSelectSong: (songId: string) => void;
+  onSelectPlayMode: (mode: PlayMode) => void;
   onSelectScope: (scope: SongScope) => void;
   onSelectLevel: (level: SupportLevel) => void;
   onSelectTempo: (tempo: PlayTempo) => void;
@@ -69,6 +81,14 @@ type PlayAlongModalProps = {
   onImportSong: () => Promise<ImportSongResult>;
   onImportSongFromJsonText: (text: string) => Promise<ImportSongResult>;
   onDeleteUserSong: (songId: string) => void;
+  onPickBackingAudio: (
+    sourceUri: string,
+    fileNameHint?: string,
+  ) => Promise<{ ok: boolean }>;
+  onSetCalibrateOffset: (ms: number) => void;
+  onPreviewCalibrate: () => void;
+  onStopCalibratePreview: () => void;
+  onConfirmCalibrate: () => void;
 };
 
 const TEMPO_OPTIONS: PlayTempo[] = ['slow', 'normal', 'fast'];
@@ -208,8 +228,14 @@ export function PlayAlongModal({
   demoJustFinished = false,
   userSongs,
   importing,
+  calibrateOffsetMs,
+  calibratePreviewing,
+  audioBusy,
+  offsetMinMs,
+  offsetMaxMs,
   onClose,
   onSelectSong,
+  onSelectPlayMode,
   onSelectScope,
   onSelectLevel,
   onSelectTempo,
@@ -219,6 +245,11 @@ export function PlayAlongModal({
   onImportSong,
   onImportSongFromJsonText,
   onDeleteUserSong,
+  onPickBackingAudio,
+  onSetCalibrateOffset,
+  onPreviewCalibrate,
+  onStopCalibratePreview,
+  onConfirmCalibrate,
 }: PlayAlongModalProps) {
   const { t } = useTranslation();
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -232,18 +263,29 @@ export function PlayAlongModal({
       : SONG_CATALOG.filter((entry) => entry.difficulty === difficultyFilter);
 
   const showBack =
-    phase === 'pickScope' || phase === 'pickLevel' || phase === 'results';
+    phase === 'pickScope' ||
+    phase === 'pickMode' ||
+    phase === 'pickAudio' ||
+    phase === 'calibrateOffset' ||
+    phase === 'pickLevel' ||
+    phase === 'results';
 
   const subtitle =
     phase === 'pickSong'
       ? t('piano.game.pickSong')
       : phase === 'pickScope'
         ? t('piano.game.pickScope')
-        : phase === 'pickLevel'
-          ? t('piano.game.pickLevel')
-          : phase === 'results'
-            ? t('piano.game.results.title')
-            : null;
+        : phase === 'pickMode'
+          ? t('piano.game.pickMode')
+          : phase === 'pickAudio'
+            ? t('piano.game.pickAudio.title')
+            : phase === 'calibrateOffset'
+              ? t('piano.game.calibrate.title')
+              : phase === 'pickLevel'
+                ? t('piano.game.pickLevel')
+                : phase === 'results'
+                  ? t('piano.game.results.title')
+                  : null;
 
   const handleImport = async () => {
     // Custom / stale APK may lack ExpoDocumentPicker — never crash; paste JSON.
@@ -283,6 +325,18 @@ export function PlayAlongModal({
     );
   };
 
+  const handlePickAudio = async () => {
+    if (!isDocumentPickerAvailable()) {
+      return;
+    }
+    const { pickAudioDocument } = await import('../../utils/documentPicker');
+    const picked = await pickAudioDocument();
+    if (!picked.ok) {
+      return;
+    }
+    await onPickBackingAudio(picked.asset.uri, picked.asset.name);
+  };
+
   const confirmDelete = (song: UserSong) => {
     Alert.alert(
       t('piano.game.import.deleteTitle'),
@@ -317,12 +371,7 @@ export function PlayAlongModal({
           />
 
           {selectedSong && phase !== 'pickSong' ? (
-            <View style={styles.songChip}>
-              <Ionicons color={colors.accent} name="musical-note" size={12} />
-              <Text numberOfLines={1} style={styles.songChipText}>
-                {selectedSong.title}
-              </Text>
-            </View>
+            <TutorialSongChip title={selectedSong.title} />
           ) : null}
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
 
@@ -471,20 +520,103 @@ export function PlayAlongModal({
 
             {phase === 'pickScope' ? (
               <>
-                <ChoiceRow
+                <TutorialChoiceRow
                   icon="cut-outline"
                   onPress={() => onSelectScope('partial')}
-                  showChevron
                   subtitle={t('piano.game.scopePartialHint')}
                   title={t('piano.game.scopePartial')}
                 />
-                <ChoiceRow
+                <TutorialChoiceRow
                   icon="musical-notes-outline"
                   onPress={() => onSelectScope('full')}
-                  showChevron
                   subtitle={t('piano.game.scopeFullHint')}
                   title={t('piano.game.scopeFull')}
                 />
+              </>
+            ) : null}
+
+            {phase === 'pickAudio' ? (
+              <>
+                <Text style={styles.audioHint}>
+                  {t('piano.game.pickAudio.hint')}
+                </Text>
+                <Pressable
+                  disabled={audioBusy}
+                  onPress={() => void handlePickAudio()}
+                  style={({ pressed }) => [
+                    styles.importButton,
+                    pressed && styles.pressed,
+                    audioBusy && styles.rowDisabled,
+                  ]}
+                >
+                  {audioBusy ? (
+                    <ActivityIndicator color={colors.accent} size="small" />
+                  ) : (
+                    <Ionicons
+                      color={colors.accent}
+                      name="musical-notes-outline"
+                      size={20}
+                    />
+                  )}
+                  <View style={styles.importTextWrap}>
+                    <Text style={styles.importTitle}>
+                      {t('piano.game.pickAudio.button')}
+                    </Text>
+                  </View>
+                </Pressable>
+              </>
+            ) : null}
+
+            {phase === 'calibrateOffset' ? (
+              <>
+                <Text style={styles.audioHint}>
+                  {t('piano.game.calibrate.hint')}
+                </Text>
+                <Text style={styles.offsetLabel}>
+                  {t('piano.game.calibrate.offset', {
+                    ms: Math.round(calibrateOffsetMs),
+                  })}
+                </Text>
+                <HorizontalSlider
+                  accentColor={colors.accent}
+                  max={Math.min(offsetMaxMs, 30000)}
+                  min={Math.max(offsetMinMs, 0)}
+                  onValueChange={(value) =>
+                    onSetCalibrateOffset(Math.round(value / 100) * 100)
+                  }
+                  style={styles.slider}
+                  value={calibrateOffsetMs}
+                />
+                <View style={styles.calibrateActions}>
+                  <Pressable
+                    onPress={
+                      calibratePreviewing
+                        ? onStopCalibratePreview
+                        : onPreviewCalibrate
+                    }
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryButtonText}>
+                      {calibratePreviewing
+                        ? t('piano.game.calibrate.stopPreview')
+                        : t('piano.game.calibrate.preview')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={onConfirmCalibrate}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {t('piano.game.calibrate.confirm')}
+                    </Text>
+                  </Pressable>
+                </View>
               </>
             ) : null}
 
@@ -522,11 +654,10 @@ export function PlayAlongModal({
                   })}
                 </View>
                 {LEVELS.map((levelOption) => (
-                  <ChoiceRow
+                  <TutorialChoiceRow
                     icon={levelOption.icon}
                     key={levelOption.id}
                     onPress={() => onSelectLevel(levelOption.id)}
-                    showChevron
                     subtitle={t(levelOption.descriptionKey)}
                     title={t(levelOption.titleKey)}
                   />
@@ -654,26 +785,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     width: '100%',
   },
-  songChip: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    backgroundColor: `${colors.accent}22`,
-    borderColor: `${colors.accent}55`,
-    borderRadius: 999,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 6,
-    maxWidth: '100%',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  songChipText: {
-    color: colors.accent,
-    flexShrink: 1,
-    fontSize: 12,
-    fontWeight: '700',
-  },
   subtitle: {
     color: colors.textSecondary,
     fontSize: 13,
@@ -682,6 +793,9 @@ const styles = StyleSheet.create({
   },
   list: {
     flexGrow: 0,
+    // Shrink with the card in short (landscape) windows — a fixed cap alone
+    // pushed the list's tail below the screen edge.
+    flexShrink: 1,
     maxHeight: 360,
   },
   listContent: {
@@ -877,6 +991,24 @@ const styles = StyleSheet.create({
   },
   rowDisabled: {
     opacity: 0.55,
+  },
+  audioHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  offsetLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  slider: {
+    height: 36,
+    marginHorizontal: 4,
+  },
+  calibrateActions: {
+    gap: 8,
   },
   iconWrap: {
     alignItems: 'center',

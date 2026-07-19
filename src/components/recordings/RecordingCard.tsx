@@ -2,10 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import {
+  InstrumentArtBackground,
+  type InstrumentArtVariant,
+} from '../instrument/InstrumentArtBackground';
 import { colors } from '../../theme/colors';
 import type { SavedRecording } from '../../types/recording';
 import { formatDuration } from '../../utils/formatDuration';
-import { INSTRUMENT_ICONS, INSTRUMENT_TITLE_KEYS } from '../../utils/recordingLabels';
+import { INSTRUMENT_TITLE_KEYS } from '../../utils/recordingLabels';
 
 type RecordingCardProps = {
   recording: SavedRecording;
@@ -61,15 +65,16 @@ export function RecordingCard({
 
   const playLabel = isPlaying ? t('recordings.stopPlayback') : t('recordings.play');
   const actionsDisabled = isLoading || isBusy;
-  const iconName = isDrumMachine
-    ? 'grid-outline'
-    : INSTRUMENT_ICONS[recording.instrument];
+  // The background art says which instrument the take belongs to — no icon.
+  const artVariant: InstrumentArtVariant = isDrumMachine
+    ? 'drumMachine'
+    : recording.mode === 'microphone'
+      ? 'microphone'
+      : recording.instrument;
 
   return (
     <View style={[styles.card, isPlaying && styles.cardPlaying]}>
-      <View style={styles.iconWrap}>
-        <Ionicons color={colors.accent} name={iconName} size={24} />
-      </View>
+      <InstrumentArtBackground variant={artVariant} veilOpacity={0.75} />
 
       <View style={styles.content}>
         <Text style={styles.title}>{title}</Text>
@@ -167,19 +172,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     marginBottom: 12,
+    // Clips the background art to the rounded corners.
+    overflow: 'hidden',
     padding: 14,
   },
   cardPlaying: {
     borderColor: colors.accent,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 10,
-    height: 48,
-    justifyContent: 'center',
-    marginRight: 12,
-    width: 48,
   },
   content: {
     flex: 1,

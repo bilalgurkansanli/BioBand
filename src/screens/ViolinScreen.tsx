@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, Vibration, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -22,12 +23,7 @@ import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { useViolinEngine } from '../hooks/useViolinEngine';
 import { useViolinPlayAlong } from '../hooks/useViolinPlayAlong';
 import {
-  normalizeVisiblePhraseIds,
-  type PhraseId,
-} from '../instruments/violin/violinPhrases';
-import {
   formatNoteSoundId,
-  formatPhraseSoundId,
   type ViolinStringId,
 } from '../instruments/violin/violinSounds';
 import { getViolinVoice, type ViolinVoiceId } from '../instruments/violin/violinVoices';
@@ -60,7 +56,7 @@ export function ViolinScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [voiceId, setVoiceId] = useState<ViolinVoiceId>('classic');
   const voice = getViolinVoice(voiceId);
-  const { ready, error, playNote, playPhrase, playSoundId } = useViolinEngine(voiceId);
+  const { ready, error, playNote, playSoundId } = useViolinEngine(voiceId);
 
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const [metronomeOn, setMetronomeOn] = useState(false);
@@ -80,15 +76,13 @@ export function ViolinScreen({ navigation }: Props) {
 
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
-  const [showPositionNumbers, setShowPositionNumbers] = useState(
-    DEFAULT_VIOLIN_UI_SETTINGS.showPositionNumbers,
+  const [noteLabelMode, setNoteLabelMode] = useState(
+    DEFAULT_VIOLIN_UI_SETTINGS.noteLabelMode,
   );
   const [strongGuideHighlight, setStrongGuideHighlight] = useState(
     DEFAULT_VIOLIN_UI_SETTINGS.strongGuideHighlight,
   );
-  const [visiblePhraseIds, setVisiblePhraseIds] = useState<PhraseId[]>(
-    () => [...DEFAULT_VIOLIN_UI_SETTINGS.visiblePhraseIds],
-  );
+  const [haptics, setHaptics] = useState(DEFAULT_VIOLIN_UI_SETTINGS.haptics);
 
   const {
     isRecording,
@@ -109,9 +103,9 @@ export function ViolinScreen({ navigation }: Props) {
       if (cancelled) {
         return;
       }
-      setShowPositionNumbers(settings.showPositionNumbers);
+      setNoteLabelMode(settings.noteLabelMode);
       setStrongGuideHighlight(settings.strongGuideHighlight);
-      setVisiblePhraseIds(settings.visiblePhraseIds);
+      setHaptics(settings.haptics);
       setVoiceId(settings.voiceId);
       fxSettingsRef.current = settings.fx;
       setFxSettings(settings.fx);
@@ -128,26 +122,31 @@ export function ViolinScreen({ navigation }: Props) {
       return;
     }
     void saveViolinUiSettings({
-      showPositionNumbers,
+      noteLabelMode,
       strongGuideHighlight,
-      visiblePhraseIds,
+      haptics,
       voiceId,
       fx: fxSettings,
     });
   }, [
     settingsHydrated,
-    showPositionNumbers,
+    noteLabelMode,
     strongGuideHighlight,
-    visiblePhraseIds,
+    haptics,
     voiceId,
     fxSettings,
   ]);
 
-  useEffect(() => {
-    return () => {
-      stopMetronome();
-    };
-  }, []);
+  // Blur (tab switch) releases the engine, which stops the metronome — keep
+  // the toolbar state in sync so the button is not left looking active.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        stopMetronome();
+        setMetronomeOn(false);
+      };
+    }, []),
+  );
 
   const applyFxNow = useCallback((settings: PianoFxSettings) => {
     if (fxApplyTimerRef.current) {
@@ -223,6 +222,14 @@ export function ViolinScreen({ navigation }: Props) {
     setMetronomeBpmState(bpm);
   }, []);
 
+  // Piano-style pattern: honored more reliably than a bare number across
+  // Android vibrators.
+  const buzz = useCallback(() => {
+    if (haptics) {
+      Vibration.vibrate([0, 35]);
+    }
+  }, [haptics]);
+
   const onPlayNote = useCallback(
     (stringId: ViolinStringId, position: number) => {
       const soundId = formatNoteSoundId(stringId, position);
@@ -232,38 +239,24 @@ export function ViolinScreen({ navigation }: Props) {
         if (playAlong.phase === 'demo') {
           return;
         }
+        buzz();
         playNote(stringId, position);
         playAlong.handleSoundPress(soundId, { skipPlayback: true });
         return;
       }
 
+      buzz();
       playNote(stringId, position);
     },
-    [captureEvent, playAlong, playNote],
-  );
-
-  const onPlayPhrase = useCallback(
-    (phraseId: PhraseId) => {
-      const soundId = formatPhraseSoundId(phraseId);
-      captureEvent(soundId);
-
-      if (playAlong.isActive) {
-        if (playAlong.phase === 'demo') {
-          return;
-        }
-        playPhrase(phraseId);
-        playAlong.handleSoundPress(soundId, { skipPlayback: true });
-        return;
-      }
-
-      playPhrase(phraseId);
-    },
-    [captureEvent, playAlong, playPhrase],
+    [buzz, captureEvent, playAlong, playNote],
   );
 
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
     playAlong.phase === 'pickScope' ||
+    playAlong.phase === 'pickMode' ||
+    playAlong.phase === 'pickAudio' ||
+    playAlong.phase === 'calibrateOffset' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
 
@@ -331,12 +324,10 @@ export function ViolinScreen({ navigation }: Props) {
       ) : (
         <ViolinFingerboard
           guideSoundId={playAlong.guideSoundId}
-          showPositionNumbers={showPositionNumbers}
+          noteLabelMode={noteLabelMode}
           strongGuide={strongGuideHighlight}
           theme={voice.theme}
-          visiblePhraseIds={visiblePhraseIds}
           onPlayNote={onPlayNote}
-          onPlayPhrase={onPlayPhrase}
         />
       )}
 
@@ -373,29 +364,47 @@ export function ViolinScreen({ navigation }: Props) {
       />
 
       <ViolinSettingsModal
-        onChangeShowPositionNumbers={setShowPositionNumbers}
+        haptics={haptics}
+        noteLabelMode={noteLabelMode}
+        onChangeHaptics={setHaptics}
+        onChangeNoteLabelMode={setNoteLabelMode}
         onChangeStrongGuideHighlight={setStrongGuideHighlight}
-        onChangeVisiblePhraseIds={(ids) =>
-          setVisiblePhraseIds(normalizeVisiblePhraseIds(ids))
-        }
         onClose={() => setSettingsModalVisible(false)}
         onStartTutorial={playAlong.open}
-        showPositionNumbers={showPositionNumbers}
         strongGuideHighlight={strongGuideHighlight}
         visible={settingsModalVisible}
-        visiblePhraseIds={visiblePhraseIds}
       />
 
       <ViolinPlayAlongModal
+        audioBusy={playAlong.audioBusy}
+        calibrateOffsetMs={playAlong.calibrateOffsetMs}
+        calibratePreviewing={playAlong.calibratePreviewing}
         demoJustFinished={playAlong.demoJustFinished}
+        offsetMaxMs={playAlong.offsetMaxMs}
+        offsetMinMs={playAlong.offsetMinMs}
         onBackToSongList={playAlong.backToSongList}
         onClose={playAlong.close}
+        onConfirmCalibrate={() => {
+          void playAlong.confirmCalibrate();
+        }}
         onGoBack={playAlong.goBack}
+        onPickBackingAudio={async (uri, hint) => {
+          const result = await playAlong.pickBackingAudio(uri, hint);
+          return { ok: result.ok };
+        }}
+        onPreviewCalibrate={() => {
+          void playAlong.previewCalibrate();
+        }}
         onReplay={playAlong.replay}
         onSelectLevel={playAlong.selectLevel}
+        onSelectPlayMode={playAlong.selectPlayMode}
         onSelectScope={playAlong.selectScope}
-        onSelectSong={playAlong.selectSong}
+        onSelectSong={(songId) => {
+          void playAlong.selectSong(songId);
+        }}
         onSelectTempo={playAlong.setTempo}
+        onSetCalibrateOffset={playAlong.setCalibrateOffset}
+        onStopCalibratePreview={playAlong.stopCalibratePreview}
         phase={playAlong.phase}
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}

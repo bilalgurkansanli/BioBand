@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, Vibration, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +34,19 @@ import {
   type GuitarChordPlayMode,
 } from '../instruments/guitar/guitarChordPatterns';
 import {
+  setGuitarStrumStaggerScale,
+  setGuitarSustainScale,
+} from '../instruments/guitar/guitarEngine';
+import {
+  GUITAR_STRUM_TIGHTNESS_SCALE,
+  GUITAR_SUSTAIN_SCALE,
+  type GuitarFretRange,
+  type GuitarStrumTightnessId,
+  type GuitarSustainLengthId,
+} from '../instruments/guitar/guitarFeel';
+import type { GuitarVelocityCurveId } from '../instruments/guitar/guitarVelocity';
+import {
+  formatChordPerformanceSoundId,
   formatChordSoundId,
   formatPluckSoundId,
   type GuitarStringId,
@@ -68,8 +81,16 @@ export function GuitarScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const [voiceId, setVoiceId] = useState<GuitarVoiceId>('nylon');
   const voice = getGuitarVoice(voiceId);
-  const { ready, error, noteOn, noteOff, pluckString, playChord, playSoundId } =
-    useGuitarEngine(voiceId);
+  const {
+    ready,
+    error,
+    noteOn,
+    noteOff,
+    bendNote,
+    pluckString,
+    playChord,
+    playSoundId,
+  } = useGuitarEngine(voiceId);
   const [selectedChordId, setSelectedChordId] = useState<ChordId | null>(null);
   const [chordPlayMode, setChordPlayMode] = useState<GuitarChordPlayMode>(
     DEFAULT_GUITAR_UI_SETTINGS.chordPlayMode,
@@ -98,6 +119,25 @@ export function GuitarScreen({ navigation }: Props) {
   );
   const [strongGuideHighlight, setStrongGuideHighlight] = useState(
     DEFAULT_GUITAR_UI_SETTINGS.strongGuideHighlight,
+  );
+  const [haptics, setHaptics] = useState(DEFAULT_GUITAR_UI_SETTINGS.haptics);
+  const [bendEnabled, setBendEnabled] = useState(
+    DEFAULT_GUITAR_UI_SETTINGS.bendEnabled,
+  );
+  const [stringAnimation, setStringAnimation] = useState(
+    DEFAULT_GUITAR_UI_SETTINGS.stringAnimation,
+  );
+  const [velocityCurve, setVelocityCurve] = useState<GuitarVelocityCurveId>(
+    DEFAULT_GUITAR_UI_SETTINGS.velocityCurve,
+  );
+  const [strumTightness, setStrumTightness] = useState<GuitarStrumTightnessId>(
+    DEFAULT_GUITAR_UI_SETTINGS.strumTightness,
+  );
+  const [sustainLength, setSustainLength] = useState<GuitarSustainLengthId>(
+    DEFAULT_GUITAR_UI_SETTINGS.sustainLength,
+  );
+  const [maxFret, setMaxFret] = useState<GuitarFretRange>(
+    DEFAULT_GUITAR_UI_SETTINGS.maxFret,
   );
   const [showChordPlayModeBar, setShowChordPlayModeBar] = useState(
     DEFAULT_GUITAR_UI_SETTINGS.showChordPlayModeBar,
@@ -131,6 +171,13 @@ export function GuitarScreen({ navigation }: Props) {
       }
       setShowFretNumbers(settings.showFretNumbers);
       setStrongGuideHighlight(settings.strongGuideHighlight);
+      setHaptics(settings.haptics);
+      setBendEnabled(settings.bendEnabled);
+      setStringAnimation(settings.stringAnimation);
+      setVelocityCurve(settings.velocityCurve);
+      setStrumTightness(settings.strumTightness);
+      setSustainLength(settings.sustainLength);
+      setMaxFret(settings.maxFret);
       setShowChordPlayModeBar(settings.showChordPlayModeBar);
       setVisiblePlayModes(settings.visiblePlayModes);
       setVisibleChordIds(settings.visibleChordIds);
@@ -153,6 +200,13 @@ export function GuitarScreen({ navigation }: Props) {
     void saveGuitarUiSettings({
       showFretNumbers,
       strongGuideHighlight,
+      haptics,
+      bendEnabled,
+      stringAnimation,
+      velocityCurve,
+      strumTightness,
+      sustainLength,
+      maxFret,
       showChordPlayModeBar,
       visiblePlayModes,
       visibleChordIds,
@@ -164,6 +218,13 @@ export function GuitarScreen({ navigation }: Props) {
     settingsHydrated,
     showFretNumbers,
     strongGuideHighlight,
+    haptics,
+    bendEnabled,
+    stringAnimation,
+    velocityCurve,
+    strumTightness,
+    sustainLength,
+    maxFret,
     showChordPlayModeBar,
     visiblePlayModes,
     visibleChordIds,
@@ -171,6 +232,15 @@ export function GuitarScreen({ navigation }: Props) {
     fxSettings,
     chordPlayMode,
   ]);
+
+  // Feel settings live in the engine so chord cascades and replays share them.
+  useEffect(() => {
+    setGuitarStrumStaggerScale(GUITAR_STRUM_TIGHTNESS_SCALE[strumTightness]);
+  }, [strumTightness]);
+
+  useEffect(() => {
+    setGuitarSustainScale(GUITAR_SUSTAIN_SCALE[sustainLength]);
+  }, [sustainLength]);
 
   useEffect(() => {
     if (selectedChordId && !visibleChordIds.includes(selectedChordId)) {
@@ -217,6 +287,10 @@ export function GuitarScreen({ navigation }: Props) {
   );
 
   useEffect(() => {
+    // Skip until stored settings load — otherwise defaults get applied first.
+    if (!settingsHydrated) {
+      return;
+    }
     if (fxApplyTimerRef.current) {
       clearTimeout(fxApplyTimerRef.current);
     }
@@ -231,7 +305,7 @@ export function GuitarScreen({ navigation }: Props) {
         fxApplyTimerRef.current = null;
       }
     };
-  }, [fxSettings]);
+  }, [fxSettings, settingsHydrated]);
 
   useEffect(() => {
     if (ready) {
@@ -266,8 +340,14 @@ export function GuitarScreen({ navigation }: Props) {
 
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
+      if (haptics) {
+        // Crisp tick per pluck — [wait, duration] form is honored more reliably
+        // than a bare number across Android vibrators; iOS plays its default tap.
+        Vibration.vibrate([0, 35]);
+      }
+
       const soundId = formatPluckSoundId(stringId, fret);
-      captureEvent(soundId);
+      captureEvent(soundId, velocity);
 
       if (playAlong.isActive) {
         if (playAlong.phase === 'demo') {
@@ -281,7 +361,7 @@ export function GuitarScreen({ navigation }: Props) {
 
       noteOn(stringId, fret, velocity);
     },
-    [captureEvent, noteOn, playAlong, pluckString],
+    [captureEvent, haptics, noteOn, playAlong, pluckString],
   );
 
   const onPluckOut = useCallback(
@@ -292,6 +372,17 @@ export function GuitarScreen({ navigation }: Props) {
       noteOff(stringId, fret);
     },
     [noteOff, playAlong.isActive],
+  );
+
+  const onBend = useCallback(
+    (stringId: GuitarStringId, fret: number, semitones: number) => {
+      // Play-along plucks are one-shots — nothing held to bend.
+      if (playAlong.isActive) {
+        return;
+      }
+      bendNote(stringId, fret, semitones);
+    },
+    [bendNote, playAlong.isActive],
   );
 
   const onSelectChord = useCallback(
@@ -308,6 +399,10 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
+      if (haptics) {
+        Vibration.vibrate([0, 35]);
+      }
+
       if (playAlong.isActive) {
         const soundId = formatChordSoundId(chordId);
         captureEvent(soundId);
@@ -321,16 +416,21 @@ export function GuitarScreen({ navigation }: Props) {
       }
 
       setSelectedChordId(chordId);
-      const soundId = formatChordSoundId(chordId);
-      captureEvent(soundId);
+      // Record the performance form so playback keeps mode + strum direction.
+      captureEvent(
+        formatChordPerformanceSoundId(chordId, chordPlayMode, direction, gesture),
+      );
       playChord(chordId, { mode: chordPlayMode, direction, gesture });
     },
-    [captureEvent, chordPlayMode, playAlong, playChord, selectedChordId],
+    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId],
   );
 
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
     playAlong.phase === 'pickScope' ||
+    playAlong.phase === 'pickMode' ||
+    playAlong.phase === 'pickAudio' ||
+    playAlong.phase === 'calibrateOffset' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
 
@@ -397,8 +497,11 @@ export function GuitarScreen({ navigation }: Props) {
         </View>
       ) : (
         <Fretboard
+          bendEnabled={bendEnabled}
           chordPlayMode={chordPlayMode}
           guideSoundId={playAlong.guideSoundId}
+          maxFret={maxFret}
+          onBend={onBend}
           onChordPlayModeChange={setChordPlayMode}
           onPluckIn={onPluckIn}
           onPluckOut={onPluckOut}
@@ -406,8 +509,10 @@ export function GuitarScreen({ navigation }: Props) {
           selectedChordId={selectedChordId}
           showChordPlayModeBar={showChordPlayModeBar}
           showFretNumbers={showFretNumbers}
+          stringAnimationEnabled={stringAnimation}
           strongGuide={strongGuideHighlight}
           theme={voice.theme}
+          velocityCurve={velocityCurve}
           visibleChordIds={visibleChordIds}
           visiblePlayModes={visiblePlayModes}
         />
@@ -446,9 +551,19 @@ export function GuitarScreen({ navigation }: Props) {
       />
 
       <GuitarSettingsModal
+        bendEnabled={bendEnabled}
+        haptics={haptics}
+        maxFret={maxFret}
+        onChangeBendEnabled={setBendEnabled}
+        onChangeHaptics={setHaptics}
+        onChangeMaxFret={setMaxFret}
         onChangeShowChordPlayModeBar={setShowChordPlayModeBar}
         onChangeShowFretNumbers={setShowFretNumbers}
         onChangeStrongGuideHighlight={setStrongGuideHighlight}
+        onChangeStringAnimation={setStringAnimation}
+        onChangeStrumTightness={setStrumTightness}
+        onChangeSustainLength={setSustainLength}
+        onChangeVelocityCurve={setVelocityCurve}
         onChangeVisibleChordIds={(ids) =>
           setVisibleChordIds(normalizeVisibleChordIds(ids))
         }
@@ -459,28 +574,52 @@ export function GuitarScreen({ navigation }: Props) {
         onStartTutorial={playAlong.open}
         showChordPlayModeBar={showChordPlayModeBar}
         showFretNumbers={showFretNumbers}
+        stringAnimation={stringAnimation}
         strongGuideHighlight={strongGuideHighlight}
+        strumTightness={strumTightness}
+        sustainLength={sustainLength}
+        velocityCurve={velocityCurve}
         visible={settingsModalVisible}
         visibleChordIds={visibleChordIds}
         visiblePlayModes={visiblePlayModes}
       />
 
       <GuitarPlayAlongModal
+        audioBusy={playAlong.audioBusy}
+        calibrateOffsetMs={playAlong.calibrateOffsetMs}
+        calibratePreviewing={playAlong.calibratePreviewing}
         demoJustFinished={playAlong.demoJustFinished}
         importing={userSongs.importing}
+        offsetMaxMs={playAlong.offsetMaxMs}
+        offsetMinMs={playAlong.offsetMinMs}
         onBackToSongList={playAlong.backToSongList}
         onClose={playAlong.close}
+        onConfirmCalibrate={() => {
+          void playAlong.confirmCalibrate();
+        }}
         onDeleteUserSong={(songId) => {
           void userSongs.removeSong(songId);
         }}
         onGoBack={playAlong.goBack}
         onImportSong={userSongs.importSong}
         onImportSongFromJsonText={userSongs.importSongFromJsonText}
+        onPickBackingAudio={async (uri, hint) => {
+          const result = await playAlong.pickBackingAudio(uri, hint);
+          return { ok: result.ok };
+        }}
+        onPreviewCalibrate={() => {
+          void playAlong.previewCalibrate();
+        }}
         onReplay={playAlong.replay}
         onSelectLevel={playAlong.selectLevel}
+        onSelectPlayMode={playAlong.selectPlayMode}
         onSelectScope={playAlong.selectScope}
-        onSelectSong={playAlong.selectSong}
+        onSelectSong={(songId) => {
+          void playAlong.selectSong(songId);
+        }}
         onSelectTempo={playAlong.setTempo}
+        onSetCalibrateOffset={playAlong.setCalibrateOffset}
+        onStopCalibratePreview={playAlong.stopCalibratePreview}
         phase={playAlong.phase}
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}

@@ -9,7 +9,8 @@
     "cancel": "İptal",
     "save": "Kaydet",
     "delete": "Sil",
-    "writeReview": "Yorum Yaz"
+    "writeReview": "Yorum Yaz",
+    "close": "Kapat"
   },
   "profile": {
     "title": "Profil",
@@ -50,7 +51,7 @@
     "title": "Enstrümanlar",
     "subtitle": "Bir enstrüman seç ve çalmaya başla.",
     "piano": "Piyano",
-    "pianoDescription": "2 oktavlı dokunmatik piyano — tuşlara basarak çal.",
+    "pianoDescription": "Tuşlara basarak çal.",
     "open": "Aç",
     "pianoHint": "Tuşlara basılı tutabilirsin. Aynı anda birden fazla tuş = akor.",
     "pianoLoading": "Piyano sesleri yükleniyor...",
@@ -60,21 +61,21 @@
     "landscapeRequired": "Bu enstrüman yatay modda çalışır",
     "landscapeHint": "Lütfen cihazını yatay çevir.",
     "drums": "Davul",
-    "drumsDescription": "Dokunmatik davul seti — vur ve çal.",
+    "drumsDescription": "Vur ve çal.",
     "drumsLoading": "Davul sesleri yükleniyor...",
     "drumsLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "drumMachine": "Bateri Makinesi",
-    "drumMachineDescription": "16 adımlı sequencer — beat programla ve loop et.",
+    "drumMachineDescription": "Dokun ve beatler yap.",
     "guitar": "Gitar",
-    "guitarDescription": "12 perdeli tahta — perde çek veya akor bas.",
+    "guitarDescription": "Teli çek ve çal.",
     "guitarLoading": "Gitar sesleri yükleniyor...",
     "guitarLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "violin": "Keman",
-    "violinDescription": "4 telli parmak tahtası — yaylı keman, phrase, efekt ve öğretici.",
+    "violinDescription": "Yayı çek ve çal.",
     "violinLoading": "Keman sesleri yükleniyor...",
     "violinLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "pads": "Padler",
-    "padsDescription": "16 dokunmatik pad — beat oluştur.",
+    "padsDescription": "Dokun ve çal.",
     "padsLoading": "Pad sesleri yükleniyor...",
     "padsLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene."
   },
@@ -153,17 +154,71 @@
     "play": "Çal",
     "stop": "Durdur",
     "random": "Rastgele",
-    "randomTitle": "Rastgele",
-    "randomHint": "Bir stil seç — Sürpriz BPM’i de değiştirir.",
-    "randomSurprise": "Sürpriz (pattern + BPM)",
-    "randomGroove": "Groove",
-    "randomSparse": "Seyrek",
-    "randomDense": "Yoğun",
-    "randomOffbeat": "Offbeat",
-    "randomMinimal": "Minimal",
     "settings": "Ayarlar",
     "settingsTitle": "Makine ayarları",
     "settingsTypeHint": "Ses bankası ve renk temasını seç.",
+    "type": "Enstrüman",
+    "typeTitle": "Ses bankası",
+    "previewToggle": "Dokununca sesi çal",
+    "previewToggleHint": "Grid'e adım eklerken kısa bir önizleme sesi çalınır.",
+    "saveLoopsTitle": "Kayıt uzunluğu",
+    "saveLoopsHint": "Pattern kaydederken Kayıtlarım'a kaç loop yazılacağını belirler.",
+    "saveLoopsOption": "{{count}} loop",
+    "saveLoopsOption_one": "{{count}} loop",
+    "saveLoopsOption_other": "{{count}} loop",
+    "swingTitle": "Swing",
+    "swingHint": "Offbeat vuruşları geciktirerek insansı bir groove hissi verir.",
+    "swingOff": "Kapalı",
+    "swingLight": "Az",
+    "swingMedium": "Orta",
+    "swingHeavy": "Yüksek",
+    "stepCountTitle": "Adım sayısı",
+    "stepCountHint": "9 ve 18, aksak 9/8 ölçüsüdür (2+2+2+3) — roman havası ve zeybek için.",
+    "metronomeTitle": "Metronom",
+    "metronomeHint": "Çalarken her vuruşta klik sesi duyulur.",
+    "countInTitle": "Sayarak başlat",
+    "countInHint": "Başlat'a basınca 4 vuruş sayar, sonra loop başlar.",
+    "hapticsTitle": "Titreşim",
+    "hapticsHint": "Hücrelere dokununca kısa bir titreşim verir.",
+    "kitTitle": "Bateri kiti",
+    "kitHint": "Drums bankasının sesi — kaydedilen take de aynı kitle çalınır.",
+    "liveRecord": "Canlı yazım",
+    "tapTempo": "Tap tempo",
+    "resetDefaults": "Varsayılana dön",
+    "recordTitle": "Kayıt",
+    "recordHint": "Nasıl kaydetmek istersin?",
+    "recordMic": "Mikrofonlu (ses kaydı)",
+    "recordLive": "Mikrofonsuz (adım yazımı)",
+    "micTakeTitle": "Bateri Makinesi kaydı",
+    "micSaved": "Kayıt Kayıtlarım'a eklendi.",
+    "songTitle": "Song Modu",
+    "songEmpty": "Henüz pattern eklenmedi. Aşağıdaki listeden pattern ekleyerek şarkı sırası oluştur — her satırın kaç kez tekrarlanacağını ×'e dokunarak seç.",
+    "songAddTitle": "Pattern ekle",
+    "songPlay": "Şarkıyı çal",
+    "songStop": "Durdur",
+    "songClear": "Temizle",
+    "songRepeats": "Tekrar sayısı",
+    "songMoveUp": "Yukarı taşı",
+    "songMoveDown": "Aşağı taşı",
+    "songRemove": "Listeden çıkar",
+    "songTypeMismatch": "Bir şarkıdaki tüm pattern'ler aynı ses bankasından olmalı.",
+    "presetsTitle": "Hazır ritimler",
+    "savedTitle": "Kayıtlı pattern'ler",
+    "importPattern": "İçe aktar",
+    "sharePattern": "Paylaş",
+    "shareTitle": "Beat'i paylaş",
+    "importError": "Bu dosya bir BioBand beat dosyası değil.",
+    "presets": {
+      "rock": "Rock",
+      "hiphop": "Hip-Hop",
+      "techno": "Techno",
+      "disco": "Disco / Pop",
+      "trap": "Trap",
+      "ciftetelli": "Çiftetelli",
+      "halay": "Halay",
+      "roman": "Roman Havası (9/8)",
+      "aksak": "Aksak (9/8)"
+    },
     "save": "Kaydet",
     "load": "Yükle",
     "clear": "Sıfırla",
@@ -270,25 +325,49 @@
       "title": "Ayarlar",
       "showPadLabels": "Pad isim etiketleri",
       "strongGuideHighlight": "Güçlü öğretici vurgusu",
+      "haptics": "Titreşim",
+      "padSize": "Pad boyutu",
+      "padSizeSmall": "Küçük",
+      "padSizeNormal": "Normal",
+      "padSizeLarge": "Büyük",
+      "ambience": "Ambiyans",
+      "ambienceDry": "Kuru",
+      "ambienceGarage": "Garaj",
+      "ambienceStudio": "Stüdyo",
+      "ambienceArena": "Arena",
       "startTutorial": "Öğreticiyi başlat",
       "close": "Kapat"
     },
     "game": {
       "title": "Öğretici Modu",
       "beta": "Beta",
-      "pickSong": "Çalmak için bir beat seç",
+      "pickSong": "Çalmak için bir şarkı seç",
       "difficulty": {
         "all": "Tümü",
         "easy": "Kolay",
         "medium": "Orta",
         "hard": "Zor",
-        "empty": "Bu zorlukta beat yok"
+        "empty": "Bu zorlukta şarkı yok"
       },
-      "pickScope": "Beatin ne kadarını çalmak istiyorsun?",
-      "scopePartial": "Bir kısmıyla devam",
-      "scopePartialHint": "Kısa bir kesit",
-      "scopeFull": "Tüm beat ile devam",
-      "scopeFullHint": "Baştan sona tüm vuruşlar",
+      "pickScope": "Ne kadarını çalmak istersin?",
+      "scopePartial": "Bir kısmı ile devam et",
+      "scopePartialHint": "Şarkıdan kısa bir kesit",
+      "scopeFull": "Tüm şarkıyla ilerle",
+      "scopeFullHint": "Tüm vuruşları baştan sona çal",
+      "pickMode": "Nasıl devam etmek istersin?",
+      "modeDrums": "Sadece davul",
+      "modeDrumsHint": "Şarkıyı yalnızca davul sesleriyle çal / izle",
+      "modeFullBand": "Tam şarkıyla devam et",
+      "modeFullBandHint": "Kendi parçan çalar; sen davulu çalarsın",
+      "pickAudio": "Orijinal parçayı ekle",
+      "pickAudioHint": "BioBand telifli şarkı göndermez. Davulla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
+      "pickAudioButton": "Ses dosyası seç",
+      "calibrate": "Davulu parçayla senkronize et",
+      "calibrateHint": "İlk vuruşlar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
+      "calibrateOffset": "Kayma: {{ms}} ms",
+      "calibratePreview": "Önizle",
+      "calibrateStop": "Durdur",
+      "calibrateConfirm": "Uygun",
       "pickLevel": "Ne kadar destek istiyorsun?",
       "demoFinished": "İzleme bitti — şimdi sen çal.",
       "tempo": {
@@ -298,11 +377,11 @@
         "fast": "Hızlı"
       },
       "back": "Geri",
-      "backToSongs": "Beat listesine dön",
+      "backToSongs": "Şarkı listesine dön",
       "close": "Kapat",
       "levels": {
         "guided": "Önce izle",
-        "guidedDesc": "Uygulama beati çalar — hangi padlerin yandığını izle.",
+        "guidedDesc": "Uygulama şarkıyı çalar — hangi padlerin yandığını izle.",
         "medium": "Adım adım",
         "mediumDesc": "Sıradaki pad yanar ve seni bekler.",
         "free": "Desteksiz",
@@ -310,14 +389,14 @@
       },
       "hud": {
         "countdown": "Hazırlan… {{count}}",
-        "watching": "İzle… beat senin için çalıyor",
-        "tapToStart": "Yanan pada bas — beat seni bekliyor",
+        "watching": "İzle… şarkı senin için çalıyor",
+        "tapToStart": "Yanan pada bas — şarkı seni bekliyor",
         "progress": "{{done}}/{{total}} vuruş · {{left}} kaldı · {{hits}} isabet",
         "progressWatch": "{{done}}/{{total}} vuruş · {{left}} kaldı",
         "stop": "Dur"
       },
       "results": {
-        "title": "Beat bitti!",
+        "title": "Şarkı bitti!",
         "accuracy": "İsabet: %{{percent}}",
         "hits": "Çaldığın: {{count}}",
         "misses": "Kaçırılan: {{count}}",
@@ -326,27 +405,27 @@
         "change": "Seviye değiştir"
       },
       "import": {
-        "button": "Beat içe aktar",
+        "button": "Şarkı içe aktar",
         "hint": "JSON/MIDI dosyası veya JSON yapıştır",
         "preloaded": "Hazır",
-        "mySongs": "Beatlerim",
-        "empty": "Henüz içe aktarılmış beat yok",
+        "mySongs": "Şarkılarım",
+        "empty": "Henüz içe aktarılmış şarkı yok",
         "delete": "Sil",
-        "deleteTitle": "Beat silinsin mi?",
+        "deleteTitle": "Şarkı silinsin mi?",
         "deleteMessage": "\"{{title}}\" listenden kaldırılacak.",
         "deleteConfirm": "Sil",
         "deleteCancel": "İptal",
-        "success": "Beat eklendi",
+        "success": "Şarkı eklendi",
         "pasteButton": "JSON yapıştır",
-        "pasteTitle": "Beat JSON",
+        "pasteTitle": "Şarkı JSON",
         "pasteHint": "Başlık ve events içeren JSON yapıştır (dosya seçici yoksa kullanılır).",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — beat eklemek için JSON yapıştır.",
+        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) içe aktar.",
           "invalidJson": "JSON dosyası okunamadı.",
-          "invalidSchema": "Geçersiz beat formatı. events dizisi gerekli (her öğede padId ve atMs olmalı).",
+          "invalidSchema": "Geçersiz şarkı formatı. events dizisi gerekli (her öğede padId ve atMs olmalı).",
           "invalidPad": "Geçersiz pad id. Kullan: kick, snare, hihatClosed, hihatOpen, tomHi, tomMid, tomLow, ride, crash.",
           "emptySong": "Dosyada çalınabilir davul vuruşu bulunamadı.",
           "tooManyNotes": "Çok fazla vuruş (en fazla 800).",
@@ -365,12 +444,6 @@
       "a": "La",
       "d": "Re",
       "g": "Sol"
-    },
-    "phrases": {
-      "scale": "Gam",
-      "twinkle": "Parlayan",
-      "arpeggio": "Arpej",
-      "openStrings": "Açık"
     },
     "toolbar": {
       "metronome": "Metronom",
@@ -392,16 +465,19 @@
     },
     "settings": {
       "title": "Ayarlar",
-      "showPositionNumbers": "Pozisyon numaraları",
+      "noteLabels": "Nota etiketleri",
+      "noteLabelModes": {
+        "off": "Kapalı",
+        "note": "Nota adı",
+        "finger": "Parmak numarası"
+      },
       "strongGuideHighlight": "Güçlü öğretici vurgu",
-      "visiblePhrases": "Çubuktaki phrase’ler",
-      "visiblePhrasesHint": "Göstermek veya gizlemek için dokun. En az biri açık kalır. Öğretici rehberi gerektiğinde yine görünür.",
-      "phrasesPresetAll": "Tümü",
+      "haptics": "Titreşim",
       "startTutorial": "Öğreticiyi başlat",
       "close": "Kapat"
     },
     "game": {
-      "title": "Öğretici Mod",
+      "title": "Öğretici Modu",
       "beta": "Beta",
       "pickSong": "Çalmak için bir parça seç",
       "difficulty": {
@@ -411,11 +487,25 @@
         "hard": "Zor",
         "empty": "Bu zorlukta parça yok"
       },
-      "pickScope": "Parçanın ne kadarını çalmak istiyorsun?",
-      "scopePartial": "Bir bölümle devam et",
-      "scopePartialHint": "Desenin kısa bir kesiti",
-      "scopeFull": "Tüm parçayla devam et",
-      "scopeFullHint": "Baştan sona her notayı çal",
+      "pickScope": "Ne kadarını çalmak istersin?",
+      "scopePartial": "Bir kısmı ile devam et",
+      "scopePartialHint": "Şarkıdan kısa bir kesit",
+      "scopeFull": "Tüm şarkıyla ilerle",
+      "scopeFullHint": "Tüm notaları baştan sona çal",
+      "pickMode": "Nasıl devam etmek istersin?",
+      "modeViolin": "Sadece keman",
+      "modeViolinHint": "Şarkıyı yalnızca keman sesiyle çal / izle",
+      "modeFullBand": "Tam şarkıyla devam et",
+      "modeFullBandHint": "Kendi parçan çalar; sen kemanı çalarsın",
+      "pickAudio": "Orijinal parçayı ekle",
+      "pickAudioHint": "BioBand telifli şarkı göndermez. Kemanla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
+      "pickAudioButton": "Ses dosyası seç",
+      "calibrate": "Kemanı parçayla senkronize et",
+      "calibrateHint": "İlk notalar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
+      "calibrateOffset": "Kayma: {{ms}} ms",
+      "calibratePreview": "Önizle",
+      "calibrateStop": "Durdur",
+      "calibrateConfirm": "Uygun",
       "pickLevel": "Ne kadar destek istiyorsun?",
       "demoFinished": "İzleme bitti — şimdi sen çal.",
       "tempo": {
@@ -514,6 +604,30 @@
       "title": "Ayarlar",
       "showFretNumbers": "Perde numaraları",
       "strongGuideHighlight": "Güçlü öğretici vurgusu",
+      "haptics": "Titreşim",
+      "stringAnimation": "Tel titreşim animasyonu",
+      "playingTitle": "Çalım hissi",
+      "bend": "Bend / vibrato",
+      "bendHint": "Nota basılıyken parmağını tel bandı içinde yukarı veya aşağı kaydırarak perdeyi bük — sallayınca vibrato olur.",
+      "velocityCurve": "Dokunuş tepkisi",
+      "velocityCurves": {
+        "soft": "Yumuşak",
+        "normal": "Normal",
+        "hard": "Sert"
+      },
+      "strumFeel": "Strum hissi",
+      "strumFeels": {
+        "tight": "Sıkı",
+        "normal": "Normal",
+        "loose": "Gevşek"
+      },
+      "sustainLength": "Sustain",
+      "sustainLengths": {
+        "short": "Kısa",
+        "normal": "Normal",
+        "long": "Uzun"
+      },
+      "fretRange": "Perde aralığı",
       "playModesTitle": "Çalma modları",
       "playModesHint": "Çubuğu tamamen kapatabilir veya Strum / Arpej / Rasgueado düğmelerini tek tek gizleyebilirsin. En az bir mod açık kalır.",
       "showPlayModeBar": "Çalma modu çubuğunu göster",
@@ -526,7 +640,7 @@
       "close": "Kapat"
     },
     "game": {
-      "title": "Öğretici Mod",
+      "title": "Öğretici Modu",
       "beta": "Beta",
       "pickSong": "Çalmak için bir şarkı seç",
       "difficulty": {
@@ -536,11 +650,25 @@
         "hard": "Zor",
         "empty": "Bu zorlukta şarkı yok"
       },
-      "pickScope": "Şarkının ne kadarını çalmak istiyorsun?",
-      "scopePartial": "Bir bölümle devam et",
-      "scopePartialHint": "Desenin kısa bir kesiti",
-      "scopeFull": "Tüm şarkıyla devam et",
-      "scopeFullHint": "Baştan sona her notayı çal",
+      "pickScope": "Ne kadarını çalmak istersin?",
+      "scopePartial": "Bir kısmı ile devam et",
+      "scopePartialHint": "Şarkıdan kısa bir kesit",
+      "scopeFull": "Tüm şarkıyla ilerle",
+      "scopeFullHint": "Tüm notaları baştan sona çal",
+      "pickMode": "Nasıl devam etmek istersin?",
+      "modeGuitar": "Sadece gitar",
+      "modeGuitarHint": "Şarkıyı yalnızca gitar sesiyle çal / izle",
+      "modeFullBand": "Tam şarkıyla devam et",
+      "modeFullBandHint": "Kendi parçan çalar; sen gitarı çalarsın",
+      "pickAudio": "Orijinal parçayı ekle",
+      "pickAudioHint": "BioBand telifli şarkı göndermez. Gitarla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
+      "pickAudioButton": "Ses dosyası seç",
+      "calibrate": "Gitarı parçayla senkronize et",
+      "calibrateHint": "İlk notalar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
+      "calibrateOffset": "Kayma: {{ms}} ms",
+      "calibratePreview": "Önizle",
+      "calibrateStop": "Durdur",
+      "calibrateConfirm": "Uygun",
       "pickLevel": "Ne kadar destek istersin?",
       "demoFinished": "İzleme bitti — şimdi sen çal.",
       "tempo": {
@@ -636,6 +764,10 @@
       "sweep": "Sweep",
       "subDrop": "Sub drop",
       "noise": "Noise",
+      "laser": "Lazer",
+      "stab": "Stab",
+      "tapeStop": "Bant durdur",
+      "boom": "Patlama",
       "noteC3": "C3",
       "noteD3": "D3",
       "noteE3": "E3",
@@ -651,7 +783,24 @@
       "noteE5": "E5",
       "noteG5": "G5",
       "noteA5": "A5",
-      "noteC6": "C6"
+      "noteC6": "C6",
+      "turkDum": "Düm",
+      "turkTek": "Tek",
+      "turkKa": "Ka",
+      "turkSlap": "Şak",
+      "turkDeepDum": "Derin Düm",
+      "turkFlam": "Flam",
+      "turkBendirDum": "Bendir Düm",
+      "turkBendirTek": "Bendir Tek",
+      "turkBendirBuzz": "Bendir Vız",
+      "turkDef": "Def",
+      "turkDefJingle": "Def Zili",
+      "turkDefSlap": "Def Şak",
+      "turkKasik": "Kaşık",
+      "turkKasikDouble": "Çift Kaşık",
+      "turkZilliMasa": "Zilli Maşa",
+      "turkZilliMasaLong": "Zilli Maşa+",
+      "userSample": "Kaydım"
     },
     "toolbar": {
       "metronome": "Metronom",
@@ -660,14 +809,19 @@
       "volume": "Ses",
       "bank": "Ses bankası",
       "game": "Öğretici · Beta",
-      "settings": "Ayarlar"
+      "settings": "Ayarlar",
+      "looper": "Looper",
+      "xy": "FX yüzeyi",
+      "edit": "Padleri düzenle"
     },
     "banks": {
       "title": "Pad bankası seç",
       "drums": "Davul",
       "melodic": "Melodik",
       "fx": "FX",
-      "close": "Kapat"
+      "close": "Kapat",
+      "turkish": "Türk Ritim",
+      "custom": "Benim Bankım"
     },
     "settings": {
       "title": "Ayarlar",
@@ -681,29 +835,59 @@
         "sixteenth": "1/16"
       },
       "startTutorial": "Öğreticiyi başlat",
-      "close": "Kapat"
+      "close": "Kapat",
+      "feelSection": "Çalım hissi",
+      "velocityMode": "Vuruş şiddeti",
+      "velocityModes": {
+        "position": "Dokunma konumuna göre",
+        "fixed": "Sabit"
+      },
+      "velocityCurve": "Tepki eğrisi",
+      "velocityCurves": {
+        "soft": "Yumuşak",
+        "normal": "Normal",
+        "hard": "Sert"
+      },
+      "haptics": "Titreşim",
+      "looksSection": "Görünüm",
+      "labelMode": "Pad etiketleri",
+      "labelModes": {
+        "name": "İsimler",
+        "note": "Nota / numara",
+        "off": "Gizli"
+      },
+      "padTrail": "LED izi (yavaş sönme)",
+      "stageLight": "Vuruşa tepkili sahne ışığı",
+      "looperSection": "Looper",
+      "quantize": "Quantize",
+      "quantizeModes": {
+        "off": "Kapalı",
+        "half": "%50",
+        "full": "%100"
+      },
+      "quantizeHint": "Loop sırasında vuruşları 1/16 gridine yapıştırır."
     },
     "game": {
-      "title": "Öğretici Mod",
+      "title": "Öğretici Modu",
       "beta": "Beta",
-      "pickSong": "Çalmak için bir pattern seç",
+      "pickSong": "Çalmak için bir şarkı seç",
       "difficulty": {
         "all": "Tümü",
         "easy": "Kolay",
         "medium": "Orta",
         "hard": "Zor",
-        "empty": "Bu zorlukta pattern yok"
+        "empty": "Bu zorlukta şarkı yok"
       },
       "pickMode": "Nasıl devam etmek istersin?",
       "modePads": "Sadece padler",
-      "modePadsHint": "Pattern’i yalnızca pad sesleriyle çal / izle",
+      "modePadsHint": "Şarkıyı yalnızca pad sesleriyle çal / izle",
       "modeFullBand": "Tam şarkıyla devam et",
       "modeFullBandHint": "Kendi parçan çalar; sen padlere vurursun",
-      "pickScope": "Pattern’in ne kadarını çalmak istersin?",
-      "scopePartial": "Bir bölümle devam et",
-      "scopePartialHint": "Pattern’in kısa bir kesiti",
-      "scopeFull": "Tam pattern’le devam et",
-      "scopeFullHint": "Baştan sona her vuruşu çal",
+      "pickScope": "Ne kadarını çalmak istersin?",
+      "scopePartial": "Bir kısmı ile devam et",
+      "scopePartialHint": "Şarkıdan kısa bir kesit",
+      "scopeFull": "Tüm şarkıyla ilerle",
+      "scopeFullHint": "Tüm vuruşları baştan sona çal",
       "pickLevel": "Ne kadar destek istersin?",
       "demoFinished": "İzleme bitti — şimdi sen çal.",
       "tempo": {
@@ -713,7 +897,7 @@
         "fast": "Hızlı"
       },
       "back": "Geri",
-      "backToSongs": "Pattern listesine dön",
+      "backToSongs": "Şarkı listesine dön",
       "close": "Kapat",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Padlerle üstüne çalmak için kendi MP3/M4A dosyanı seç.",
@@ -726,7 +910,7 @@
       "calibrateConfirm": "Uygun",
       "levels": {
         "guided": "Önce izle",
-        "guidedDesc": "Uygulama pattern’i senin için çalar — hangi padlerin yandığını izle.",
+        "guidedDesc": "Uygulama şarkıyı senin için çalar — hangi padlerin yandığını izle.",
         "medium": "Adım adım",
         "mediumDesc": "Sıradaki pad yanar ve seni bekler.",
         "free": "Desteksiz",
@@ -734,14 +918,14 @@
       },
       "hud": {
         "countdown": "Hazır ol… {{count}}",
-        "watching": "İzle… pattern senin için çalıyor",
-        "tapToStart": "Yanan pad’e bas — pattern seni bekliyor",
+        "watching": "İzle… şarkı senin için çalıyor",
+        "tapToStart": "Yanan pad’e bas — şarkı seni bekliyor",
         "progress": "{{done}}/{{total}} vuruş · {{left}} kaldı · {{hits}} isabet",
         "progressWatch": "{{done}}/{{total}} vuruş · {{left}} kaldı",
         "stop": "Durdur"
       },
       "results": {
-        "title": "Pattern bitti!",
+        "title": "Şarkı bitti!",
         "accuracy": "İsabet: {{percent}}%",
         "hits": "Çaldığın: {{count}}",
         "misses": "Kaçan: {{count}}",
@@ -750,23 +934,23 @@
         "change": "Seviye değiştir"
       },
       "import": {
-        "button": "Pattern içe aktar",
+        "button": "Şarkı içe aktar",
         "hint": "JSON/MIDI dosyası veya JSON yapıştır",
         "preloaded": "Hazır",
-        "mySongs": "Pattern’lerim",
-        "empty": "Henüz içe aktarılmış pattern yok",
+        "mySongs": "Şarkılarım",
+        "empty": "Henüz içe aktarılmış şarkı yok",
         "delete": "Sil",
-        "deleteTitle": "Pattern silinsin mi?",
+        "deleteTitle": "Şarkı silinsin mi?",
         "deleteMessage": "\"{{title}}\" listenden kaldırılacak.",
         "deleteConfirm": "Sil",
         "deleteCancel": "İptal",
-        "success": "Pattern eklendi",
+        "success": "Şarkı eklendi",
         "pasteButton": "JSON yapıştır",
-        "pasteTitle": "Pattern JSON",
+        "pasteTitle": "Şarkı JSON",
         "pasteHint": "Dosya seçici yoksa title ve events içeren JSON yapıştır.",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"padId\": \"pad01\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — pattern eklemek için JSON yapıştır.",
+        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) içe aktar.",
           "invalidJson": "JSON dosyası okunamadı.",
@@ -779,8 +963,53 @@
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır."
         }
       },
-      "requestSong": "Aradığın pattern yok mu? İncelemede adını yaz — sonraki sürümde ekleriz.",
+      "requestSong": "Aradığın şarkı yok mu? İncelemede adını yaz — sonraki sürümde ekleriz.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra dene."
+    },
+    "xy": {
+      "filter": "Filtre",
+      "resonance": "Rezonans"
+    },
+    "looper": {
+      "play": "Loop başlat",
+      "stop": "Loop durdur",
+      "record": "Yakalama aç/kapat",
+      "barsShort": "bar",
+      "newLayer": "Katman",
+      "export": "Studio'ya gönder",
+      "exportTitle": "Pad Loop {{date}}",
+      "exportEmpty": "Loop boş - önce birkaç vuruş yakala.",
+      "exportDoneTitle": "Studio'ya gönderildi",
+      "exportDoneMessage": "Her katman ayrı bir kanal oldu. Studio'da açılsın mı?",
+      "exportOpen": "Studio'yu aç",
+      "removeLayerTitle": "Katmanı sil",
+      "removeLayerMessage": "{{index}}. katman silinsin mi? Vuruşları kaybolur.",
+      "removeLayer": "Sil"
+    },
+    "editor": {
+      "title": "Pad {{index}}",
+      "preview": "Dinle",
+      "previewFailed": "Bu ses çalınamadı.",
+      "soundSection": "Ses",
+      "micSection": "Kendi sesini kaydet",
+      "recordSample": "Ses kaydet",
+      "stopRecording": "Durdur",
+      "recordFailed": "Kayıt başarısız oldu.",
+      "decodeFailed": "Bu kayıt ses olarak okunamadı.",
+      "sampleAssigned": "Ses atandı",
+      "mySampleLabel": "Sesim {{index}}",
+      "micHint": "El çırp, masaya vur, söyle - kısa sesler en iyisi (en fazla birkaç saniye).",
+      "colorSection": "Renk",
+      "pitchSection": "Perde (yarım ton)",
+      "gainSection": "Ses seviyesi",
+      "chokeSection": "Choke grubu",
+      "choke": {
+        "none": "Kapalı",
+        "a": "Grup A",
+        "b": "Grup B"
+      },
+      "chokeHint": "Aynı gruptaki padler birbirini susturur - açık/kapalı hi-hat gibi.",
+      "editModeBanner": "Düzenleme modu: özelleştirmek için bir pada dokun"
     }
   },
   "language": {
@@ -803,8 +1032,37 @@
       "speedHud": "Hız göstergesi",
       "scaleLights": "Gam ışıkları",
       "scalePick": "Gam seç",
+      "labelModeTitle": "Nota etiketi",
+      "keyThemeTitle": "Tuş teması",
+      "scaleLockTitle": "Gam kilidi",
+      "scaleLockHint": "Bunun için önce “Gam ışıkları”ndan bir gam seç.",
+      "chordTitle": "Akor modu (tek parmak)",
+      "haptics": "Titreşim",
       "startTutorial": "Öğreticiyi başlat",
       "close": "Kapat"
+    },
+    "labelMode": {
+      "both": "İkisi",
+      "letter": "Harf",
+      "solfege": "Solfej",
+      "none": "Kapalı"
+    },
+    "keyTheme": {
+      "voice": "Enstrümana göre",
+      "ivory": "Fildişi",
+      "contrast": "Yüksek kontrast",
+      "sunset": "Gün batımı"
+    },
+    "scaleLock": {
+      "off": "Kapalı",
+      "mute": "Sessizle",
+      "snap": "Yakına çek"
+    },
+    "chord": {
+      "off": "Kapalı",
+      "major": "Majör",
+      "minor": "Minör",
+      "auto": "Otomatik"
     },
     "scale": {
       "title": "Gam",
@@ -899,10 +1157,10 @@
         "hard": "Zor",
         "empty": "Bu zorlukta şarkı yok"
       },
-      "pickMode": "Nasıl ilerlemek istersin?",
-      "modePiano": "Sadece piyano ile ilerle",
-      "modePianoHint": "Melodiyi yalnız piyano sesiyle çal / izle",
-      "modeFullBand": "Tüm şarkıyla ilerle",
+      "pickMode": "Nasıl devam etmek istersin?",
+      "modePiano": "Sadece piyano",
+      "modePianoHint": "Şarkıyı yalnızca piyano sesiyle çal / izle",
+      "modeFullBand": "Tam şarkıyla devam et",
       "modeFullBandHint": "Kendi orijinal kaydın alçak çalar; piyanoyu sen yüksek çalarsın",
       "pickScope": "Ne kadarını çalmak istersin?",
       "scopePartial": "Bir kısmı ile devam et",
@@ -1038,6 +1296,27 @@
       },
       "odeToJoy": {
         "description": "Beethoven'ın ünlü teması — sakin ve düzenli."
+      },
+      "furElise": {
+        "description": "Beethoven — ünlü açılış teması, La minör."
+      },
+      "riverFlowsInYou": {
+        "description": "Yiruma — akan arpej teması, Sol majör."
+      },
+      "canonInD": {
+        "description": "Pachelbel — ünlü akor döngüsü üzerine yükselen varyasyonlar."
+      },
+      "clairDeLune": {
+        "description": "Debussy — yumuşak, hayalperest açılış teması."
+      },
+      "chopinNocturne": {
+        "description": "Chopin — akıcı, süslemeli şarkı temalı nocturne."
+      },
+      "someoneLikeYou": {
+        "description": "Adele — kıta + nakarat, La majör."
+      },
+      "shapeOfYou": {
+        "description": "Ed Sheeran — ikonik marimba riffi."
       },
       "neyleyimIstanbul": {
         "description": "Murat Dalkılıç — intro + kıta + nakarat (kolaynota)."

@@ -1,3 +1,4 @@
+import type { PadBankId } from '../padsBanks';
 import type { PadSoundId } from '../padsSounds';
 import type { SongBackingTrack } from '../../piano/songs/types';
 
@@ -23,6 +24,11 @@ export type PadSongDefinition = {
   partialCount?: number;
   /** Optional backing track for Band Mode (reuses piano format). */
   backingTrack?: SongBackingTrack;
+  /**
+   * Pad bank the lesson is written for — selecting it auto-switches the
+   * bank (Turkish usûl lessons play on the Turkish bank's darbuka/bendir).
+   */
+  bankId?: PadBankId;
 };
 
 export type ResolvedPadSession = {

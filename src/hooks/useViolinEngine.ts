@@ -1,11 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
-import type { PhraseId } from '../instruments/violin/violinPhrases';
 import {
   initViolinEngine,
   playNote as enginePlayNote,
-  playPhrase as enginePlayPhrase,
   playViolinSoundId,
   releaseViolinEngine,
   setViolinVoice as engineSetViolinVoice,
@@ -58,13 +56,9 @@ export function useViolinEngine(voiceId: ViolinVoiceId = 'classic') {
     enginePlayNote(stringId, position);
   }, []);
 
-  const playPhrase = useCallback((phraseId: PhraseId) => {
-    enginePlayPhrase(phraseId);
-  }, []);
-
   const playSoundId = useCallback((soundId: string) => {
     playViolinSoundId(soundId);
   }, []);
 
-  return { ready, error, playNote, playPhrase, playSoundId };
+  return { ready, error, playNote, playSoundId };
 }

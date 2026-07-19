@@ -18,7 +18,7 @@ function at(bar: number, offset: number, noteId: NoteId): Ev {
 
 /**
  * A theme. `cBar` = bar where Do lands (downbeat).
- * Pickup sits on the previous upbeat. Cadence Mi is E4 (same octave as Sol–Fa#), not E5.
+ * Pickup sits on the previous upbeat. Cadence Mi is E4 (same octave as Sol#–Fa#), not E5.
  */
 function themeA(cBar: number, pickupBeat: number = Q): Ev[] {
   const pBar = cBar - 1;
@@ -53,7 +53,9 @@ function themeA(cBar: number, pickupBeat: number = Q): Ev[] {
     at(cBar + 3, 0, 'C5'),
     at(cBar + 3, Q, 'A4'),
     at(cBar + 3, Q + E, 'C5'),
-    // Si La Sol La ×2 | Si La Sol Fa# | Mi (E4 — step down from Gb4)
+    // Si La Sol La ×2 | Si La Sol Fa# | Mi — G NATURAL, verified against the
+    // Mutopia engraving of K.331: m5–7 top line is B + <fis a> + <e g> dyads
+    // (with an explicit g! natural), i.e. B–A–G♮–A … B–A–G♮–F# → E.
     at(cBar + 4, 0, 'B4'),
     at(cBar + 4, S, 'A4'),
     at(cBar + 4, 2 * S, 'G4'),
@@ -123,10 +125,12 @@ function middle(startBar: number): Ev[] {
 function themeAClose(cBar: number): Ev[] {
   const pBar = cBar - 1;
   return [
-    at(pBar, 0, 'B4'),
-    at(pBar, S, 'A4'),
-    at(pBar, 2 * S, 'Ab4'),
-    at(pBar, 3 * S, 'A4'),
+    // Pickup on the upbeat (beat 2) so the four sixteenths flow straight into
+    // the Do downbeat — at beat 1 they leave a half-bar hole before Do.
+    at(pBar, Q, 'B4'),
+    at(pBar, Q + S, 'A4'),
+    at(pBar, Q + 2 * S, 'Ab4'),
+    at(pBar, Q + 3 * S, 'A4'),
     at(cBar, 0, 'C5'),
     at(cBar, Q, 'D5'),
     at(cBar, Q + S, 'C5'),
@@ -145,7 +149,10 @@ function themeAClose(cBar: number): Ev[] {
     at(cBar + 2, Q + S, 'A4'),
     at(cBar + 2, Q + 2 * S, 'Ab4'),
     at(cBar + 2, Q + 3 * S, 'A4'),
-    // Do — then 2nd ending (not Sol–Fa#–Mi)
+    // Do | La Si — then the real 2nd-ending run (Mutopia rightaa):
+    // C–B–A–G#–A then DOWN to E–F–D (source: a→e is a falling fourth), and
+    // the final cadence Do–Si–La. Keeping E–F–D in the low octave preserves
+    // the run's downward sweep instead of leaping up mid-phrase.
     at(cBar + 3, 0, 'C5'),
     at(cBar + 3, Q, 'A4'),
     at(cBar + 3, Q + E, 'B4'),
@@ -154,19 +161,20 @@ function themeAClose(cBar: number): Ev[] {
     at(cBar + 4, Q, 'A4'),
     at(cBar + 4, Q + E, 'Ab4'),
     at(cBar + 5, 0, 'A4'),
-    at(cBar + 5, S, 'E5'),
-    at(cBar + 5, 2 * S, 'F5'),
-    at(cBar + 5, 3 * S, 'D5'),
+    at(cBar + 5, S, 'E4'),
+    at(cBar + 5, 2 * S, 'F4'),
+    at(cBar + 5, 3 * S, 'D4'),
     at(cBar + 5, Q, 'C5'),
     at(cBar + 5, Q + E, 'B4'),
     at(cBar + 6, 0, 'A4'),
   ];
 }
 
-// 2nd A pickup on the beat right after Mi (E 8th + pickup), no empty bar.
+// 2nd A pickup on the upbeat of bar 7 so the sixteenths run straight into the
+// bar-8 Do (at beat 1 they'd leave a half-bar hole before the downbeat).
 const EVENTS: Ev[] = [
   ...themeA(1, Q),
-  ...themeA(8, 0),
+  ...themeA(8, Q),
   ...middle(14),
   ...themeAClose(23),
 ];

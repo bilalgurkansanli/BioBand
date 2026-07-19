@@ -14,6 +14,18 @@ import {
   TOM_FILL_EVENTS,
   WE_WILL_ROCK_YOU_EVENTS,
 } from './patterns';
+import {
+  ANOTHER_ONE_BITES_THE_DUST_EVENTS,
+  BACK_IN_BLACK_EVENTS,
+  DONENCE_EVENTS,
+  IN_THE_AIR_TONIGHT_EVENTS,
+  STAYIN_ALIVE_EVENTS,
+  SUPERSTITION_EVENTS,
+  UPTOWN_FUNK_EVENTS,
+  WALK_THIS_WAY_EVENTS,
+  WHEN_THE_LEVEE_BREAKS_EVENTS,
+  WIPE_OUT_EVENTS,
+} from './patternsExtra';
 import type { DrumSongDefinition } from './types';
 
 export const DRUM_SONGS: DrumSongDefinition[] = [
@@ -82,6 +94,86 @@ export const DRUM_SONGS: DrumSongDefinition[] = [
     partialCount: 28,
   },
   {
+    id: 'in-the-air-tonight',
+    title: 'In the Air Tonight',
+    difficulty: 'hard',
+    events: IN_THE_AIR_TONIGHT_EVENTS,
+    /** 2 intro bars + THE tom fill. */
+    partialCount: 28,
+  },
+  {
+    id: 'back-in-black',
+    title: 'Back in Black',
+    difficulty: 'medium',
+    events: BACK_IN_BLACK_EVENTS,
+    /** First 2 bars of the rock pocket. */
+    partialCount: 24,
+  },
+  {
+    id: 'another-one-bites-the-dust',
+    title: 'Another One Bites the Dust',
+    difficulty: 'easy',
+    events: ANOTHER_ONE_BITES_THE_DUST_EVENTS,
+    /** 2 bass-riff bars on the kick + first groove bar. */
+    partialCount: 25,
+  },
+  {
+    id: 'when-the-levee-breaks',
+    title: 'When the Levee Breaks',
+    difficulty: 'medium',
+    events: WHEN_THE_LEVEE_BREAKS_EVENTS,
+    /** First 2 bars of the Bonham groove. */
+    partialCount: 26,
+  },
+  {
+    id: 'superstition',
+    title: 'Superstition',
+    difficulty: 'hard',
+    events: SUPERSTITION_EVENTS,
+    /** First 2 funk bars (straight + pushed). */
+    partialCount: 27,
+  },
+  {
+    id: 'wipe-out',
+    title: 'Wipe Out',
+    difficulty: 'hard',
+    events: WIPE_OUT_EVENTS,
+    /** Snare roll-in + first surf groove bar. */
+    partialCount: 22,
+  },
+  {
+    id: 'walk-this-way',
+    title: 'Walk This Way',
+    difficulty: 'medium',
+    events: WALK_THIS_WAY_EVENTS,
+    /** The 2-bar opening drum break. */
+    partialCount: 26,
+  },
+  {
+    id: 'stayin-alive',
+    title: "Stayin' Alive",
+    difficulty: 'easy',
+    events: STAYIN_ALIVE_EVENTS,
+    /** First 2 disco bars. */
+    partialCount: 28,
+  },
+  {
+    id: 'uptown-funk',
+    title: 'Uptown Funk',
+    difficulty: 'medium',
+    events: UPTOWN_FUNK_EVENTS,
+    /** First 2 funk bars. */
+    partialCount: 24,
+  },
+  {
+    id: 'donence',
+    title: 'Dönence',
+    difficulty: 'medium',
+    events: DONENCE_EVENTS,
+    /** First 2 disco bars. */
+    partialCount: 28,
+  },
+  {
     id: 'kick-snare',
     title: 'Kick & Snare',
     difficulty: 'easy',
@@ -94,14 +186,16 @@ export const DRUM_SONGS: DrumSongDefinition[] = [
     title: 'Basic Rock',
     difficulty: 'easy',
     events: BASIC_ROCK_EVENTS,
-    partialCount: 16,
+    /** Exactly bar 1 (8 hats + 2 kicks + 2 snares). */
+    partialCount: 12,
   },
   {
     id: 'disco-floor',
     title: 'Disco Floor',
     difficulty: 'medium',
     events: DISCO_FLOOR_EVENTS,
-    partialCount: 12,
+    /** Exactly bar 1 (4 kicks + 2 snares + 4 open hats). */
+    partialCount: 10,
   },
   {
     id: 'tom-fill',
@@ -115,7 +209,8 @@ export const DRUM_SONGS: DrumSongDefinition[] = [
     title: 'Ride Groove',
     difficulty: 'medium',
     events: RIDE_GROOVE_EVENTS,
-    partialCount: 16,
+    /** Exactly bar 1 (8 rides + 3 kicks + 2 snares). */
+    partialCount: 13,
   },
   {
     id: 'simple-samba',

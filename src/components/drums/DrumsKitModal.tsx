@@ -56,6 +56,11 @@ export function DrumsKitModal({
                   >
                     {t(kit.labelKey)}
                   </Text>
+                  <View style={styles.swatchRow}>
+                    <View style={[styles.swatch, { backgroundColor: kit.theme.shell }]} />
+                    <View style={[styles.swatch, { backgroundColor: kit.theme.cymbal }]} />
+                    <View style={[styles.swatch, { backgroundColor: kit.theme.head }]} />
+                  </View>
                 </Pressable>
               );
             })}
@@ -116,5 +121,17 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: 6,
+  },
+  swatch: {
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    borderRadius: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    height: 8,
+    width: 8,
   },
 });

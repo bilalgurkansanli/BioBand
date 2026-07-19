@@ -11,6 +11,7 @@ import {
   BPM_MIN,
   createEmptyGrid,
   isValidGrid,
+  normalizeGrid,
   type DrumMachineGrid,
 } from '../instruments/drumMachine/drumMachineRows';
 import { patternToSavedRecording } from '../instruments/drumMachine/patternToRecording';
@@ -71,7 +72,8 @@ export async function loadDrumMachinePatterns(): Promise<DrumMachinePattern[]> {
         ...pattern,
         machineType: pattern.machineType ?? 'drums',
         bpm: clampBpm(pattern.bpm),
-        grid: pattern.grid.map((row) => [...row]),
+        // Legacy boolean grids from older versions become velocity grids.
+        grid: normalizeGrid(pattern.grid),
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
   } catch {
@@ -84,13 +86,17 @@ export async function saveDrumMachinePattern(input: {
   bpm: number;
   machineType: DrumMachineTypeId;
   grid: DrumMachineGrid;
+  /** How many loops to bake into the mirrored take (settings default: 2). */
+  loops?: number;
+  /** Active drum kit — stamped onto the mirrored take for drums patterns. */
+  drumKitId?: string;
 }): Promise<DrumMachinePattern> {
   const pattern: DrumMachinePattern = {
     id: `dm-${Date.now()}`,
     title: input.title.trim() || 'Pattern',
     bpm: clampBpm(input.bpm),
     machineType: input.machineType,
-    grid: input.grid.map((row) => [...row]),
+    grid: normalizeGrid(input.grid),
     createdAt: Date.now(),
   };
   const all = await loadDrumMachinePatterns();
@@ -98,7 +104,7 @@ export async function saveDrumMachinePattern(input: {
   await persist(all);
 
   // Mirror into Kayıtlarım so patterns show up with other takes.
-  const take = patternToSavedRecording(pattern);
+  const take = patternToSavedRecording(pattern, input.loops, input.drumKitId);
   await saveRecording(take);
   void awardRecordingPractice(take.instrument, take.durationMs);
 
@@ -130,6 +136,41 @@ export async function syncDrumMachinePatternsToRecordings(): Promise<void> {
       existingIds.add(pattern.id);
     }
   }
+}
+
+/**
+ * Validates a parsed beat share-file payload and saves it as a new pattern.
+ * Accepts both the wrapped `bioband-beat-v1` format and a bare pattern object.
+ */
+export async function importDrumMachinePattern(
+  payload: unknown,
+): Promise<DrumMachinePattern | null> {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const wrapper = payload as { format?: unknown; pattern?: unknown };
+  const candidate = (
+    wrapper.format === 'bioband-beat-v1' ? wrapper.pattern : payload
+  ) as Partial<DrumMachinePattern> | undefined;
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+  const type = isDrumMachineTypeId(candidate.machineType)
+    ? candidate.machineType
+    : 'drums';
+  const expectedRows = getDrumMachineBank(type).rows.length;
+  if (typeof candidate.bpm !== 'number' || !isValidGrid(candidate.grid, expectedRows)) {
+    return null;
+  }
+  return saveDrumMachinePattern({
+    title:
+      typeof candidate.title === 'string' && candidate.title.trim()
+        ? candidate.title.trim()
+        : 'Beat',
+    bpm: candidate.bpm,
+    machineType: type,
+    grid: normalizeGrid(candidate.grid),
+  });
 }
 
 export function emptyPatternDraft(

@@ -49,7 +49,11 @@ function isStudioTrack(value: unknown): value is StudioTrack {
     (track.events === undefined ||
       (Array.isArray(track.events) && track.events.every(isInstrumentEvent))) &&
     (track.audioUri === undefined || typeof track.audioUri === 'string') &&
-    (track.sourceTakeId === undefined || typeof track.sourceTakeId === 'string')
+    (track.sourceTakeId === undefined || typeof track.sourceTakeId === 'string') &&
+    (track.drumKitId === undefined || typeof track.drumKitId === 'string') &&
+    (track.guitarVoiceId === undefined || typeof track.guitarVoiceId === 'string') &&
+    (track.violinVoiceId === undefined || typeof track.violinVoiceId === 'string') &&
+    (track.padBankId === undefined || typeof track.padBankId === 'string')
   );
 }
 
@@ -220,6 +224,10 @@ function buildTrackFromTake(
     events: take.events ? take.events.map((event) => ({ ...event })) : undefined,
     audioUri,
     sourceTakeId: take.id,
+    drumKitId: take.drumKitId,
+    guitarVoiceId: take.guitarVoiceId,
+    violinVoiceId: take.violinVoiceId,
+    padBankId: take.padBankId,
   };
 }
 

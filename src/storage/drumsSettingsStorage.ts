@@ -16,6 +16,10 @@ export type DrumsUiSettings = {
   showPadLabels: boolean;
   /** Flash guide ring stronger during tutorial. */
   strongGuideHighlight: boolean;
+  /** Vibrate on every drum hit. */
+  haptics: boolean;
+  /** Piece size multiplier (0.9 small / 1 normal / 1.15 large). */
+  padScale: number;
   /** Last selected drum kit. */
   kitId: DrumKitId;
   /** Last FX mix used on the drums screen. */
@@ -25,9 +29,18 @@ export type DrumsUiSettings = {
 export const DEFAULT_DRUMS_UI_SETTINGS: DrumsUiSettings = {
   showPadLabels: false,
   strongGuideHighlight: true,
+  haptics: false,
+  padScale: 1,
   kitId: 'acoustic',
   fx: createDefaultPianoFxSettings(),
 };
+
+function parsePadScale(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_DRUMS_UI_SETTINGS.padScale;
+  }
+  return Math.max(0.8, Math.min(1.3, value));
+}
 
 function parseKitId(value: unknown): DrumKitId {
   if (typeof value === 'string' && VALID_KIT_IDS.has(value)) {
@@ -55,6 +68,11 @@ export async function loadDrumsUiSettings(): Promise<DrumsUiSettings> {
         typeof parsed.strongGuideHighlight === 'boolean'
           ? parsed.strongGuideHighlight
           : DEFAULT_DRUMS_UI_SETTINGS.strongGuideHighlight,
+      haptics:
+        typeof parsed.haptics === 'boolean'
+          ? parsed.haptics
+          : DEFAULT_DRUMS_UI_SETTINGS.haptics,
+      padScale: parsePadScale(parsed.padScale),
       kitId: parseKitId(parsed.kitId),
       fx: parseStoredPianoFxSettings(parsed.fx),
     };

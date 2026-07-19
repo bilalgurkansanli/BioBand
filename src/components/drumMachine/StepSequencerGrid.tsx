@@ -1,12 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { memo } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type {
   DrumMachineRowDef,
   DrumMachineTheme,
 } from '../../instruments/drumMachine/drumMachineBanks';
-import { STEP_COUNT, type DrumMachineGrid } from '../../instruments/drumMachine/drumMachineRows';
+import {
+  stepGroupIndex,
+  type DrumMachineGrid,
+} from '../../instruments/drumMachine/drumMachineRows';
 import { colors } from '../../theme/colors';
 
 type Props = {
@@ -14,20 +18,131 @@ type Props = {
   theme: DrumMachineTheme;
   grid: DrumMachineGrid;
   currentStep: number;
+  mutedRows: ReadonlySet<number>;
   onToggleCell: (rowIndex: number, stepIndex: number) => void;
-  onPreviewRow: (playKey: string) => void;
+  onPreviewRow: (rowIndex: number) => void;
+  onToggleMuteRow: (rowIndex: number) => void;
 };
+
+// The playhead advances every 16th note (83ms at 180 BPM), which re-renders
+// the whole grid. Memoized cells keep that tick down to the two affected
+// playhead columns instead of all rows × steps.
+const StepCell = memo(function StepCell({
+  rowIndex,
+  stepIndex,
+  level,
+  isPlayhead,
+  offColor,
+  accent,
+  onToggleCell,
+}: {
+  rowIndex: number;
+  stepIndex: number;
+  level: number;
+  isPlayhead: boolean;
+  offColor: string;
+  accent: string;
+  onToggleCell: (rowIndex: number, stepIndex: number) => void;
+}) {
+  const on = level > 0;
+  const isAccent = level >= 2;
+  return (
+    <Pressable
+      onPress={() => onToggleCell(rowIndex, stepIndex)}
+      style={[
+        styles.cell,
+        {
+          backgroundColor: on
+            ? accent
+            : isPlayhead
+              ? 'rgba(255,255,255,0.14)'
+              : offColor,
+          borderColor: isPlayhead ? '#FFFFFF' : on ? accent : colors.border,
+          borderWidth: isPlayhead ? 2 : 1,
+          opacity: on && !isAccent ? 0.72 : 1,
+        },
+        isPlayhead && on && styles.cellPlayheadOn,
+      ]}
+    >
+      {isAccent ? <View style={styles.accentDot} /> : null}
+    </Pressable>
+  );
+});
+
+const SequencerRow = memo(function SequencerRow({
+  row,
+  rowIndex,
+  cells,
+  currentStep,
+  muted,
+  theme,
+  onToggleCell,
+  onPreviewRow,
+  onToggleMuteRow,
+}: {
+  row: DrumMachineRowDef;
+  rowIndex: number;
+  cells: number[] | undefined;
+  currentStep: number;
+  muted: boolean;
+  theme: DrumMachineTheme;
+  onToggleCell: (rowIndex: number, stepIndex: number) => void;
+  onPreviewRow: (rowIndex: number) => void;
+  onToggleMuteRow: (rowIndex: number) => void;
+}) {
+  const { t } = useTranslation();
+  const stepCount = cells?.length ?? 0;
+  const headColor = muted ? colors.textSecondary : theme.accent;
+
+  return (
+    <View style={[styles.row, muted && styles.rowMuted]}>
+      <Pressable
+        accessibilityLabel={t(row.labelKey)}
+        onLongPress={() => onToggleMuteRow(rowIndex)}
+        onPress={() => onPreviewRow(rowIndex)}
+        style={[styles.iconBtn, { borderColor: headColor }]}
+      >
+        {muted ? (
+          <Ionicons color={headColor} name="volume-mute-outline" size={16} />
+        ) : row.shortLabel ? (
+          <Text style={[styles.iconLabel, { color: headColor }]}>
+            {row.shortLabel}
+          </Text>
+        ) : (
+          <Ionicons color={headColor} name={row.icon} size={18} />
+        )}
+      </Pressable>
+      <View style={styles.steps}>
+        {Array.from({ length: stepCount }, (_, stepIndex) => {
+          const groupParity = stepGroupIndex(stepCount, stepIndex) % 2 === 0;
+          return (
+            <StepCell
+              key={stepIndex}
+              accent={theme.accent}
+              isPlayhead={currentStep === stepIndex}
+              level={cells?.[stepIndex] ?? 0}
+              offColor={groupParity ? theme.cellOffA : theme.cellOffB}
+              onToggleCell={onToggleCell}
+              rowIndex={rowIndex}
+              stepIndex={stepIndex}
+            />
+          );
+        })}
+      </View>
+    </View>
+  );
+});
 
 export function StepSequencerGrid({
   rows,
   theme,
   grid,
   currentStep,
+  mutedRows,
   onToggleCell,
   onPreviewRow,
+  onToggleMuteRow,
 }: Props) {
-  const { t } = useTranslation();
-
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContent}
@@ -35,40 +150,18 @@ export function StepSequencerGrid({
       style={[styles.root, { backgroundColor: theme.stageBg }]}
     >
       {rows.map((row, rowIndex) => (
-        <View key={`${row.playKey}-${rowIndex}`} style={styles.row}>
-          <Pressable
-            accessibilityLabel={t(row.labelKey)}
-            onPress={() => onPreviewRow(row.playKey)}
-            style={[styles.iconBtn, { borderColor: theme.accent }]}
-          >
-            <Ionicons color={theme.accent} name={row.icon} size={18} />
-          </Pressable>
-          <View style={styles.steps}>
-            {Array.from({ length: STEP_COUNT }, (_, stepIndex) => {
-              const on = grid[rowIndex]?.[stepIndex] ?? false;
-              const beatGroup = Math.floor(stepIndex / 4) % 2 === 0;
-              const isPlayhead = currentStep === stepIndex;
-              return (
-                <Pressable
-                  key={stepIndex}
-                  onPress={() => onToggleCell(rowIndex, stepIndex)}
-                  style={[
-                    styles.cell,
-                    {
-                      backgroundColor: on
-                        ? theme.accent
-                        : beatGroup
-                          ? theme.cellOffA
-                          : theme.cellOffB,
-                      borderColor: isPlayhead ? '#FFFFFF' : on ? theme.accent : colors.border,
-                      borderWidth: isPlayhead ? 2 : 1,
-                    },
-                  ]}
-                />
-              );
-            })}
-          </View>
-        </View>
+        <SequencerRow
+          key={`${row.playKey}-${rowIndex}`}
+          cells={grid[rowIndex]}
+          currentStep={currentStep}
+          muted={mutedRows.has(rowIndex)}
+          onPreviewRow={onPreviewRow}
+          onToggleCell={onToggleCell}
+          onToggleMuteRow={onToggleMuteRow}
+          row={row}
+          rowIndex={rowIndex}
+          theme={theme}
+        />
       ))}
     </ScrollView>
   );
@@ -90,6 +183,9 @@ const styles = StyleSheet.create({
     gap: 6,
     height: 32,
   },
+  rowMuted: {
+    opacity: 0.4,
+  },
   iconBtn: {
     alignItems: 'center',
     backgroundColor: colors.surfaceLight,
@@ -99,6 +195,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 36,
   },
+  iconLabel: {
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
   steps: {
     flex: 1,
     flexDirection: 'row',
@@ -106,8 +207,19 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   cell: {
+    alignItems: 'center',
     borderRadius: 5,
     flex: 1,
+    justifyContent: 'center',
     minWidth: 0,
+  },
+  cellPlayheadOn: {
+    transform: [{ scale: 1.08 }],
+  },
+  accentDot: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 2,
+    height: 4,
+    width: 4,
   },
 });

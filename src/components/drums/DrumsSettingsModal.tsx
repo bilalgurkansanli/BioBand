@@ -13,12 +13,34 @@ import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
+export type DrumsAmbienceId = 'dry' | 'garage' | 'studio' | 'arena';
+
+export const PAD_SCALE_OPTIONS = [
+  { id: 'small', value: 0.9, labelKey: 'drums.settings.padSizeSmall' },
+  { id: 'normal', value: 1, labelKey: 'drums.settings.padSizeNormal' },
+  { id: 'large', value: 1.15, labelKey: 'drums.settings.padSizeLarge' },
+] as const;
+
+const AMBIENCE_OPTIONS: { id: DrumsAmbienceId; labelKey: string }[] = [
+  { id: 'dry', labelKey: 'drums.settings.ambienceDry' },
+  { id: 'garage', labelKey: 'drums.settings.ambienceGarage' },
+  { id: 'studio', labelKey: 'drums.settings.ambienceStudio' },
+  { id: 'arena', labelKey: 'drums.settings.ambienceArena' },
+];
+
 type DrumsSettingsModalProps = {
   visible: boolean;
   showPadLabels: boolean;
   strongGuideHighlight: boolean;
+  haptics: boolean;
+  padScale: number;
+  /** Which ambience preset the current FX mix matches (null = custom). */
+  activeAmbience: DrumsAmbienceId | null;
   onChangeShowPadLabels: (value: boolean) => void;
   onChangeStrongGuideHighlight: (value: boolean) => void;
+  onChangeHaptics: (value: boolean) => void;
+  onChangePadScale: (scale: number) => void;
+  onApplyAmbience: (preset: DrumsAmbienceId) => void;
   onStartTutorial: () => void;
   onClose: () => void;
 };
@@ -27,8 +49,14 @@ export function DrumsSettingsModal({
   visible,
   showPadLabels,
   strongGuideHighlight,
+  haptics,
+  padScale,
+  activeAmbience,
   onChangeShowPadLabels,
   onChangeStrongGuideHighlight,
+  onChangeHaptics,
+  onChangePadScale,
+  onApplyAmbience,
   onStartTutorial,
   onClose,
 }: DrumsSettingsModalProps) {
@@ -36,8 +64,12 @@ export function DrumsSettingsModal({
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      {/* The card must NOT be a Pressable: a Pressable ancestor can claim the
+          gesture and block the ScrollView's drag. The dismiss area is an
+          absolute-fill sibling behind the card instead. */}
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('drums.settings.close')}
             onClose={onClose}
@@ -46,7 +78,8 @@ export function DrumsSettingsModal({
 
           <ScrollView
             contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
+            nestedScrollEnabled
+            showsVerticalScrollIndicator
             style={styles.scroll}
           >
             <View style={styles.row}>
@@ -71,6 +104,60 @@ export function DrumsSettingsModal({
               />
             </View>
 
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('drums.settings.haptics')}</Text>
+              <Switch
+                onValueChange={onChangeHaptics}
+                thumbColor={haptics ? colors.accent : '#7A7A7E'}
+                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                value={haptics}
+              />
+            </View>
+
+            <Text style={styles.groupLabel}>{t('drums.settings.padSize')}</Text>
+            <View style={styles.chipRow}>
+              {PAD_SCALE_OPTIONS.map((option) => {
+                const active = Math.abs(padScale - option.value) < 0.01;
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => onChangePadScale(option.value)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      active && styles.chipActive,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {t(option.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={styles.groupLabel}>{t('drums.settings.ambience')}</Text>
+            <View style={styles.chipRow}>
+              {AMBIENCE_OPTIONS.map((option) => {
+                const active = activeAmbience === option.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => onApplyAmbience(option.id)}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      active && styles.chipActive,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {t(option.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             <Pressable
               onPress={() => {
                 onClose();
@@ -88,8 +175,8 @@ export function DrumsSettingsModal({
               openFailedKey="drums.game.requestSongOpenFailed"
             />
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -105,7 +192,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 16,
-    maxHeight: '80%',
+    maxHeight: '85%',
     maxWidth: 420,
     paddingBottom: 16,
     paddingHorizontal: 16,
@@ -113,7 +200,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   scroll: {
-    maxHeight: 320,
+    // Let the card's maxHeight bound it — a fixed height here made the list
+    // unscrollable when the window was shorter than the cap (landscape).
+    flexGrow: 0,
+    flexShrink: 1,
   },
   scrollContent: {
     gap: 12,
@@ -148,5 +238,37 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  groupLabel: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipActive: {
+    backgroundColor: `${colors.accent}22`,
+    borderColor: colors.accent,
+  },
+  chipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  chipTextActive: {
+    color: colors.accent,
   },
 });

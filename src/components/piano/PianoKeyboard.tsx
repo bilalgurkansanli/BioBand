@@ -7,6 +7,7 @@ import {
   type NoteId,
 } from '../../instruments/piano/pianoNotes';
 import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
+import type { PianoLabelMode } from '../../storage/pianoSettingsStorage';
 import { PianoKey } from './PianoKey';
 
 const KEY_GAP = 2;
@@ -74,6 +75,7 @@ type PianoKeyboardProps = {
   /** Notes belonging to the selected scale (soft highlight). */
   scaleNoteIds?: ReadonlySet<NoteId> | null;
   theme?: PianoKeyboardTheme;
+  labelMode?: PianoLabelMode;
 };
 
 export function PianoKeyboard({
@@ -86,6 +88,7 @@ export function PianoKeyboard({
   demoNoteId = null,
   scaleNoteIds = null,
   theme = DEFAULT_THEME,
+  labelMode = 'both',
 }: PianoKeyboardProps) {
   const { whiteKeyWidth, whiteKeyHeight, blackKeyWidth, blackKeyHeight, keyboardWidth, keyLayout } =
     useMemo(() => {
@@ -210,6 +213,7 @@ export function PianoKeyboard({
               isGuide={guideNoteId === note.id}
               isInScale={scaleNoteIds?.has(note.id) ?? false}
               keyColors={theme.keys}
+              labelMode={labelMode}
               letterLabel={note.label}
               noteId={note.id}
               solfegeLabel={note.solfegeLabel}
@@ -234,6 +238,7 @@ export function PianoKeyboard({
                 isGuide={guideNoteId === note.id}
                 isInScale={scaleNoteIds?.has(note.id) ?? false}
                 keyColors={theme.keys}
+                labelMode={labelMode}
                 letterLabel={note.label}
                 noteId={note.id}
                 solfegeLabel={note.solfegeLabel}

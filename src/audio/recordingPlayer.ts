@@ -2,14 +2,27 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { restorePlaybackAudioMode } from './initAudio';
 import { stopAllVoices } from './sampleBank';
-import { initDrumsEngine, playHit, releaseDrumsEngine } from '../instruments/drums/drumsEngine';
+import {
+  initDrumsEngine,
+  playHit,
+  releaseDrumsEngine,
+  setDrumKit,
+} from '../instruments/drums/drumsEngine';
+import { isDrumKitId } from '../instruments/drums/drumsKits';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
 import {
   initGuitarEngine,
   playGuitarSoundId,
   releaseGuitarEngine,
+  setGuitarVoice,
 } from '../instruments/guitar/guitarEngine';
-import { initPadsEngine, releasePadsEngine, triggerPad } from '../instruments/pads/padsEngine';
+import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
+import {
+  initPadsEngine,
+  releasePadsEngine,
+  triggerPadForBank,
+} from '../instruments/pads/padsEngine';
+import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
 import type { PadSoundId } from '../instruments/pads/padsSounds';
 import {
   initPianoEngine,
@@ -21,7 +34,10 @@ import {
   initViolinEngine,
   playViolinSoundId,
   releaseViolinEngine,
+  setViolinVoice,
+  stopViolinPhrases,
 } from '../instruments/violin/violinEngine';
+import { isViolinVoiceId } from '../instruments/violin/violinVoices';
 import type { InstrumentId, SavedRecording } from '../types/recording';
 
 export type RecordingPlaybackHandle = {
@@ -79,19 +95,24 @@ function releaseInstrumentEngine(instrument: InstrumentId): void {
   }
 }
 
-function playInstrumentEvent(instrument: InstrumentId, soundId: string): void {
+function playInstrumentEvent(
+  instrument: InstrumentId,
+  soundId: string,
+  velocity?: number,
+  padBankId: PadBankId = 'drums',
+): void {
   switch (instrument) {
     case 'piano':
       playPianoNote(soundId as NoteId);
       return;
     case 'drums':
-      playHit(soundId as DrumSoundId);
+      playHit(soundId as DrumSoundId, velocity);
       return;
     case 'pads':
-      triggerPad(soundId as PadSoundId);
+      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1);
       return;
     case 'guitar': {
-      playGuitarSoundId(soundId);
+      playGuitarSoundId(soundId, velocity);
       return;
     }
     case 'violin': {
@@ -115,6 +136,9 @@ function stopActivePlayback(): void {
     }
     activeMicPlayer = null;
   }
+  // Phrase presets schedule their notes inside the violin engine — cancel
+  // them too, or a stop mid-phrase keeps sounding the rest.
+  stopViolinPhrases();
   stopAllVoices();
 }
 
@@ -183,6 +207,25 @@ export async function playSavedRecording(
 
   await ensureInstrumentEngine(recording.instrument);
 
+  // Replay with the kit/voice the take was performed on — not whatever the
+  // engine happens to be left on. Older takes without one default to the base.
+  if (recording.instrument === 'drums') {
+    setDrumKit(isDrumKitId(recording.drumKitId) ? recording.drumKitId : 'acoustic');
+  }
+  if (recording.instrument === 'guitar') {
+    setGuitarVoice(
+      isGuitarVoiceId(recording.guitarVoiceId) ? recording.guitarVoiceId : 'nylon',
+    );
+  }
+  if (recording.instrument === 'violin') {
+    setViolinVoice(
+      isViolinVoiceId(recording.violinVoiceId) ? recording.violinVoiceId : 'classic',
+    );
+  }
+  const padBankId: PadBankId = isPadBankId(recording.padBankId)
+    ? recording.padBankId
+    : 'drums';
+
   const timers: ReturnType<typeof setTimeout>[] = [];
   let finished = false;
 
@@ -195,6 +238,7 @@ export async function playSavedRecording(
       clearTimeout(timer);
     }
     timers.length = 0;
+    stopViolinPhrases();
     stopAllVoices();
     activeCancel = null;
     onEnded();
@@ -206,7 +250,7 @@ export async function playSavedRecording(
     }
     timers.push(
       setTimeout(() => {
-        playInstrumentEvent(recording.instrument, event.soundId);
+        playInstrumentEvent(recording.instrument, event.soundId, event.velocity, padBankId);
       }, event.atMs),
     );
   }

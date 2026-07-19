@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ChordBar } from './ChordBar';
 import { ChordPlayModeBar } from './ChordPlayModeBar';
-import { GuitarStringRow } from './GuitarStringRow';
+import { GuitarStringRow, type StringPulseHandler } from './GuitarStringRow';
 import {
   ALL_GUITAR_CHORD_IDS,
   getChordById,
@@ -31,8 +31,15 @@ import {
   parseGuitarSoundId,
   type GuitarStringId,
 } from '../../instruments/guitar/guitarSounds';
-import type { GuitarStrumDirection } from '../../instruments/guitar/guitarEngine';
-import { guitarVelocityFromStringLocalY } from '../../instruments/guitar/guitarVelocity';
+import {
+  setGuitarPluckListener,
+  type GuitarStrumDirection,
+} from '../../instruments/guitar/guitarEngine';
+import {
+  applyGuitarVelocityCurve,
+  guitarVelocityFromStringLocalY,
+  type GuitarVelocityCurveId,
+} from '../../instruments/guitar/guitarVelocity';
 import type { GuitarVoiceTheme } from '../../instruments/guitar/guitarVoices';
 import { getGuitarVoice } from '../../instruments/guitar/guitarVoices';
 import { colors } from '../../theme/colors';
@@ -46,6 +53,17 @@ type FretCell = {
   velocity: number;
 };
 
+type TrackedTouch = {
+  cell: FretCell;
+  /** Board Y at pluck — bend measures vertical travel from here. */
+  originY: number;
+};
+
+/** Vertical travel inside the band is bend: small deadzone, then 0→2 semitones. */
+const BEND_DEADZONE_RATIO = 0.08;
+const BEND_RANGE_RATIO = 0.45;
+const BEND_MAX_SEMITONES = 2;
+
 type BoardLayout = {
   width: number;
   height: number;
@@ -55,6 +73,16 @@ type BoardLayout = {
 type FretboardProps = {
   onPluckIn: (stringId: GuitarStringId, fret: number, velocity: number) => void;
   onPluckOut?: (stringId: GuitarStringId, fret: number) => void;
+  /** Live bend for a held cell — semitones ≥ 0 above the fretted pitch. */
+  onBend?: (stringId: GuitarStringId, fret: number, semitones: number) => void;
+  /** Enable the bend/vibrato drag gesture (settings). */
+  bendEnabled?: boolean;
+  /** Settings touch-response curve applied to pluck velocity. */
+  velocityCurve?: GuitarVelocityCurveId;
+  /** String vibration visuals — off skips all per-pluck UI work (settings). */
+  stringAnimationEnabled?: boolean;
+  /** Highest fret shown (settings fret range); guide/chord shapes re-expand it. */
+  maxFret?: number;
   /** Arm + play (`direction`), or deselect when `direction` is null. */
   onSelectChord: (
     chordId: ChordId,
@@ -88,7 +116,6 @@ const STRING_THICKNESS: Record<GuitarStringId, number> = {
 
 const LABEL_WIDTH = 18;
 const LABEL_GAP = 6;
-const FRET_COUNT = GUITAR_MAX_FRET + 1;
 
 function cellKey(cell: FretCell): string {
   return `${cell.stringId}:f${cell.fret}`;
@@ -99,6 +126,8 @@ function resolveCellAtPoint(
   y: number,
   layout: BoardLayout,
   chordFretting: ChordFretting | null,
+  maxFret: number,
+  velocityCurve: GuitarVelocityCurveId,
 ): FretCell | null {
   const { width, height, labelWidth } = layout;
   if (width <= 0 || height <= 0) {
@@ -118,7 +147,10 @@ function resolveCellAtPoint(
   const stringId = GUITAR_STRINGS[stringIndex].id;
   const stringBand = height / stringCount;
   const localY = stringBand > 0 ? (y - stringIndex * stringBand) / stringBand : 0.5;
-  const velocity = guitarVelocityFromStringLocalY(localY);
+  const velocity = applyGuitarVelocityCurve(
+    guitarVelocityFromStringLocalY(localY),
+    velocityCurve,
+  );
 
   // Chord armed: any touch on a sounding string uses that string's chord fret.
   if (chordFretting) {
@@ -131,8 +163,8 @@ function resolveCellAtPoint(
 
   const fretsWidth = width - fretsLeft;
   const fret = Math.min(
-    GUITAR_MAX_FRET,
-    Math.max(0, Math.floor(((x - fretsLeft) / fretsWidth) * FRET_COUNT)),
+    maxFret,
+    Math.max(0, Math.floor(((x - fretsLeft) / fretsWidth) * (maxFret + 1))),
   );
 
   return { stringId, fret, velocity };
@@ -141,6 +173,11 @@ function resolveCellAtPoint(
 export function Fretboard({
   onPluckIn,
   onPluckOut,
+  onBend,
+  bendEnabled = true,
+  velocityCurve = 'normal',
+  stringAnimationEnabled = true,
+  maxFret = GUITAR_MAX_FRET,
   onSelectChord,
   selectedChordId = null,
   chordPlayMode = 'strum',
@@ -157,7 +194,41 @@ export function Fretboard({
   const { t } = useTranslation();
   const [boardSize, setBoardSize] = useState({ width: 0, height: 0 });
   const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
-  const touchCellsRef = useRef<Map<string, FretCell>>(new Map());
+  const touchCellsRef = useRef<Map<string, TrackedTouch>>(new Map());
+  const pulseHandlersRef = useRef<Map<GuitarStringId, StringPulseHandler>>(
+    new Map(),
+  );
+  const onPluckOutRef = useRef(onPluckOut);
+  onPluckOutRef.current = onPluckOut;
+  const onBendRef = useRef(onBend);
+  onBendRef.current = onBend;
+
+  // Rows register their imperative wobble triggers here — plucks reach them
+  // without any React state or re-render.
+  const registerPulseHandler = useCallback(
+    (stringId: GuitarStringId, handler: StringPulseHandler) => {
+      pulseHandlersRef.current.set(stringId, handler);
+      return () => {
+        pulseHandlersRef.current.delete(stringId);
+      };
+    },
+    [],
+  );
+
+  // Engine-level pluck signal → string vibration visuals. Covers touch plucks,
+  // chord cascades, and tutorial demo playback alike. When the setting is off,
+  // no listener is registered at all — plucks cost zero UI work.
+  useEffect(() => {
+    if (!stringAnimationEnabled) {
+      return;
+    }
+    setGuitarPluckListener((stringId, velocity, fret) => {
+      pulseHandlersRef.current.get(stringId)?.(velocity, fret);
+    });
+    return () => {
+      setGuitarPluckListener(null);
+    };
+  }, [stringAnimationEnabled]);
 
   const boardLayout = useMemo<BoardLayout>(
     () => ({
@@ -177,7 +248,17 @@ export function Fretboard({
   }, [selectedChordId]);
 
   useEffect(() => {
-    touchCellsRef.current.clear();
+    // Release held cells before dropping the touch map — otherwise a note held
+    // while a chord is armed (or the board resizes) never gets its noteOff.
+    const released = new Set<string>();
+    for (const tracked of touchCellsRef.current.values()) {
+      const key = cellKey(tracked.cell);
+      if (!released.has(key)) {
+        released.add(key);
+        onPluckOutRef.current?.(tracked.cell.stringId, tracked.cell.fret);
+      }
+    }
+    touchCellsRef.current = new Map();
     setActiveKeys(new Set());
   }, [boardLayout.width, boardLayout.height, selectedChordId]);
 
@@ -201,7 +282,26 @@ export function Fretboard({
   const armedChord = selectedChordId ? getChordById(selectedChordId) : undefined;
   const barreFret = armedChord?.barreFret ?? null;
 
-  const fretHeaders = Array.from({ length: FRET_COUNT }, (_, i) => i);
+  // Fret-range setting can hide upper frets; re-expand to the full board when
+  // the tutorial guide or the armed chord shape needs a hidden fret.
+  const effectiveMaxFret = useMemo(() => {
+    if (maxFret >= GUITAR_MAX_FRET) {
+      return GUITAR_MAX_FRET;
+    }
+    if (guideFret !== null && guideFret > maxFret) {
+      return GUITAR_MAX_FRET;
+    }
+    if (chordFretting) {
+      for (const fret of Object.values(chordFretting)) {
+        if (fret !== null && fret > maxFret) {
+          return GUITAR_MAX_FRET;
+        }
+      }
+    }
+    return maxFret;
+  }, [chordFretting, guideFret, maxFret]);
+
+  const fretHeaders = Array.from({ length: effectiveMaxFret + 1 }, (_, i) => i);
 
   const activeByString = useMemo(() => {
     const map = new Map<GuitarStringId, Set<number>>();
@@ -224,9 +324,10 @@ export function Fretboard({
 
   const syncTouches = useCallback(
     (touches: readonly NativeTouchEvent[]) => {
-      const nextTouchMap = new Map<string, FretCell>();
+      const nextTouchMap = new Map<string, TrackedTouch>();
       const cellsToTrigger: FretCell[] = [];
       const previousTouchMap = touchCellsRef.current;
+      const bandHeight = boardLayout.height / GUITAR_STRINGS.length;
 
       for (const touch of touches) {
         const touchId = String(touch.identifier);
@@ -235,23 +336,43 @@ export function Fretboard({
           touch.locationY,
           boardLayout,
           chordFretting,
+          effectiveMaxFret,
+          velocityCurve,
         );
         if (!cell) {
           continue;
         }
 
-        nextTouchMap.set(touchId, cell);
         const prev = previousTouchMap.get(touchId);
-        if (!prev || prev.stringId !== cell.stringId || prev.fret !== cell.fret) {
+        const sameCell =
+          prev !== undefined &&
+          prev.cell.stringId === cell.stringId &&
+          prev.cell.fret === cell.fret;
+
+        if (sameCell && prev) {
+          // Finger stays on its cell: vertical travel from the pluck point
+          // becomes bend/vibrato (both directions bend up, like a real string).
+          nextTouchMap.set(touchId, { cell, originY: prev.originY });
+          if (bendEnabled && onBendRef.current && bandHeight > 0) {
+            const travel = Math.abs(touch.locationY - prev.originY);
+            const dead = bandHeight * BEND_DEADZONE_RATIO;
+            const range = Math.max(1, bandHeight * BEND_RANGE_RATIO);
+            const semitones =
+              Math.min(1, Math.max(0, travel - dead) / range) *
+              BEND_MAX_SEMITONES;
+            onBendRef.current(cell.stringId, cell.fret, semitones);
+          }
+        } else {
+          nextTouchMap.set(touchId, { cell, originY: touch.locationY });
           cellsToTrigger.push(cell);
         }
       }
 
       const nextActive = new Set(
-        [...nextTouchMap.values()].map((cell) => cellKey(cell)),
+        [...nextTouchMap.values()].map((tracked) => cellKey(tracked.cell)),
       );
       const previousActive = new Set(
-        [...previousTouchMap.values()].map((cell) => cellKey(cell)),
+        [...previousTouchMap.values()].map((tracked) => cellKey(tracked.cell)),
       );
 
       for (const key of previousActive) {
@@ -270,7 +391,15 @@ export function Fretboard({
         onPluckIn(cell.stringId, cell.fret, cell.velocity);
       }
     },
-    [boardLayout, chordFretting, onPluckIn, onPluckOut],
+    [
+      bendEnabled,
+      boardLayout,
+      chordFretting,
+      effectiveMaxFret,
+      onPluckIn,
+      onPluckOut,
+      velocityCurve,
+    ],
   );
 
   const handleTouchStart = useCallback(
@@ -366,7 +495,10 @@ export function Fretboard({
                   fretboard={fretboard}
                   guideFret={guideStringId === string.id ? guideFret : null}
                   label={string.label}
+                  maxFret={effectiveMaxFret}
+                  registerPulse={registerPulseHandler}
                   showFretNumbers={false}
+                  stringId={string.id}
                   stringThickness={STRING_THICKNESS[string.id]}
                   strongGuide={strongGuide}
                 />

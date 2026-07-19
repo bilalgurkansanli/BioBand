@@ -19,20 +19,26 @@ const DRUM_IDS = new Set<string>([
   'crash',
 ]);
 
-export function playMachineSound(typeId: DrumMachineTypeId, playKey: string): void {
+export function playMachineSound(
+  typeId: DrumMachineTypeId,
+  playKey: string,
+  velocity: number = 1,
+): void {
   switch (typeId) {
     case 'drums':
       if (DRUM_IDS.has(playKey)) {
-        playHit(playKey as DrumSoundId);
+        playHit(playKey as DrumSoundId, velocity);
       }
       return;
     case 'piano':
+      // Piano/violin engines have no velocity input — accents still persist
+      // in saved takes for the engines that do.
       playPianoNote(playKey as NoteId);
       return;
     case 'guitar': {
       const midiMatch = playKey.match(/^midi:(\d{1,3})$/);
       if (midiMatch) {
-        pluckString('s6', Number(midiMatch[1]), { asMidi: true });
+        pluckString('s6', Number(midiMatch[1]), { asMidi: true, velocity });
       }
       return;
     }
@@ -40,7 +46,7 @@ export function playMachineSound(typeId: DrumMachineTypeId, playKey: string): vo
       playViolinSoundId(playKey);
       return;
     case 'pads':
-      triggerPad(playKey as PadSoundId);
+      triggerPad(playKey as PadSoundId, velocity);
       return;
   }
 }

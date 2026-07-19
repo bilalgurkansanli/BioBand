@@ -200,20 +200,17 @@ export function stopAllVoices(): void {
   }
 }
 
-/**
- * Soft-release every voice with the given tag (note-off / sustain pedal up).
- * Returns true if at least one voice was released.
- */
-export function releaseVoiceByTag(
-  tag: string,
-  fadeSeconds = NOTE_OFF_FADE_SECONDS,
+function releaseMatchingVoices(
+  matches: (tag: string) => boolean,
+  fadeSeconds: number,
 ): boolean {
   const now = getAudioContext().currentTime;
   pruneFinishedVoices(now);
   let released = false;
 
   for (let i = activeVoices.length - 1; i >= 0; i--) {
-    if (activeVoices[i].tag !== tag) {
+    const tag = activeVoices[i].tag;
+    if (tag === undefined || !matches(tag)) {
       continue;
     }
     const [voice] = activeVoices.splice(i, 1);
@@ -229,6 +226,29 @@ export function releaseVoiceByTag(
   }
 
   return released;
+}
+
+/**
+ * Soft-release every voice with the given tag (note-off / sustain pedal up).
+ * Returns true if at least one voice was released.
+ */
+export function releaseVoiceByTag(
+  tag: string,
+  fadeSeconds = NOTE_OFF_FADE_SECONDS,
+): boolean {
+  return releaseMatchingVoices((t) => t === tag, fadeSeconds);
+}
+
+/**
+ * Soft-release every voice whose tag starts with `prefix` — for choke groups
+ * where each trigger gets a unique tag (e.g. "drums:hihatOpen#12" and its
+ * ":reverb:"/":echo" taps all die when the closed hat chokes the open one).
+ */
+export function releaseVoicesByTagPrefix(
+  prefix: string,
+  fadeSeconds = NOTE_OFF_FADE_SECONDS,
+): boolean {
+  return releaseMatchingVoices((t) => t.startsWith(prefix), fadeSeconds);
 }
 
 const bufferCache = new Map<number, Promise<AudioBuffer>>();
@@ -260,6 +280,16 @@ export type PlaySampleOptions = {
   holdSeconds?: number;
   /** Override fade-out length after hold. */
   releaseSeconds?: number;
+  /**
+   * Start playback this far into the buffer — for recordings whose first
+   * seconds are a slow swell (violin arco), skipping to the developed tone.
+   */
+  offsetSeconds?: number;
+};
+
+export type PlayedSampleHandle = {
+  /** Live pitch control for the ringing voice (guitar bend / vibrato). */
+  setPlaybackRate: (rate: number) => void;
 };
 
 export function playSample(
@@ -269,7 +299,7 @@ export function playSample(
   output?: AudioNodeT,
   tag?: string,
   options?: PlaySampleOptions,
-): void {
+): PlayedSampleHandle {
   const context = getAudioContext();
   const now = context.currentTime;
 
@@ -311,10 +341,28 @@ export function playSample(
   noteGain.connect(stealGain);
   stealGain.connect(output ?? getMasterGain(context));
 
-  node.start(now);
+  const offsetSeconds = Math.min(
+    Math.max(0, options?.offsetSeconds ?? 0),
+    Math.max(0, buffer.duration - 0.25),
+  );
+  if (offsetSeconds > 0) {
+    node.start(now, offsetSeconds);
+  } else {
+    node.start(now);
+  }
   node.stop(stopAt);
 
   registerActiveVoice(node, stealGain, stopAt, tag);
+
+  return {
+    setPlaybackRate: (rate: number) => {
+      try {
+        node.playbackRate.value = rate;
+      } catch {
+        // Voice already ended.
+      }
+    },
+  };
 }
 
 export async function prepareSamplePlayback(): Promise<void> {
