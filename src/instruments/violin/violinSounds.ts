@@ -24,10 +24,6 @@ export function formatNoteSoundId(stringId: ViolinStringId, position: number): s
   return `${stringId}:${clamped}`;
 }
 
-export function formatPhraseSoundId(phraseId: PhraseId): string {
-  return `phrase:${phraseId}`;
-}
-
 export type ParsedViolinSound =
   | { kind: 'note'; stringId: ViolinStringId; position: number }
   | { kind: 'phrase'; phraseId: PhraseId };

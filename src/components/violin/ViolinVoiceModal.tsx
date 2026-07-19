@@ -22,8 +22,15 @@ export function ViolinVoiceModal({
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      {/* Dismiss area is an absolute-fill sibling behind the card — a
+          Pressable ancestor can claim gestures meant for the content. */}
+      <View style={styles.overlay}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onClose}
+          style={styles.backdrop}
+        />
+        <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('violin.voices.close')}
             onClose={onClose}
@@ -60,8 +67,8 @@ export function ViolinVoiceModal({
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -69,10 +76,13 @@ export function ViolinVoiceModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.65)',
   },
   card: {
     backgroundColor: colors.surface,

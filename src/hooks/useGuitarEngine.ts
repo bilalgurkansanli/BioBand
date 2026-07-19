@@ -7,6 +7,7 @@ import type {
   GuitarChordPlayMode,
 } from '../instruments/guitar/guitarChordPatterns';
 import {
+  bendHeldNote as engineBendHeldNote,
   initGuitarEngine,
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
@@ -80,6 +81,13 @@ export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
     engineNoteOff(stringId, fret);
   }, []);
 
+  const bendNote = useCallback(
+    (stringId: GuitarStringId, fret: number, semitones: number) => {
+      engineBendHeldNote(stringId, fret, semitones);
+    },
+    [],
+  );
+
   const playChord = useCallback(
     (
       chordId: ChordId,
@@ -111,6 +119,7 @@ export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
     pluckString,
     noteOn,
     noteOff,
+    bendNote,
     playChord,
     strumChord,
     playSoundId,

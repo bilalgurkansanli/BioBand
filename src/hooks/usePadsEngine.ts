@@ -51,8 +51,8 @@ export function usePadsEngine(bankId: PadBankId = 'drums') {
     }
   }, [bankId, ready]);
 
-  const triggerPad = useCallback((id: PadSoundId) => {
-    engineTriggerPad(id);
+  const triggerPad = useCallback((id: PadSoundId, velocity = 1) => {
+    engineTriggerPad(id, velocity);
   }, []);
 
   return { ready, error, triggerPad };

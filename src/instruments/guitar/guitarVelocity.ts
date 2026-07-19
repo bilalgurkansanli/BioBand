@@ -23,6 +23,41 @@ export function guitarVelocityFromStringLocalY(localY: number): number {
   return t * t * (3 - 2 * t);
 }
 
+export type GuitarVelocityCurveId = 'soft' | 'normal' | 'hard';
+
+export const GUITAR_VELOCITY_CURVE_IDS: GuitarVelocityCurveId[] = [
+  'soft',
+  'normal',
+  'hard',
+];
+
+export function isGuitarVelocityCurveId(
+  value: unknown,
+): value is GuitarVelocityCurveId {
+  return (
+    typeof value === 'string' &&
+    (GUITAR_VELOCITY_CURVE_IDS as string[]).includes(value)
+  );
+}
+
+/**
+ * Response curve on top of the position mapping — soft players get the full
+ * range without hammering (hard curve), heavy players get headroom (soft).
+ */
+export function applyGuitarVelocityCurve(
+  velocity: number,
+  curve: GuitarVelocityCurveId,
+): number {
+  const v = clampGuitarVelocity(velocity);
+  if (curve === 'soft') {
+    return v ** 1.6;
+  }
+  if (curve === 'hard') {
+    return v ** 0.65;
+  }
+  return v;
+}
+
 /** Multiply base string gain by dynamics (soft ≈ 0.48×, hard ≈ 1.28×). */
 export function guitarGainScaleForVelocity(velocity: number): number {
   const v = clampGuitarVelocity(velocity);

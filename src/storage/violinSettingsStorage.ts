@@ -1,10 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import {
-  ALL_PHRASE_IDS,
-  normalizeVisiblePhraseIds,
-  type PhraseId,
-} from '../instruments/violin/violinPhrases';
 import { VIOLIN_VOICES, type ViolinVoiceId } from '../instruments/violin/violinVoices';
 import type { PianoFxSettings } from '../instruments/piano/pianoFx';
 import {
@@ -16,18 +11,24 @@ const STORAGE_KEY = 'violin.settings.v1';
 
 const VALID_VOICE_IDS = new Set<string>(VIOLIN_VOICES.map((voice) => voice.id));
 
+/** Per-cell labels: note names (D4), violin finger numbers (0-4), or none. */
+export type ViolinNoteLabelMode = 'off' | 'note' | 'finger';
+
+const NOTE_LABEL_MODES = new Set<string>(['off', 'note', 'finger']);
+
 export type ViolinUiSettings = {
-  showPositionNumbers: boolean;
+  noteLabelMode: ViolinNoteLabelMode;
   strongGuideHighlight: boolean;
-  visiblePhraseIds: PhraseId[];
+  /** Short device vibration on touch. */
+  haptics: boolean;
   voiceId: ViolinVoiceId;
   fx: PianoFxSettings;
 };
 
 export const DEFAULT_VIOLIN_UI_SETTINGS: ViolinUiSettings = {
-  showPositionNumbers: true,
+  noteLabelMode: 'note',
   strongGuideHighlight: true,
-  visiblePhraseIds: [...ALL_PHRASE_IDS],
+  haptics: true,
   voiceId: 'classic',
   fx: createDefaultPianoFxSettings(),
 };
@@ -39,11 +40,11 @@ function parseVoiceId(value: unknown): ViolinVoiceId {
   return DEFAULT_VIOLIN_UI_SETTINGS.voiceId;
 }
 
-function parseVisiblePhraseIds(value: unknown): PhraseId[] {
-  if (!Array.isArray(value)) {
-    return [...DEFAULT_VIOLIN_UI_SETTINGS.visiblePhraseIds];
+function parseNoteLabelMode(value: unknown): ViolinNoteLabelMode {
+  if (typeof value === 'string' && NOTE_LABEL_MODES.has(value)) {
+    return value as ViolinNoteLabelMode;
   }
-  return normalizeVisiblePhraseIds(value.filter((id): id is string => typeof id === 'string'));
+  return DEFAULT_VIOLIN_UI_SETTINGS.noteLabelMode;
 }
 
 export async function loadViolinUiSettings(): Promise<ViolinUiSettings> {
@@ -52,28 +53,26 @@ export async function loadViolinUiSettings(): Promise<ViolinUiSettings> {
     if (!raw) {
       return {
         ...DEFAULT_VIOLIN_UI_SETTINGS,
-        visiblePhraseIds: [...ALL_PHRASE_IDS],
         fx: createDefaultPianoFxSettings(),
       };
     }
     const parsed = JSON.parse(raw) as Partial<ViolinUiSettings>;
     return {
-      showPositionNumbers:
-        typeof parsed.showPositionNumbers === 'boolean'
-          ? parsed.showPositionNumbers
-          : DEFAULT_VIOLIN_UI_SETTINGS.showPositionNumbers,
+      noteLabelMode: parseNoteLabelMode(parsed.noteLabelMode),
       strongGuideHighlight:
         typeof parsed.strongGuideHighlight === 'boolean'
           ? parsed.strongGuideHighlight
           : DEFAULT_VIOLIN_UI_SETTINGS.strongGuideHighlight,
-      visiblePhraseIds: parseVisiblePhraseIds(parsed.visiblePhraseIds),
+      haptics:
+        typeof parsed.haptics === 'boolean'
+          ? parsed.haptics
+          : DEFAULT_VIOLIN_UI_SETTINGS.haptics,
       voiceId: parseVoiceId(parsed.voiceId),
       fx: parseStoredPianoFxSettings(parsed.fx),
     };
   } catch {
     return {
       ...DEFAULT_VIOLIN_UI_SETTINGS,
-      visiblePhraseIds: [...ALL_PHRASE_IDS],
       fx: createDefaultPianoFxSettings(),
     };
   }

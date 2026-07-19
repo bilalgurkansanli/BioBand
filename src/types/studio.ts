@@ -14,6 +14,14 @@ export type StudioTrack = {
   /** Durable Documents URI for microphone tracks. */
   audioUri?: string;
   sourceTakeId?: string;
+  /** Drum kit the take was performed with (drums tracks only). */
+  drumKitId?: string;
+  /** Guitar voice the take was performed with (guitar tracks only). */
+  guitarVoiceId?: string;
+  /** Violin voice the take was performed with (violin tracks only). */
+  violinVoiceId?: string;
+  /** Pad bank the take was performed with (pads tracks only). */
+  padBankId?: string;
 };
 
 export type StudioProject = {

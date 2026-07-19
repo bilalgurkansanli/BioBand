@@ -1,28 +1,113 @@
-import { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View, type ViewStyle } from 'react-native';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import {
+  Animated,
+  Easing,
+  Pressable,
+  StyleSheet,
+  View,
+  type GestureResponderEvent,
+  type ViewStyle,
+} from 'react-native';
 
 import type { DrumPieceKind } from '../../instruments/drums/drumKitLayout';
 import type { DrumSoundId } from '../../instruments/drums/drumsSounds';
+import { getMetronomeBpm } from '../../instruments/piano/pianoMetronome';
+import { shade, tint } from '../../utils/colorMix';
 
 type DrumPieceProps = {
   kind: DrumPieceKind;
   soundId: DrumSoundId;
   size: number;
-  onHit: () => void;
+  /** Fired per hit with the resolved sound (snare rim zone → snareRim) and 0..1 velocity. */
+  onHit: (soundId: DrumSoundId, velocity: number) => void;
+  /** Grab-choke a ringing cymbal (long-press on cymbals). */
+  onChoke?: (soundId: DrumSoundId) => void;
   accessibilityLabel: string;
+  /** Kit theme accent — badge / detail tint. */
+  accent?: string;
+  /** Tom / kick shell wrap color. */
+  shellColor?: string;
+  /** Cymbal alloy base color. */
+  cymbalColor?: string;
+  /** Drum head (batter) color. */
+  headColor?: string;
   guided?: boolean;
   strongGuide?: boolean;
 };
 
-const CYMBAL = {
-  outer: '#C9A227',
-  mid: '#E0C04A',
-  light: '#F5E6A8',
-  dark: '#6E5214',
-  bell: '#7A5C18',
-};
-const HEAD = { fill: '#F4F0E6', inner: '#E4DED0', rim: '#A8A8B0' };
-const SHELL = { red: '#C0392B', dark: '#7A1212', snare: '#8E1B1B' };
+/** Center hit = 1, edge hit ≈ 0.55 — natural dynamics from touch position. */
+function velocityFromTouch(
+  event: GestureResponderEvent,
+  size: number,
+): { velocity: number; edgeRatio: number } {
+  const { locationX, locationY } = event.nativeEvent;
+  if (typeof locationX !== 'number' || typeof locationY !== 'number') {
+    return { velocity: 1, edgeRatio: 0 };
+  }
+  const dx = locationX - size / 2;
+  const dy = locationY - size / 2;
+  const edgeRatio = Math.min(1, Math.sqrt(dx * dx + dy * dy) / (size / 2));
+  return { velocity: 1 - 0.45 * edgeRatio, edgeRatio };
+}
+
+/** Snare outer ring plays the side-stick / rim click. */
+const RIM_ZONE_RATIO = 0.72;
+/** Hold a snare/tom this long to start a BPM-locked roll. */
+const ROLL_START_MS = 280;
+/** Hold a cymbal this long to grab-choke it. */
+const CHOKE_HOLD_MS = 400;
+
+const DEFAULT_ACCENT = '#2A9D8F';
+const GOLD = '#D4A72C';
+const HEAD_COAT = '#F2EEE2';
+const HOOP = '#8E949E';
+
+function pieceShadow(size: number): ViewStyle {
+  return {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: size * 0.06 },
+    shadowOpacity: 0.45,
+    shadowRadius: size * 0.12,
+    elevation: 8,
+  };
+}
+
+/** Centered circle — building block for the concentric “radial gradient” look. */
+function Disc({
+  size,
+  color,
+  borderColor,
+  borderWidth = 0,
+  style,
+  children,
+}: {
+  size: number;
+  color?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  style?: ViewStyle;
+  children?: ReactNode;
+}) {
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.disc,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+          borderColor,
+          borderWidth,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
 
 function useHitFlash() {
   const flash = useRef(new Animated.Value(0)).current;
@@ -31,7 +116,7 @@ function useHitFlash() {
     flash.setValue(1);
     Animated.timing(flash, {
       toValue: 0,
-      duration: 160,
+      duration: 170,
       useNativeDriver: true,
     }).start();
   };
@@ -39,234 +124,352 @@ function useHitFlash() {
   return { flash, trigger };
 }
 
-function pieceShadow(size: number): ViewStyle {
-  return {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: size * 0.05 },
-    shadowOpacity: 0.4,
-    shadowRadius: size * 0.1,
-    elevation: 7,
-  };
+/** Pulsing halo shown on the pad the tutorial wants you to hit. */
+function GuidePulse({ size, strong }: { size: number; strong: boolean }) {
+  const pulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 460,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0,
+          duration: 460,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  const scale = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, strong ? 1.1 : 1.05],
+  });
+  const opacity = pulse.interpolate({
+    inputRange: [0, 1],
+    outputRange: [strong ? 0.95 : 0.75, strong ? 0.55 : 0.4],
+  });
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.guideRing,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: strong ? Math.max(3, size * 0.035) : 2,
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
+    />
+  );
 }
+
+function HitGlow({ flash, size }: { flash: Animated.Value; size: number }) {
+  const opacity = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.4] });
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.hitGlow,
+        { width: size, height: size, borderRadius: size / 2, opacity },
+      ]}
+    />
+  );
+}
+
+// ---- cymbals (crash / ride / hi-hats) ----
 
 function CymbalPiece({
   size,
   soundId,
+  cymbalColor,
   flash,
+  wobble,
   onPressIn,
+  onLongPress,
+  delayLongPress,
 }: {
   size: number;
   soundId: DrumSoundId;
+  cymbalColor: string;
   flash: Animated.Value;
-  onPressIn: () => void;
+  wobble: Animated.Value;
+  onPressIn: (event: GestureResponderEvent) => void;
+  onLongPress?: () => void;
+  delayLongPress?: number;
 }) {
-  const isOpen = soundId === 'hihatOpen';
   const isHat = soundId === 'hihatClosed' || soundId === 'hihatOpen';
-  const hitScale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] });
-  const hitGlow = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.45] });
+  const isOpen = soundId === 'hihatOpen';
+  const isRide = soundId === 'ride';
+
+  // Ride reads darker / more bronze; crash and hats brighter.
+  const base = isRide
+    ? shade(cymbalColor, 0.16)
+    : isHat
+      ? shade(cymbalColor, 0.06)
+      : cymbalColor;
+  const scale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.95] });
+  // Damped see-saw: the disc rocks after a hit and settles back.
+  const rock = wobble.interpolate({
+    inputRange: [0, 0.18, 0.4, 0.65, 1],
+    outputRange: ['0deg', '-5deg', '3.5deg', '-1.5deg', '0deg'],
+  });
+
+  const disc = size * 0.96;
+  const bell = isHat ? disc * 0.2 : isRide ? disc * 0.3 : disc * 0.26;
 
   return (
-    <Pressable onPressIn={onPressIn} style={{ width: size, height: size }}>
-      <View style={styles.cymbalStandWrap}>
-        <View style={[styles.cymbalStand, { height: size * 0.22, width: Math.max(2, size * 0.035) }]} />
-        <View style={[styles.cymbalStandBase, { width: size * 0.18, height: size * 0.04 }]} />
-      </View>
-
-      {isHat && isOpen ? (
-        <View
-          style={[
-            styles.cymbalDisc,
-            {
-              width: size * 0.88,
-              height: size * 0.88,
-              borderRadius: size * 0.44,
-              top: size * 0.02,
-              left: size * 0.06,
-              opacity: 0.75,
-              position: 'absolute',
-            },
-          ]}
+    <Pressable
+      delayLongPress={delayLongPress}
+      onLongPress={onLongPress}
+      onPressIn={onPressIn}
+      style={{ width: size, height: size }}
+    >
+      {/* Bottom hi-hat cymbal peeks out under the top one. */}
+      {isHat ? (
+        <Disc
+          size={disc}
+          color={shade(base, 0.35)}
+          borderColor={shade(base, 0.55)}
+          borderWidth={1}
+          style={{
+            position: 'absolute',
+            left: (size - disc) / 2 + size * (isOpen ? 0.05 : 0.02),
+            top: (size - disc) / 2 + size * (isOpen ? 0.07 : 0.035),
+          }}
         />
       ) : null}
 
       <Animated.View
         style={[
-          styles.cymbalDisc,
+          styles.center,
           pieceShadow(size),
-          {
-            width: size * 0.92,
-            height: size * 0.92,
-            borderRadius: size * 0.46,
-            marginTop: isOpen ? size * 0.06 : size * 0.04,
-            marginLeft: size * 0.04,
-            transform: [{ scale: hitScale }],
-          },
+          { width: size, height: size, transform: [{ scale }, { rotate: rock }] },
         ]}
       >
-        <View style={[styles.cymbalRing, { width: '82%', height: '82%', borderRadius: 999 }]}>
-          <View style={[styles.cymbalRingMid, { width: '72%', height: '72%', borderRadius: 999 }]}>
-            <View
-              style={[
-                styles.cymbalBell,
-                {
-                  width: isHat ? '22%' : '28%',
-                  height: isHat ? '22%' : '28%',
-                  borderRadius: 999,
-                },
-              ]}
-            />
-          </View>
-        </View>
-        <View style={[styles.cymbalShine, { width: '40%', height: '22%', borderRadius: 999 }]} />
-        {isHat && !isOpen ? <View style={styles.cymbalHatEdge} /> : null}
-        <Animated.View style={[styles.hitGlow, { borderRadius: 999, opacity: hitGlow }]} />
+        {/* Concentric tonal rings fake a lit metal dome. */}
+        <Disc size={disc} color={shade(base, 0.22)} borderColor={shade(base, 0.5)} borderWidth={1.5}>
+          <Disc size={disc * 0.86} color={shade(base, 0.08)} />
+          <Disc size={disc * 0.68} color={tint(base, 0.1)} />
+          <Disc size={disc * 0.5} color={tint(base, 0.22)} />
+          {/* lathe grooves */}
+          <Disc size={disc * 0.9} color="transparent" borderColor="rgba(0,0,0,0.14)" borderWidth={1} />
+          <Disc size={disc * 0.58} color="transparent" borderColor="rgba(0,0,0,0.12)" borderWidth={1} />
+          {/* bell */}
+          <Disc size={bell} color={tint(base, 0.05)} borderColor={shade(base, 0.4)} borderWidth={1}>
+            <Disc size={bell * 0.55} color={tint(base, 0.45)} />
+          </Disc>
+          {/* shine wedge */}
+          <View
+            style={[
+              styles.shine,
+              {
+                width: disc * 0.62,
+                height: disc * 0.16,
+                borderRadius: disc * 0.1,
+                top: disc * 0.12,
+                left: disc * 0.08,
+                transform: [{ rotate: '-24deg' }],
+              },
+            ]}
+          />
+        </Disc>
+        <HitGlow flash={flash} size={disc} />
       </Animated.View>
     </Pressable>
   );
 }
 
+// ---- toms & snare ----
+
 function DrumHeadPiece({
   size,
   kind,
+  shellColor: shellBase,
+  headColor,
   flash,
   onPressIn,
+  onLongPress,
+  onPressOut,
+  delayLongPress,
 }: {
   size: number;
   kind: 'tom' | 'snare';
+  shellColor: string;
+  headColor: string;
   flash: Animated.Value;
-  onPressIn: () => void;
+  onPressIn: (event: GestureResponderEvent) => void;
+  onLongPress?: () => void;
+  onPressOut?: () => void;
+  delayLongPress?: number;
 }) {
-  const shellH = size * 0.22;
-  const headScale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
-  const hitGlow = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.4] });
-  const shellColor = kind === 'snare' ? SHELL.snare : SHELL.red;
+  const scale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
+  const hoopW = Math.max(3, size * 0.055);
+  const shellW = Math.max(2.5, size * 0.05);
+  const shellColor = kind === 'snare' ? '#B9BEC7' : shellBase;
+  const head = kind === 'snare' ? tint(headColor, 0.3) : headColor;
+
+  const lugCount = 8;
+  const lugSize = Math.max(3, size * 0.05);
+  const lugR = size / 2 - hoopW / 2;
 
   return (
-    <Pressable onPressIn={onPressIn} style={{ width: size, height: size + shellH * 0.55 }}>
-      <View style={{ alignItems: 'center' }}>
-        <Animated.View
-          style={[
-            styles.drumHead,
-            pieceShadow(size),
-            {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
-              borderWidth: Math.max(2.5, size * 0.04),
-              transform: [{ scale: headScale }],
-            },
-          ]}
-        >
+    <Pressable
+      delayLongPress={delayLongPress}
+      onLongPress={onLongPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
+      style={{ width: size, height: size }}
+    >
+      <Animated.View
+        style={[
+          styles.center,
+          pieceShadow(size),
+          { width: size, height: size, transform: [{ scale }] },
+        ]}
+      >
+        {/* hoop */}
+        <Disc size={size} color={shade(HOOP, 0.25)} borderColor={shade(HOOP, 0.55)} borderWidth={1}>
+          {/* shell ring (kit accent on toms, steel on snare) */}
+          <Disc size={size - hoopW * 2} color={shellColor} />
+          {/* head with concentric wear rings */}
+          <Disc size={size - hoopW * 2 - shellW * 2} color={head}>
+            <Disc size={size * 0.66} color={shade(head, 0.05)} />
+            <Disc size={size * 0.42} color={shade(head, 0.1)} />
+            <Disc size={size * 0.16} color={shade(head, 0.18)} />
+          </Disc>
           <View
             style={[
-              styles.drumHeadInner,
-              { width: size * 0.78, height: size * 0.78, borderRadius: size * 0.39 },
+              styles.shine,
+              {
+                width: size * 0.4,
+                height: size * 0.14,
+                borderRadius: size * 0.08,
+                top: size * 0.16,
+                left: size * 0.14,
+                transform: [{ rotate: '-24deg' }],
+              },
             ]}
           />
-          {/* Lug hints */}
-          {[0, 60, 120, 180, 240, 300].map((deg) => {
-            const rad = (deg * Math.PI) / 180;
-            const r = size * 0.44;
-            return (
-              <View
-                key={deg}
-                style={[
-                  styles.lug,
-                  {
-                    width: Math.max(3, size * 0.045),
-                    height: Math.max(3, size * 0.045),
-                    borderRadius: 99,
-                    left: size / 2 + Math.cos(rad) * r - size * 0.022,
-                    top: size / 2 + Math.sin(rad) * r - size * 0.022,
-                  },
-                ]}
-              />
-            );
-          })}
-          {kind === 'snare' ? (
-            <View style={[styles.snareWires, { width: size * 0.55 }]}>
-              {[0, 1, 2, 3].map((i) => (
-                <View key={i} style={styles.snareWire} />
-              ))}
-            </View>
-          ) : null}
-          <View style={[styles.headShine, { width: size * 0.35, height: size * 0.18 }]} />
-          <Animated.View style={[styles.hitGlow, { borderRadius: 999, opacity: hitGlow }]} />
-        </Animated.View>
+        </Disc>
 
-        <View
-          style={[
-            styles.shell,
-            {
-              width: size * 1.06,
-              height: shellH,
-              marginTop: -size * 0.08,
-              backgroundColor: shellColor,
-              borderBottomLeftRadius: size * 0.12,
-              borderBottomRightRadius: size * 0.12,
-            },
-          ]}
-        />
-      </View>
+        {/* lugs on the hoop */}
+        {Array.from({ length: lugCount }, (_, i) => {
+          const angle = (i / lugCount) * Math.PI * 2 - Math.PI / 2;
+          return (
+            <View
+              key={i}
+              pointerEvents="none"
+              style={[
+                styles.lug,
+                {
+                  width: lugSize,
+                  height: lugSize,
+                  borderRadius: lugSize / 2,
+                  left: size / 2 + Math.cos(angle) * lugR - lugSize / 2,
+                  top: size / 2 + Math.sin(angle) * lugR - lugSize / 2,
+                },
+              ]}
+            />
+          );
+        })}
+
+        <HitGlow flash={flash} size={size} />
+      </Animated.View>
     </Pressable>
   );
 }
 
+// ---- kick (top-down bass drum) ----
+
 function KickPiece({
   size,
+  accent,
+  shellColor,
+  headColor,
   flash,
   onPressIn,
 }: {
   size: number;
+  accent: string;
+  shellColor: string;
+  headColor: string;
   flash: Animated.Value;
-  onPressIn: () => void;
+  onPressIn: (event: GestureResponderEvent) => void;
 }) {
-  const w = size * 1.42;
-  const h = size * 1.05;
-  const headSize = size * 0.7;
-  const headScale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.93] });
-  const hitGlow = flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] });
+  const scale = flash.interpolate({ inputRange: [0, 1], outputRange: [1, 0.96] });
+  const shellW = Math.max(5, size * 0.09);
+  const headSize = size - shellW * 2;
+  const badge = size * 0.24;
+  // Batter head: near-black version of the kit head color.
+  const batter = shade(headColor, 0.82);
 
   return (
-    <Pressable onPressIn={onPressIn} style={{ width: w, height: h, alignItems: 'center' }}>
-      <View style={[styles.kickShadow, { width: w * 0.7, height: h * 0.08 }]} />
-      <View
+    <Pressable onPressIn={onPressIn} style={{ width: size, height: size }}>
+      <Animated.View
         style={[
-          styles.kickBody,
+          styles.center,
           pieceShadow(size),
-          {
-            width: w * 0.92,
-            height: h * 0.62,
-            borderRadius: h * 0.3,
-          },
+          { width: size, height: size, transform: [{ scale }] },
         ]}
       >
-        <View style={[styles.kickRear, { width: w * 0.18, height: '78%', borderRadius: h * 0.2 }]} />
-        <Animated.View
-          style={[
-            styles.kickHead,
-            {
-              width: headSize,
-              height: headSize,
-              borderRadius: headSize / 2,
-              borderWidth: Math.max(2.5, headSize * 0.04),
-              transform: [{ scale: headScale }],
-            },
-          ]}
+        {/* shell — thick ring in the kit wrap color */}
+        <Disc
+          size={size}
+          color={shade(shellColor, 0.35)}
+          borderColor={shade(shellColor, 0.55)}
+          borderWidth={1.5}
         >
+          <Disc size={size - shellW} color={shade(shellColor, 0.18)} />
+          {/* dark batter head */}
+          <Disc size={headSize} color={batter} borderColor={shade(batter, 0.45)} borderWidth={1}>
+            <Disc size={headSize * 0.7} color={tint(batter, 0.05)} />
+            <Disc size={headSize * 0.44} color={tint(batter, 0.1)} />
+          </Disc>
+          {/* center badge */}
+          <Disc size={badge} color={shade(accent, 0.1)} borderColor={tint(accent, 0.25)} borderWidth={1.5}>
+            <Disc size={badge * 0.4} color={tint(accent, 0.5)} />
+          </Disc>
+          {/* beater wear mark above the badge */}
           <View
             style={[
-              styles.drumHeadInner,
-              { width: headSize * 0.72, height: headSize * 0.72, borderRadius: headSize * 0.36 },
+              styles.beaterMark,
+              {
+                width: size * 0.1,
+                height: size * 0.1,
+                borderRadius: size * 0.05,
+                top: size * 0.2,
+              },
             ]}
           />
-          <Animated.View style={[styles.hitGlow, { borderRadius: 999, opacity: hitGlow }]} />
-        </Animated.View>
-      </View>
-
-      <View style={[styles.pedalBase, { width: w * 0.34, height: h * 0.14, marginTop: size * 0.04 }]}>
-        <View style={[styles.pedalBeater, { width: '32%', height: '42%' }]} />
-      </View>
+          <View
+            style={[
+              styles.shine,
+              {
+                width: size * 0.5,
+                height: size * 0.15,
+                borderRadius: size * 0.09,
+                top: size * 0.13,
+                left: size * 0.12,
+                transform: [{ rotate: '-24deg' }],
+              },
+            ]}
+          />
+        </Disc>
+        <HitGlow flash={flash} size={size} />
+      </Animated.View>
     </Pressable>
   );
 }
@@ -276,67 +479,140 @@ export function DrumPiece({
   soundId,
   size,
   onHit,
+  onChoke,
   accessibilityLabel,
+  accent = DEFAULT_ACCENT,
+  shellColor,
+  cymbalColor = GOLD,
+  headColor = HEAD_COAT,
   guided = false,
   strongGuide = true,
 }: DrumPieceProps) {
   const { flash, trigger } = useHitFlash();
+  const wobble = useRef(new Animated.Value(0)).current;
+  const rollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const shell = shellColor ?? shade(accent, 0.15);
 
-  const handlePressIn = () => {
+  const triggerWobble = useCallback(() => {
+    wobble.setValue(0);
+    Animated.timing(wobble, {
+      toValue: 1,
+      duration: 560,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [wobble]);
+
+  const stopRoll = useCallback(() => {
+    if (rollTimerRef.current) {
+      clearInterval(rollTimerRef.current);
+      rollTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopRoll, [stopRoll]);
+
+  const handlePressIn = (event: GestureResponderEvent) => {
+    const { velocity, edgeRatio } = velocityFromTouch(event, size);
+    const resolved: DrumSoundId =
+      kind === 'snare' && edgeRatio > RIM_ZONE_RATIO ? 'snareRim' : soundId;
     trigger();
-    onHit();
+    if (kind === 'cymbal') {
+      triggerWobble();
+    }
+    onHit(resolved, velocity);
   };
+
+  /** Hold a snare/tom: 16th-note buzz roll locked to the metronome BPM. */
+  const startRoll = useCallback(() => {
+    stopRoll();
+    const bpm = getMetronomeBpm() || 100;
+    const intervalMs = Math.max(60, 60000 / bpm / 4);
+    let accented = false;
+    rollTimerRef.current = setInterval(() => {
+      accented = !accented;
+      trigger();
+      onHit(soundId, accented ? 0.75 : 0.55);
+    }, intervalMs);
+  }, [onHit, soundId, stopRoll, trigger]);
+
+  const handleChoke = useCallback(() => {
+    // Kill the wobble along with the sound — the grab looks instant.
+    wobble.stopAnimation();
+    wobble.setValue(1);
+    onChoke?.(soundId);
+  }, [onChoke, soundId, wobble]);
 
   const content = (() => {
     switch (kind) {
       case 'cymbal':
         return (
-          <CymbalPiece flash={flash} onPressIn={handlePressIn} size={size} soundId={soundId} />
+          <CymbalPiece
+            cymbalColor={cymbalColor}
+            delayLongPress={CHOKE_HOLD_MS}
+            flash={flash}
+            onLongPress={onChoke ? handleChoke : undefined}
+            onPressIn={handlePressIn}
+            size={size}
+            soundId={soundId}
+            wobble={wobble}
+          />
         );
       case 'tom':
-        return <DrumHeadPiece flash={flash} kind="tom" onPressIn={handlePressIn} size={size} />;
+        return (
+          <DrumHeadPiece
+            delayLongPress={ROLL_START_MS}
+            flash={flash}
+            headColor={headColor}
+            kind="tom"
+            onLongPress={startRoll}
+            onPressIn={handlePressIn}
+            onPressOut={stopRoll}
+            shellColor={shell}
+            size={size}
+          />
+        );
       case 'snare':
-        return <DrumHeadPiece flash={flash} kind="snare" onPressIn={handlePressIn} size={size} />;
+        return (
+          <DrumHeadPiece
+            delayLongPress={ROLL_START_MS}
+            flash={flash}
+            headColor={headColor}
+            kind="snare"
+            onLongPress={startRoll}
+            onPressIn={handlePressIn}
+            onPressOut={stopRoll}
+            shellColor={shell}
+            size={size}
+          />
+        );
       case 'kick':
-        return <KickPiece flash={flash} onPressIn={handlePressIn} size={size} />;
+        return (
+          <KickPiece
+            accent={accent}
+            flash={flash}
+            headColor={headColor}
+            onPressIn={handlePressIn}
+            shellColor={shell}
+            size={size}
+          />
+        );
     }
   })();
-
-  const ringPad = strongGuide ? 6 : 3;
 
   return (
     <View
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
-      style={styles.pieceRoot}
+      style={[styles.pieceRoot, { width: size, height: size }]}
     >
-      {guided ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.guideRing,
-            {
-              borderWidth: strongGuide ? 3 : 2,
-              bottom: -ringPad,
-              left: -ringPad,
-              right: -ringPad,
-              top: -ringPad,
-            },
-          ]}
-        />
-      ) : null}
+      {guided ? <GuidePulse size={size} strong={strongGuide} /> : null}
       {content}
     </View>
   );
 }
 
-export function getDrumPieceBounds(kind: DrumPieceKind, size: number) {
-  if (kind === 'kick') {
-    return { width: size * 1.42, height: size * 1.05 };
-  }
-  if (kind === 'tom' || kind === 'snare') {
-    return { width: size, height: size + size * 0.22 * 0.55 };
-  }
+export function getDrumPieceBounds(_kind: DrumPieceKind, size: number) {
   return { width: size, height: size };
 }
 
@@ -344,157 +620,38 @@ const styles = StyleSheet.create({
   pieceRoot: {
     position: 'relative',
   },
+  center: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  disc: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+  },
   guideRing: {
     borderColor: '#FFD54F',
-    borderRadius: 999,
-    opacity: 0.9,
     position: 'absolute',
     zIndex: 2,
   },
   hitGlow: {
-    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#FFFFFF',
-  },
-  cymbalStandWrap: {
-    alignItems: 'center',
-    bottom: 0,
-    left: 0,
     position: 'absolute',
-    right: 0,
   },
-  cymbalStand: {
-    backgroundColor: '#4A4A52',
-    borderRadius: 1,
-  },
-  cymbalStandBase: {
-    backgroundColor: '#2A2A30',
-    borderRadius: 99,
-    marginTop: 2,
-    opacity: 0.7,
-  },
-  cymbalDisc: {
-    alignItems: 'center',
-    backgroundColor: CYMBAL.outer,
-    borderColor: CYMBAL.dark,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  cymbalRing: {
-    alignItems: 'center',
-    borderColor: CYMBAL.light,
-    borderWidth: 1.5,
-    justifyContent: 'center',
-    opacity: 0.9,
-  },
-  cymbalRingMid: {
-    alignItems: 'center',
-    borderColor: CYMBAL.dark,
-    borderWidth: 1,
-    justifyContent: 'center',
-  },
-  cymbalBell: {
-    backgroundColor: CYMBAL.bell,
-    borderColor: '#4A3A0C',
-    borderWidth: 1,
-  },
-  cymbalShine: {
+  shine: {
     backgroundColor: '#FFFFFF',
-    left: '18%',
-    opacity: 0.28,
+    opacity: 0.16,
     position: 'absolute',
-    top: '18%',
-  },
-  cymbalHatEdge: {
-    backgroundColor: CYMBAL.dark,
-    bottom: '8%',
-    height: '10%',
-    left: '4%',
-    opacity: 0.4,
-    position: 'absolute',
-    right: '4%',
-    borderRadius: 99,
-  },
-  drumHead: {
-    alignItems: 'center',
-    backgroundColor: HEAD.fill,
-    borderColor: HEAD.rim,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  drumHeadInner: {
-    backgroundColor: HEAD.inner,
-    opacity: 0.55,
   },
   lug: {
-    backgroundColor: '#D4D4DC',
-    borderColor: '#5A5A62',
+    backgroundColor: '#CDD2DA',
+    borderColor: '#4E545E',
     borderWidth: 0.8,
     position: 'absolute',
   },
-  snareWires: {
-    bottom: '16%',
-    gap: 3,
+  beaterMark: {
+    backgroundColor: '#3A4150',
+    opacity: 0.8,
     position: 'absolute',
-  },
-  snareWire: {
-    backgroundColor: '#6A6A70',
-    height: 1.5,
-    opacity: 0.45,
-    width: '100%',
-  },
-  headShine: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 99,
-    left: '18%',
-    opacity: 0.28,
-    position: 'absolute',
-    top: '18%',
-  },
-  shell: {
-    borderColor: SHELL.dark,
-    borderWidth: 1,
-  },
-  kickShadow: {
-    backgroundColor: '#000',
-    borderRadius: 99,
-    bottom: '8%',
-    opacity: 0.3,
-    position: 'absolute',
-  },
-  kickBody: {
-    alignItems: 'center',
-    backgroundColor: '#C0392B',
-    borderColor: '#5C1512',
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    overflow: 'hidden',
-    paddingHorizontal: 10,
-  },
-  kickRear: {
-    backgroundColor: '#8A1E18',
-    opacity: 0.7,
-  },
-  kickHead: {
-    alignItems: 'center',
-    backgroundColor: HEAD.fill,
-    borderColor: HEAD.rim,
-    justifyContent: 'center',
-    marginLeft: 'auto',
-    overflow: 'hidden',
-  },
-  pedalBase: {
-    alignItems: 'center',
-    backgroundColor: '#1C1C20',
-    borderColor: '#6B6B72',
-    borderRadius: 6,
-    borderWidth: 1,
-    justifyContent: 'flex-end',
-    paddingBottom: 4,
-  },
-  pedalBeater: {
-    backgroundColor: '#8A8A90',
-    borderRadius: 3,
   },
 });

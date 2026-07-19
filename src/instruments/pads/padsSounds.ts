@@ -40,6 +40,8 @@ export const PAD_SOUND_IDS: PadSoundId[] = [
 export type LaunchPadDefinition = {
   id: PadSoundId;
   labelKey: string;
+  /** Literal label (custom bank) — wins over labelKey when present. */
+  rawLabel?: string;
   color: string;
 };
 

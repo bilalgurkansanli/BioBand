@@ -231,3 +231,9 @@ export const GUITAR_VOICES: GuitarVoiceDefinition[] = [
 export function getGuitarVoice(id: GuitarVoiceId): GuitarVoiceDefinition {
   return GUITAR_VOICES.find((voice) => voice.id === id) ?? GUITAR_VOICES[0];
 }
+
+export function isGuitarVoiceId(value: unknown): value is GuitarVoiceId {
+  return (
+    typeof value === 'string' && GUITAR_VOICES.some((voice) => voice.id === value)
+  );
+}

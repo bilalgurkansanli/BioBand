@@ -78,10 +78,14 @@ export function buildChordPatternSteps(
   mode: GuitarChordPlayMode,
   direction: 'down' | 'up',
   gesture: GuitarChordGesture,
+  /** Settings "strum feel" — scales only the strum cascade stagger. */
+  strumStaggerScale = 1,
 ): ChordPatternStep[] {
   if (mode === 'strum') {
     const notes = orderedNotes(chord, direction);
-    const stagger = direction === 'up' ? STRUM_STAGGER_MS - 4 : STRUM_STAGGER_MS;
+    const stagger =
+      (direction === 'up' ? STRUM_STAGGER_MS - 4 : STRUM_STAGGER_MS) *
+      strumStaggerScale;
     const baseVel = direction === 'down' ? 0.88 : 0.58;
     return stepsFromNotes(notes, stagger, () => baseVel);
   }

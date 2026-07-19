@@ -33,10 +33,14 @@ let toneOffsetSemitones = 0;
 let currentVoice: PianoVoiceId = 'acoustic';
 let initialized = false;
 let sustainPedalOn = false;
-/** Keys currently under the finger. */
-const fingerHeldNotes = new Set<NoteId>();
-/** Notes kept ringing by the sustain pedal after finger lift. */
-const pedalHeldNotes = new Set<NoteId>();
+// Both maps remember the voice each note was struck with, so a note is always
+// released with the tag it was created with — even if the user switches voice
+// while the key is still held (otherwise the release tag would not match and
+// the note could ring on for its full lifetime).
+/** Keys currently under the finger → voice they were struck with. */
+const fingerHeldNotes = new Map<NoteId, PianoVoiceId>();
+/** Notes kept ringing by the sustain pedal after finger lift → struck voice. */
+const pedalHeldNotes = new Map<NoteId, PianoVoiceId>();
 
 const HELD_SYNTH_SECONDS = 24;
 
@@ -291,6 +295,7 @@ function playOrgan(
   tag: string,
   gainScale = 1,
   held = false,
+  shortTail = false,
 ): void {
   const context = getSharedAudioContext();
   const now = context.currentTime;
@@ -329,8 +334,8 @@ function playOrgan(
   });
 
   const peak = 0.8;
-  const releaseStart = now + (held ? HELD_SYNTH_SECONDS : 0.35);
-  const endsAt = releaseStart + (held ? 0.25 : 0.18);
+  const releaseStart = now + (held ? HELD_SYNTH_SECONDS : shortTail ? 0.12 : 0.35);
+  const endsAt = releaseStart + (held ? 0.25 : shortTail ? 0.1 : 0.18);
   noteGain.gain.linearRampToValueAtTime(peak, now + 0.015);
   noteGain.gain.setValueAtTime(peak, releaseStart);
   noteGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
@@ -363,6 +368,7 @@ function playRhodes(
   tag: string,
   gainScale = 1,
   held = false,
+  shortTail = false,
 ): void {
   const context = getSharedAudioContext();
   const now = context.currentTime;
@@ -380,7 +386,7 @@ function playRhodes(
   // Route through synthBus, not directly to FX input.
   stealGain.connect(getSynthBus());
 
-  const endsAt = now + (held ? HELD_SYNTH_SECONDS : 1.0);
+  const endsAt = now + (held ? HELD_SYNTH_SECONDS : shortTail ? 0.3 : 1.0);
 
   const body = context.createOscillator();
   body.type = 'sine';
@@ -434,6 +440,7 @@ function playSynthLead(
   tag: string,
   gainScale = 1,
   held = false,
+  shortTail = false,
 ): void {
   const context = getSharedAudioContext();
   const now = context.currentTime;
@@ -450,7 +457,7 @@ function playSynthLead(
   filter.frequency.value = Math.min(frequency * 4, 6000);
   filter.Q.value = 1.1;
 
-  const endsAt = now + (held ? HELD_SYNTH_SECONDS : 0.8);
+  const endsAt = now + (held ? HELD_SYNTH_SECONDS : shortTail ? 0.25 : 0.8);
   const noteGain = context.createGain();
   noteGain.gain.setValueAtTime(0.0001, now);
   noteGain.gain.linearRampToValueAtTime(0.18 * bassScale * gainScale, now + 0.012);
@@ -519,13 +526,13 @@ function triggerVoice(
       });
       break;
     case 'organ':
-      playOrgan(midiToFrequency(shiftedMidi), tag, gainScale, held);
+      playOrgan(midiToFrequency(shiftedMidi), tag, gainScale, held, shortTail);
       break;
     case 'rhodes':
-      playRhodes(midiToFrequency(shiftedMidi), tag, gainScale, held);
+      playRhodes(midiToFrequency(shiftedMidi), tag, gainScale, held, shortTail);
       break;
     case 'synth':
-      playSynthLead(midiToFrequency(shiftedMidi), tag, gainScale, held);
+      playSynthLead(midiToFrequency(shiftedMidi), tag, gainScale, held, shortTail);
       break;
   }
 }
@@ -583,7 +590,7 @@ export function noteOn(
     void context.resume();
   }
 
-  fingerHeldNotes.add(noteId);
+  fingerHeldNotes.set(noteId, voice);
   pedalHeldNotes.delete(noteId);
 
   const shiftedMidi = midi + toneSemitones;
@@ -612,15 +619,18 @@ export function noteOff(
   noteId: NoteId,
   voice: PianoVoiceId = currentVoice,
 ): void {
+  // Release with the voice the note was struck with, not whatever voice is
+  // selected now — the tag must match the one used at noteOn.
+  const heldVoice = fingerHeldNotes.get(noteId) ?? voice;
   fingerHeldNotes.delete(noteId);
 
   if (sustainPedalOn) {
-    pedalHeldNotes.add(noteId);
+    pedalHeldNotes.set(noteId, heldVoice);
     return;
   }
 
   pedalHeldNotes.delete(noteId);
-  releaseDryNote(noteId, voice);
+  releaseDryNote(noteId, heldVoice);
 }
 
 export function setSustainPedal(on: boolean): void {
@@ -629,9 +639,9 @@ export function setSustainPedal(on: boolean): void {
     return;
   }
 
-  for (const noteId of pedalHeldNotes) {
+  for (const [noteId, heldVoice] of pedalHeldNotes) {
     if (!fingerHeldNotes.has(noteId)) {
-      releaseDryNote(noteId, currentVoice);
+      releaseDryNote(noteId, heldVoice);
     }
   }
   pedalHeldNotes.clear();

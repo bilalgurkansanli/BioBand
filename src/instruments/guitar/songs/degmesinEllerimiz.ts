@@ -33,12 +33,13 @@ function verseAh(startMs: number): GuitarSongEvent[] {
     note('s2', 0, startMs + PULSE * 2),
     note('s2', 2, startMs + PULSE * 2 + BEAT),
     note('s2', 3, startMs + PULSE * 3),
-    note('s2', 3, startMs + BAR),
-    note('s1', 1, startMs + BAR + BEAT),
-    note('s1', 0, startMs + BAR + BEAT * 2),
-    note('s2', 0, startMs + BAR + PULSE),
-    note('s2', 2, startMs + BAR + PULSE + BEAT),
-    note('s1', 0, startMs + BAR + PULSE * 2),
+    // Answer phrase lives in bars 3–4 (BAR = 2 pulses, so base is BAR * 2).
+    note('s2', 3, startMs + BAR * 2),
+    note('s1', 1, startMs + BAR * 2 + BEAT),
+    note('s1', 0, startMs + BAR * 2 + BEAT * 2),
+    note('s2', 0, startMs + BAR * 2 + PULSE),
+    note('s2', 2, startMs + BAR * 2 + PULSE + BEAT),
+    note('s1', 0, startMs + BAR * 2 + PULSE * 2),
   ];
 }
 
@@ -70,13 +71,14 @@ function chorusDegmesin(startMs: number): GuitarSongEvent[] {
     note('s1', 6, startMs + PULSE * 2),
     note('s1', 6, startMs + PULSE * 2 + BEAT),
     note('s1', 6, startMs + PULSE * 2 + BEAT * 2),
-    note('s1', 8, startMs + BAR),
-    note('s1', 6, startMs + BAR + BEAT),
-    note('s1', 6, startMs + BAR + BEAT * 2),
-    note('s1', 5, startMs + BAR + BEAT * 3),
-    note('s1', 6, startMs + BAR + PULSE),
-    note('s1', 5, startMs + BAR + PULSE * 2),
-    note('s1', 5, startMs + BAR + PULSE * 3),
+    // Second statement in bars 3–4 (BAR = 2 pulses, so base is BAR * 2).
+    note('s1', 8, startMs + BAR * 2),
+    note('s1', 6, startMs + BAR * 2 + BEAT),
+    note('s1', 6, startMs + BAR * 2 + BEAT * 2),
+    note('s1', 5, startMs + BAR * 2 + PULSE),
+    note('s1', 6, startMs + BAR * 2 + PULSE + BEAT),
+    note('s1', 5, startMs + BAR * 3),
+    note('s1', 5, startMs + BAR * 3 + PULSE),
   ];
 }
 
@@ -90,8 +92,8 @@ function bridgeLoop(startMs: number): GuitarSongEvent[] {
     note('s1', 5, startMs + BAR),
     note('s1', 5, startMs + BAR + BEAT),
     note('s1', 5, startMs + BAR + BEAT * 2),
-    note('s1', 3, startMs + BAR + BEAT * 3),
-    note('s1', 5, startMs + BAR + PULSE),
+    note('s1', 3, startMs + BAR + PULSE),
+    note('s1', 5, startMs + BAR + PULSE + BEAT * 2),
     note('s2', 3, startMs + BAR * 2),
     note('s2', 3, startMs + BAR * 2 + BEAT * 2),
     note('s2', 3, startMs + BAR * 2 + PULSE),

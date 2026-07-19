@@ -7,9 +7,28 @@ import type {
   ViolinSongDefinition,
   ViolinSongEvent,
   ViolinSongScope,
+  PlayMode,
   ResolvedViolinSession,
 } from '../instruments/violin/songs/types';
+import { songHasBackingAudio } from '../instruments/piano/songs/types';
+import {
+  getBackingCurrentTimeMs,
+  getBackingElapsedMs,
+  onBackingFinished,
+  pauseBackingTrack,
+  playBackingFrom,
+  prepareBackingTrack,
+  setBackingPlaybackRate,
+  stopBackingTrack,
+} from '../instruments/piano/songs/songBackingPlayer';
+import { prepareSamplePlayback } from '../audio/sampleBank';
+import {
+  copySongAudioFile,
+  mergeSongWithAudioBinding,
+  saveSongAudioBinding,
+} from '../storage/songAudioBindingsStorage';
 
+export type { PlayMode, ViolinSongScope };
 export type SupportLevel = 'guided' | 'medium' | 'free';
 export type PlayTempo = 'slow' | 'normal' | 'fast';
 
@@ -23,6 +42,9 @@ export type ViolinPlayAlongPhase =
   | 'idle'
   | 'pickSong'
   | 'pickScope'
+  | 'pickMode'
+  | 'pickAudio'
+  | 'calibrateOffset'
   | 'pickLevel'
   | 'countdown'
   | 'demo'
@@ -45,10 +67,17 @@ export type ViolinPlayAlongProgress = {
 };
 
 const HIT_WINDOW_MS = 350;
+/** Slightly wider window when playing over a live mix (latency + distraction). */
+const HIT_WINDOW_BAND_MS = 480;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
 const COUNTDOWN_STEP_MS = 800;
 const RESULTS_DELAY_MS = 700;
+const CALIBRATE_PREVIEW_MS = 4500;
+const OFFSET_MIN_MS = -5000;
+const OFFSET_MAX_MS = 60_000;
+/** Practice-award ceiling — step mode can idle indefinitely. */
+const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
 
 function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   if (accuracy >= 0.9) {
@@ -63,12 +92,18 @@ function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   return 0;
 }
 
+function clampOffset(ms: number): number {
+  return Math.max(OFFSET_MIN_MS, Math.min(OFFSET_MAX_MS, Math.round(ms)));
+}
+
 export function useViolinPlayAlong(
   playSoundId: (soundId: string) => void,
   extraSongs: ViolinSongDefinition[] = [],
+  onUserSongOffsetSaved?: (songId: string, eventsStartMs: number) => void,
 ) {
   const [phase, setPhase] = useState<ViolinPlayAlongPhase>('idle');
   const [selectedSong, setSelectedSong] = useState<ViolinSongDefinition | null>(null);
+  const [playMode, setPlayMode] = useState<PlayMode | null>(null);
   const [songScope, setSongScope] = useState<ViolinSongScope | null>(null);
   const [level, setLevel] = useState<SupportLevel>('guided');
   const [tempo, setTempoState] = useState<PlayTempo>('normal');
@@ -81,12 +116,16 @@ export function useViolinPlayAlong(
   });
   const [results, setResults] = useState<ViolinPlayAlongResults | null>(null);
   const [demoJustFinished, setDemoJustFinished] = useState(false);
+  const [calibrateOffsetMs, setCalibrateOffsetMs] = useState(0);
+  const [calibratePreviewing, setCalibratePreviewing] = useState(false);
+  const [audioBusy, setAudioBusy] = useState(false);
 
   const extraSongsRef = useRef(extraSongs);
   extraSongsRef.current = extraSongs;
   const songRef = useRef<ViolinSongDefinition | null>(null);
   const sessionRef = useRef<ResolvedViolinSession | null>(null);
   const eventsRef = useRef<ViolinSongEvent[]>([]);
+  const playModeRef = useRef<PlayMode | null>(null);
   const songScopeRef = useRef<ViolinSongScope | null>(null);
   const levelRef = useRef<SupportLevel>('guided');
   const tempoRef = useRef<PlayTempo>('normal');
@@ -96,8 +135,12 @@ export function useViolinPlayAlong(
   const statsRef = useRef({ hits: 0, misses: 0, wrongPresses: 0 });
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const notesFinishedRef = useRef(false);
+  /** True when user already had a saved binding (skip calibrate on re-entry). */
+  const hadSavedBindingRef = useRef(false);
 
   phaseRef.current = phase;
+  playModeRef.current = playMode;
   songScopeRef.current = songScope;
   tempoRef.current = tempo;
 
@@ -112,13 +155,27 @@ export function useViolinPlayAlong(
     timersRef.current = [];
   }, []);
 
+  const stopSessionAudio = useCallback(() => {
+    void stopBackingTrack();
+  }, []);
+
   useEffect(() => {
     return () => {
       clearTimers();
+      void stopBackingTrack();
     };
   }, [clearTimers]);
 
+  const applySong = useCallback((song: ViolinSongDefinition) => {
+    setSelectedSong(song);
+    songRef.current = song;
+  }, []);
+
   const getElapsedMs = useCallback(() => {
+    const session = sessionRef.current;
+    if (session?.useBacking) {
+      return getBackingElapsedMs(session.audioStartMs);
+    }
     const wall = Date.now() - startTimeRef.current;
     return wall * TEMPO_RATES[tempoRef.current];
   }, []);
@@ -129,7 +186,7 @@ export function useViolinPlayAlong(
       setGuideSoundId(null);
       return;
     }
-    if (levelRef.current === 'free') {
+    if (levelRef.current === 'free' && playModeRef.current !== 'fullBand') {
       setGuideSoundId(null);
       return;
     }
@@ -138,6 +195,7 @@ export function useViolinPlayAlong(
 
   const finishSong = useCallback(() => {
     clearTimers();
+    stopSessionAudio();
     setGuideSoundId(null);
 
     const events = eventsRef.current;
@@ -155,18 +213,36 @@ export function useViolinPlayAlong(
       stars,
     });
 
+    const wallElapsed = Date.now() - startTimeRef.current;
     void awardPlayAlongCompletion({
       instrument: 'violin',
       songId: songRef.current?.id ?? null,
       stars,
-      elapsedMs: getElapsedMs(),
+      elapsedMs: Math.min(Math.max(0, wallElapsed), MAX_AWARD_ELAPSED_MS),
     });
 
     const timer = setTimeout(() => {
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers, getElapsedMs]);
+  }, [clearTimers, stopSessionAudio]);
+
+  const maybeFinishAfterNotes = useCallback(() => {
+    const session = sessionRef.current;
+    const events = eventsRef.current;
+    if (pointerRef.current < events.length) {
+      return;
+    }
+    notesFinishedRef.current = true;
+    setGuideSoundId(null);
+
+    // With backing audio, let the track play out; the tick loop or the
+    // finished-callback ends the session.
+    if (session?.useBacking) {
+      return;
+    }
+    finishSong();
+  }, [finishSong]);
 
   const advancePointer = useCallback(() => {
     pointerRef.current += 1;
@@ -180,17 +256,18 @@ export function useViolinPlayAlong(
     });
 
     if (pointerRef.current >= events.length) {
-      finishSong();
+      maybeFinishAfterNotes();
     }
-  }, [finishSong, updateGuide]);
+  }, [maybeFinishAfterNotes, updateGuide]);
 
   const buildSession = useCallback((): ResolvedViolinSession | null => {
     const song = songRef.current;
+    const mode = playModeRef.current;
     const scope = songScopeRef.current;
-    if (!song || !scope) {
+    if (!song || !mode || !scope) {
       return null;
     }
-    const session = resolveViolinPlaySession(song, scope);
+    const session = resolveViolinPlaySession(song, mode, scope);
     sessionRef.current = session;
     eventsRef.current = session.events;
     return session;
@@ -198,31 +275,85 @@ export function useViolinPlayAlong(
 
   const finishDemo = useCallback(() => {
     clearTimers();
+    stopSessionAudio();
     setGuideSoundId(null);
     setDemoJustFinished(true);
     setPhase('pickLevel');
-  }, [clearTimers]);
+  }, [clearTimers, stopSessionAudio]);
+
+  const ensureBackingReady = useCallback(
+    async (session: ResolvedViolinSession) => {
+      const song = songRef.current;
+      if (!session.useBacking || !songHasBackingAudio(song?.backingTrack)) {
+        await stopBackingTrack();
+        return;
+      }
+      await prepareSamplePlayback();
+      setBackingPlaybackRate(TEMPO_RATES[tempoRef.current]);
+      await prepareBackingTrack(song!.backingTrack!);
+      setBackingPlaybackRate(TEMPO_RATES[tempoRef.current]);
+      onBackingFinished(() => {
+        if (phaseRef.current === 'demo') {
+          finishDemo();
+          return;
+        }
+        if (phaseRef.current === 'playing' || phaseRef.current === 'countdown') {
+          finishSong();
+        }
+      });
+    },
+    [finishDemo, finishSong],
+  );
 
   const startTick = useCallback(() => {
     tickRef.current = setInterval(() => {
       const events = eventsRef.current;
+      const session = sessionRef.current;
       if (!events.length || phaseRef.current !== 'playing') {
-        return;
-      }
-      if (levelRef.current !== 'free') {
         return;
       }
 
       const elapsed = getElapsedMs();
+
+      if (
+        session?.useBacking &&
+        session.audioEndMs != null &&
+        getBackingCurrentTimeMs() >= session.audioEndMs
+      ) {
+        pauseBackingTrack();
+        if (notesFinishedRef.current || pointerRef.current >= events.length) {
+          finishSong();
+        } else {
+          while (pointerRef.current < events.length) {
+            statsRef.current.misses += 1;
+            pointerRef.current += 1;
+          }
+          setProgress({
+            resolved: events.length,
+            total: events.length,
+            hits: statsRef.current.hits,
+          });
+          finishSong();
+        }
+        return;
+      }
+
+      if (levelRef.current !== 'free') {
+        return;
+      }
+
+      const missWindow =
+        playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS;
+
       while (
         pointerRef.current < events.length &&
-        elapsed > events[pointerRef.current].atMs + HIT_WINDOW_MS
+        elapsed > events[pointerRef.current].atMs + missWindow
       ) {
         statsRef.current.misses += 1;
         advancePointer();
       }
     }, TICK_MS);
-  }, [advancePointer, getElapsedMs]);
+  }, [advancePointer, finishSong, getElapsedMs]);
 
   const startPlaying = useCallback(() => {
     const session = sessionRef.current ?? buildSession();
@@ -230,16 +361,21 @@ export function useViolinPlayAlong(
       return;
     }
 
+    notesFinishedRef.current = false;
     startTimeRef.current = Date.now();
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
     setProgress({ resolved: 0, total: session.events.length, hits: 0 });
     setPhase('playing');
     updateGuide();
+
+    if (session.useBacking) {
+      void playBackingFrom(session.audioStartMs);
+    }
     startTick();
   }, [buildSession, startTick, updateGuide]);
 
-  const startDemo = useCallback(() => {
+  const startDemo = useCallback(async () => {
     const session = buildSession();
     if (!session) {
       return;
@@ -248,15 +384,52 @@ export function useViolinPlayAlong(
     clearTimers();
     setResults(null);
     setDemoJustFinished(false);
+    notesFinishedRef.current = false;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
     setProgress({ resolved: 0, total: session.events.length, hits: 0 });
     setPhase('demo');
     setGuideSoundId(session.events[0]?.soundId ?? null);
 
-    const rate = TEMPO_RATES[tempoRef.current];
-    startTimeRef.current = Date.now();
+    await ensureBackingReady(session);
 
+    const rate = TEMPO_RATES[tempoRef.current];
+
+    if (session.useBacking) {
+      await playBackingFrom(session.audioStartMs);
+      startTimeRef.current = Date.now();
+
+      tickRef.current = setInterval(() => {
+        if (phaseRef.current !== 'demo') {
+          return;
+        }
+        const elapsed = getElapsedMs();
+        const events = eventsRef.current;
+        let idx = 0;
+        while (idx < events.length && events[idx].atMs <= elapsed) {
+          idx += 1;
+        }
+        const current = Math.max(0, idx - 1);
+        pointerRef.current = current;
+        setGuideSoundId(events[current]?.soundId ?? null);
+        setProgress({
+          resolved: Math.min(events.length, idx),
+          total: events.length,
+          hits: 0,
+        });
+
+        if (
+          session.audioEndMs != null &&
+          getBackingCurrentTimeMs() >= session.audioEndMs
+        ) {
+          pauseBackingTrack();
+          finishDemo();
+        }
+      }, TICK_MS);
+      return;
+    }
+
+    startTimeRef.current = Date.now();
     session.events.forEach((event, index) => {
       const timer = setTimeout(() => {
         playSoundId(event.soundId);
@@ -275,9 +448,16 @@ export function useViolinPlayAlong(
       finishDemo();
     }, lastAtMs / rate + 1500);
     timersRef.current.push(endTimer);
-  }, [buildSession, clearTimers, finishDemo, playSoundId]);
+  }, [
+    buildSession,
+    clearTimers,
+    ensureBackingReady,
+    finishDemo,
+    getElapsedMs,
+    playSoundId,
+  ]);
 
-  const startStepMode = useCallback(() => {
+  const startStepMode = useCallback(async () => {
     const session = buildSession();
     if (!session) {
       return;
@@ -285,14 +465,22 @@ export function useViolinPlayAlong(
 
     clearTimers();
     setResults(null);
+    notesFinishedRef.current = false;
+    startTimeRef.current = Date.now();
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
     setProgress({ resolved: 0, total: session.events.length, hits: 0 });
     setPhase('playing');
     updateGuide();
-  }, [buildSession, clearTimers, updateGuide]);
 
-  const startCountdown = useCallback(() => {
+    await ensureBackingReady(session);
+    if (session.useBacking) {
+      await playBackingFrom(session.audioStartMs);
+      startTick();
+    }
+  }, [buildSession, clearTimers, ensureBackingReady, startTick, updateGuide]);
+
+  const startCountdown = useCallback(async () => {
     const session = buildSession();
     if (!session) {
       return;
@@ -303,6 +491,8 @@ export function useViolinPlayAlong(
     setCountdownValue(COUNTDOWN_START);
     setPhase('countdown');
     setGuideSoundId(null);
+
+    await ensureBackingReady(session);
 
     for (let step = 1; step <= COUNTDOWN_START; step++) {
       const timer = setTimeout(() => {
@@ -315,19 +505,24 @@ export function useViolinPlayAlong(
       }, step * COUNTDOWN_STEP_MS);
       timersRef.current.push(timer);
     }
-  }, [buildSession, clearTimers, startPlaying]);
+  }, [buildSession, clearTimers, ensureBackingReady, startPlaying]);
 
   const resetWizard = useCallback(() => {
     clearTimers();
+    stopSessionAudio();
     setSelectedSong(null);
     songRef.current = null;
     sessionRef.current = null;
     eventsRef.current = [];
+    setPlayMode(null);
     setSongScope(null);
     setResults(null);
     setGuideSoundId(null);
     setDemoJustFinished(false);
-  }, [clearTimers]);
+    setCalibrateOffsetMs(0);
+    setCalibratePreviewing(false);
+    hadSavedBindingRef.current = false;
+  }, [clearTimers, stopSessionAudio]);
 
   const open = useCallback(() => {
     resetWizard();
@@ -339,18 +534,35 @@ export function useViolinPlayAlong(
     setPhase('idle');
   }, [resetWizard]);
 
-  const selectSong = useCallback((songId: string) => {
-    const song =
-      getViolinSongById(songId) ??
-      extraSongsRef.current.find((entry) => entry.id === songId);
-    if (!song) {
-      return;
-    }
-    setSelectedSong(song);
-    songRef.current = song;
-    setSongScope(null);
-    songScopeRef.current = null;
-    setPhase('pickScope');
+  const selectSong = useCallback(
+    async (songId: string) => {
+      const base =
+        getViolinSongById(songId) ??
+        extraSongsRef.current.find((entry) => entry.id === songId);
+      if (!base) {
+        return;
+      }
+
+      const merged = (await mergeSongWithAudioBinding(
+        base as unknown as Parameters<typeof mergeSongWithAudioBinding>[0],
+      )) as unknown as ViolinSongDefinition;
+      applySong(merged);
+      hadSavedBindingRef.current = songHasBackingAudio(merged.backingTrack);
+      setPlayMode('violin');
+      playModeRef.current = 'violin';
+      setSongScope(null);
+      songScopeRef.current = null;
+      setPhase('pickScope');
+    },
+    [applySong],
+  );
+
+  const enterCalibrate = useCallback(() => {
+    const song = songRef.current;
+    setCalibrateOffsetMs(song?.backingTrack?.eventsStartMs ?? 0);
+    setCalibratePreviewing(false);
+    void stopBackingTrack();
+    setPhase('calibrateOffset');
   }, []);
 
   const selectScope = useCallback((scope: ViolinSongScope) => {
@@ -360,6 +572,162 @@ export function useViolinPlayAlong(
     setPhase('pickLevel');
   }, []);
 
+  const selectPlayMode = useCallback(
+    (mode: PlayMode) => {
+      setPlayMode(mode);
+      playModeRef.current = mode;
+
+      if (mode === 'violin') {
+        setPhase('pickLevel');
+        return;
+      }
+
+      // fullBand
+      if (!songHasBackingAudio(songRef.current?.backingTrack)) {
+        setPhase('pickAudio');
+        return;
+      }
+
+      if (hadSavedBindingRef.current) {
+        setPhase('pickLevel');
+        return;
+      }
+
+      enterCalibrate();
+    },
+    [enterCalibrate],
+  );
+
+  const pickBackingAudio = useCallback(
+    async (sourceUri: string, fileNameHint?: string) => {
+      const song = songRef.current;
+      if (!song) {
+        return { ok: false as const, code: 'noSong' as const };
+      }
+
+      setAudioBusy(true);
+      try {
+        const localUri = copySongAudioFile(song.id, sourceUri, fileNameHint);
+        const eventsStartMs = song.backingTrack?.eventsStartMs ?? 0;
+        await saveSongAudioBinding({
+          songId: song.id,
+          localUri,
+          eventsStartMs,
+        });
+
+        const next: ViolinSongDefinition = {
+          ...song,
+          backingTrack: {
+            ...(song.backingTrack?.module != null
+              ? { module: song.backingTrack.module }
+              : {}),
+            uri: localUri,
+            eventsStartMs,
+          },
+        };
+        applySong(next);
+        hadSavedBindingRef.current = false;
+        setCalibrateOffsetMs(eventsStartMs);
+        setPhase('calibrateOffset');
+        return { ok: true as const };
+      } catch {
+        return { ok: false as const, code: 'readFailed' as const };
+      } finally {
+        setAudioBusy(false);
+      }
+    },
+    [applySong],
+  );
+
+  const setCalibrateOffset = useCallback((ms: number) => {
+    setCalibrateOffsetMs(clampOffset(ms));
+  }, []);
+
+  const previewCalibrate = useCallback(async () => {
+    const song = songRef.current;
+    if (!songHasBackingAudio(song?.backingTrack)) {
+      return;
+    }
+
+    clearTimers();
+    setCalibratePreviewing(true);
+    const offset = clampOffset(calibrateOffsetMs);
+    const previewTrack = {
+      ...song!.backingTrack!,
+      eventsStartMs: offset,
+    };
+
+    try {
+      await prepareSamplePlayback();
+      await prepareBackingTrack(previewTrack);
+      await playBackingFrom(Math.max(0, offset));
+
+      const firstNotes = song!.events.slice(0, 8);
+      firstNotes.forEach((event) => {
+        const timer = setTimeout(() => {
+          if (phaseRef.current !== 'calibrateOffset') {
+            return;
+          }
+          playSoundId(event.soundId);
+          setGuideSoundId(event.soundId);
+        }, event.atMs);
+        timersRef.current.push(timer);
+      });
+
+      const endTimer = setTimeout(() => {
+        void stopBackingTrack();
+        setGuideSoundId(null);
+        setCalibratePreviewing(false);
+      }, CALIBRATE_PREVIEW_MS);
+      timersRef.current.push(endTimer);
+    } catch {
+      setCalibratePreviewing(false);
+      void stopBackingTrack();
+    }
+  }, [calibrateOffsetMs, clearTimers, playSoundId]);
+
+  const stopCalibratePreview = useCallback(() => {
+    clearTimers();
+    void stopBackingTrack();
+    setGuideSoundId(null);
+    setCalibratePreviewing(false);
+  }, [clearTimers]);
+
+  const confirmCalibrate = useCallback(async () => {
+    const song = songRef.current;
+    if (!song || !songHasBackingAudio(song.backingTrack)) {
+      return;
+    }
+
+    stopCalibratePreview();
+    const eventsStartMs = clampOffset(calibrateOffsetMs);
+    const localUri = song.backingTrack!.uri;
+    if (localUri) {
+      await saveSongAudioBinding({
+        songId: song.id,
+        localUri,
+        eventsStartMs,
+      });
+    }
+
+    const next: ViolinSongDefinition = {
+      ...song,
+      backingTrack: {
+        ...song.backingTrack!,
+        eventsStartMs,
+      },
+    };
+    applySong(next);
+    hadSavedBindingRef.current = true;
+    onUserSongOffsetSaved?.(song.id, eventsStartMs);
+    setPhase('pickLevel');
+  }, [
+    applySong,
+    calibrateOffsetMs,
+    onUserSongOffsetSaved,
+    stopCalibratePreview,
+  ]);
+
   const selectLevel = useCallback(
     (nextLevel: SupportLevel) => {
       setLevel(nextLevel);
@@ -367,14 +735,14 @@ export function useViolinPlayAlong(
       setDemoJustFinished(false);
 
       if (nextLevel === 'guided') {
-        startDemo();
+        void startDemo();
         return;
       }
       if (nextLevel === 'medium') {
         void startStepMode();
         return;
       }
-      startCountdown();
+      void startCountdown();
     },
     [startCountdown, startDemo, startStepMode],
   );
@@ -391,29 +759,48 @@ export function useViolinPlayAlong(
       songRef.current = null;
       return;
     }
+    if (phase === 'pickMode') {
+      setPlayMode('violin');
+      playModeRef.current = 'violin';
+      setPhase('pickScope');
+      return;
+    }
+    if (phase === 'pickAudio') {
+      setPhase('pickMode');
+      return;
+    }
+    if (phase === 'calibrateOffset') {
+      stopCalibratePreview();
+      setPhase('pickMode');
+      return;
+    }
     if (phase === 'pickLevel') {
       setPhase('pickScope');
       setDemoJustFinished(false);
+      clearTimers();
+      stopSessionAudio();
       return;
     }
     if (phase === 'results') {
       setPhase('pickLevel');
       setResults(null);
     }
-  }, [phase]);
+  }, [clearTimers, phase, stopCalibratePreview, stopSessionAudio]);
 
   const backToSongList = useCallback(() => {
     clearTimers();
+    stopSessionAudio();
     setSelectedSong(null);
     songRef.current = null;
     sessionRef.current = null;
     eventsRef.current = [];
+    setPlayMode(null);
     setSongScope(null);
     setResults(null);
     setGuideSoundId(null);
     setDemoJustFinished(false);
     setPhase('pickSong');
-  }, [clearTimers]);
+  }, [clearTimers, stopSessionAudio]);
 
   const replay = useCallback(() => {
     setResults(null);
@@ -456,9 +843,11 @@ export function useViolinPlayAlong(
         return;
       }
 
+      const hitWindow =
+        playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS;
       const elapsed = getElapsedMs();
       const delta = Math.abs(elapsed - expected.atMs);
-      if (soundId === expected.soundId && delta <= HIT_WINDOW_MS) {
+      if (soundId === expected.soundId && delta <= hitWindow) {
         play();
         statsRef.current.hits += 1;
         advancePointer();
@@ -473,9 +862,18 @@ export function useViolinPlayAlong(
   const isActive = phase !== 'idle';
   const songs = [...VIOLIN_SONGS, ...extraSongs];
 
+  const isListeningOutro =
+    playMode === 'fullBand' &&
+    phase === 'playing' &&
+    progress.total > 0 &&
+    progress.resolved >= progress.total;
+
+  const hasBackingAudio = songHasBackingAudio(selectedSong?.backingTrack);
+
   return {
     phase,
     selectedSong,
+    playMode,
     songScope,
     level,
     tempo,
@@ -485,10 +883,18 @@ export function useViolinPlayAlong(
     results,
     demoJustFinished,
     isActive,
+    isListeningOutro,
+    hasBackingAudio,
+    calibrateOffsetMs,
+    calibratePreviewing,
+    audioBusy,
+    offsetMinMs: OFFSET_MIN_MS,
+    offsetMaxMs: OFFSET_MAX_MS,
     songs,
     open,
     close,
     selectSong,
+    selectPlayMode,
     selectScope,
     selectLevel,
     setTempo,
@@ -496,5 +902,10 @@ export function useViolinPlayAlong(
     backToSongList,
     replay,
     handleSoundPress,
+    pickBackingAudio,
+    setCalibrateOffset,
+    previewCalibrate,
+    stopCalibratePreview,
+    confirmCalibrate,
   };
 }

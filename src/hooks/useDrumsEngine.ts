@@ -51,8 +51,8 @@ export function useDrumsEngine(kitId: DrumKitId = 'acoustic') {
     }
   }, [kitId, ready]);
 
-  const playHit = useCallback((id: DrumSoundId) => {
-    enginePlayHit(id);
+  const playHit = useCallback((id: DrumSoundId, velocity?: number) => {
+    enginePlayHit(id, velocity);
   }, []);
 
   return { ready, error, playHit };

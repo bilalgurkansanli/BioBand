@@ -5,7 +5,7 @@ import {
   loadSample,
   playSample,
   prepareSamplePlayback,
-  releaseVoiceByTag,
+  releaseVoicesByTagPrefix,
   stopAllVoices,
 } from '../../audio/sampleBank';
 import {
@@ -14,13 +14,20 @@ import {
   schedulePianoReverbTaps,
 } from '../piano/pianoFx';
 import { getDrumKit, type DrumKitId } from './drumsKits';
-import { DRUM_HIT_GAINS, DRUM_SOUND_FILES, type DrumSoundId } from './drumsSounds';
+import {
+  DRUM_HIT_GAINS,
+  DRUM_SOUND_FILES,
+  KIT_SOUND_OVERRIDES,
+  type DrumSoundId,
+} from './drumsSounds';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
 >;
 
 const buffers = new Map<DrumSoundId, AudioBuffer>();
+/** Per-kit replacement buffers (e.g. the electronic kit's 808 one-shots). */
+const kitBuffers = new Map<DrumKitId, Map<DrumSoundId, AudioBuffer>>();
 let initialized = false;
 let currentKitId: DrumKitId = 'acoustic';
 
@@ -40,13 +47,14 @@ type HitEnvelope = {
 };
 
 const HIT_ENVELOPES: Record<DrumSoundId, HitEnvelope> = {
-  // Short musical crash — sample is ~1.1s; do not let it wash for 3–4s.
-  crash: { attackSeconds: 0.006, holdSeconds: 0.45, releaseSeconds: 0.55, rateScale: 0.94 },
+  // Crash sample is ~2.4s — short musical ring, fade before it overstays.
+  crash: { attackSeconds: 0.004, holdSeconds: 0.55, releaseSeconds: 0.75, rateScale: 1 },
   ride: { attackSeconds: 0.004, holdSeconds: 1.1, releaseSeconds: 0.9, rateScale: 1 },
   hihatClosed: { attackSeconds: 0.001, holdSeconds: 0.12, releaseSeconds: 0.1, rateScale: 1 },
   hihatOpen: { attackSeconds: 0.002, holdSeconds: 0.55, releaseSeconds: 0.45, rateScale: 1 },
-  kick: { attackSeconds: 0.001, holdSeconds: 0.55, releaseSeconds: 0.35, rateScale: 1 },
+  kick: { attackSeconds: 0.001, holdSeconds: 0.75, releaseSeconds: 0.5, rateScale: 1 },
   snare: { attackSeconds: 0.001, holdSeconds: 0.35, releaseSeconds: 0.25, rateScale: 1 },
+  snareRim: { attackSeconds: 0.001, holdSeconds: 0.12, releaseSeconds: 0.1, rateScale: 1 },
   tomHi: { attackSeconds: 0.002, holdSeconds: 0.45, releaseSeconds: 0.35, rateScale: 1 },
   tomMid: { attackSeconds: 0.002, holdSeconds: 0.5, releaseSeconds: 0.4, rateScale: 1 },
   tomLow: { attackSeconds: 0.002, holdSeconds: 0.55, releaseSeconds: 0.45, rateScale: 1 },
@@ -87,11 +95,11 @@ function ensureCymbalTone(): GainNode {
     return cymbalTone;
   }
   const context = getSharedAudioContext();
-  // Low-pass the harsh upper-mid / air that made the old crash sound tinny.
+  // Gentle top-end rounding; keep the crash sizzle (~6-13 kHz) intact.
   cymbalTone = context.createBiquadFilter();
   cymbalTone.type = 'lowpass';
-  cymbalTone.frequency.value = 5800;
-  cymbalTone.Q.value = 0.65;
+  cymbalTone.frequency.value = 10500;
+  cymbalTone.Q.value = 0.55;
   cymbalTone.connect(ensureKitBus());
   return cymbalTone;
 }
@@ -113,6 +121,24 @@ export async function initDrumsEngine(): Promise<void> {
     }),
   );
 
+  await Promise.all(
+    (Object.keys(KIT_SOUND_OVERRIDES) as DrumKitId[]).map(async (kitId) => {
+      const overrides = KIT_SOUND_OVERRIDES[kitId];
+      if (!overrides) {
+        return;
+      }
+      const kitMap = kitBuffers.get(kitId) ?? new Map<DrumSoundId, AudioBuffer>();
+      kitBuffers.set(kitId, kitMap);
+      await Promise.all(
+        (Object.entries(overrides) as [DrumSoundId, number][]).map(
+          async ([id, source]) => {
+            kitMap.set(id, await loadSample(source));
+          },
+        ),
+      );
+    }),
+  );
+
   initialized = true;
 }
 
@@ -125,7 +151,16 @@ export function getCurrentDrumKitId(): DrumKitId {
   return currentKitId;
 }
 
-function voiceTag(id: DrumSoundId): string {
+/**
+ * Every trigger gets a unique tag so hits never steal each other (two crash
+ * hits ring together, rolls keep their body). FX taps append ":reverb:N" /
+ * ":echo:N" — a distinct tag from the dry hit, so a tap never chokes the dry
+ * sound, and the ":reverb" marker opts taps into preferred voice-stealing.
+ * The stable "drums:<pad>" prefix is what the hi-hat choke matches on.
+ */
+let hitSerial = 0;
+
+function padTagPrefix(id: DrumSoundId): string {
   return `drums:${id}`;
 }
 
@@ -133,6 +168,7 @@ function triggerHit(
   id: DrumSoundId,
   buffer: AudioBuffer,
   gain: number,
+  tag: string,
   shortTail = false,
 ): void {
   const env = HIT_ENVELOPES[id];
@@ -141,7 +177,7 @@ function triggerHit(
   const isBrightCymbal = id === 'crash' || id === 'ride';
   const output = isBrightCymbal ? ensureCymbalTone() : ensureKitBus();
 
-  playSample(buffer, rate, gain, output, voiceTag(id), {
+  playSample(buffer, rate, gain, output, tag, {
     shortTail,
     attackSeconds: shortTail ? 0.004 : env.attackSeconds,
     holdSeconds: shortTail ? Math.min(0.55, env.holdSeconds) : env.holdSeconds,
@@ -149,8 +185,12 @@ function triggerHit(
   });
 }
 
-export function playHit(id: DrumSoundId): void {
-  const buffer = buffers.get(id);
+/**
+ * @param velocity 0..1 hit strength (touch position on the pad). Scales the
+ * gain from a soft ghost note (~1/3 level) up to the full pad gain.
+ */
+export function playHit(id: DrumSoundId, velocity = 1): void {
+  const buffer = kitBuffers.get(currentKitId)?.get(id) ?? buffers.get(id);
   if (!buffer) {
     return;
   }
@@ -160,26 +200,53 @@ export function playHit(id: DrumSoundId): void {
     void context.resume();
   }
 
-  // Closed hat chokes a ringing open hat (real kit behaviour).
+  // Closed hat chokes a ringing open hat (real kit behaviour) — including
+  // the open hat's pending reverb/echo tails.
   if (id === 'hihatClosed') {
-    releaseVoiceByTag(voiceTag('hihatOpen'), 0.04);
+    releaseVoicesByTagPrefix(padTagPrefix('hihatOpen'), 0.04);
   }
 
-  const hitGain = DRUM_HIT_GAINS[id];
+  const clampedVelocity = Math.max(0.1, Math.min(1, velocity));
+  const hitGain = DRUM_HIT_GAINS[id] * (0.35 + 0.65 * clampedVelocity);
+  const baseTag = `${padTagPrefix(id)}#${hitSerial++}`;
 
-  triggerHit(id, buffer, hitGain);
+  triggerHit(id, buffer, hitGain, baseTag);
 
-  schedulePianoReverbTaps((gainScale) => {
-    triggerHit(id, buffer, hitGain * gainScale, true);
+  schedulePianoReverbTaps((gainScale, tapIndex) => {
+    triggerHit(id, buffer, hitGain * gainScale, `${baseTag}:reverb:${tapIndex}`, true);
   });
 
+  let echoIndex = 0;
   schedulePianoEchoRepeats((gainScale) => {
-    triggerHit(id, buffer, hitGain * gainScale);
+    triggerHit(id, buffer, hitGain * gainScale, `${baseTag}:echo:${echoIndex++}`);
   });
+}
+
+/**
+ * Grab-choke: fade every ringing voice of a pad (crash/ride/open-hat grab).
+ */
+export function chokePad(id: DrumSoundId, fadeSeconds = 0.08): void {
+  releaseVoicesByTagPrefix(padTagPrefix(id), fadeSeconds);
+}
+
+function disconnectSafe(node: { disconnect: () => void } | null): void {
+  if (!node) {
+    return;
+  }
+  try {
+    node.disconnect();
+  } catch {
+    // Already disconnected.
+  }
 }
 
 export function releaseDrumsEngine(): void {
   stopAllVoices();
+  // Detach the bus chain before dropping the refs — otherwise every
+  // focus/blur cycle leaves an orphaned gain→filter chain on the FX input.
+  disconnectSafe(cymbalTone);
+  disconnectSafe(kitGain);
+  disconnectSafe(kitFilter);
   kitGain = null;
   kitFilter = null;
   cymbalTone = null;

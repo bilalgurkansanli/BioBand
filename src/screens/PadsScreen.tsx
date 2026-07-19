@@ -1,6 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  LayoutChangeEvent,
+  StyleSheet,
+  Text,
+  Vibration,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
+import type { NavigationProp } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,25 +19,40 @@ import { getMasterVolume, setMasterVolume } from '../audio/sampleBank';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
 import { StudioOverdubBanner } from '../components/studio/StudioOverdubBanner';
+import { LooperBar } from '../components/pads/LooperBar';
+import { PadEditModal } from '../components/pads/PadEditModal';
 import { PadGrid } from '../components/pads/PadGrid';
 import { PadsKitModal } from '../components/pads/PadsKitModal';
 import { PadsPlayAlongHud } from '../components/pads/PadsPlayAlongHud';
 import { PadsPlayAlongModal } from '../components/pads/PadsPlayAlongModal';
 import { PadsSettingsModal } from '../components/pads/PadsSettingsModal';
 import { PadsToolbar } from '../components/pads/PadsToolbar';
+import { XYPad } from '../components/pads/XYPad';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePadsEngine } from '../hooks/usePadsEngine';
+import { usePadsLooper } from '../hooks/usePadsLooper';
 import { usePadsPlayAlong } from '../hooks/usePadsPlayAlong';
 import type { NoteRepeatRate } from '../hooks/usePadNoteRepeat';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserPadSongs } from '../hooks/useUserPadSongs';
-import { getPadBank, type PadBankId } from '../instruments/pads/padsBanks';
-import type { PadSoundId } from '../instruments/pads/padsSounds';
+import {
+  getPadBank,
+  setCustomPadSlots,
+  type CustomPadSlot,
+  type PadBankId,
+} from '../instruments/pads/padsBanks';
+import {
+  evictUserPadSample,
+  refreshCustomPadBank,
+  releasePadsPerformanceFilter,
+  setPadsPerformanceFilter,
+} from '../instruments/pads/padsEngine';
+import { PAD_SOUND_IDS, type PadSoundId } from '../instruments/pads/padsSounds';
 import {
   applyPianoFxSettings,
   getPianoFxSettings,
@@ -40,20 +66,31 @@ import {
   stopMetronome,
 } from '../instruments/piano/pianoMetronome';
 import {
+  deletePadSampleFile,
+  loadCustomPadSlots,
+  saveCustomPadSlots,
+} from '../storage/padsCustomBankStorage';
+import {
   DEFAULT_PADS_UI_SETTINGS,
   loadPadsUiSettings,
   savePadsUiSettings,
+  type PadLabelMode,
+  type PadQuantizeMode,
+  type PadVelocityCurve,
+  type PadVelocityMode,
 } from '../storage/padsSettingsStorage';
 import { colors } from '../theme/colors';
-import type { InstrumentsStackParamList } from '../types/navigation';
+import type { InstrumentsStackParamList, RootTabParamList } from '../types/navigation';
 
 const FX_APPLY_DEBOUNCE_MS = 80;
+const XY_PANEL_WIDTH = 170;
 
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'Pads'>;
 
 export function PadsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const rootNavigation = useNavigation<NavigationProp<RootTabParamList>>();
   const [bankId, setBankId] = useState<PadBankId>('drums');
   const bank = getPadBank(bankId);
   const { ready, error, triggerPad } = usePadsEngine(bankId);
@@ -77,8 +114,8 @@ export function PadsScreen({ navigation }: Props) {
 
   const [settingsModalVisible, setSettingsModalVisible] = useState(false);
   const [settingsHydrated, setSettingsHydrated] = useState(false);
-  const [showPadLabels, setShowPadLabels] = useState(
-    DEFAULT_PADS_UI_SETTINGS.showPadLabels,
+  const [labelMode, setLabelMode] = useState<PadLabelMode>(
+    DEFAULT_PADS_UI_SETTINGS.labelMode,
   );
   const [strongGuideHighlight, setStrongGuideHighlight] = useState(
     DEFAULT_PADS_UI_SETTINGS.strongGuideHighlight,
@@ -90,8 +127,70 @@ export function PadsScreen({ navigation }: Props) {
   const [noteRepeatRate, setNoteRepeatRate] = useState<NoteRepeatRate>(
     DEFAULT_PADS_UI_SETTINGS.noteRepeatRate,
   );
+  const [velocityMode, setVelocityMode] = useState<PadVelocityMode>(
+    DEFAULT_PADS_UI_SETTINGS.velocityMode,
+  );
+  const [velocityCurve, setVelocityCurve] = useState<PadVelocityCurve>(
+    DEFAULT_PADS_UI_SETTINGS.velocityCurve,
+  );
+  const [haptics, setHaptics] = useState(DEFAULT_PADS_UI_SETTINGS.haptics);
+  const [padTrail, setPadTrail] = useState(DEFAULT_PADS_UI_SETTINGS.padTrail);
+  const [stageLight, setStageLight] = useState(DEFAULT_PADS_UI_SETTINGS.stageLight);
+  const [quantize, setQuantize] = useState<PadQuantizeMode>(
+    DEFAULT_PADS_UI_SETTINGS.quantize,
+  );
+  const [xySurface, setXySurface] = useState(DEFAULT_PADS_UI_SETTINGS.xySurface);
 
-  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed();
+  const hapticsRef = useRef(haptics);
+  hapticsRef.current = haptics;
+  const stageLightRef = useRef(stageLight);
+  stageLightRef.current = stageLight;
+  const bankIdRef = useRef(bankId);
+  bankIdRef.current = bankId;
+  const quantizeRef = useRef(quantize);
+  quantizeRef.current = quantize;
+
+  // Custom bank editing.
+  const [customSlots, setCustomSlotsState] = useState<CustomPadSlot[] | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editingSlotIndex, setEditingSlotIndex] = useState<number | null>(null);
+  /** Invalidates PadGrid's cached labels/colors after a custom-slot edit. */
+  const [slotsRevision, setSlotsRevision] = useState(0);
+
+  // Looper.
+  const [looperVisible, setLooperVisible] = useState(false);
+  const [ghost, setGhost] = useState<{ id: PadSoundId; stamp: number } | null>(null);
+  const stageLightPulse = useRef(new Animated.Value(0)).current;
+
+  const pulseStageLight = useCallback(() => {
+    if (!stageLightRef.current) {
+      return;
+    }
+    stageLightPulse.setValue(1);
+    Animated.timing(stageLightPulse, {
+      toValue: 0,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [stageLightPulse]);
+
+  const handleScheduledHit = useCallback(
+    (padId: PadSoundId) => {
+      setGhost((previous) => ({ id: padId, stamp: (previous?.stamp ?? 0) + 1 }));
+      pulseStageLight();
+    },
+    [pulseStageLight],
+  );
+
+  const looper = usePadsLooper({
+    getBankId: () => bankIdRef.current,
+    getQuantize: () => quantizeRef.current,
+    onScheduledHit: handleScheduledHit,
+  });
+  const looperRef = useRef(looper);
+  looperRef.current = looper;
+
+  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed(showSpeedHud);
 
   const {
     isRecording,
@@ -107,6 +206,14 @@ export function PadsScreen({ navigation }: Props) {
 
   const userSongs = useUserPadSongs();
   const playAlong = usePadsPlayAlong(triggerPad, userSongs.songs);
+  // Refs keep onTrigger's identity stable across renders — the play-along
+  // hook returns a fresh object every render, and an unstable onTrigger would
+  // re-render the whole 4x4 grid on every screen render (visible as jank
+  // while drumming with the speed HUD or a session active).
+  const playAlongRef = useRef(playAlong);
+  playAlongRef.current = playAlong;
+  const captureEventRef = useRef(captureEvent);
+  captureEventRef.current = captureEvent;
 
   useEffect(() => {
     let cancelled = false;
@@ -114,16 +221,34 @@ export function PadsScreen({ navigation }: Props) {
       if (cancelled) {
         return;
       }
-      setShowPadLabels(settings.showPadLabels);
+      setLabelMode(settings.labelMode);
       setStrongGuideHighlight(settings.strongGuideHighlight);
       setShowSpeedHud(settings.showSpeedHud);
       setNoteRepeatEnabled(settings.noteRepeatEnabled);
       setNoteRepeatRate(settings.noteRepeatRate);
       setBankId(settings.bankId);
+      setVelocityMode(settings.velocityMode);
+      setVelocityCurve(settings.velocityCurve);
+      setHaptics(settings.haptics);
+      setPadTrail(settings.padTrail);
+      setStageLight(settings.stageLight);
+      setQuantize(settings.quantize);
+      setXySurface(settings.xySurface);
       fxSettingsRef.current = settings.fx;
       setFxSettings(settings.fx);
       applyPianoFxSettings(settings.fx);
       setSettingsHydrated(true);
+    });
+    void loadCustomPadSlots().then((slots) => {
+      if (cancelled) {
+        return;
+      }
+      setCustomPadSlots(slots);
+      setCustomSlotsState(slots);
+      setSlotsRevision((previous) => previous + 1);
+      // The engine may have warmed the custom bank before this hydration
+      // landed — re-warm so user samples are decoded and playable.
+      void refreshCustomPadBank();
     });
     return () => {
       cancelled = true;
@@ -135,23 +260,37 @@ export function PadsScreen({ navigation }: Props) {
       return;
     }
     void savePadsUiSettings({
-      showPadLabels,
+      labelMode,
       strongGuideHighlight,
       showSpeedHud,
       noteRepeatEnabled,
       noteRepeatRate,
       bankId,
       fx: fxSettings,
+      velocityMode,
+      velocityCurve,
+      haptics,
+      padTrail,
+      stageLight,
+      quantize,
+      xySurface,
     });
   }, [
     settingsHydrated,
-    showPadLabels,
+    labelMode,
     strongGuideHighlight,
     showSpeedHud,
     noteRepeatEnabled,
     noteRepeatRate,
     bankId,
     fxSettings,
+    velocityMode,
+    velocityCurve,
+    haptics,
+    padTrail,
+    stageLight,
+    quantize,
+    xySurface,
   ]);
 
   useEffect(() => {
@@ -159,6 +298,23 @@ export function PadsScreen({ navigation }: Props) {
       stopMetronome();
     };
   }, []);
+
+  // Leaving the custom bank always exits edit mode.
+  useEffect(() => {
+    if (bankId !== 'custom') {
+      setEditMode(false);
+    }
+  }, [bankId]);
+
+  // Lessons carry the bank they teach: picking "Çiftetelli" swaps to the
+  // Turkish bank before the demo plays, "Hip-Hop 90" to drums, and the bank
+  // stays after the session so practice can continue on the right sounds.
+  const lessonBankId = playAlong.selectedSong?.bankId;
+  useEffect(() => {
+    if (lessonBankId && lessonBankId !== bankIdRef.current) {
+      setBankId(lessonBankId);
+    }
+  }, [lessonBankId]);
 
   const applyFxNow = useCallback((settings: PianoFxSettings) => {
     if (fxApplyTimerRef.current) {
@@ -240,19 +396,143 @@ export function PadsScreen({ navigation }: Props) {
   };
 
   const onTrigger = useCallback(
-    (id: PadSoundId) => {
-      captureEvent(id);
+    (id: PadSoundId, velocity: number) => {
+      captureEventRef.current(id, velocity);
       recordNoteOn();
+      if (hapticsRef.current) {
+        Vibration.vibrate([0, 18]);
+      }
 
-      if (playAlong.isActive) {
-        playAlong.handlePadPress(id);
+      const activePlayAlong = playAlongRef.current;
+      if (activePlayAlong.isActive) {
+        activePlayAlong.handlePadPress(id);
         return;
       }
 
-      triggerPad(id);
+      looperRef.current.captureHit(id, velocity);
+      pulseStageLight();
+      triggerPad(id, velocity);
     },
-    [captureEvent, playAlong, recordNoteOn, triggerPad],
+    [pulseStageLight, recordNoteOn, triggerPad],
   );
+
+  // --- Custom bank editing ---------------------------------------------------
+
+  const openSlotEditor = useCallback((padId: PadSoundId) => {
+    const index = PAD_SOUND_IDS.indexOf(padId);
+    if (index >= 0) {
+      setEditingSlotIndex(index);
+    }
+  }, []);
+
+  const handleSaveSlot = useCallback(
+    (slotIndex: number, nextSlot: CustomPadSlot) => {
+      setEditingSlotIndex(null);
+      setCustomSlotsState((previous) => {
+        if (!previous) {
+          return previous;
+        }
+        const replaced = previous[slotIndex];
+        const next = previous.map((slot, index) => (index === slotIndex ? nextSlot : slot));
+
+        // A replaced user recording is unreachable now — drop file + cache.
+        if (
+          replaced?.source.kind === 'user' &&
+          (nextSlot.source.kind !== 'user' || nextSlot.source.uri !== replaced.source.uri)
+        ) {
+          evictUserPadSample(replaced.source.uri);
+          deletePadSampleFile(replaced.source.uri);
+        }
+
+        setCustomPadSlots(next);
+        void saveCustomPadSlots(next);
+        void refreshCustomPadBank();
+        return next;
+      });
+      setSlotsRevision((previous) => previous + 1);
+    },
+    [],
+  );
+
+  // --- Looper ----------------------------------------------------------------
+
+  const handleLooperToggle = useCallback(() => {
+    setLooperVisible((previous) => {
+      if (previous) {
+        looperRef.current.stop();
+      }
+      return !previous;
+    });
+  }, []);
+
+  // The reverse guard of handleGamePress: while a play-along session (or its
+  // wizard) is up, the LooperBar's play button must not start count-in and
+  // layer replays over the tutorial.
+  const handleLooperStart = useCallback(() => {
+    if (playAlongRef.current.phase !== 'idle') {
+      return;
+    }
+    void looperRef.current.start();
+  }, []);
+
+  // Any stop path (toggle, blur, game press) clears the ghost flash — a
+  // stale stamp replayed a phantom flash on every pad remount (bank switch).
+  const looperPhase = looper.phase;
+  useEffect(() => {
+    if (looperPhase === 'idle') {
+      setGhost(null);
+    }
+  }, [looperPhase]);
+
+  const handleLooperExport = useCallback(() => {
+    const title = t('pads.looper.exportTitle', {
+      date: new Date().toLocaleDateString(),
+    });
+    void looperRef.current.exportToStudio(title).then((projectId) => {
+      if (!projectId) {
+        Alert.alert(t('pads.looper.exportEmpty'));
+        return;
+      }
+      Alert.alert(t('pads.looper.exportDoneTitle'), t('pads.looper.exportDoneMessage'), [
+        { text: t('common.close'), style: 'cancel' },
+        {
+          text: t('pads.looper.exportOpen'),
+          onPress: () => {
+            looperRef.current.stop();
+            rootNavigation.navigate('Recordings', {
+              screen: 'StudioProject',
+              params: { projectId },
+            });
+          },
+        },
+      ]);
+    });
+  }, [rootNavigation, t]);
+
+  const bankIconFor = useCallback((id: PadBankId) => getPadBank(id).icon, []);
+
+  // Play-along and the looper fight over audio + pad flashes — starting the
+  // tutorial always stops a running loop.
+  const handleGamePress = useCallback(() => {
+    looperRef.current.stop();
+    playAlongRef.current.open();
+  }, []);
+
+  // --- XY performance filter -------------------------------------------------
+
+  const handleXyChange = useCallback((x: number, y: number) => {
+    setPadsPerformanceFilter(x, y);
+  }, []);
+
+  const handleXyRelease = useCallback(() => {
+    releasePadsPerformanceFilter();
+  }, []);
+
+  useEffect(() => {
+    if (!xySurface) {
+      releasePadsPerformanceFilter();
+    }
+  }, [xySurface]);
 
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
@@ -262,6 +542,10 @@ export function PadsScreen({ navigation }: Props) {
     playAlong.phase === 'calibrateOffset' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
+
+  const xyPadHeight = Math.min(280, Math.max(140, stageSize.height - 32));
+  const editingSlot =
+    editingSlotIndex !== null && customSlots ? customSlots[editingSlotIndex] ?? null : null;
 
   return (
     <View
@@ -277,15 +561,20 @@ export function PadsScreen({ navigation }: Props) {
       ]}
     >
       <PadsToolbar
+        editOn={editMode}
+        editVisible={bankId === 'custom'}
         fxOn={isAnyPianoFxEnabled(fxSettings)}
         isRecording={isRecording}
         kitAccent={bank.theme.accent}
+        looperOn={looperVisible}
         metronomeOn={metronomeOn}
         noteRepeatOn={noteRepeatEnabled}
         onBack={() => navigation.goBack()}
+        onEditPress={() => setEditMode((previous) => !previous)}
         onFxPress={handleOpenFx}
-        onGamePress={playAlong.open}
+        onGamePress={handleGamePress}
         onKitPress={() => setKitModalVisible(true)}
+        onLooperPress={handleLooperToggle}
         onMetronomeLongPress={() => {
           if (metronomeOn) {
             setMetronomeModalVisible(true);
@@ -300,7 +589,9 @@ export function PadsScreen({ navigation }: Props) {
         onRecordPress={handleRecordPress}
         onSettingsPress={() => setSettingsModalVisible(true)}
         onVolumePress={() => setVolumeModalVisible(true)}
+        onXyPress={() => setXySurface((previous) => !previous)}
         volume={volume}
+        xyOn={xySurface}
       />
 
       {studioArmed && studioProjectTitle ? (
@@ -313,8 +604,40 @@ export function PadsScreen({ navigation }: Props) {
         <RecordingBanner isRecording={isRecording} mode={mode} />
       )}
 
+      {looperVisible ? (
+        <LooperBar
+          accent={bank.theme.accent}
+          bankIconFor={bankIconFor}
+          bars={looper.bars}
+          barsLocked={looper.barsLocked}
+          bpm={looper.bpm}
+          countInBeat={looper.countInBeat}
+          cycleStamp={looper.cycleStamp}
+          layers={looper.layers}
+          loopDurationMs={looper.loopDurationMs}
+          onClearLayers={looper.clearLayers}
+          onClose={handleLooperToggle}
+          onCommitLayer={looper.commitLayer}
+          onExport={handleLooperExport}
+          onRemoveLayer={looper.removeLayer}
+          onSetBars={looper.setBars}
+          onStart={handleLooperStart}
+          onStop={looper.stop}
+          onToggleLayerMuted={looper.toggleLayerMuted}
+          onToggleRecArm={looper.toggleRecArm}
+          phase={looper.phase}
+          recArmed={looper.recArmed}
+        />
+      ) : null}
+
       {showSpeedHud ? (
         <PlaySpeedHud maxNotesPerSec={maxNotesPerSec} notesPerSec={notesPerSec} />
+      ) : null}
+
+      {editMode && bankId === 'custom' ? (
+        <View style={styles.editBanner}>
+          <Text style={styles.editBannerText}>{t('pads.editor.editModeBanner')}</Text>
+        </View>
       ) : null}
 
       <PadsPlayAlongHud
@@ -326,30 +649,54 @@ export function PadsScreen({ navigation }: Props) {
         songTitle={playAlong.selectedSong?.title}
       />
 
-      <View style={styles.stage} onLayout={handleLayout}>
-        {!ready ? (
-          <View style={styles.loading}>
-            <ActivityIndicator color={colors.accent} size="large" />
-            <Text style={styles.loadingText}>
-              {error ? t('instruments.padsLoadError') : t('instruments.padsLoading')}
-            </Text>
+      <View style={styles.stageRow}>
+        <View style={styles.stage} onLayout={handleLayout}>
+          {!ready ? (
+            <View style={styles.loading}>
+              <ActivityIndicator color={colors.accent} size="large" />
+              <Text style={styles.loadingText}>
+                {error ? t('instruments.padsLoadError') : t('instruments.padsLoading')}
+              </Text>
+            </View>
+          ) : stageSize.width > 0 && stageSize.height > 0 ? (
+            <PadGrid
+              accent={bank.theme.accent}
+              bankId={bankId}
+              editMode={editMode && bankId === 'custom'}
+              ghost={ghost}
+              guidePadId={playAlong.guidePadId}
+              height={stageSize.height}
+              labelMode={labelMode}
+              longPressEnabled={bankId === 'custom' && !noteRepeatEnabled}
+              noteRepeatBpm={metronomeBpm}
+              noteRepeatEnabled={noteRepeatEnabled && !playAlong.isActive}
+              noteRepeatRate={noteRepeatRate}
+              onEditPad={openSlotEditor}
+              onLongPressPad={openSlotEditor}
+              onTrigger={onTrigger}
+              padTrail={padTrail}
+              slotsRevision={slotsRevision}
+              stageBg={bank.theme.stageBg}
+              stageLightPulse={stageLight ? stageLightPulse : null}
+              stageOverlay={bank.theme.stageOverlay}
+              strongGuide={strongGuideHighlight}
+              velocityCurve={velocityCurve}
+              velocityMode={velocityMode}
+              width={stageSize.width}
+            />
+          ) : null}
+        </View>
+
+        {xySurface && ready ? (
+          <View style={styles.xyPanel}>
+            <XYPad
+              accent={bank.theme.accent}
+              height={xyPadHeight}
+              onChange={handleXyChange}
+              onRelease={handleXyRelease}
+              width={XY_PANEL_WIDTH - 18}
+            />
           </View>
-        ) : stageSize.width > 0 && stageSize.height > 0 ? (
-          <PadGrid
-            accent={bank.theme.accent}
-            bankId={bankId}
-            guidePadId={playAlong.guidePadId}
-            height={stageSize.height}
-            noteRepeatBpm={metronomeBpm}
-            noteRepeatEnabled={noteRepeatEnabled && !playAlong.isActive}
-            noteRepeatRate={noteRepeatRate}
-            onTrigger={onTrigger}
-            showPadLabels={showPadLabels}
-            stageBg={bank.theme.stageBg}
-            stageOverlay={bank.theme.stageOverlay}
-            strongGuide={strongGuideHighlight}
-            width={stageSize.width}
-          />
         ) : null}
       </View>
 
@@ -386,19 +733,40 @@ export function PadsScreen({ navigation }: Props) {
       />
 
       <PadsSettingsModal
+        haptics={haptics}
+        labelMode={labelMode}
         noteRepeatEnabled={noteRepeatEnabled}
         noteRepeatRate={noteRepeatRate}
+        onChangeHaptics={setHaptics}
+        onChangeLabelMode={setLabelMode}
         onChangeNoteRepeatEnabled={setNoteRepeatEnabled}
         onChangeNoteRepeatRate={setNoteRepeatRate}
-        onChangeShowPadLabels={setShowPadLabels}
+        onChangePadTrail={setPadTrail}
+        onChangeQuantize={setQuantize}
         onChangeShowSpeedHud={setShowSpeedHud}
+        onChangeStageLight={setStageLight}
         onChangeStrongGuideHighlight={setStrongGuideHighlight}
+        onChangeVelocityCurve={setVelocityCurve}
+        onChangeVelocityMode={setVelocityMode}
         onClose={() => setSettingsModalVisible(false)}
-        onStartTutorial={playAlong.open}
-        showPadLabels={showPadLabels}
+        onStartTutorial={handleGamePress}
+        padTrail={padTrail}
+        quantize={quantize}
         showSpeedHud={showSpeedHud}
+        stageLight={stageLight}
         strongGuideHighlight={strongGuideHighlight}
+        velocityCurve={velocityCurve}
+        velocityMode={velocityMode}
         visible={settingsModalVisible}
+      />
+
+      <PadEditModal
+        accent={bank.theme.accent}
+        onClose={() => setEditingSlotIndex(null)}
+        onSave={handleSaveSlot}
+        slot={editingSlot}
+        slotIndex={editingSlotIndex ?? 0}
+        visible={editingSlotIndex !== null}
       />
 
       <PadsPlayAlongModal
@@ -450,8 +818,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
   },
+  stageRow: {
+    flex: 1,
+    flexDirection: 'row',
+  },
   stage: {
     flex: 1,
+  },
+  xyPanel: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 8,
+    width: XY_PANEL_WIDTH,
+  },
+  editBanner: {
+    backgroundColor: '#0E2A24',
+    borderBottomColor: '#00D1B255',
+    borderBottomWidth: 1,
+    paddingVertical: 5,
+  },
+  editBannerText: {
+    color: '#00D1B2',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
   },
   loading: {
     alignItems: 'center',

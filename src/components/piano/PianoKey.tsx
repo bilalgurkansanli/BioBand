@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
+import type { PianoLabelMode } from '../../storage/pianoSettingsStorage';
 import { colors } from '../../theme/colors';
 
 const DEFAULT_KEY_COLORS: PianoKeyColors = {
@@ -22,6 +23,8 @@ type PianoKeyProps = {
   isActive: boolean;
   isGuide?: boolean;
   isDemo?: boolean;
+  /** Which labels to show on the key. */
+  labelMode?: PianoLabelMode;
   /** Soft highlight when note is in the selected scale. */
   isInScale?: boolean;
   width: number;
@@ -64,6 +67,7 @@ export function PianoKey({
   isActive,
   isGuide = false,
   isDemo = false,
+  labelMode = 'both',
   isInScale = false,
   width,
   height,
@@ -73,6 +77,9 @@ export function PianoKey({
 }: PianoKeyProps) {
   const octave = getOctave(noteId);
   const showScaleTint = isInScale && !isGuide && !isDemo && !isActive;
+  const showSolfege = labelMode === 'both' || labelMode === 'solfege';
+  const showLetter = labelMode === 'both' || labelMode === 'letter';
+  const showAnyLabel = showSolfege || showLetter;
 
   return (
     <View
@@ -99,35 +106,43 @@ export function PianoKey({
       {isBlackKey ? <View style={styles.blackKeyHighlight} /> : null}
       {showScaleTint && isBlackKey ? <View style={styles.scaleBlackStripe} /> : null}
 
-      <View style={[styles.labelGroup, isBlackKey && styles.blackLabelGroup]}>
-        <Text
-          style={[
-            styles.solfegeLabel,
-            isBlackKey && styles.blackKeySolfege,
-            { color: isBlackKey ? keyColors.blackText : keyColors.whiteText },
-          ]}
-        >
-          {solfegeLabel}
-        </Text>
-        <View
-          style={[
-            styles.labelBadge,
-            isBlackKey
-              ? [styles.blackBadge, { backgroundColor: keyColors.blackBadge }]
-              : getLabelBadgeStyle(
-                  octave,
-                  isActive,
-                  isGuide,
-                  isDemo,
-                  badgeColorLow,
-                  badgeColorHigh,
-                ),
-            showScaleTint && !isBlackKey && styles.scaleBadge,
-          ]}
-        >
-          <Text style={[styles.labelText, isBlackKey && styles.blackBadgeText]}>{letterLabel}</Text>
+      {showAnyLabel ? (
+        <View style={[styles.labelGroup, isBlackKey && styles.blackLabelGroup]}>
+          {showSolfege ? (
+            <Text
+              style={[
+                styles.solfegeLabel,
+                isBlackKey && styles.blackKeySolfege,
+                { color: isBlackKey ? keyColors.blackText : keyColors.whiteText },
+              ]}
+            >
+              {solfegeLabel}
+            </Text>
+          ) : null}
+          {showLetter ? (
+            <View
+              style={[
+                styles.labelBadge,
+                isBlackKey
+                  ? [styles.blackBadge, { backgroundColor: keyColors.blackBadge }]
+                  : getLabelBadgeStyle(
+                      octave,
+                      isActive,
+                      isGuide,
+                      isDemo,
+                      badgeColorLow,
+                      badgeColorHigh,
+                    ),
+                showScaleTint && !isBlackKey && styles.scaleBadge,
+              ]}
+            >
+              <Text style={[styles.labelText, isBlackKey && styles.blackBadgeText]}>
+                {letterLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -155,13 +170,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 2,
   },
-  whiteKeyActive: {
-    backgroundColor: '#B0B0B0',
-    borderBottomColor: '#888888',
-    borderLeftColor: '#C8C8C8',
-    borderRightColor: '#909090',
-    borderTopColor: '#C0C0C0',
-  },
   blackKey: {
     backgroundColor: '#141414',
     borderBottomColor: '#000000',
@@ -179,10 +187,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.5,
     shadowRadius: 4,
     zIndex: 2,
-  },
-  blackKeyActive: {
-    backgroundColor: '#3A3A3A',
-    borderTopColor: '#555555',
   },
   blackKeyHighlight: {
     backgroundColor: 'rgba(255, 255, 255, 0.12)',

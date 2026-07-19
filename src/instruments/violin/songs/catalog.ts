@@ -3,12 +3,13 @@ import {
   G_SCALE_EVENTS,
   MIXED_WARMUP_EVENTS,
   OPEN_STRINGS_EVENTS,
-  PHRASE_PRACTICE_EVENTS,
   TWINKLE_MOTIF_EVENTS,
 } from './patterns';
+import { VIOLIN_EXTRA_SONGS } from './patternsExtra';
 import type { ViolinSongDefinition } from './types';
 
-export const VIOLIN_SONGS: ViolinSongDefinition[] = [
+/** Warm-up exercises — real songs lead the list, these close it. */
+const VIOLIN_EXERCISES: ViolinSongDefinition[] = [
   {
     id: 'open-strings',
     title: 'Open Strings',
@@ -38,19 +39,17 @@ export const VIOLIN_SONGS: ViolinSongDefinition[] = [
     partialCount: 7,
   },
   {
-    id: 'phrase-practice',
-    title: 'Phrase Practice',
-    difficulty: 'medium',
-    events: PHRASE_PRACTICE_EVENTS,
-    partialCount: 3,
-  },
-  {
     id: 'mixed-warmup',
     title: 'Mixed Warm-up',
     difficulty: 'hard',
     events: MIXED_WARMUP_EVENTS,
     partialCount: 6,
   },
+];
+
+export const VIOLIN_SONGS: ViolinSongDefinition[] = [
+  ...VIOLIN_EXTRA_SONGS,
+  ...VIOLIN_EXERCISES,
 ];
 
 /** Alias used by the song picker UI. */

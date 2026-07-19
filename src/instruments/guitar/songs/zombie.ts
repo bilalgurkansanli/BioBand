@@ -6,21 +6,21 @@ const BEAT = 750;
 const BAR = BEAT * 4;
 
 /**
- * Iconic lead hook (B / G strings from the sheet):
- * 7–8 | 5–7 | 3–5 | 2–3–2 | 3 (D string)
+ * Iconic lead hook — all pairs on the B string (sheet: 7–8 | 5–7 | 3–5 | 2–3–2),
+ * closing on D-string F# (D/F# harmony): F#–G | E–F# | D–E | C#–D–C# | F#.
  */
 function zombieHook(startMs: number): GuitarSongEvent[] {
   return [
     note('s2', 7, startMs),
     note('s2', 8, startMs + BEAT * 0.5),
-    note('s3', 5, startMs + BEAT),
-    note('s3', 7, startMs + BEAT * 1.5),
-    note('s3', 3, startMs + BEAT * 2),
-    note('s3', 5, startMs + BEAT * 2.5),
-    note('s3', 2, startMs + BEAT * 3),
-    note('s3', 3, startMs + BEAT * 3.5),
-    note('s3', 2, startMs + BAR),
-    note('s4', 3, startMs + BAR + BEAT),
+    note('s2', 5, startMs + BEAT),
+    note('s2', 7, startMs + BEAT * 1.5),
+    note('s2', 3, startMs + BEAT * 2),
+    note('s2', 5, startMs + BEAT * 2.5),
+    note('s2', 2, startMs + BEAT * 3),
+    note('s2', 3, startMs + BEAT * 3.5),
+    note('s2', 2, startMs + BAR),
+    note('s4', 4, startMs + BAR + BEAT),
   ];
 }
 

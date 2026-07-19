@@ -28,6 +28,10 @@ import type {
 } from '../../instruments/pads/songs/types';
 import type { UserPadSong } from '../../storage/userPadSongsStorage';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
+import {
+  TutorialChoiceRow,
+  TutorialSongChip,
+} from '../instrument/TutorialChoices';
 import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
 import { HorizontalSlider } from '../piano/HorizontalSlider';
@@ -418,58 +422,28 @@ export function PadsPlayAlongModal({
             {/* ── pickScope ── */}
             {phase === 'pickScope' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
-                <Text style={styles.sectionTitle}>{t('pads.game.pickScope')}</Text>
-                <Pressable
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('pads.game.pickScope')}</Text>
+                <TutorialChoiceRow
+                  icon="cut-outline"
                   onPress={() => onSelectScope('partial')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <Text style={styles.choiceTitle}>{t('pads.game.scopePartial')}</Text>
-                  <Text style={styles.choiceHint}>{t('pads.game.scopePartialHint')}</Text>
-                </Pressable>
-                <Pressable
+                  subtitle={t('pads.game.scopePartialHint')}
+                  title={t('pads.game.scopePartial')}
+                />
+                <TutorialChoiceRow
+                  icon="musical-notes-outline"
                   onPress={() => onSelectScope('full')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <Text style={styles.choiceTitle}>{t('pads.game.scopeFull')}</Text>
-                  <Text style={styles.choiceHint}>{t('pads.game.scopeFullHint')}</Text>
-                </Pressable>
-              </>
-            ) : null}
-
-            {/* ── pickMode (Band Mode) ── */}
-            {phase === 'pickMode' && selectedSong ? (
-              <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
-                <Text style={styles.sectionTitle}>{t('pads.game.pickMode')}</Text>
-                <Pressable
-                  onPress={() => onSelectPlayMode('pads')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <View style={styles.levelHeader}>
-                    <Ionicons color="#FFD54F" name="grid-outline" size={20} />
-                    <Text style={styles.choiceTitle}>{t('pads.game.modePads')}</Text>
-                  </View>
-                  <Text style={styles.choiceHint}>{t('pads.game.modePadsHint')}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => onSelectPlayMode('fullBand')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <View style={styles.levelHeader}>
-                    <Ionicons color="#FFD54F" name="people-outline" size={20} />
-                    <Text style={styles.choiceTitle}>{t('pads.game.modeFullBand')}</Text>
-                  </View>
-                  <Text style={styles.choiceHint}>{t('pads.game.modeFullBandHint')}</Text>
-                </Pressable>
+                  subtitle={t('pads.game.scopeFullHint')}
+                  title={t('pads.game.scopeFull')}
+                />
               </>
             ) : null}
 
             {/* ── pickAudio (Band Mode — no audio yet) ── */}
             {phase === 'pickAudio' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
-                <Text style={styles.sectionTitle}>{t('pads.game.pickAudio')}</Text>
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('pads.game.pickAudio')}</Text>
                 <Text style={styles.choiceHint}>{t('pads.game.pickAudioHint')}</Text>
                 <Pressable
                   disabled={audioBusy}
@@ -495,8 +469,8 @@ export function PadsPlayAlongModal({
             {/* ── calibrateOffset (Band Mode) ── */}
             {phase === 'calibrateOffset' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
-                <Text style={styles.sectionTitle}>{t('pads.game.calibrate')}</Text>
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('pads.game.calibrate')}</Text>
                 <Text style={styles.choiceHint}>{t('pads.game.calibrateHint')}</Text>
 
                 <Text style={styles.offsetLabel}>
@@ -541,11 +515,11 @@ export function PadsPlayAlongModal({
             {/* ── pickLevel ── */}
             {phase === 'pickLevel' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
+                <TutorialSongChip title={selectedSong.title} />
                 {demoJustFinished ? (
                   <Text style={styles.demoFinished}>{t('pads.game.demoFinished')}</Text>
                 ) : null}
-                <Text style={styles.sectionTitle}>{t('pads.game.pickLevel')}</Text>
+                <Text style={styles.stepSubtitle}>{t('pads.game.pickLevel')}</Text>
 
                 <Text style={styles.tempoLabel}>{t('pads.game.tempo.label')}</Text>
                 <View style={styles.tempoRow}>
@@ -575,17 +549,13 @@ export function PadsPlayAlongModal({
                 </View>
 
                 {LEVELS.map((entry) => (
-                  <Pressable
+                  <TutorialChoiceRow
+                    icon={entry.icon}
                     key={entry.id}
                     onPress={() => onSelectLevel(entry.id)}
-                    style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                  >
-                    <View style={styles.levelHeader}>
-                      <Ionicons color="#FFD54F" name={entry.icon} size={20} />
-                      <Text style={styles.choiceTitle}>{t(entry.titleKey)}</Text>
-                    </View>
-                    <Text style={styles.choiceHint}>{t(entry.descriptionKey)}</Text>
-                  </Pressable>
+                    subtitle={t(entry.descriptionKey)}
+                    title={t(entry.titleKey)}
+                  />
                 ))}
 
                 <Pressable onPress={onBackToSongList} style={styles.backLink}>
@@ -713,6 +683,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 0,
+    // Shrink with the card in short (landscape) windows — a fixed cap alone
+    // pushed the list's tail below the screen edge.
+    flexShrink: 1,
     maxHeight: 420,
   },
   scrollContent: {
@@ -734,10 +707,11 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textTransform: 'uppercase',
   },
-  songHeading: {
-    color: '#FFD54F',
-    fontSize: 15,
-    fontWeight: '700',
+  stepSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   demoFinished: {
     color: colors.accent,
@@ -872,25 +846,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
-  choiceCard: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    gap: 4,
-    padding: 14,
-  },
-  choiceTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
-  },
   choiceHint: {
     color: colors.textSecondary,
     fontSize: 13,
-  },
-  levelHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
   },
   tempoLabel: {
     color: colors.textSecondary,

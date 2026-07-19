@@ -13,6 +13,12 @@ export type DrumKitTheme = {
   accent: string;
   stageBg: string;
   stageOverlay: string;
+  /** Tom / kick shell wrap color. */
+  shell: string;
+  /** Cymbal alloy base (crash; ride/hats derive darker shades). */
+  cymbal: string;
+  /** Drum head (batter) color. */
+  head: string;
 };
 
 export type DrumKitAudio = {
@@ -38,8 +44,12 @@ export const DRUM_KITS: DrumKitDefinition[] = [
     labelKey: 'drums.kits.acoustic',
     theme: {
       accent: '#2A9D8F',
-      stageBg: '#141820',
-      stageOverlay: '#1C2330',
+      stageBg: '#0F211F',
+      stageOverlay: '#17342F',
+      // Classic: teal wrap, gold cymbals, coated cream heads.
+      shell: '#2F8F84',
+      cymbal: '#D4A72C',
+      head: '#F2EEE2',
     },
     audio: {
       playbackRate: 1,
@@ -55,8 +65,12 @@ export const DRUM_KITS: DrumKitDefinition[] = [
     labelKey: 'drums.kits.punch',
     theme: {
       accent: '#E76F51',
-      stageBg: '#1A1010',
-      stageOverlay: '#2A1818',
+      stageBg: '#25100C',
+      stageOverlay: '#3A1A16',
+      // Rock: candy-red wrap, warm brass, warm cream heads.
+      shell: '#C33A2A',
+      cymbal: '#C79A2E',
+      head: '#F5E8D6',
     },
     audio: {
       playbackRate: 1.02,
@@ -72,15 +86,21 @@ export const DRUM_KITS: DrumKitDefinition[] = [
     labelKey: 'drums.kits.electronic',
     theme: {
       accent: '#6C5CE7',
-      stageBg: '#0E1020',
-      stageOverlay: '#1A1E38',
+      stageBg: '#10122E',
+      stageOverlay: '#1E2252',
+      // E-kit: violet shells, steel cymbals, dark mesh heads.
+      shell: '#6C5CE7',
+      cymbal: '#A8B0C2',
+      head: '#333A50',
     },
+    // Electronic plays real 808 one-shots (KIT_SOUND_OVERRIDES) — keep the
+    // bus neutral so the synthesized lows (48 Hz kick) pass untouched.
     audio: {
-      playbackRate: 1.06,
+      playbackRate: 1,
       gainScale: 1.05,
-      filterType: 'highpass',
-      filterFrequency: 90,
-      filterQ: 0.85,
+      filterType: 'peaking',
+      filterFrequency: 1000,
+      filterQ: 0.7,
     },
   },
   {
@@ -89,8 +109,12 @@ export const DRUM_KITS: DrumKitDefinition[] = [
     labelKey: 'drums.kits.room',
     theme: {
       accent: '#E9C46A',
-      stageBg: '#161410',
-      stageOverlay: '#242018',
+      stageBg: '#221A0F',
+      stageOverlay: '#362A18',
+      // Studio room: walnut wrap, warm gold, natural heads.
+      shell: '#8B5A2B',
+      cymbal: '#DAA733',
+      head: '#F0EAD8',
     },
     audio: {
       playbackRate: 0.99,
@@ -106,8 +130,12 @@ export const DRUM_KITS: DrumKitDefinition[] = [
     labelKey: 'drums.kits.vintage',
     theme: {
       accent: '#C9A227',
-      stageBg: '#18140C',
-      stageOverlay: '#2A2214',
+      stageBg: '#211A08',
+      stageOverlay: '#382D10',
+      // 60s: oyster pearl wrap, aged bronze, aged coated heads.
+      shell: '#D8C9A6',
+      cymbal: '#B08A2A',
+      head: '#EBE2CC',
     },
     audio: {
       playbackRate: 0.97,
@@ -123,8 +151,12 @@ export const DRUM_KITS: DrumKitDefinition[] = [
     labelKey: 'drums.kits.lofi',
     theme: {
       accent: '#F4A261',
-      stageBg: '#12100E',
-      stageOverlay: '#221C18',
+      stageBg: '#20140D',
+      stageOverlay: '#332117',
+      // Dusty bedroom kit: clay wrap, dull brass, sun-faded heads.
+      shell: '#A9705A',
+      cymbal: '#9C7F35',
+      head: '#E6DCC8',
     },
     audio: {
       playbackRate: 0.94,
@@ -138,4 +170,8 @@ export const DRUM_KITS: DrumKitDefinition[] = [
 
 export function getDrumKit(id: DrumKitId): DrumKitDefinition {
   return DRUM_KITS.find((kit) => kit.id === id) ?? DRUM_KITS[0];
+}
+
+export function isDrumKitId(value: unknown): value is DrumKitId {
+  return typeof value === 'string' && DRUM_KITS.some((kit) => kit.id === value);
 }

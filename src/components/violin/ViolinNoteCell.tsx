@@ -1,4 +1,4 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 type ViolinNoteCellProps = {
   isActive: boolean;
@@ -9,6 +9,9 @@ type ViolinNoteCellProps = {
   stringColor: string;
   nutColor: string;
   positionDotColor: string;
+  /** Note name or finger number shown at the cell's bottom edge. */
+  label?: string;
+  labelColor?: string;
   /** Width of the touch column. */
   width: number;
   /** Height of the string row. */
@@ -25,10 +28,26 @@ export function ViolinNoteCell({
   stringColor,
   nutColor,
   positionDotColor,
+  label,
+  labelColor,
   width,
   height,
 }: ViolinNoteCellProps) {
-  const padSize = Math.min(width - 4, height - 8, isOpenString ? 22 : 18);
+  const labelText = label ? (
+    <Text
+      numberOfLines={1}
+      style={[styles.label, { color: labelColor ?? '#FFFFFF' }]}
+    >
+      {label}
+    </Text>
+  ) : null;
+  // Pads scale with the row so bigger fingerboards get bigger touch targets
+  // (0.61/0.5 of a 36px row reproduce the original 22/18px look).
+  const padSize = Math.min(
+    width - 4,
+    height - 8,
+    isOpenString ? Math.round(height * 0.61) : Math.round(height * 0.5),
+  );
   const lit = isActive || isGuide;
 
   if (isOpenString) {
@@ -47,6 +66,7 @@ export function ViolinNoteCell({
             isGuide && strongGuide && styles.strongGlow,
           ]}
         />
+        {labelText}
       </View>
     );
   }
@@ -69,6 +89,7 @@ export function ViolinNoteCell({
           isGuide && strongGuide && styles.strongGlow,
         ]}
       />
+      {labelText}
     </View>
   );
 }
@@ -95,5 +116,12 @@ const styles = StyleSheet.create({
   strongGlow: {
     shadowOpacity: 0.95,
     shadowRadius: 10,
+  },
+  label: {
+    bottom: 1,
+    fontSize: 10,
+    fontWeight: '700',
+    position: 'absolute',
+    textAlign: 'center',
   },
 });

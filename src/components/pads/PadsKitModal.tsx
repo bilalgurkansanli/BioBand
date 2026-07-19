@@ -1,7 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
-import { PAD_BANKS, type PadBankId } from '../../instruments/pads/padsBanks';
+import { getSelectableBankDefinitions, type PadBankId } from '../../instruments/pads/padsBanks';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
@@ -22,8 +22,11 @@ export function PadsKitModal({
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      {/* Dismiss area is an absolute-fill sibling behind the card — a
+          Pressable ancestor would claim child gestures (see drums modals). */}
+      <View style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('pads.banks.close')}
             onClose={onClose}
@@ -31,7 +34,7 @@ export function PadsKitModal({
           />
 
           <View style={styles.grid}>
-            {PAD_BANKS.map((bank) => {
+            {getSelectableBankDefinitions().map((bank) => {
               const isSelected = bank.id === selectedBankId;
 
               return (
@@ -60,8 +63,8 @@ export function PadsKitModal({
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }

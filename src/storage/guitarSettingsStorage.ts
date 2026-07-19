@@ -11,6 +11,18 @@ import {
   normalizeVisibleChordIds,
   type ChordId,
 } from '../instruments/guitar/guitarChords';
+import {
+  isGuitarStrumTightnessId,
+  isGuitarSustainLengthId,
+  normalizeGuitarFretRange,
+  type GuitarFretRange,
+  type GuitarStrumTightnessId,
+  type GuitarSustainLengthId,
+} from '../instruments/guitar/guitarFeel';
+import {
+  isGuitarVelocityCurveId,
+  type GuitarVelocityCurveId,
+} from '../instruments/guitar/guitarVelocity';
 import { GUITAR_VOICES, type GuitarVoiceId } from '../instruments/guitar/guitarVoices';
 import type { PianoFxSettings } from '../instruments/piano/pianoFx';
 import {
@@ -27,6 +39,20 @@ export type GuitarUiSettings = {
   showFretNumbers: boolean;
   /** Flash guide cells stronger during tutorial. */
   strongGuideHighlight: boolean;
+  /** Vibrate on every pluck / strum. */
+  haptics: boolean;
+  /** Bend/vibrato drag gesture on held notes. */
+  bendEnabled: boolean;
+  /** String vibration wobble visuals (off = zero per-pluck UI work). */
+  stringAnimation: boolean;
+  /** Touch-response curve for pluck velocity. */
+  velocityCurve: GuitarVelocityCurveId;
+  /** Strum cascade feel (stagger scale). */
+  strumTightness: GuitarStrumTightnessId;
+  /** One-shot sustain tail length. */
+  sustainLength: GuitarSustainLengthId;
+  /** Highest fret shown on the board (0..N). */
+  maxFret: GuitarFretRange;
   /** Show Strum / Arpeggio / Rasgueado bar above chords. */
   showChordPlayModeBar: boolean;
   /** Which play modes appear on the bar (catalog order). */
@@ -44,6 +70,13 @@ export type GuitarUiSettings = {
 export const DEFAULT_GUITAR_UI_SETTINGS: GuitarUiSettings = {
   showFretNumbers: true,
   strongGuideHighlight: true,
+  haptics: false,
+  bendEnabled: true,
+  stringAnimation: true,
+  velocityCurve: 'normal',
+  strumTightness: 'normal',
+  sustainLength: 'normal',
+  maxFret: 12,
   showChordPlayModeBar: true,
   visiblePlayModes: [...GUITAR_CHORD_PLAY_MODES],
   visibleChordIds: [...ALL_GUITAR_CHORD_IDS],
@@ -108,6 +141,28 @@ export async function loadGuitarUiSettings(): Promise<GuitarUiSettings> {
         typeof parsed.strongGuideHighlight === 'boolean'
           ? parsed.strongGuideHighlight
           : DEFAULT_GUITAR_UI_SETTINGS.strongGuideHighlight,
+      haptics:
+        typeof parsed.haptics === 'boolean'
+          ? parsed.haptics
+          : DEFAULT_GUITAR_UI_SETTINGS.haptics,
+      bendEnabled:
+        typeof parsed.bendEnabled === 'boolean'
+          ? parsed.bendEnabled
+          : DEFAULT_GUITAR_UI_SETTINGS.bendEnabled,
+      stringAnimation:
+        typeof parsed.stringAnimation === 'boolean'
+          ? parsed.stringAnimation
+          : DEFAULT_GUITAR_UI_SETTINGS.stringAnimation,
+      velocityCurve: isGuitarVelocityCurveId(parsed.velocityCurve)
+        ? parsed.velocityCurve
+        : DEFAULT_GUITAR_UI_SETTINGS.velocityCurve,
+      strumTightness: isGuitarStrumTightnessId(parsed.strumTightness)
+        ? parsed.strumTightness
+        : DEFAULT_GUITAR_UI_SETTINGS.strumTightness,
+      sustainLength: isGuitarSustainLengthId(parsed.sustainLength)
+        ? parsed.sustainLength
+        : DEFAULT_GUITAR_UI_SETTINGS.sustainLength,
+      maxFret: normalizeGuitarFretRange(parsed.maxFret),
       showChordPlayModeBar:
         typeof parsed.showChordPlayModeBar === 'boolean'
           ? parsed.showChordPlayModeBar

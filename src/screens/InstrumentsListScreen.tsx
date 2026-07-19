@@ -1,8 +1,15 @@
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { useCallback, useEffect, useState, type ComponentType } from 'react';
+import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { InstrumentCard } from '../components/InstrumentCard';
+import { DrumMachineIntroCard } from '../components/instrument/DrumMachineIntroCard';
+import { DrumsIntroCard } from '../components/instrument/DrumsIntroCard';
+import { GuitarIntroCard } from '../components/instrument/GuitarIntroCard';
+import { PadsIntroCard } from '../components/instrument/PadsIntroCard';
+import { PianoIntroCard } from '../components/instrument/PianoIntroCard';
+import { ViolinIntroCard } from '../components/instrument/ViolinIntroCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { colors } from '../theme/colors';
@@ -18,58 +25,85 @@ type InstrumentRoute =
   | 'DrumMachine'
   | 'Violin';
 
+type IntroCardProps = {
+  title: string;
+  description: string;
+  onIntroStart?: () => void;
+  onFinished: () => void;
+};
+
 const INSTRUMENTS: {
   route: InstrumentRoute;
-  icon: 'keypad' | 'disc' | 'musical-note' | 'grid' | 'grid-outline' | 'musical-notes';
   titleKey: string;
   descriptionKey: string;
+  card: ComponentType<IntroCardProps>;
 }[] = [
   {
     route: 'Piano',
-    icon: 'keypad',
     titleKey: 'instruments.piano',
     descriptionKey: 'instruments.pianoDescription',
+    card: PianoIntroCard,
   },
   {
     route: 'Drums',
-    icon: 'disc',
     titleKey: 'instruments.drums',
     descriptionKey: 'instruments.drumsDescription',
+    card: DrumsIntroCard,
   },
   {
     route: 'Guitar',
-    icon: 'musical-note',
     titleKey: 'instruments.guitar',
     descriptionKey: 'instruments.guitarDescription',
+    card: GuitarIntroCard,
   },
   {
     route: 'Pads',
-    icon: 'grid',
     titleKey: 'instruments.pads',
     descriptionKey: 'instruments.padsDescription',
+    card: PadsIntroCard,
   },
   {
     route: 'DrumMachine',
-    icon: 'grid-outline',
     titleKey: 'instruments.drumMachine',
     descriptionKey: 'instruments.drumMachineDescription',
+    card: DrumMachineIntroCard,
   },
   {
     route: 'Violin',
-    icon: 'musical-notes',
     titleKey: 'instruments.violin',
     descriptionKey: 'instruments.violinDescription',
+    card: ViolinIntroCard,
   },
 ];
 
 export function InstrumentsListScreen({ navigation }: Props) {
   const { t } = useTranslation();
+  const isFocused = useIsFocused();
+  // While an intro runs, the whole window goes touch-inert so nothing else
+  // can be opened mid-animation.
+  const [introActive, setIntroActive] = useState(false);
 
-  // Navigate immediately — each instrument screen locks landscape on focus.
-  // Pre-locking here rotates the list mid-transition and warps the UI.
-  const openInstrument = (route: InstrumentRoute) => {
-    navigation.navigate(route);
-  };
+  useEffect(() => {
+    if (!isFocused) {
+      setIntroActive(false);
+    }
+  }, [isFocused]);
+
+  // Every card runs its own show (art forward + opening motif), then we
+  // navigate. Each instrument screen locks landscape on focus — pre-locking
+  // here rotates the list mid-transition and warps the UI.
+  const handleIntroStart = useCallback(() => {
+    setIntroActive(true);
+  }, []);
+
+  const handleIntroFinished = useCallback(
+    (route: InstrumentRoute) => {
+      if (navigation.isFocused()) {
+        navigation.navigate(route);
+      }
+    },
+    [navigation],
+  );
 
   return (
     <ScreenContainer style={styles.container}>
@@ -80,17 +114,29 @@ export function InstrumentsListScreen({ navigation }: Props) {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
       >
-        {INSTRUMENTS.map((item) => (
-          <InstrumentCard
-            key={item.route}
-            actionLabel={t('instruments.open')}
-            description={t(item.descriptionKey)}
-            icon={item.icon}
-            onPress={() => openInstrument(item.route)}
-            title={t(item.titleKey)}
+        {INSTRUMENTS.map(({ route, titleKey, descriptionKey, card: IntroCard }) => (
+          <IntroCard
+            description={t(descriptionKey)}
+            key={route}
+            onFinished={() => handleIntroFinished(route)}
+            onIntroStart={handleIntroStart}
+            title={t(titleKey)}
           />
         ))}
       </ScrollView>
+
+      {/* Window-level invisible shield: while an intro runs, it swallows
+          every touch — other cards, the tab bar, and the Android back
+          button — until the instrument screen takes over. */}
+      <Modal
+        animationType="none"
+        onRequestClose={() => {}}
+        statusBarTranslucent
+        transparent
+        visible={introActive}
+      >
+        <View style={styles.introShield} />
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -109,5 +155,8 @@ const styles = StyleSheet.create({
   list: {
     flexGrow: 1,
     paddingBottom: 8,
+  },
+  introShield: {
+    flex: 1,
   },
 });

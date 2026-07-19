@@ -1,6 +1,9 @@
+import { songHasBackingAudio } from '../../piano/songs/types';
+
 import type {
   DrumSongDefinition,
   DrumSongScope,
+  PlayMode,
   ResolvedDrumSession,
 } from './types';
 
@@ -8,10 +11,14 @@ const FALLBACK_PARTIAL = 12;
 
 export function resolveDrumPlaySession(
   song: DrumSongDefinition,
+  mode: PlayMode,
   scope: DrumSongScope,
 ): ResolvedDrumSession {
+  const useBacking = mode === 'fullBand' && songHasBackingAudio(song.backingTrack);
+  const audioStartMs = song.backingTrack?.eventsStartMs ?? 0;
+
   if (scope === 'full') {
-    return { events: song.events, scope };
+    return { events: song.events, scope, useBacking, audioStartMs };
   }
 
   const count = Math.max(
@@ -29,8 +36,13 @@ export function resolveDrumPlaySession(
     return {
       events: song.events.slice(0, Math.min(FALLBACK_PARTIAL, song.events.length)),
       scope,
+      useBacking,
+      audioStartMs,
     };
   }
 
-  return { events: slice, scope };
+  const lastEventMs = slice[slice.length - 1]?.atMs ?? 0;
+  const audioEndMs = useBacking ? audioStartMs + lastEventMs + 2000 : undefined;
+
+  return { events: slice, scope, useBacking, audioStartMs, audioEndMs };
 }

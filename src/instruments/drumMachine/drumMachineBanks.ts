@@ -20,6 +20,8 @@ export type DrumMachineRowDef = {
   playKey: string;
   icon: keyof typeof Ionicons.glyphMap;
   labelKey: string;
+  /** Short text shown instead of the icon (note names, pad numbers). */
+  shortLabel?: string;
 };
 
 export type DrumMachineBank = {
@@ -68,14 +70,14 @@ export const DRUM_MACHINE_BANKS: Record<DrumMachineTypeId, DrumMachineBank> = {
       cellOffB: '#252542',
     },
     rows: [
-      { playKey: 'C4', icon: 'musical-note', labelKey: 'drumMachine.notes.C4' },
-      { playKey: 'D4', icon: 'musical-note', labelKey: 'drumMachine.notes.D4' },
-      { playKey: 'E4', icon: 'musical-note', labelKey: 'drumMachine.notes.E4' },
-      { playKey: 'F4', icon: 'musical-note', labelKey: 'drumMachine.notes.F4' },
-      { playKey: 'G4', icon: 'musical-note', labelKey: 'drumMachine.notes.G4' },
-      { playKey: 'A4', icon: 'musical-note', labelKey: 'drumMachine.notes.A4' },
-      { playKey: 'B4', icon: 'musical-note', labelKey: 'drumMachine.notes.B4' },
-      { playKey: 'C5', icon: 'musical-notes', labelKey: 'drumMachine.notes.C5' },
+      { playKey: 'C4', icon: 'musical-note', labelKey: 'drumMachine.notes.C4', shortLabel: 'C4' },
+      { playKey: 'D4', icon: 'musical-note', labelKey: 'drumMachine.notes.D4', shortLabel: 'D4' },
+      { playKey: 'E4', icon: 'musical-note', labelKey: 'drumMachine.notes.E4', shortLabel: 'E4' },
+      { playKey: 'F4', icon: 'musical-note', labelKey: 'drumMachine.notes.F4', shortLabel: 'F4' },
+      { playKey: 'G4', icon: 'musical-note', labelKey: 'drumMachine.notes.G4', shortLabel: 'G4' },
+      { playKey: 'A4', icon: 'musical-note', labelKey: 'drumMachine.notes.A4', shortLabel: 'A4' },
+      { playKey: 'B4', icon: 'musical-note', labelKey: 'drumMachine.notes.B4', shortLabel: 'B4' },
+      { playKey: 'C5', icon: 'musical-notes', labelKey: 'drumMachine.notes.C5', shortLabel: 'C5' },
     ],
   },
   guitar: {
@@ -89,14 +91,14 @@ export const DRUM_MACHINE_BANKS: Record<DrumMachineTypeId, DrumMachineBank> = {
     },
     // playKey = midi:<n>
     rows: [
-      { playKey: 'midi:40', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.E2' },
-      { playKey: 'midi:45', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.A2' },
-      { playKey: 'midi:50', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.D3' },
-      { playKey: 'midi:55', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.G3' },
-      { playKey: 'midi:59', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.B3' },
-      { playKey: 'midi:60', icon: 'git-branch-outline', labelKey: 'drumMachine.notes.C4' },
-      { playKey: 'midi:64', icon: 'git-branch-outline', labelKey: 'drumMachine.notes.E4' },
-      { playKey: 'midi:69', icon: 'git-branch-outline', labelKey: 'drumMachine.notes.A4' },
+      { playKey: 'midi:40', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.E2', shortLabel: 'E2' },
+      { playKey: 'midi:45', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.A2', shortLabel: 'A2' },
+      { playKey: 'midi:50', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.D3', shortLabel: 'D3' },
+      { playKey: 'midi:55', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.G3', shortLabel: 'G3' },
+      { playKey: 'midi:59', icon: 'git-commit-outline', labelKey: 'drumMachine.notes.B3', shortLabel: 'B3' },
+      { playKey: 'midi:60', icon: 'git-branch-outline', labelKey: 'drumMachine.notes.C4', shortLabel: 'C4' },
+      { playKey: 'midi:64', icon: 'git-branch-outline', labelKey: 'drumMachine.notes.E4', shortLabel: 'E4' },
+      { playKey: 'midi:69', icon: 'git-branch-outline', labelKey: 'drumMachine.notes.A4', shortLabel: 'A4' },
     ],
   },
   violin: {
@@ -109,14 +111,14 @@ export const DRUM_MACHINE_BANKS: Record<DrumMachineTypeId, DrumMachineBank> = {
       cellOffB: '#252542',
     },
     rows: [
-      { playKey: 'v4:0', icon: 'pulse-outline', labelKey: 'drumMachine.notes.G3' },
-      { playKey: 'v4:2', icon: 'pulse-outline', labelKey: 'drumMachine.notes.A3' },
-      { playKey: 'v4:5', icon: 'pulse-outline', labelKey: 'drumMachine.notes.C4' },
-      { playKey: 'v3:2', icon: 'pulse-outline', labelKey: 'drumMachine.notes.E4' },
-      { playKey: 'v3:5', icon: 'pulse-outline', labelKey: 'drumMachine.notes.G4' },
-      { playKey: 'v2:0', icon: 'pulse', labelKey: 'drumMachine.notes.A4' },
-      { playKey: 'v2:3', icon: 'pulse', labelKey: 'drumMachine.notes.C5' },
-      { playKey: 'v1:0', icon: 'pulse', labelKey: 'drumMachine.notes.E5' },
+      { playKey: 'v4:0', icon: 'pulse-outline', labelKey: 'drumMachine.notes.G3', shortLabel: 'G3' },
+      { playKey: 'v4:2', icon: 'pulse-outline', labelKey: 'drumMachine.notes.A3', shortLabel: 'A3' },
+      { playKey: 'v4:5', icon: 'pulse-outline', labelKey: 'drumMachine.notes.C4', shortLabel: 'C4' },
+      { playKey: 'v3:2', icon: 'pulse-outline', labelKey: 'drumMachine.notes.E4', shortLabel: 'E4' },
+      { playKey: 'v3:5', icon: 'pulse-outline', labelKey: 'drumMachine.notes.G4', shortLabel: 'G4' },
+      { playKey: 'v2:0', icon: 'pulse', labelKey: 'drumMachine.notes.A4', shortLabel: 'A4' },
+      { playKey: 'v2:3', icon: 'pulse', labelKey: 'drumMachine.notes.C5', shortLabel: 'C5' },
+      { playKey: 'v1:0', icon: 'pulse', labelKey: 'drumMachine.notes.E5', shortLabel: 'E5' },
     ],
   },
   pads: {
@@ -132,6 +134,7 @@ export const DRUM_MACHINE_BANKS: Record<DrumMachineTypeId, DrumMachineBank> = {
       playKey: id,
       icon: (index < 8 ? 'grid' : 'apps') as keyof typeof Ionicons.glyphMap,
       labelKey: `drumMachine.pads.${id}`,
+      shortLabel: String(index + 1).padStart(2, '0'),
     })),
   },
 };

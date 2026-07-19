@@ -665,8 +665,10 @@ function kysFillBar(events: DrumSongEvent[], barStart: number): void {
   for (let i = 0; i < 8; i++) {
     events.push(hit('snare', barStart + KYS_Q * 2 + i * s));
   }
-  events.push(hit('crash', barStart + KYS_Q * 4 - s));
-  events.push(hit('kick', barStart + KYS_Q * 4 - s));
+  // Closing crash + kick land on the next downbeat, after the snare run —
+  // not on top of its last 16th.
+  events.push(hit('crash', barStart + KYS_Q * 4));
+  events.push(hit('kick', barStart + KYS_Q * 4));
 }
 
 export const KENDIME_YALAN_SOYLEDIM_EVENTS: DrumSongEvent[] = (() => {

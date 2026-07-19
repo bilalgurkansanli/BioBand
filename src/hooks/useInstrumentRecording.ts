@@ -19,6 +19,10 @@ import {
   stopStudioPlayback,
   type StudioPlaybackHandle,
 } from '../audio/studioPlayer';
+import { getCurrentDrumKitId } from '../instruments/drums/drumsEngine';
+import { getCurrentGuitarVoiceId } from '../instruments/guitar/guitarEngine';
+import { getCurrentPadBankId } from '../instruments/pads/padsEngine';
+import { getCurrentViolinVoiceId } from '../instruments/violin/violinEngine';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
 import { saveRecording } from '../storage/recordingsStorage';
 import { appendRecordedTrack, getStudioProject } from '../storage/studioProjectsStorage';
@@ -147,6 +151,12 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           mode: 'instrument',
           durationMs,
           events: [...eventsRef.current],
+          // Drums/guitar/pads timbre depends on the kit/voice/bank — remember
+          // it for playback.
+          drumKitId: instrument === 'drums' ? getCurrentDrumKitId() : undefined,
+          guitarVoiceId: instrument === 'guitar' ? getCurrentGuitarVoiceId() : undefined,
+          violinVoiceId: instrument === 'violin' ? getCurrentViolinVoiceId() : undefined,
+          padBankId: instrument === 'pads' ? getCurrentPadBankId() : undefined,
         };
         await saveRecording(take);
         void awardRecordingPractice(instrument, durationMs);
@@ -238,7 +248,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
   }, [clearCountdown, stopBeds]);
 
   const captureEvent = useCallback(
-    (soundId: string) => {
+    (soundId: string, velocity?: number) => {
       if (!isRecording || mode !== 'instrument') {
         return;
       }
@@ -246,6 +256,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
       eventsRef.current.push({
         soundId,
         atMs: Date.now() - startTimeRef.current,
+        velocity,
       });
     },
     [isRecording, mode],

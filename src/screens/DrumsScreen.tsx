@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, LayoutChangeEvent, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  LayoutChangeEvent,
+  StyleSheet,
+  Text,
+  Vibration,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,7 +16,10 @@ import { DrumKit } from '../components/drums/DrumKit';
 import { DrumsKitModal } from '../components/drums/DrumsKitModal';
 import { DrumsPlayAlongHud } from '../components/drums/DrumsPlayAlongHud';
 import { DrumsPlayAlongModal } from '../components/drums/DrumsPlayAlongModal';
-import { DrumsSettingsModal } from '../components/drums/DrumsSettingsModal';
+import {
+  DrumsSettingsModal,
+  type DrumsAmbienceId,
+} from '../components/drums/DrumsSettingsModal';
 import { DrumsToolbar } from '../components/drums/DrumsToolbar';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { RecordingBanner } from '../components/instrument/RecordingBanner';
@@ -22,6 +32,7 @@ import { useDrumsPlayAlong } from '../hooks/useDrumsPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { useUserDrumSongs } from '../hooks/useUserDrumSongs';
+import { chokePad } from '../instruments/drums/drumsEngine';
 import { getDrumKit, type DrumKitId } from '../instruments/drums/drumsKits';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
 import {
@@ -43,8 +54,52 @@ import {
 } from '../storage/drumsSettingsStorage';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList } from '../types/navigation';
+import { shade } from '../utils/colorMix';
 
 const FX_APPLY_DEBOUNCE_MS = 80;
+
+/** Room-feel presets: one-tap reverb spaces (echo/distortion off). */
+const AMBIENCE_REVERB: Record<
+  Exclude<DrumsAmbienceId, 'dry'>,
+  { timeSeconds: number; mix: number }
+> = {
+  garage: { timeSeconds: 0.6, mix: 0.35 },
+  studio: { timeSeconds: 1.2, mix: 0.5 },
+  arena: { timeSeconds: 2.6, mix: 0.7 },
+};
+
+function buildAmbienceFx(
+  base: PianoFxSettings,
+  preset: DrumsAmbienceId,
+): PianoFxSettings {
+  const reverb =
+    preset === 'dry'
+      ? { ...base.reverb, enabled: false }
+      : { ...base.reverb, enabled: true, ...AMBIENCE_REVERB[preset] };
+  return {
+    distortion: { ...base.distortion, enabled: false },
+    echo: { ...base.echo, enabled: false },
+    reverb,
+  };
+}
+
+function detectAmbience(fx: PianoFxSettings): DrumsAmbienceId | null {
+  if (fx.distortion.enabled || fx.echo.enabled) {
+    return null;
+  }
+  if (!fx.reverb.enabled) {
+    return 'dry';
+  }
+  for (const [id, preset] of Object.entries(AMBIENCE_REVERB)) {
+    if (
+      Math.abs(fx.reverb.timeSeconds - preset.timeSeconds) < 0.05 &&
+      Math.abs(fx.reverb.mix - preset.mix) < 0.05
+    ) {
+      return id as DrumsAmbienceId;
+    }
+  }
+  return null;
+}
 
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'Drums'>;
 
@@ -80,6 +135,8 @@ export function DrumsScreen({ navigation }: Props) {
   const [strongGuideHighlight, setStrongGuideHighlight] = useState(
     DEFAULT_DRUMS_UI_SETTINGS.strongGuideHighlight,
   );
+  const [haptics, setHaptics] = useState(DEFAULT_DRUMS_UI_SETTINGS.haptics);
+  const [padScale, setPadScale] = useState(DEFAULT_DRUMS_UI_SETTINGS.padScale);
 
   const {
     isRecording,
@@ -104,6 +161,8 @@ export function DrumsScreen({ navigation }: Props) {
       }
       setShowPadLabels(settings.showPadLabels);
       setStrongGuideHighlight(settings.strongGuideHighlight);
+      setHaptics(settings.haptics);
+      setPadScale(settings.padScale);
       setKitId(settings.kitId);
       fxSettingsRef.current = settings.fx;
       setFxSettings(settings.fx);
@@ -122,10 +181,20 @@ export function DrumsScreen({ navigation }: Props) {
     void saveDrumsUiSettings({
       showPadLabels,
       strongGuideHighlight,
+      haptics,
+      padScale,
       kitId,
       fx: fxSettings,
     });
-  }, [settingsHydrated, showPadLabels, strongGuideHighlight, kitId, fxSettings]);
+  }, [
+    settingsHydrated,
+    showPadLabels,
+    strongGuideHighlight,
+    haptics,
+    padScale,
+    kitId,
+    fxSettings,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -213,22 +282,43 @@ export function DrumsScreen({ navigation }: Props) {
   };
 
   const onHit = useCallback(
-    (id: DrumSoundId) => {
-      captureEvent(id);
+    (id: DrumSoundId, velocity: number) => {
+      if (haptics) {
+        // Crisp tick per hit — [wait, duration] form is honored more reliably
+        // than a bare number across Android vibrators; iOS plays its default tap.
+        Vibration.vibrate([0, 35]);
+      }
+
+      captureEvent(id, velocity);
 
       if (playAlong.isActive) {
-        playAlong.handlePadPress(id);
+        // Charts only know the base pads — the rim zone counts as snare here.
+        playAlong.handlePadPress(id === 'snareRim' ? 'snare' : id);
         return;
       }
 
-      playHit(id);
+      playHit(id, velocity);
     },
-    [captureEvent, playAlong, playHit],
+    [captureEvent, haptics, playAlong, playHit],
+  );
+
+  const onChoke = useCallback((id: DrumSoundId) => {
+    chokePad(id);
+  }, []);
+
+  const handleApplyAmbience = useCallback(
+    (preset: DrumsAmbienceId) => {
+      handleFxSettingsChange(buildAmbienceFx(fxSettingsRef.current, preset));
+    },
+    [handleFxSettingsChange],
   );
 
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||
     playAlong.phase === 'pickScope' ||
+    playAlong.phase === 'pickMode' ||
+    playAlong.phase === 'pickAudio' ||
+    playAlong.phase === 'calibrateOffset' ||
     playAlong.phase === 'pickLevel' ||
     playAlong.phase === 'results';
 
@@ -238,6 +328,8 @@ export function DrumsScreen({ navigation }: Props) {
       style={[
         styles.container,
         {
+          // Whole screen sinks into the kit's stage color for immersion.
+          backgroundColor: shade(kit.theme.stageBg, 0.35),
           paddingLeft: insets.left,
           paddingRight: insets.right,
           paddingTop: insets.top,
@@ -296,10 +388,16 @@ export function DrumsScreen({ navigation }: Props) {
         ) : stageSize.width > 0 && stageSize.height > 0 ? (
           <View style={styles.kitWrap}>
             <DrumKit
+              accent={kit.theme.accent}
+              cymbalColor={kit.theme.cymbal}
               guidePadId={playAlong.guidePadId}
+              headColor={kit.theme.head}
               height={stageSize.height}
+              onChoke={onChoke}
               onHit={onHit}
+              shellColor={kit.theme.shell}
               showPadLabels={showPadLabels}
+              sizeScale={padScale}
               stageBg={kit.theme.stageBg}
               stageOverlay={kit.theme.stageOverlay}
               strongGuide={strongGuideHighlight}
@@ -342,31 +440,57 @@ export function DrumsScreen({ navigation }: Props) {
       />
 
       <DrumsSettingsModal
+        activeAmbience={detectAmbience(fxSettings)}
+        haptics={haptics}
+        onApplyAmbience={handleApplyAmbience}
+        onChangeHaptics={setHaptics}
+        onChangePadScale={setPadScale}
         onChangeShowPadLabels={setShowPadLabels}
         onChangeStrongGuideHighlight={setStrongGuideHighlight}
         onClose={() => setSettingsModalVisible(false)}
         onStartTutorial={playAlong.open}
+        padScale={padScale}
         showPadLabels={showPadLabels}
         strongGuideHighlight={strongGuideHighlight}
         visible={settingsModalVisible}
       />
 
       <DrumsPlayAlongModal
+        audioBusy={playAlong.audioBusy}
+        calibrateOffsetMs={playAlong.calibrateOffsetMs}
+        calibratePreviewing={playAlong.calibratePreviewing}
         demoJustFinished={playAlong.demoJustFinished}
         importing={userSongs.importing}
+        offsetMaxMs={playAlong.offsetMaxMs}
+        offsetMinMs={playAlong.offsetMinMs}
         onBackToSongList={playAlong.backToSongList}
         onClose={playAlong.close}
+        onConfirmCalibrate={() => {
+          void playAlong.confirmCalibrate();
+        }}
         onDeleteUserSong={(songId) => {
           void userSongs.removeSong(songId);
         }}
         onGoBack={playAlong.goBack}
         onImportSong={userSongs.importSong}
         onImportSongFromJsonText={userSongs.importSongFromJsonText}
+        onPickBackingAudio={async (uri, hint) => {
+          const result = await playAlong.pickBackingAudio(uri, hint);
+          return { ok: result.ok };
+        }}
+        onPreviewCalibrate={() => {
+          void playAlong.previewCalibrate();
+        }}
         onReplay={playAlong.replay}
         onSelectLevel={playAlong.selectLevel}
+        onSelectPlayMode={playAlong.selectPlayMode}
         onSelectScope={playAlong.selectScope}
-        onSelectSong={playAlong.selectSong}
+        onSelectSong={(songId) => {
+          void playAlong.selectSong(songId);
+        }}
         onSelectTempo={playAlong.setTempo}
+        onSetCalibrateOffset={playAlong.setCalibrateOffset}
+        onStopCalibratePreview={playAlong.stopCalibratePreview}
         phase={playAlong.phase}
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}

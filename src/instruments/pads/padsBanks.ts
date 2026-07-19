@@ -1,7 +1,10 @@
 import { PAD_SHARED_FILES, PAD_SOUND_IDS, type LaunchPadDefinition, type PadSoundId } from './padsSounds';
 import { PAD_SYNTH_FILES, type PadSynthVoice } from './padsSynth';
+import { TURKISH_PERC_FILES, type TurkishPercVoice } from './padsTurkish';
 
-export type PadBankId = 'drums' | 'melodic' | 'fx';
+export type PadBankId = 'drums' | 'melodic' | 'fx' | 'turkish' | 'custom';
+
+export const PAD_BANK_IDS: PadBankId[] = ['drums', 'melodic', 'fx', 'turkish', 'custom'];
 
 export type PadBankTheme = {
   accent: string;
@@ -27,11 +30,17 @@ export type PadHitEnvelope = {
 export type PadSlotSource =
   | { kind: 'file'; module: number }
   | { kind: 'piano'; midi: number }
-  | { kind: 'synth'; voice: PadSynthVoice };
+  | { kind: 'synth'; voice: PadSynthVoice }
+  | { kind: 'turkish'; voice: TurkishPercVoice }
+  | { kind: 'user'; uri: string };
+
+export type PadChokeGroup = 'a' | 'b';
 
 export type PadSlotDef = {
   id: PadSoundId;
   labelKey: string;
+  /** Literal label (custom bank / user samples) — wins over labelKey. */
+  rawLabel?: string;
   color: string;
   source: PadSlotSource;
   gain: number;
@@ -40,6 +49,8 @@ export type PadSlotDef = {
   bright?: boolean;
   /** Closed-hat style choke of open hat (pad04). */
   chokeOpenHat?: boolean;
+  /** Custom-bank choke group — triggering one slot silences the others. */
+  chokeGroup?: PadChokeGroup;
 };
 
 export type PadBankDefinition = {
@@ -60,13 +71,50 @@ const ENV = {
   clap: { attackSeconds: 0.001, holdSeconds: 0.28, releaseSeconds: 0.22, rateScale: 1 },
   crash: { attackSeconds: 0.006, holdSeconds: 0.45, releaseSeconds: 0.55, rateScale: 0.94 },
   ride: { attackSeconds: 0.004, holdSeconds: 1.1, releaseSeconds: 0.9, rateScale: 1 },
-  eight: { attackSeconds: 0.002, holdSeconds: 0.45, releaseSeconds: 0.55, rateScale: 1 },
+  eight: { attackSeconds: 0.002, holdSeconds: 0.7, releaseSeconds: 0.5, rateScale: 1 },
   impact: { attackSeconds: 0.002, holdSeconds: 0.4, releaseSeconds: 0.45, rateScale: 1 },
   stab: { attackSeconds: 0.004, holdSeconds: 0.35, releaseSeconds: 0.55, rateScale: 1 },
-  riser: { attackSeconds: 0.01, holdSeconds: 1.0, releaseSeconds: 0.35, rateScale: 1 },
-  whoosh: { attackSeconds: 0.008, holdSeconds: 0.35, releaseSeconds: 0.25, rateScale: 1 },
+  // Synth FX envelopes track the generated sample lengths so tails ring out
+  // (see scripts/make_pads_fx_samples.py).
+  riser: { attackSeconds: 0.01, holdSeconds: 2.1, releaseSeconds: 0.35, rateScale: 1 },
+  whoosh: { attackSeconds: 0.008, holdSeconds: 0.75, releaseSeconds: 0.3, rateScale: 1 },
+  noiseBurst: { attackSeconds: 0.001, holdSeconds: 0.25, releaseSeconds: 0.12, rateScale: 1 },
+  sweep: { attackSeconds: 0.004, holdSeconds: 1.05, releaseSeconds: 0.25, rateScale: 1 },
+  subDrop: { attackSeconds: 0.002, holdSeconds: 1.25, releaseSeconds: 0.3, rateScale: 1 },
+  reverse: { attackSeconds: 0.005, holdSeconds: 1.5, releaseSeconds: 0.15, rateScale: 1 },
+  laser: { attackSeconds: 0.001, holdSeconds: 0.45, releaseSeconds: 0.15, rateScale: 1 },
+  chordStab: { attackSeconds: 0.001, holdSeconds: 0.7, releaseSeconds: 0.2, rateScale: 1 },
+  tapeStop: { attackSeconds: 0.002, holdSeconds: 1.15, releaseSeconds: 0.2, rateScale: 1 },
+  boom: { attackSeconds: 0.001, holdSeconds: 1.45, releaseSeconds: 0.35, rateScale: 1 },
   short: { attackSeconds: 0.001, holdSeconds: 0.1, releaseSeconds: 0.08, rateScale: 1 },
+  // Turkish percussion envelopes track scripts/make_turkish_perc_samples.py.
+  turkDum: { attackSeconds: 0.001, holdSeconds: 0.5, releaseSeconds: 0.3, rateScale: 1 },
+  turkTek: { attackSeconds: 0.001, holdSeconds: 0.28, releaseSeconds: 0.15, rateScale: 1 },
+  turkKa: { attackSeconds: 0.001, holdSeconds: 0.22, releaseSeconds: 0.12, rateScale: 1 },
+  turkSlap: { attackSeconds: 0.001, holdSeconds: 0.35, releaseSeconds: 0.2, rateScale: 1 },
+  turkFlam: { attackSeconds: 0.001, holdSeconds: 0.6, releaseSeconds: 0.25, rateScale: 1 },
+  turkBendir: { attackSeconds: 0.001, holdSeconds: 0.8, releaseSeconds: 0.4, rateScale: 1 },
+  turkBuzz: { attackSeconds: 0.001, holdSeconds: 0.75, releaseSeconds: 0.35, rateScale: 1 },
+  turkDef: { attackSeconds: 0.001, holdSeconds: 0.45, releaseSeconds: 0.25, rateScale: 1 },
+  turkZil: { attackSeconds: 0.001, holdSeconds: 0.45, releaseSeconds: 0.25, rateScale: 1 },
+  turkZilLong: { attackSeconds: 0.001, holdSeconds: 1.0, releaseSeconds: 0.35, rateScale: 1 },
 } as const;
+
+/** Envelope for user-recorded samples — generous ceiling, sample sets length. */
+const USER_SAMPLE_ENV: PadHitEnvelope = {
+  attackSeconds: 0.002,
+  holdSeconds: 2.5,
+  releaseSeconds: 0.5,
+  rateScale: 1,
+};
+
+/** Melodic pads ring like plucked keys — longer than the FX stab envelope. */
+const MELODIC_ENV: PadHitEnvelope = {
+  attackSeconds: 0.002,
+  holdSeconds: 1.1,
+  releaseSeconds: 0.8,
+  rateScale: 1,
+};
 
 function fileSlot(
   id: PadSoundId,
@@ -109,6 +157,25 @@ function synthSlot(
   };
 }
 
+function turkishSlot(
+  id: PadSoundId,
+  labelKey: string,
+  color: string,
+  voice: TurkishPercVoice,
+  gain: number,
+  envelope: PadHitEnvelope,
+  rateScale = 1,
+): PadSlotDef {
+  return {
+    id,
+    labelKey,
+    color,
+    source: { kind: 'turkish', voice },
+    gain,
+    envelope: rateScale === 1 ? envelope : { ...envelope, rateScale },
+  };
+}
+
 function pianoSlot(
   id: PadSoundId,
   labelKey: string,
@@ -122,7 +189,7 @@ function pianoSlot(
     color,
     source: { kind: 'piano', midi },
     gain,
-    envelope: ENV.stab,
+    envelope: MELODIC_ENV,
   };
 }
 
@@ -222,32 +289,34 @@ const FX_SLOTS: PadSlotDef[] = [
   synthSlot('pad05', 'pads.labels.eightOhEight', '#457B9D', 'eightOhEight', 0.95, ENV.eight),
   synthSlot('pad06', 'pads.labels.riser', '#6C5CE7', 'riser', 0.85, ENV.riser),
   synthSlot('pad07', 'pads.labels.whoosh', '#A78BFA', 'whoosh', 0.9, ENV.whoosh),
-  fileSlot('pad08', 'pads.labels.reverse', '#8E44AD', PAD_SHARED_FILES.crash, 0.7, {
-    attackSeconds: 0.08,
-    holdSeconds: 0.35,
-    releaseSeconds: 0.5,
-    rateScale: 0.72,
-  }, { bright: true }),
+  synthSlot('pad08', 'pads.labels.reverse', '#8E44AD', 'reverse', 0.85, ENV.reverse),
   synthSlot('pad09', 'pads.labels.tick', '#38BDF8', 'tick', 1.0, ENV.short),
-  synthSlot('pad10', 'pads.labels.sweep', '#0EA5E9', 'sweep', 0.9, ENV.whoosh),
-  synthSlot('pad11', 'pads.labels.subDrop', '#264653', 'subDrop', 0.95, ENV.eight),
-  synthSlot('pad12', 'pads.labels.noise', '#F4A261', 'noise', 0.85, ENV.short),
-  fileSlot('pad13', 'pads.labels.crash', '#E9C46A', PAD_SHARED_FILES.crash, 0.65, ENV.crash, {
-    bright: true,
-    rateScale: 1.08,
-  }),
-  fileSlot('pad14', 'pads.labels.ride', '#C9A227', PAD_SHARED_FILES.ride, 0.9, ENV.ride, {
-    bright: true,
-    rateScale: 0.9,
-  }),
-  synthSlot('pad15', 'pads.labels.whoosh', '#9B59B6', 'whoosh', 0.8, {
-    ...ENV.whoosh,
-    rateScale: 1.2,
-  }),
-  synthSlot('pad16', 'pads.labels.riser', '#E74C3C', 'riser', 0.75, {
-    ...ENV.riser,
-    rateScale: 1.15,
-  }),
+  synthSlot('pad10', 'pads.labels.sweep', '#0EA5E9', 'sweep', 0.9, ENV.sweep),
+  synthSlot('pad11', 'pads.labels.subDrop', '#264653', 'subDrop', 1.0, ENV.subDrop),
+  synthSlot('pad12', 'pads.labels.noise', '#F4A261', 'noise', 0.85, ENV.noiseBurst),
+  synthSlot('pad13', 'pads.labels.laser', '#48DBFB', 'laser', 0.85, ENV.laser),
+  synthSlot('pad14', 'pads.labels.stab', '#9B59B6', 'stab', 0.9, ENV.chordStab),
+  synthSlot('pad15', 'pads.labels.tapeStop', '#E9C46A', 'tapeStop', 0.85, ENV.tapeStop),
+  synthSlot('pad16', 'pads.labels.boom', '#E74C3C', 'boom', 0.95, ENV.boom),
+];
+
+const TURKISH_SLOTS: PadSlotDef[] = [
+  turkishSlot('pad01', 'pads.labels.turkDum', '#E07A1F', 'darbukaDum', 1.0, ENV.turkDum),
+  turkishSlot('pad02', 'pads.labels.turkTek', '#F2A65A', 'darbukaTek', 0.95, ENV.turkTek),
+  turkishSlot('pad03', 'pads.labels.turkKa', '#F7C873', 'darbukaKa', 0.9, ENV.turkKa),
+  turkishSlot('pad04', 'pads.labels.turkSlap', '#E85D4A', 'darbukaSlap', 1.0, ENV.turkSlap),
+  turkishSlot('pad05', 'pads.labels.turkDeepDum', '#B85C1E', 'darbukaDum', 1.05, ENV.turkDum, 0.85),
+  turkishSlot('pad06', 'pads.labels.turkFlam', '#D96C3F', 'darbukaFlam', 0.95, ENV.turkFlam),
+  turkishSlot('pad07', 'pads.labels.turkBendirDum', '#8C5A2B', 'bendirDum', 1.05, ENV.turkBendir),
+  turkishSlot('pad08', 'pads.labels.turkBendirTek', '#A9743C', 'bendirTek', 0.95, ENV.turkTek),
+  turkishSlot('pad09', 'pads.labels.turkBendirBuzz', '#C08552', 'bendirBuzz', 1.0, ENV.turkBuzz),
+  turkishSlot('pad10', 'pads.labels.turkDef', '#D9A441', 'defHit', 0.95, ENV.turkDef),
+  turkishSlot('pad11', 'pads.labels.turkDefJingle', '#E8C15A', 'defJingle', 0.85, ENV.turkZil),
+  turkishSlot('pad12', 'pads.labels.turkDefSlap', '#CE8F35', 'defSlap', 0.95, ENV.turkDef),
+  turkishSlot('pad13', 'pads.labels.turkKasik', '#9C6644', 'kasik', 0.9, ENV.short),
+  turkishSlot('pad14', 'pads.labels.turkKasikDouble', '#B07D4F', 'kasikDouble', 0.9, ENV.turkKa),
+  turkishSlot('pad15', 'pads.labels.turkZilliMasa', '#C9B037', 'zilliMasa', 0.85, ENV.turkZil),
+  turkishSlot('pad16', 'pads.labels.turkZilliMasaLong', '#E0CB5B', 'zilliMasaLong', 0.85, ENV.turkZilLong),
 ];
 
 export const PAD_BANKS: PadBankDefinition[] = [
@@ -305,10 +374,177 @@ export const PAD_BANKS: PadBankDefinition[] = [
     },
     slots: FX_SLOTS,
   },
+  {
+    id: 'turkish',
+    icon: '🪘',
+    labelKey: 'pads.banks.turkish',
+    theme: {
+      accent: '#D97706',
+      stageBg: '#191008',
+      stageOverlay: '#2A1B0E',
+    },
+    audio: {
+      playbackRate: 1,
+      gainScale: 1,
+      filterType: 'peaking',
+      filterFrequency: 900,
+      filterQ: 0.7,
+    },
+    slots: TURKISH_SLOTS,
+  },
 ];
 
+// --- Custom bank ("Benim Bankım") ------------------------------------------
+// Slots are user-configured (persisted in padsCustomBankStorage) and pushed
+// into this module cache — bank resolution stays synchronous for the engine.
+
+export type CustomSlotSource =
+  | { kind: 'builtin'; bankId: Exclude<PadBankId, 'custom'>; padId: PadSoundId }
+  | { kind: 'user'; uri: string };
+
+export type CustomPadSlot = {
+  source: CustomSlotSource;
+  color: string;
+  /** 0.2..1.4 — final hit gain. */
+  gain: number;
+  /** -12..12 semitones — multiplies playback rate by 2^(n/12). */
+  pitchSemitones: number;
+  chokeGroup?: PadChokeGroup;
+  /** Optional literal display label (not translated). */
+  label?: string;
+};
+
+export const CUSTOM_BANK_THEME: PadBankTheme = {
+  accent: '#00D1B2',
+  stageBg: '#0A1414',
+  stageOverlay: '#12211F',
+};
+
+export function createDefaultCustomPadSlots(): CustomPadSlot[] {
+  return DRUMS_SLOTS.map((slot) => ({
+    source: { kind: 'builtin', bankId: 'drums', padId: slot.id },
+    color: slot.color,
+    gain: 1,
+    pitchSemitones: 0,
+  }));
+}
+
+let customSlots: CustomPadSlot[] = createDefaultCustomPadSlots();
+let customDefinition: PadBankDefinition | null = null;
+
+function pitchRateScale(semitones: number): number {
+  return 2 ** (Math.max(-12, Math.min(12, semitones)) / 12);
+}
+
+/** Resolve a builtin reference to its slot definition (never 'custom'). */
+export function getBuiltinPadSlot(
+  bankId: Exclude<PadBankId, 'custom'>,
+  padId: PadSoundId,
+): PadSlotDef {
+  const bank = PAD_BANKS.find((entry) => entry.id === bankId) ?? PAD_BANKS[0];
+  return bank.slots.find((slot) => slot.id === padId) ?? bank.slots[0];
+}
+
+function buildCustomSlotDef(slot: CustomPadSlot, index: number): PadSlotDef {
+  const id = PAD_SOUND_IDS[index];
+  const rate = pitchRateScale(slot.pitchSemitones);
+  const gain = Math.max(0.2, Math.min(1.4, slot.gain));
+
+  if (slot.source.kind === 'user') {
+    return {
+      id,
+      labelKey: 'pads.labels.userSample',
+      rawLabel: slot.label,
+      color: slot.color,
+      source: { kind: 'user', uri: slot.source.uri },
+      gain,
+      envelope: { ...USER_SAMPLE_ENV, rateScale: rate },
+      chokeGroup: slot.chokeGroup,
+    };
+  }
+
+  const base = getBuiltinPadSlot(slot.source.bankId, slot.source.padId);
+  return {
+    id,
+    labelKey: base.labelKey,
+    rawLabel: slot.label,
+    color: slot.color,
+    source: base.source,
+    gain: base.gain * gain,
+    envelope: { ...base.envelope, rateScale: base.envelope.rateScale * rate },
+    bright: base.bright,
+    // Keep the closed-hat behaviour when the drums mapping is carried over —
+    // the choke targets the custom bank's own pad04 (bank-scoped tags).
+    chokeOpenHat: base.chokeOpenHat,
+    chokeGroup: slot.chokeGroup,
+  };
+}
+
+/** Public wrapper — the pad editor previews draft slots through this. */
+export function resolveCustomSlotDef(slot: CustomPadSlot, index: number): PadSlotDef {
+  return buildCustomSlotDef(slot, index);
+}
+
+function buildCustomDefinition(): PadBankDefinition {
+  const slots = customSlots.map((slot, index) => buildCustomSlotDef(slot, index));
+
+  // The closed-hat choke hard-targets this bank's pad04. Keep it only while
+  // pad04 actually holds an open-hat sound — otherwise a remapped closed hat
+  // would silence whatever the user placed there (e.g. their own recording).
+  const pad04 = slots[3];
+  const pad04IsOpenHat =
+    pad04?.source.kind === 'file' && pad04.source.module === PAD_SHARED_FILES.hatOpen;
+  const safeSlots = pad04IsOpenHat
+    ? slots
+    : slots.map((slot) => (slot.chokeOpenHat ? { ...slot, chokeOpenHat: false } : slot));
+
+  return {
+    id: 'custom',
+    icon: '🎛️',
+    labelKey: 'pads.banks.custom',
+    theme: CUSTOM_BANK_THEME,
+    audio: {
+      playbackRate: 1,
+      gainScale: 1,
+      filterType: 'peaking',
+      filterFrequency: 1000,
+      filterQ: 0.7,
+    },
+    slots: safeSlots,
+  };
+}
+
+export function getCustomPadSlots(): CustomPadSlot[] {
+  return customSlots;
+}
+
+export function setCustomPadSlots(slots: CustomPadSlot[]): void {
+  customSlots = slots.slice(0, PAD_SOUND_IDS.length);
+  while (customSlots.length < PAD_SOUND_IDS.length) {
+    customSlots.push(createDefaultCustomPadSlots()[customSlots.length]);
+  }
+  customDefinition = null;
+}
+
+// ---------------------------------------------------------------------------
+
+export function isPadBankId(value: unknown): value is PadBankId {
+  return typeof value === 'string' && (PAD_BANK_IDS as string[]).includes(value);
+}
+
 export function getPadBank(id: PadBankId): PadBankDefinition {
+  if (id === 'custom') {
+    if (!customDefinition) {
+      customDefinition = buildCustomDefinition();
+    }
+    return customDefinition;
+  }
   return PAD_BANKS.find((bank) => bank.id === id) ?? PAD_BANKS[0];
+}
+
+/** Every pickable bank, custom last. */
+export function getSelectableBankDefinitions(): PadBankDefinition[] {
+  return [...PAD_BANKS, getPadBank('custom')];
 }
 
 export function getPadSlot(bankId: PadBankId, padId: PadSoundId): PadSlotDef {
@@ -320,6 +556,7 @@ export function getLaunchPads(bankId: PadBankId): LaunchPadDefinition[] {
   return getPadBank(bankId).slots.map((slot) => ({
     id: slot.id,
     labelKey: slot.labelKey,
+    rawLabel: slot.rawLabel,
     color: slot.color,
   }));
 }
@@ -332,7 +569,20 @@ export function collectBankFileModules(bank: PadBankDefinition): number[] {
       modules.add(slot.source.module);
     } else if (slot.source.kind === 'synth') {
       modules.add(PAD_SYNTH_FILES[slot.source.voice]);
+    } else if (slot.source.kind === 'turkish') {
+      modules.add(TURKISH_PERC_FILES[slot.source.voice]);
     }
   }
   return [...modules];
+}
+
+/** Collect user-sample URIs a bank needs (custom bank recordings). */
+export function collectBankUserUris(bank: PadBankDefinition): string[] {
+  const uris = new Set<string>();
+  for (const slot of bank.slots) {
+    if (slot.source.kind === 'user') {
+      uris.add(slot.source.uri);
+    }
+  }
+  return [...uris];
 }

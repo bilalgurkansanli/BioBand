@@ -132,15 +132,3 @@ export const STAB_RIFF_EVENTS: PadSongEvent[] = (() => {
   return events.sort((a, b) => a.atMs - b.atMs || a.padId.localeCompare(b.padId));
 })();
 
-/** We Will Rock You style: stomp-stomp-clap — 2 bars at 83 BPM. */
-const WWRY_Q = 60000 / 83;
-export const WE_WILL_ROCK_YOU_EVENTS: PadSongEvent[] = (() => {
-  const events: PadSongEvent[] = [];
-  for (let bar = 0; bar < 2; bar++) {
-    const o = bar * WWRY_Q * 4;
-    events.push(hit('pad01', o));
-    events.push(hit('pad01', o + WWRY_Q));
-    events.push(hit('pad02', o + WWRY_Q * 2));
-  }
-  return events;
-})();

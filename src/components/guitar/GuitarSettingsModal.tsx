@@ -21,6 +21,18 @@ import {
   type ChordFamily,
   type ChordId,
 } from '../../instruments/guitar/guitarChords';
+import {
+  GUITAR_FRET_RANGE_OPTIONS,
+  GUITAR_STRUM_TIGHTNESS_IDS,
+  GUITAR_SUSTAIN_LENGTH_IDS,
+  type GuitarFretRange,
+  type GuitarStrumTightnessId,
+  type GuitarSustainLengthId,
+} from '../../instruments/guitar/guitarFeel';
+import {
+  GUITAR_VELOCITY_CURVE_IDS,
+  type GuitarVelocityCurveId,
+} from '../../instruments/guitar/guitarVelocity';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
@@ -46,11 +58,25 @@ type GuitarSettingsModalProps = {
   visible: boolean;
   showFretNumbers: boolean;
   strongGuideHighlight: boolean;
+  haptics: boolean;
+  stringAnimation: boolean;
+  bendEnabled: boolean;
+  velocityCurve: GuitarVelocityCurveId;
+  strumTightness: GuitarStrumTightnessId;
+  sustainLength: GuitarSustainLengthId;
+  maxFret: GuitarFretRange;
   showChordPlayModeBar: boolean;
   visiblePlayModes: GuitarChordPlayMode[];
   visibleChordIds: ChordId[];
   onChangeShowFretNumbers: (value: boolean) => void;
   onChangeStrongGuideHighlight: (value: boolean) => void;
+  onChangeHaptics: (value: boolean) => void;
+  onChangeStringAnimation: (value: boolean) => void;
+  onChangeBendEnabled: (value: boolean) => void;
+  onChangeVelocityCurve: (value: GuitarVelocityCurveId) => void;
+  onChangeStrumTightness: (value: GuitarStrumTightnessId) => void;
+  onChangeSustainLength: (value: GuitarSustainLengthId) => void;
+  onChangeMaxFret: (value: GuitarFretRange) => void;
   onChangeShowChordPlayModeBar: (value: boolean) => void;
   onChangeVisiblePlayModes: (modes: GuitarChordPlayMode[]) => void;
   onChangeVisibleChordIds: (ids: ChordId[]) => void;
@@ -58,15 +84,64 @@ type GuitarSettingsModalProps = {
   onClose: () => void;
 };
 
+type ChipOption<T> = { value: T; label: string };
+
+function OptionChips<T extends string | number>({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: ChipOption<T>[];
+  selected: T;
+  onSelect: (value: T) => void;
+}) {
+  return (
+    <View style={styles.chipWrap}>
+      {options.map((option) => {
+        const isOn = option.value === selected;
+        return (
+          <Pressable
+            key={String(option.value)}
+            onPress={() => onSelect(option.value)}
+            style={({ pressed }) => [
+              styles.chordChip,
+              isOn && styles.modeChipOn,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text style={[styles.chordChipLabel, isOn && styles.modeChipLabelOn]}>
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 export function GuitarSettingsModal({
   visible,
   showFretNumbers,
   strongGuideHighlight,
+  haptics,
+  stringAnimation,
+  bendEnabled,
+  velocityCurve,
+  strumTightness,
+  sustainLength,
+  maxFret,
   showChordPlayModeBar,
   visiblePlayModes,
   visibleChordIds,
   onChangeShowFretNumbers,
   onChangeStrongGuideHighlight,
+  onChangeHaptics,
+  onChangeStringAnimation,
+  onChangeBendEnabled,
+  onChangeVelocityCurve,
+  onChangeStrumTightness,
+  onChangeSustainLength,
+  onChangeMaxFret,
   onChangeShowChordPlayModeBar,
   onChangeVisiblePlayModes,
   onChangeVisibleChordIds,
@@ -158,6 +233,89 @@ export function GuitarSettingsModal({
                 thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
                 value={strongGuideHighlight}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{t('guitar.settings.haptics')}</Text>
+              <Switch
+                onValueChange={onChangeHaptics}
+                thumbColor={haptics ? colors.accent : '#7A7A7E'}
+                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                value={haptics}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>
+                {t('guitar.settings.stringAnimation')}
+              </Text>
+              <Switch
+                onValueChange={onChangeStringAnimation}
+                thumbColor={stringAnimation ? colors.accent : '#7A7A7E'}
+                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                value={stringAnimation}
+              />
+            </View>
+
+            <View style={styles.chordSection}>
+              <Text style={styles.sectionTitle}>
+                {t('guitar.settings.playingTitle')}
+              </Text>
+
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>{t('guitar.settings.bend')}</Text>
+                <Switch
+                  onValueChange={onChangeBendEnabled}
+                  thumbColor={bendEnabled ? colors.accent : '#7A7A7E'}
+                  trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                  value={bendEnabled}
+                />
+              </View>
+              <Text style={styles.sectionHint}>{t('guitar.settings.bendHint')}</Text>
+
+              <Text style={styles.familyLabel}>
+                {t('guitar.settings.velocityCurve')}
+              </Text>
+              <OptionChips
+                onSelect={onChangeVelocityCurve}
+                options={GUITAR_VELOCITY_CURVE_IDS.map((id) => ({
+                  value: id,
+                  label: t(`guitar.settings.velocityCurves.${id}`),
+                }))}
+                selected={velocityCurve}
+              />
+
+              <Text style={styles.familyLabel}>{t('guitar.settings.strumFeel')}</Text>
+              <OptionChips
+                onSelect={onChangeStrumTightness}
+                options={GUITAR_STRUM_TIGHTNESS_IDS.map((id) => ({
+                  value: id,
+                  label: t(`guitar.settings.strumFeels.${id}`),
+                }))}
+                selected={strumTightness}
+              />
+
+              <Text style={styles.familyLabel}>
+                {t('guitar.settings.sustainLength')}
+              </Text>
+              <OptionChips
+                onSelect={onChangeSustainLength}
+                options={GUITAR_SUSTAIN_LENGTH_IDS.map((id) => ({
+                  value: id,
+                  label: t(`guitar.settings.sustainLengths.${id}`),
+                }))}
+                selected={sustainLength}
+              />
+
+              <Text style={styles.familyLabel}>{t('guitar.settings.fretRange')}</Text>
+              <OptionChips
+                onSelect={onChangeMaxFret}
+                options={GUITAR_FRET_RANGE_OPTIONS.map((value) => ({
+                  value,
+                  label: `0–${value}`,
+                }))}
+                selected={maxFret}
               />
             </View>
 

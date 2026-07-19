@@ -1,3 +1,7 @@
+import type {
+  GuitarChordGesture,
+  GuitarChordPlayMode,
+} from './guitarChordPatterns';
 import { isChordId, type ChordId } from './guitarChords';
 
 export type GuitarStringId = 's1' | 's2' | 's3' | 's4' | 's5' | 's6';
@@ -36,6 +40,20 @@ export function formatChordSoundId(chordId: ChordId): string {
   return `chord:${chordId}`;
 }
 
+/**
+ * Recording id that keeps the performance: `chord:Em:arpeggio:up:swipe`.
+ * Playback replays the same play mode / strum direction instead of a
+ * default down-strum; plain `chord:Em` stays the tutorial/scoring form.
+ */
+export function formatChordPerformanceSoundId(
+  chordId: ChordId,
+  mode: GuitarChordPlayMode,
+  direction: 'down' | 'up',
+  gesture: GuitarChordGesture,
+): string {
+  return `chord:${chordId}:${mode}:${direction}:${gesture}`;
+}
+
 export type ParsedGuitarSound =
   | { kind: 'pluck'; stringId: GuitarStringId; fret: number }
   | { kind: 'chord'; chordId: ChordId };
@@ -44,7 +62,9 @@ const STRING_IDS = new Set<string>(GUITAR_STRINGS.map((s) => s.id));
 
 export function parseGuitarSoundId(soundId: string): ParsedGuitarSound | null {
   if (soundId.startsWith('chord:')) {
-    const chordId = soundId.slice('chord:'.length);
+    // Tolerate the performance form — segments after the chord id carry
+    // play mode / direction and only matter for playback.
+    const chordId = soundId.slice('chord:'.length).split(':')[0];
     if (!isChordId(chordId)) {
       return null;
     }

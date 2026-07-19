@@ -2,14 +2,27 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { restorePlaybackAudioMode } from './initAudio';
 import { stopAllVoices } from './sampleBank';
-import { initDrumsEngine, playHit, releaseDrumsEngine } from '../instruments/drums/drumsEngine';
+import {
+  initDrumsEngine,
+  playHit,
+  releaseDrumsEngine,
+  setDrumKit,
+} from '../instruments/drums/drumsEngine';
+import { isDrumKitId } from '../instruments/drums/drumsKits';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
 import {
   initGuitarEngine,
   playGuitarSoundId,
   releaseGuitarEngine,
+  setGuitarVoice,
 } from '../instruments/guitar/guitarEngine';
-import { initPadsEngine, releasePadsEngine, triggerPad } from '../instruments/pads/padsEngine';
+import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
+import {
+  initPadsEngine,
+  releasePadsEngine,
+  triggerPadForBank,
+} from '../instruments/pads/padsEngine';
+import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
 import type { PadSoundId } from '../instruments/pads/padsSounds';
 import {
   initPianoEngine,
@@ -21,7 +34,10 @@ import {
   initViolinEngine,
   playViolinSoundId,
   releaseViolinEngine,
+  setViolinVoice,
+  stopViolinPhrases,
 } from '../instruments/violin/violinEngine';
+import { isViolinVoiceId } from '../instruments/violin/violinVoices';
 import type { InstrumentId } from '../types/recording';
 import {
   getProjectDurationMs,
@@ -89,19 +105,25 @@ function releaseEngine(instrument: InstrumentId): void {
   loadedEngines.delete(instrument);
 }
 
-function playInstrumentEvent(instrument: InstrumentId, soundId: string): void {
+function playInstrumentEvent(
+  instrument: InstrumentId,
+  soundId: string,
+  velocity?: number,
+  padBankId: PadBankId = 'drums',
+): void {
   switch (instrument) {
     case 'piano':
       playPianoNote(soundId as NoteId);
       return;
     case 'drums':
-      playHit(soundId as DrumSoundId);
+      playHit(soundId as DrumSoundId, velocity);
       return;
     case 'pads':
-      triggerPad(soundId as PadSoundId);
+      // Per-track bank — looper exports layer tracks from different banks.
+      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1);
       return;
     case 'guitar':
-      playGuitarSoundId(soundId);
+      playGuitarSoundId(soundId, velocity);
       return;
     case 'violin':
       playViolinSoundId(soundId);
@@ -127,6 +149,8 @@ function stopActivePlayback(): void {
     activeCancel = null;
   }
   stopMicPlayers();
+  // Cancel violin phrase notes still scheduled inside the engine.
+  stopViolinPhrases();
   stopAllVoices();
 }
 
@@ -171,6 +195,29 @@ export async function playStudioProject(
   const instruments = new Set(tracks.map((track) => track.instrument));
   await Promise.all([...instruments].map((instrument) => ensureEngine(instrument)));
 
+  // The drums bus is global, so one kit per play: use the first drums track's
+  // recorded kit (older tracks without one fall back to acoustic).
+  const drumsTrack = tracks.find((track) => track.instrument === 'drums');
+  if (drumsTrack) {
+    setDrumKit(isDrumKitId(drumsTrack.drumKitId) ? drumsTrack.drumKitId : 'acoustic');
+  }
+
+  // The guitar bus is global too — one voice per play, first guitar track wins.
+  const guitarTrack = tracks.find((track) => track.instrument === 'guitar');
+  if (guitarTrack) {
+    setGuitarVoice(
+      isGuitarVoiceId(guitarTrack.guitarVoiceId) ? guitarTrack.guitarVoiceId : 'nylon',
+    );
+  }
+
+  // Same for violin — first violin track's voice wins.
+  const violinTrack = tracks.find((track) => track.instrument === 'violin');
+  if (violinTrack) {
+    setViolinVoice(
+      isViolinVoiceId(violinTrack.violinVoiceId) ? violinTrack.violinVoiceId : 'classic',
+    );
+  }
+
   const timers: ReturnType<typeof setTimeout>[] = [];
   let finished = false;
 
@@ -184,6 +231,7 @@ export async function playStudioProject(
     }
     timers.length = 0;
     stopMicPlayers();
+    stopViolinPhrases();
     stopAllVoices();
     activeCancel = null;
     onEnded?.();
@@ -203,6 +251,9 @@ export async function playStudioProject(
     }
 
     if (track.mode === 'instrument' && track.events) {
+      const trackPadBank: PadBankId = isPadBankId(track.padBankId)
+        ? track.padBankId
+        : 'drums';
       for (const event of track.events) {
         if (event.atMs > track.durationMs) {
           continue;
@@ -212,7 +263,12 @@ export async function playStudioProject(
             if (finished) {
               return;
             }
-            playInstrumentEvent(track.instrument, event.soundId);
+            playInstrumentEvent(
+              track.instrument,
+              event.soundId,
+              event.velocity,
+              trackPadBank,
+            );
           }, event.atMs),
         );
       }

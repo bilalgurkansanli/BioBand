@@ -179,6 +179,11 @@ export function PianoNavigator({
           <View style={styles.track}>
             <View pointerEvents="none" style={styles.gradientTrack} />
 
+            {/* Center detent marks the concert-pitch (0) position, so the
+                control clearly reads as a centered transpose — not as a
+                window being scrolled across the keyboard. */}
+            <View pointerEvents="none" style={styles.centerDetent} />
+
             <View pointerEvents="none" style={styles.miniWhiteRow}>
               {WHITE_PIANO_NOTES.map((note) => (
                 <View
@@ -312,6 +317,16 @@ const styles = StyleSheet.create({
   gradientTrack: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#2A2A2A',
+  },
+  centerDetent: {
+    backgroundColor: 'rgba(108, 92, 231, 0.9)',
+    bottom: 0,
+    left: '50%',
+    marginLeft: -1,
+    position: 'absolute',
+    top: 0,
+    width: 2,
+    zIndex: 2,
   },
   miniWhiteRow: {
     flexDirection: 'row',

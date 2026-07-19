@@ -57,18 +57,20 @@ export function ChordBar({
   accent = colors.accent,
 }: ChordBarProps) {
   const { t } = useTranslation();
-  const touchOriginRef = useRef<TouchOrigin | null>(null);
+  // Keyed by touch identifier so simultaneous touches on two chords both land.
+  const touchOriginsRef = useRef<Map<string, TouchOrigin>>(new Map());
 
   const handleTouchStart = (chordId: string, event: GestureResponderEvent) => {
-    touchOriginRef.current = {
+    touchOriginsRef.current.set(String(event.nativeEvent.identifier), {
       chordId,
       y: event.nativeEvent.pageY,
-    };
+    });
   };
 
   const handleTouchEnd = (chordId: string, event: GestureResponderEvent) => {
-    const origin = touchOriginRef.current;
-    touchOriginRef.current = null;
+    const touchId = String(event.nativeEvent.identifier);
+    const origin = touchOriginsRef.current.get(touchId);
+    touchOriginsRef.current.delete(touchId);
     if (!origin || origin.chordId !== chordId) {
       return;
     }
@@ -88,8 +90,8 @@ export function ChordBar({
     onSelectChord(chordId, direction, 'swipe');
   };
 
-  const handleTouchCancel = () => {
-    touchOriginRef.current = null;
+  const handleTouchCancel = (event: GestureResponderEvent) => {
+    touchOriginsRef.current.delete(String(event.nativeEvent.identifier));
   };
 
   return (

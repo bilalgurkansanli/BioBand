@@ -33,6 +33,31 @@ import {
   KNOCKIN_ON_HEAVENS_DOOR_PARTIAL_COUNT,
 } from './knockinOnHeavensDoor';
 import { ZOMBIE_EVENTS, ZOMBIE_PARTIAL_COUNT } from './zombie';
+import { BABA_TEMASI_EVENTS, BABA_TEMASI_PARTIAL_COUNT } from './babaTemasi';
+import { FUR_ELISE_EVENTS, FUR_ELISE_PARTIAL_COUNT } from './furElise';
+import { GREENSLEEVES_EVENTS, GREENSLEEVES_PARTIAL_COUNT } from './greensleeves';
+import {
+  HOTEL_CALIFORNIA_EVENTS,
+  HOTEL_CALIFORNIA_PARTIAL_COUNT,
+} from './hotelCalifornia';
+import {
+  ISPANYOL_ROMANSI_EVENTS,
+  ISPANYOL_ROMANSI_PARTIAL_COUNT,
+} from './ispanyolRomansi';
+import {
+  MY_HEART_WILL_GO_ON_EVENTS,
+  MY_HEART_WILL_GO_ON_PARTIAL_COUNT,
+} from './myHeartWillGoOn';
+import {
+  NOTHING_ELSE_MATTERS_EVENTS,
+  NOTHING_ELSE_MATTERS_PARTIAL_COUNT,
+} from './nothingElseMatters';
+import { SARI_GELIN_EVENTS, SARI_GELIN_PARTIAL_COUNT } from './sariGelin';
+import {
+  STAIRWAY_TO_HEAVEN_EVENTS,
+  STAIRWAY_TO_HEAVEN_PARTIAL_COUNT,
+} from './stairwayToHeaven';
+import { YESTERDAY_EVENTS, YESTERDAY_PARTIAL_COUNT } from './yesterday';
 import {
   BALLAD_CHORDS_EVENTS,
   CAMPFIRE_CHORDS_EVENTS,
@@ -133,6 +158,86 @@ export const GUITAR_SONGS: GuitarSongDefinition[] = [
     difficulty: 'medium',
     events: KARAYIP_KORSANLARI_EVENTS,
     partialCount: KARAYIP_KORSANLARI_PARTIAL_COUNT,
+  },
+  {
+    id: 'ispanyol-romansi',
+    title: 'İspanyol Romansı (Romance)',
+    artist: 'Anonim',
+    difficulty: 'medium',
+    events: ISPANYOL_ROMANSI_EVENTS,
+    partialCount: ISPANYOL_ROMANSI_PARTIAL_COUNT,
+  },
+  {
+    id: 'nothing-else-matters',
+    title: 'Nothing Else Matters',
+    artist: 'Metallica',
+    difficulty: 'medium',
+    events: NOTHING_ELSE_MATTERS_EVENTS,
+    partialCount: NOTHING_ELSE_MATTERS_PARTIAL_COUNT,
+  },
+  {
+    id: 'hotel-california',
+    title: 'Hotel California',
+    artist: 'Eagles',
+    difficulty: 'medium',
+    events: HOTEL_CALIFORNIA_EVENTS,
+    partialCount: HOTEL_CALIFORNIA_PARTIAL_COUNT,
+  },
+  {
+    id: 'baba-temasi',
+    title: 'The Godfather (Baba)',
+    artist: 'Nino Rota',
+    difficulty: 'medium',
+    events: BABA_TEMASI_EVENTS,
+    partialCount: BABA_TEMASI_PARTIAL_COUNT,
+  },
+  {
+    id: 'my-heart-will-go-on',
+    title: 'My Heart Will Go On',
+    artist: 'Céline Dion',
+    difficulty: 'easy',
+    events: MY_HEART_WILL_GO_ON_EVENTS,
+    partialCount: MY_HEART_WILL_GO_ON_PARTIAL_COUNT,
+  },
+  {
+    id: 'fur-elise',
+    title: 'Für Elise',
+    artist: 'Ludwig van Beethoven',
+    difficulty: 'medium',
+    events: FUR_ELISE_EVENTS,
+    partialCount: FUR_ELISE_PARTIAL_COUNT,
+  },
+  {
+    id: 'greensleeves',
+    title: 'Greensleeves',
+    artist: 'Anonim',
+    difficulty: 'easy',
+    events: GREENSLEEVES_EVENTS,
+    partialCount: GREENSLEEVES_PARTIAL_COUNT,
+  },
+  {
+    id: 'stairway-to-heaven',
+    title: 'Stairway to Heaven',
+    artist: 'Led Zeppelin',
+    difficulty: 'medium',
+    events: STAIRWAY_TO_HEAVEN_EVENTS,
+    partialCount: STAIRWAY_TO_HEAVEN_PARTIAL_COUNT,
+  },
+  {
+    id: 'sari-gelin',
+    title: 'Sarı Gelin',
+    artist: 'Anonim',
+    difficulty: 'easy',
+    events: SARI_GELIN_EVENTS,
+    partialCount: SARI_GELIN_PARTIAL_COUNT,
+  },
+  {
+    id: 'yesterday',
+    title: 'Yesterday',
+    artist: 'The Beatles',
+    difficulty: 'easy',
+    events: YESTERDAY_EVENTS,
+    partialCount: YESTERDAY_PARTIAL_COUNT,
   },
   {
     id: 'open-strings',

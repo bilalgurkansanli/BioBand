@@ -8,10 +8,15 @@ const TICK_MS = 80;
 /**
  * Rolling play-speed from note onsets (notes/sec over the last 1.5s).
  * No pressure sensor — timing only.
+ *
+ * Pass `enabled: false` while the HUD is hidden: the tick interval stops and
+ * `recordNoteOn` becomes a no-op, so playing doesn't re-render the screen.
  */
-export function usePlaySpeed() {
+export function usePlaySpeed(enabled = true) {
   const onsetsRef = useRef<number[]>([]);
   const [notesPerSec, setNotesPerSec] = useState(0);
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
 
   const recompute = useCallback(() => {
     const now = Date.now();
@@ -31,14 +36,22 @@ export function usePlaySpeed() {
   }, []);
 
   const recordNoteOn = useCallback(() => {
+    if (!enabledRef.current) {
+      return;
+    }
     onsetsRef.current.push(Date.now());
     recompute();
   }, [recompute]);
 
   useEffect(() => {
+    if (!enabled) {
+      onsetsRef.current = [];
+      setNotesPerSec(0);
+      return;
+    }
     const id = setInterval(recompute, TICK_MS);
     return () => clearInterval(id);
-  }, [recompute]);
+  }, [enabled, recompute]);
 
   return { notesPerSec, recordNoteOn, maxNotesPerSec: MAX_NOTES_PER_SEC };
 }

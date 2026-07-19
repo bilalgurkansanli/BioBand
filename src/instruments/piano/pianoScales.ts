@@ -51,6 +51,31 @@ export const PIANO_SCALE_OPTIONS: readonly PianoScaleOption[] = [
 
 const noteIdCache = new Map<PianoScaleId, ReadonlySet<NoteId>>();
 
+/** Snap a note to the nearest note that belongs to the scale (ties round up). */
+export function snapToScale(noteId: NoteId, scaleId: PianoScaleId): NoteId {
+  const allowed = getScaleNoteIds(scaleId);
+  if (allowed.has(noteId)) {
+    return noteId;
+  }
+  const target = PIANO_NOTES.find((n) => n.id === noteId);
+  if (!target) {
+    return noteId;
+  }
+  let best: NoteId = noteId;
+  let bestDist = Infinity;
+  for (const note of PIANO_NOTES) {
+    if (!allowed.has(note.id)) {
+      continue;
+    }
+    const dist = Math.abs(note.midi - target.midi);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = note.id;
+    }
+  }
+  return best;
+}
+
 export function getScaleNoteIds(scaleId: PianoScaleId): ReadonlySet<NoteId> {
   const cached = noteIdCache.get(scaleId);
   if (cached) {

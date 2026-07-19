@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import type {
   GuitarPlayAlongPhase,
   GuitarPlayAlongResults,
+  PlayMode,
   PlayTempo,
   SupportLevel,
 } from '../../hooks/useGuitarPlayAlong';
@@ -28,8 +29,13 @@ import type {
 } from '../../instruments/guitar/songs/types';
 import type { UserGuitarSong } from '../../storage/userGuitarSongsStorage';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
+import {
+  TutorialChoiceRow,
+  TutorialSongChip,
+} from '../instrument/TutorialChoices';
 import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
+import { HorizontalSlider } from '../piano/HorizontalSlider';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
 
 type DifficultyFilter = 'all' | GuitarSongDifficulty;
@@ -58,8 +64,14 @@ type GuitarPlayAlongModalProps = {
   demoJustFinished?: boolean;
   userSongs: UserGuitarSong[];
   importing: boolean;
+  calibrateOffsetMs: number;
+  calibratePreviewing: boolean;
+  audioBusy: boolean;
+  offsetMinMs: number;
+  offsetMaxMs: number;
   onClose: () => void;
   onSelectSong: (songId: string) => void;
+  onSelectPlayMode: (mode: PlayMode) => void;
   onSelectScope: (scope: GuitarSongScope) => void;
   onSelectLevel: (level: SupportLevel) => void;
   onSelectTempo: (tempo: PlayTempo) => void;
@@ -69,6 +81,14 @@ type GuitarPlayAlongModalProps = {
   onImportSong: () => Promise<ImportGuitarSongResult>;
   onImportSongFromJsonText: (text: string) => Promise<ImportGuitarSongResult>;
   onDeleteUserSong: (songId: string) => void;
+  onPickBackingAudio: (
+    sourceUri: string,
+    fileNameHint?: string,
+  ) => Promise<{ ok: boolean }>;
+  onSetCalibrateOffset: (ms: number) => void;
+  onPreviewCalibrate: () => void;
+  onStopCalibratePreview: () => void;
+  onConfirmCalibrate: () => void;
 };
 
 const TEMPO_OPTIONS: PlayTempo[] = ['slow', 'normal', 'fast'];
@@ -108,8 +128,14 @@ export function GuitarPlayAlongModal({
   demoJustFinished = false,
   userSongs,
   importing,
+  calibrateOffsetMs,
+  calibratePreviewing,
+  audioBusy,
+  offsetMinMs,
+  offsetMaxMs,
   onClose,
   onSelectSong,
+  onSelectPlayMode,
   onSelectScope,
   onSelectLevel,
   onSelectTempo,
@@ -119,6 +145,11 @@ export function GuitarPlayAlongModal({
   onImportSong,
   onImportSongFromJsonText,
   onDeleteUserSong,
+  onPickBackingAudio,
+  onSetCalibrateOffset,
+  onPreviewCalibrate,
+  onStopCalibratePreview,
+  onConfirmCalibrate,
 }: GuitarPlayAlongModalProps) {
   const { t } = useTranslation();
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
@@ -131,7 +162,24 @@ export function GuitarPlayAlongModal({
       : GUITAR_SONG_CATALOG.filter((s) => s.difficulty === difficultyFilter);
 
   const showBack =
-    phase === 'pickScope' || phase === 'pickLevel' || phase === 'results';
+    phase === 'pickScope' ||
+    phase === 'pickMode' ||
+    phase === 'pickAudio' ||
+    phase === 'calibrateOffset' ||
+    phase === 'pickLevel' ||
+    phase === 'results';
+
+  const handlePickAudio = async () => {
+    if (!isDocumentPickerAvailable()) {
+      return;
+    }
+    const { pickAudioDocument } = await import('../../utils/documentPicker');
+    const picked = await pickAudioDocument();
+    if (!picked.ok) {
+      return;
+    }
+    await onPickBackingAudio(picked.asset.uri, picked.asset.name);
+  };
 
   const handleImport = async () => {
     if (!isDocumentPickerAvailable()) {
@@ -361,32 +409,117 @@ export function GuitarPlayAlongModal({
 
             {phase === 'pickScope' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
-                <Text style={styles.sectionTitle}>{t('guitar.game.pickScope')}</Text>
-                <Pressable
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('guitar.game.pickScope')}</Text>
+                <TutorialChoiceRow
+                  icon="cut-outline"
                   onPress={() => onSelectScope('partial')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                >
-                  <Text style={styles.choiceTitle}>{t('guitar.game.scopePartial')}</Text>
-                  <Text style={styles.choiceHint}>{t('guitar.game.scopePartialHint')}</Text>
-                </Pressable>
-                <Pressable
+                  subtitle={t('guitar.game.scopePartialHint')}
+                  title={t('guitar.game.scopePartial')}
+                />
+                <TutorialChoiceRow
+                  icon="musical-notes-outline"
                   onPress={() => onSelectScope('full')}
-                  style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
+                  subtitle={t('guitar.game.scopeFullHint')}
+                  title={t('guitar.game.scopeFull')}
+                />
+              </>
+            ) : null}
+
+            {phase === 'pickAudio' && selectedSong ? (
+              <>
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('guitar.game.pickAudio')}</Text>
+                <Text style={styles.choiceHint}>{t('guitar.game.pickAudioHint')}</Text>
+                <Pressable
+                  disabled={audioBusy}
+                  onPress={() => void handlePickAudio()}
+                  style={({ pressed }) => [
+                    styles.importButton,
+                    pressed && styles.pressed,
+                    audioBusy && styles.rowDisabled,
+                  ]}
                 >
-                  <Text style={styles.choiceTitle}>{t('guitar.game.scopeFull')}</Text>
-                  <Text style={styles.choiceHint}>{t('guitar.game.scopeFullHint')}</Text>
+                  {audioBusy ? (
+                    <ActivityIndicator color={colors.accent} size="small" />
+                  ) : (
+                    <Ionicons
+                      color={colors.accent}
+                      name="musical-notes-outline"
+                      size={20}
+                    />
+                  )}
+                  <View style={styles.importTextWrap}>
+                    <Text style={styles.importTitle}>
+                      {t('guitar.game.pickAudioButton')}
+                    </Text>
+                  </View>
                 </Pressable>
+              </>
+            ) : null}
+
+            {phase === 'calibrateOffset' && selectedSong ? (
+              <>
+                <TutorialSongChip title={selectedSong.title} />
+                <Text style={styles.stepSubtitle}>{t('guitar.game.calibrate')}</Text>
+                <Text style={styles.choiceHint}>{t('guitar.game.calibrateHint')}</Text>
+
+                <Text style={styles.offsetLabel}>
+                  {t('guitar.game.calibrateOffset', {
+                    ms: Math.round(calibrateOffsetMs),
+                  })}
+                </Text>
+                <HorizontalSlider
+                  accentColor={colors.accent}
+                  max={Math.min(offsetMaxMs, 30000)}
+                  min={Math.max(offsetMinMs, 0)}
+                  onValueChange={(value) =>
+                    onSetCalibrateOffset(Math.round(value / 100) * 100)
+                  }
+                  style={styles.slider}
+                  value={calibrateOffsetMs}
+                />
+
+                <View style={styles.calibrateActions}>
+                  <Pressable
+                    onPress={
+                      calibratePreviewing
+                        ? onStopCalibratePreview
+                        : onPreviewCalibrate
+                    }
+                    style={({ pressed }) => [
+                      styles.secondaryAction,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryActionText}>
+                      {calibratePreviewing
+                        ? t('guitar.game.calibrateStop')
+                        : t('guitar.game.calibratePreview')}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={onConfirmCalibrate}
+                    style={({ pressed }) => [
+                      styles.primaryButton,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.primaryButtonText}>
+                      {t('guitar.game.calibrateConfirm')}
+                    </Text>
+                  </Pressable>
+                </View>
               </>
             ) : null}
 
             {phase === 'pickLevel' && selectedSong ? (
               <>
-                <Text style={styles.songHeading}>{selectedSong.title}</Text>
+                <TutorialSongChip title={selectedSong.title} />
                 {demoJustFinished ? (
                   <Text style={styles.demoFinished}>{t('guitar.game.demoFinished')}</Text>
                 ) : null}
-                <Text style={styles.sectionTitle}>{t('guitar.game.pickLevel')}</Text>
+                <Text style={styles.stepSubtitle}>{t('guitar.game.pickLevel')}</Text>
 
                 <Text style={styles.tempoLabel}>{t('guitar.game.tempo.label')}</Text>
                 <View style={styles.tempoRow}>
@@ -416,17 +549,13 @@ export function GuitarPlayAlongModal({
                 </View>
 
                 {LEVELS.map((entry) => (
-                  <Pressable
+                  <TutorialChoiceRow
+                    icon={entry.icon}
                     key={entry.id}
                     onPress={() => onSelectLevel(entry.id)}
-                    style={({ pressed }) => [styles.choiceCard, pressed && styles.pressed]}
-                  >
-                    <View style={styles.levelHeader}>
-                      <Ionicons color="#FFD54F" name={entry.icon} size={20} />
-                      <Text style={styles.choiceTitle}>{t(entry.titleKey)}</Text>
-                    </View>
-                    <Text style={styles.choiceHint}>{t(entry.descriptionKey)}</Text>
-                  </Pressable>
+                    subtitle={t(entry.descriptionKey)}
+                    title={t(entry.titleKey)}
+                  />
                 ))}
 
                 <Pressable onPress={onBackToSongList} style={styles.backLink}>
@@ -552,6 +681,9 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 0,
+    // Shrink with the card in short (landscape) windows — a fixed cap alone
+    // pushed the list's tail below the screen edge.
+    flexShrink: 1,
     maxHeight: 420,
   },
   scrollContent: {
@@ -701,32 +833,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 44,
   },
-  songHeading: {
-    color: colors.accent,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  choiceCard: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 12,
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  choiceTitle: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '700',
+  stepSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    marginBottom: 2,
+    textAlign: 'center',
   },
   choiceHint: {
     color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
-  levelHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
+  offsetLabel: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  slider: {
+    height: 36,
+    marginHorizontal: 4,
+  },
+  calibrateActions: {
     gap: 8,
+  },
+  secondaryAction: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+  },
+  secondaryActionText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   tempoLabel: {
     color: colors.textSecondary,
