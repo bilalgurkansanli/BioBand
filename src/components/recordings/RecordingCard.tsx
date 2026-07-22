@@ -55,6 +55,7 @@ export function RecordingCard({
   );
 
   const isDrumMachine = recording.source === 'drumMachine';
+  const isImported = recording.source === 'imported';
 
   const title = recording.title?.trim()
     ? recording.title.trim()
@@ -62,22 +63,31 @@ export function RecordingCard({
 
   const modeLabel = isDrumMachine
     ? t('recordings.modeDrumMachine')
-    : recording.mode === 'microphone'
-      ? t('recordings.modeMicrophone')
-      : t('recordings.modeInstrument');
+    : isImported
+      ? t('recordings.modeImported')
+      : recording.mode === 'microphone'
+        ? t('recordings.modeMicrophone')
+        : t('recordings.modeInstrument');
 
   const detailLabel = isDrumMachine
     ? t(INSTRUMENT_TITLE_KEYS[recording.instrument])
-    : recording.mode === 'instrument'
-      ? t('recordings.eventCount', { count: recording.events?.length ?? 0 })
-      : t('recordings.audioTrack');
+    : isImported
+      ? t('recordings.audioTrack')
+      : recording.mode === 'instrument'
+        ? t('recordings.eventCount', { count: recording.events?.length ?? 0 })
+        : t('recordings.audioTrack');
 
   const playLabel = isPlaying ? t('recordings.stopPlayback') : t('recordings.play');
   const actionsDisabled = isLoading || isBusy;
   // The background art says which instrument the take belongs to — no icon.
   // Always the instrument's own art, even for mic-recorded takes: the take
-  // is still that instrument, just captured through the microphone.
-  const artVariant: InstrumentArtVariant = isDrumMachine ? 'drumMachine' : recording.instrument;
+  // is still that instrument, just captured through the microphone. Imported
+  // files aren't tied to any instrument, so they get the generic mic art.
+  const artVariant: InstrumentArtVariant = isDrumMachine
+    ? 'drumMachine'
+    : isImported
+      ? 'microphone'
+      : recording.instrument;
 
   return (
     <View style={[styles.card, isPlaying && styles.cardPlaying]}>

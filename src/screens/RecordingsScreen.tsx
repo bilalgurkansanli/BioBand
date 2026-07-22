@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -8,10 +8,11 @@ import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { RecordingCard } from '../components/recordings/RecordingCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { OptionListModal } from '../components/studio/OptionListModal';
 import { StudioProjectCard } from '../components/studio/StudioProjectCard';
 import { StudioSegmentedControl } from '../components/studio/StudioSegmentedControl';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
-import { useRecordingActions } from '../hooks/useRecordingActions';
+import { useRecordingActions, type ExportFormatChoice } from '../hooks/useRecordingActions';
 import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioProjects } from '../hooks/useStudioProjects';
@@ -23,7 +24,11 @@ import { deleteRecording, renameRecording } from '../storage/recordingsStorage';
 import { colors } from '../theme/colors';
 import type { RecordingsStackParamList } from '../types/navigation';
 import type { SavedRecording } from '../types/recording';
+import { canExportAudioFormat } from '../utils/recordingExport';
+import { importAudioRecording } from '../utils/recordingImport';
 import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
+
+type ExportAction = 'share' | 'download';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'RecordingsHome'>;
 type Segment = 'takes' | 'studio';
@@ -34,10 +39,32 @@ export function RecordingsScreen({ navigation }: Props) {
   const [createVisible, setCreateVisible] = useState(false);
   const [renameTarget, setRenameTarget] = useState<SavedRecording | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SavedRecording | null>(null);
+  const [exportTarget, setExportTarget] = useState<{
+    recording: SavedRecording;
+    action: ExportAction;
+  } | null>(null);
+  const [importing, setImporting] = useState(false);
   const { recordings, loading: takesLoading, refresh: refreshTakes } = useRecordings();
   const { playingId, loadingId, positionMs, durationMs, play, seek } = useRecordingPlayback();
   const { busyId, share, download } = useRecordingActions();
   const { projects, loading: studioLoading, create } = useStudioProjects();
+
+  const handleImport = async () => {
+    setImporting(true);
+    try {
+      const result = await importAudioRecording();
+      if (result.ok) {
+        await refreshTakes();
+        return;
+      }
+      if (result.code === 'canceled') {
+        return;
+      }
+      Alert.alert(t(`recordings.import.errors.${result.code}`));
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const removeTake = async (recording: SavedRecording) => {
     if (recording.source === 'drumMachine' || recording.id.startsWith('dm-')) {
@@ -74,21 +101,36 @@ export function RecordingsScreen({ navigation }: Props) {
       />
 
       {segment === 'takes' ? (
-        takesLoading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.accent} size="large" />
-          </View>
-        ) : recordings.length === 0 ? (
-          <EmptyState
-            description={t('recordings.emptyDescription')}
-            icon="recording"
-            title={t('recordings.emptyTitle')}
-          />
-        ) : (
-          <>
+        <>
+          <View style={styles.studioHeader}>
             <Text style={styles.subtitle}>
               {t('recordings.count', { count: recordings.length })}
             </Text>
+            <Pressable
+              disabled={importing}
+              onPress={() => void handleImport()}
+              style={[styles.newButton, importing && styles.disabled]}
+            >
+              {importing ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Ionicons color="#FFFFFF" name="folder-open-outline" size={16} />
+              )}
+              <Text style={styles.newButtonText}>{t('recordings.import.button')}</Text>
+            </Pressable>
+          </View>
+
+          {takesLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={colors.accent} size="large" />
+            </View>
+          ) : recordings.length === 0 ? (
+            <EmptyState
+              description={t('recordings.emptyDescription')}
+              icon="recording"
+              title={t('recordings.emptyTitle')}
+            />
+          ) : (
             <FlatList
               contentContainerStyle={styles.listContent}
               data={recordings}
@@ -101,18 +143,18 @@ export function RecordingsScreen({ navigation }: Props) {
                   isPlaying={playingId === item.id}
                   positionMs={playingId === item.id ? positionMs : 0}
                   onDeletePress={() => confirmDeleteTake(item)}
-                  onDownloadPress={() => void download(item)}
+                  onDownloadPress={() => setExportTarget({ recording: item, action: 'download' })}
                   onPlayPress={() => void play(item)}
                   onSeek={seek}
-                  onSharePress={() => void share(item)}
+                  onSharePress={() => setExportTarget({ recording: item, action: 'share' })}
                   onTitlePress={() => setRenameTarget(item)}
                   recording={item}
                 />
               )}
               showsVerticalScrollIndicator={false}
             />
-          </>
-        )
+          )}
+        </>
       ) : studioLoading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
@@ -201,6 +243,38 @@ export function RecordingsScreen({ navigation }: Props) {
           setDeleteTarget(null);
         }}
       />
+
+      <OptionListModal
+        options={[
+          {
+            key: 'original',
+            label: t('recordings.exportFormatOriginal'),
+            icon: 'document-outline',
+          },
+          ...(exportTarget && canExportAudioFormat(exportTarget.recording, 'mp3')
+            ? [{ key: 'mp3', label: 'MP3', icon: 'musical-notes-outline' as const }]
+            : []),
+          ...(exportTarget && canExportAudioFormat(exportTarget.recording, 'mp4')
+            ? [{ key: 'mp4', label: 'MP4', icon: 'videocam-outline' as const }]
+            : []),
+        ]}
+        title={t('recordings.exportFormatTitle')}
+        visible={exportTarget !== null}
+        onClose={() => setExportTarget(null)}
+        onSelect={(key) => {
+          const target = exportTarget;
+          setExportTarget(null);
+          if (!target) {
+            return;
+          }
+          const format = key as ExportFormatChoice;
+          if (target.action === 'share') {
+            void share(target.recording, format);
+          } else {
+            void download(target.recording, format);
+          }
+        }}
+      />
     </ScreenContainer>
   );
 }
@@ -262,6 +336,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  disabled: {
+    opacity: 0.55,
   },
   empty: {
     alignItems: 'center',

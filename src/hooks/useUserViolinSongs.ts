@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { File } from 'expo-file-system';
 
+import { parseMidiToViolinSong } from '../instruments/violin/songs/midiToViolinSong';
 import type { ViolinSongDefinition } from '../instruments/violin/songs/types';
 import {
   parseUserViolinSongJson,
@@ -12,8 +13,9 @@ import {
   loadUserViolinSongs,
   saveUserViolinSong,
   type UserViolinSong,
+  type UserViolinSongSource,
 } from '../storage/userViolinSongsStorage';
-import { pickJsonDocument } from '../utils/documentPicker';
+import { pickChartDocument } from '../utils/documentPicker';
 
 export type ImportViolinSongResult =
   | { ok: true; song: UserViolinSong }
@@ -22,13 +24,36 @@ export type ImportViolinSongResult =
       code: UserViolinSongParseErrorCode | 'canceled' | 'pickerUnavailable';
     };
 
+function extensionOf(name: string): string {
+  const match = name.match(/\.([a-zA-Z0-9]+)$/);
+  return match?.[1]?.toLowerCase() ?? '';
+}
+
+function detectSource(fileName: string, mimeType?: string | null): UserViolinSongSource | null {
+  const ext = extensionOf(fileName);
+  if (ext === 'json' || mimeType === 'application/json') {
+    return 'json';
+  }
+  if (
+    ext === 'mid' ||
+    ext === 'midi' ||
+    mimeType === 'audio/midi' ||
+    mimeType === 'audio/mid' ||
+    mimeType === 'audio/x-midi'
+  ) {
+    return 'midi';
+  }
+  return null;
+}
+
 async function persistSong(
   definition: ViolinSongDefinition & { artist?: string },
+  source: UserViolinSongSource,
   setSongs: (songs: UserViolinSong[]) => void,
 ): Promise<UserViolinSong> {
   const userSong: UserViolinSong = {
     ...definition,
-    source: 'json',
+    source,
     importedAt: Date.now(),
   };
   const next = await saveUserViolinSong(userSong);
@@ -58,24 +83,29 @@ export function useUserViolinSongs() {
   const importSong = useCallback(async (): Promise<ImportViolinSongResult> => {
     setImporting(true);
     try {
-      const picked = await pickJsonDocument();
+      const picked = await pickChartDocument();
       if (!picked.ok) {
         return { ok: false, code: picked.code };
       }
 
       const { asset } = picked;
-      const ext = asset.name.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() ?? '';
-      if (ext && ext !== 'json') {
+      const source = detectSource(asset.name, asset.mimeType);
+      if (!source) {
         return { ok: false, code: 'unsupported' };
       }
 
+      const file = new File(asset.uri);
       let definition: ViolinSongDefinition & { artist?: string };
       try {
-        const file = new File(asset.uri);
-        const text = await file.text();
-        definition = parseUserViolinSongJson(text, {
-          fallbackTitle: asset.name.replace(/\.json$/i, ''),
-        });
+        if (source === 'json') {
+          const text = await file.text();
+          definition = parseUserViolinSongJson(text, {
+            fallbackTitle: asset.name.replace(/\.json$/i, ''),
+          });
+        } else {
+          const bytes = await file.bytes();
+          definition = parseMidiToViolinSong(bytes, { fileName: asset.name });
+        }
       } catch (error) {
         if (error instanceof UserViolinSongParseError) {
           return { ok: false, code: error.code };
@@ -83,7 +113,7 @@ export function useUserViolinSongs() {
         return { ok: false, code: 'readFailed' };
       }
 
-      const userSong = await persistSong(definition, setSongs);
+      const userSong = await persistSong(definition, source, setSongs);
       return { ok: true, song: userSong };
     } catch {
       return { ok: false, code: 'readFailed' };
@@ -97,7 +127,7 @@ export function useUserViolinSongs() {
       setImporting(true);
       try {
         const definition = parseUserViolinSongJson(text);
-        const userSong = await persistSong(definition, setSongs);
+        const userSong = await persistSong(definition, 'json', setSongs);
         return { ok: true, song: userSong };
       } catch (error) {
         if (error instanceof UserViolinSongParseError) {

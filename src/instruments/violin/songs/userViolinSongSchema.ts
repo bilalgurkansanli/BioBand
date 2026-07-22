@@ -13,6 +13,7 @@ export type UserViolinSongParseErrorCode =
   | 'invalidSound'
   | 'emptySong'
   | 'tooManyNotes'
+  | 'midiParseFailed'
   | 'readFailed'
   | 'unsupported';
 
@@ -137,6 +138,36 @@ export function parseUserViolinSongJson(
     title,
     artist,
     difficulty,
+    events,
+    partialCount,
+  };
+}
+
+export function buildUserViolinSongDefinition(input: {
+  title: string;
+  artist?: string;
+  events: ViolinSongEvent[];
+  difficulty?: ViolinSongDifficulty;
+  partialCount?: number;
+}): ViolinSongDefinition & { artist?: string } {
+  if (input.events.length === 0) {
+    throw new UserViolinSongParseError('emptySong');
+  }
+  if (input.events.length > MAX_USER_VIOLIN_EVENTS) {
+    throw new UserViolinSongParseError('tooManyNotes');
+  }
+
+  const events = [...input.events].sort((a, b) => a.atMs - b.atMs);
+  const partialCount =
+    input.partialCount && input.partialCount > 0
+      ? Math.min(input.partialCount, events.length)
+      : Math.min(DEFAULT_PARTIAL_COUNT, events.length);
+
+  return {
+    id: createUserViolinSongId(),
+    title: input.title.trim() || 'Untitled',
+    artist: input.artist?.trim() || undefined,
+    difficulty: input.difficulty ?? 'medium',
     events,
     partialCount,
   };

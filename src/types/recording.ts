@@ -13,7 +13,7 @@ export type InstrumentEvent = {
   velocity?: number;
 };
 
-export type RecordingSource = 'instrument' | 'drumMachine';
+export type RecordingSource = 'instrument' | 'drumMachine' | 'imported';
 
 export type SavedRecording = {
   id: string;

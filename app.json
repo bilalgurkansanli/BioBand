@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
+      "bundleIdentifier": "com.bioband.app",
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances."
@@ -55,7 +56,13 @@
       "react-native-audio-api",
       "expo-asset",
       "expo-font",
-      "expo-document-picker"
+      "expo-document-picker",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.533523915249-p8vdfao9dq69qt7j81fdibnpbihnb44g"
+        }
+      ]
     ],
     "extra": {
       "eas": {

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { notifyAppDataChanged } from './appDataChangeSignal';
 import type { InstrumentId } from '../types/recording';
 
 const STORAGE_KEY = '@bioband/profile-settings.v1';
@@ -81,5 +82,6 @@ export async function saveProfileSettings(
     avatarColor: settings.avatarColor,
   };
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  notifyAppDataChanged();
   return next;
 }

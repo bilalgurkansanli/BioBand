@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { notifyAppDataChanged } from './appDataChangeSignal';
+
 const STORAGE_KEY = '@bioband/practice-reminder.v1';
 
 export type PracticeReminderSettings = {
@@ -46,5 +48,6 @@ export async function savePracticeReminderSettings(
   settings: PracticeReminderSettings,
 ): Promise<PracticeReminderSettings> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  notifyAppDataChanged();
   return settings;
 }

@@ -4,6 +4,23 @@
     "recordings": "Kayıtlarım",
     "profile": "Profil"
   },
+  "auth": {
+    "promptTitle": "İlerlemeni koru",
+    "promptSubtitle": "Kayıtlarını, serilerini ve ayarlarını her açılışta korumak için Google ile giriş yap. Konuk olarak devam edersen her açılışta her şey sıfırlanır.",
+    "signInWithGoogle": "Google ile giriş yap",
+    "continueAsGuest": "Konuk olarak devam et",
+    "guestHint": "Daha sonra Profil ayarlarından giriş yapabilirsin.",
+    "signOut": "Çıkış yap",
+    "signedInAs": "{{email}} olarak giriş yapıldı",
+    "syncedBadge": "Senkronize",
+    "signInSettingsHint": "İlerlemeni ve ayarlarını senkronize tutmak için giriş yap.",
+    "errors": {
+      "playServicesUnavailable": "Google Play Hizmetleri gerekli ama bu cihazda yok.",
+      "noIdToken": "Google bir giriş jetonu döndürmedi. Tekrar dene.",
+      "unconfigured": "Bu sürümde giriş henüz ayarlanmamış.",
+      "error": "Giriş başarısız oldu. Tekrar dene."
+    }
+  },
   "common": {
     "back": "Geri",
     "cancel": "İptal",
@@ -59,6 +76,7 @@
     "settingsLanguageHint": "Uygulama dilini seç.",
     "langTr": "Türkçe",
     "langEn": "English",
+    "langDe": "Almanca",
     "settingsPersonal": "Kişisel",
     "displayName": "Görünen ad",
     "displayNamePlaceholder": "Adın (isteğe bağlı)",
@@ -117,6 +135,7 @@
     "modeInstrument": "Enstrüman",
     "modeMicrophone": "Mikrofon",
     "modeDrumMachine": "Bateri Makinesi",
+    "modeImported": "İçe aktarıldı",
     "eventCount": "{{count}} nota",
     "eventCount_one": "{{count}} nota",
     "eventCount_other": "{{count}} nota",
@@ -138,7 +157,18 @@
     "shareError": "Kayıt paylaşılamadı.",
     "downloadSuccessTitle": "Kaydedildi",
     "downloadSuccessDocuments": "{{fileName}} BioBand Recordings klasörüne kaydedildi.",
-    "downloadError": "Kayıt indirilemedi."
+    "downloadError": "Kayıt indirilemedi.",
+    "exportFormatTitle": "Nasıl dışa aktarılsın?",
+    "exportFormatOriginal": "Orijinal format",
+    "exportUnsupported": "MP4 için orijinal mikrofon sesi gerekiyor — MP3 dene.",
+    "import": {
+      "button": "Ses dosyası yükle",
+      "errors": {
+        "pickerUnavailable": "Bu sürümde dosya seçici yok.",
+        "unsupported": "Desteklenmeyen dosya. MP3, MP4/M4A veya WAV yükle.",
+        "readFailed": "Bu ses dosyası okunamadı."
+      }
+    }
   },
   "studio": {
     "title": "Studio",
@@ -170,6 +200,10 @@
     "trackSolo": "Solo",
     "trackDelete": "Track'i kaldır",
     "trackDeleteConfirm": "Bu track projeden kaldırılsın mı?",
+    "trackDownload": "İndir",
+    "trackShare": "Paylaş",
+    "trackPlay": "Track'i dinle",
+    "trackStopPlayback": "Dinlemeyi durdur",
     "volume": "Ses",
     "manyTracksHint": "Çok track cihazı zorlayabilir — mümkünse 5 civarında tut.",
     "overdubBanner": "Studio overdub — {{title}}. Kayıt'a bas, geri sayım sonrası yeni track ekle.",
@@ -574,7 +608,7 @@
       },
       "import": {
         "button": "Şarkı yükle",
-        "hint": "JSON dosyası veya JSON yapıştır",
+        "hint": "JSON/MIDI dosyası veya JSON yapıştır",
         "preloaded": "Hazır",
         "mySongs": "Şarkılarım",
         "empty": "Henüz yüklenmiş şarkı yok",
@@ -591,12 +625,13 @@
         "pasteSubmit": "Ekle",
         "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
-          "unsupported": "Desteklenmeyen dosya. Bir JSON dosyası yükle.",
+          "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
           "invalidJson": "JSON dosyası okunamadı.",
           "invalidSchema": "Geçersiz şarkı formatı. events dizisi gerekli (her öğede soundId ve atMs).",
           "invalidSound": "Geçersiz sound id. v1:0–v4:9 veya phrase:id kullan.",
           "emptySong": "Dosyada çalınabilir keman notası bulunamadı.",
           "tooManyNotes": "Çok fazla nota (en fazla 800).",
+          "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır."
         }
