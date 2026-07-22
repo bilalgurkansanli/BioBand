@@ -34,8 +34,8 @@ export function TextPromptModal({
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+      <Pressable style={styles.backdrop} onPress={onCancel}>
+        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           <Text style={styles.title}>{title}</Text>
           <TextInput
             autoFocus
@@ -56,8 +56,8 @@ export function TextPromptModal({
               <Text style={styles.confirmText}>{confirmLabel}</Text>
             </Pressable>
           </View>
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }

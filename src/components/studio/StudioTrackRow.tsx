@@ -1,134 +1,163 @@
+import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import {
+  InstrumentArtBackground,
+  type InstrumentArtVariant,
+} from '../instrument/InstrumentArtBackground';
+import { HorizontalSlider } from '../piano/HorizontalSlider';
 import { colors } from '../../theme/colors';
 import type { StudioTrack } from '../../types/studio';
 import { formatDuration } from '../../utils/formatDuration';
-import { INSTRUMENT_ICONS, INSTRUMENT_TITLE_KEYS } from '../../utils/recordingLabels';
+import { INSTRUMENT_TITLE_KEYS } from '../../utils/recordingLabels';
 
 type Props = {
   track: StudioTrack;
   onToggleMute: () => void;
   onToggleSolo: () => void;
-  onVolumeCycle: () => void;
+  onVolumeChange: (volume: number) => void;
   onDelete: () => void;
 };
 
-const VOLUME_STEPS = [1, 0.7, 0.4, 0.15];
-
-export function nextVolumeStep(current: number): number {
-  const index = VOLUME_STEPS.findIndex((step) => Math.abs(step - current) < 0.05);
-  if (index < 0) {
-    return VOLUME_STEPS[0];
-  }
-  return VOLUME_STEPS[(index + 1) % VOLUME_STEPS.length];
-}
+const MUTE_COLOR = colors.error;
+const SOLO_COLOR = '#F5A623';
 
 export function StudioTrackRow({
   track,
   onToggleMute,
   onToggleSolo,
-  onVolumeCycle,
+  onVolumeChange,
   onDelete,
 }: Props) {
   const { t } = useTranslation();
+  const [liveVolume, setLiveVolume] = useState<number | null>(null);
+  const displayVolume = liveVolume ?? track.volume;
+
   const modeLabel =
     track.mode === 'microphone'
       ? t('recordings.modeMicrophone')
       : t('recordings.modeInstrument');
 
+  // Always the instrument's own art, even for mic-recorded tracks: the track
+  // is still that instrument, just captured through the microphone.
+  const artVariant: InstrumentArtVariant = track.instrument;
+
   return (
     <View style={[styles.card, track.muted && styles.cardMuted]}>
-      <View style={styles.iconWrap}>
-        <Ionicons color={colors.accent} name={INSTRUMENT_ICONS[track.instrument]} size={22} />
+      <InstrumentArtBackground variant={artVariant} veilOpacity={0.78} />
+
+      <View style={styles.topRow}>
+        <View style={styles.content}>
+          <Text numberOfLines={1} style={styles.title}>
+            {t(INSTRUMENT_TITLE_KEYS[track.instrument])}
+          </Text>
+          <Text style={styles.meta}>
+            {modeLabel} · {formatDuration(track.durationMs)}
+          </Text>
+        </View>
+
+        <View style={styles.toggles}>
+          <ToggleButton
+            accessibilityLabel={t('studio.trackMute')}
+            active={track.muted}
+            activeColor={MUTE_COLOR}
+            icon={track.muted ? 'volume-mute' : 'volume-mute-outline'}
+            onPress={onToggleMute}
+          />
+          <ToggleButton
+            accessibilityLabel={t('studio.trackSolo')}
+            active={track.solo}
+            activeColor={SOLO_COLOR}
+            icon={track.solo ? 'headset' : 'headset-outline'}
+            onPress={onToggleSolo}
+          />
+          <Pressable
+            accessibilityLabel={t('studio.trackDelete')}
+            accessibilityRole="button"
+            hitSlop={6}
+            onPress={onDelete}
+            style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
+          >
+            <Ionicons color="#FFFFFF" name="trash-outline" size={16} />
+          </Pressable>
+        </View>
       </View>
-      <View style={styles.content}>
-        <Text style={styles.title}>{t(INSTRUMENT_TITLE_KEYS[track.instrument])}</Text>
-        <Text style={styles.meta}>
-          {modeLabel} · {formatDuration(track.durationMs)} · {Math.round(track.volume * 100)}%
-        </Text>
-      </View>
-      <View style={styles.actions}>
-        <Chip
-          active={track.muted}
-          label={t('studio.trackMute')}
-          onPress={onToggleMute}
-          short="M"
+
+      <View style={styles.volumeRow}>
+        <Ionicons color={colors.textSecondary} name="volume-low-outline" size={14} />
+        <HorizontalSlider
+          accentColor={colors.accent}
+          thumbSize={14}
+          onSlidingComplete={(value) => {
+            setLiveVolume(null);
+            onVolumeChange(value);
+          }}
+          onValueChange={setLiveVolume}
+          style={styles.slider}
+          value={track.volume}
         />
-        <Chip
-          active={track.solo}
-          label={t('studio.trackSolo')}
-          onPress={onToggleSolo}
-          short="S"
-        />
-        <Chip
-          active={track.volume < 0.95}
-          label={t('studio.volume')}
-          onPress={onVolumeCycle}
-          short={`${Math.round(track.volume * 100)}`}
-        />
-        <Pressable
-          accessibilityLabel={t('studio.trackDelete')}
-          hitSlop={6}
-          onPress={onDelete}
-          style={styles.deleteBtn}
-        >
-          <Ionicons color={colors.error} name="trash-outline" size={18} />
-        </Pressable>
+        <Ionicons color={colors.textSecondary} name="volume-high-outline" size={14} />
+        <Text style={styles.volumeText}>{Math.round(displayVolume * 100)}%</Text>
       </View>
     </View>
   );
 }
 
-function Chip({
-  short,
-  label,
-  active,
-  onPress,
-}: {
-  short: string;
-  label: string;
+type ToggleButtonProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  accessibilityLabel: string;
   active: boolean;
+  activeColor: string;
   onPress: () => void;
-}) {
+};
+
+function ToggleButton({
+  icon,
+  accessibilityLabel,
+  active,
+  activeColor,
+  onPress,
+}: ToggleButtonProps) {
   return (
     <Pressable
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      hitSlop={6}
       onPress={onPress}
-      style={[styles.chip, active && styles.chipActive]}
+      style={({ pressed }) => [
+        styles.toggleBtn,
+        active && { backgroundColor: activeColor, borderColor: activeColor },
+        pressed && styles.pressed,
+      ]}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{short}</Text>
+      <Ionicons color={active ? '#FFFFFF' : colors.textSecondary} name={icon} size={16} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    flexDirection: 'row',
     marginBottom: 10,
-    padding: 12,
+    // Clips the background art to the rounded corners.
+    overflow: 'hidden',
+    padding: 14,
   },
   cardMuted: {
-    opacity: 0.65,
+    opacity: 0.6,
   },
-  iconWrap: {
+  topRow: {
     alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 8,
-    height: 40,
-    justifyContent: 'center',
-    marginRight: 10,
-    width: 40,
+    flexDirection: 'row',
   },
   content: {
     flex: 1,
-    marginRight: 6,
+    marginRight: 8,
   },
   title: {
     color: colors.text,
@@ -140,34 +169,47 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
   },
-  actions: {
+  toggles: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 4,
+    gap: 6,
   },
-  chip: {
+  toggleBtn: {
+    alignItems: 'center',
     backgroundColor: colors.surfaceLight,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: 16,
     borderWidth: 1,
-    minWidth: 32,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-  },
-  chipActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  chipText: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  chipTextActive: {
-    color: '#FFFFFF',
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
   },
   deleteBtn: {
-    padding: 6,
+    alignItems: 'center',
+    backgroundColor: colors.error,
+    borderRadius: 16,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  volumeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  slider: {
+    flex: 1,
+  },
+  volumeText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+    minWidth: 36,
+    textAlign: 'right',
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });

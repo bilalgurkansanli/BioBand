@@ -188,8 +188,10 @@ function triggerHit(
 /**
  * @param velocity 0..1 hit strength (touch position on the pad). Scales the
  * gain from a soft ghost note (~1/3 level) up to the full pad gain.
+ * @param gainScale Extra output multiplier independent of velocity — used by
+ * Studio mix playback to apply a track's volume fader.
  */
-export function playHit(id: DrumSoundId, velocity = 1): void {
+export function playHit(id: DrumSoundId, velocity = 1, gainScale = 1): void {
   const buffer = kitBuffers.get(currentKitId)?.get(id) ?? buffers.get(id);
   if (!buffer) {
     return;
@@ -207,18 +209,18 @@ export function playHit(id: DrumSoundId, velocity = 1): void {
   }
 
   const clampedVelocity = Math.max(0.1, Math.min(1, velocity));
-  const hitGain = DRUM_HIT_GAINS[id] * (0.35 + 0.65 * clampedVelocity);
+  const hitGain = DRUM_HIT_GAINS[id] * (0.35 + 0.65 * clampedVelocity) * gainScale;
   const baseTag = `${padTagPrefix(id)}#${hitSerial++}`;
 
   triggerHit(id, buffer, hitGain, baseTag);
 
-  schedulePianoReverbTaps((gainScale, tapIndex) => {
-    triggerHit(id, buffer, hitGain * gainScale, `${baseTag}:reverb:${tapIndex}`, true);
+  schedulePianoReverbTaps((tapScale, tapIndex) => {
+    triggerHit(id, buffer, hitGain * tapScale, `${baseTag}:reverb:${tapIndex}`, true);
   });
 
   let echoIndex = 0;
-  schedulePianoEchoRepeats((gainScale) => {
-    triggerHit(id, buffer, hitGain * gainScale, `${baseTag}:echo:${echoIndex++}`);
+  schedulePianoEchoRepeats((tapScale) => {
+    triggerHit(id, buffer, hitGain * tapScale, `${baseTag}:echo:${echoIndex++}`);
   });
 }
 

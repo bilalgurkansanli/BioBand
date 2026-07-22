@@ -19,6 +19,8 @@ export type HorizontalSliderProps = {
   disabled?: boolean;
   accentColor: string;
   style?: ViewStyle;
+  /** Thumb diameter — defaults to the standard 24, use smaller in tight rows. */
+  thumbSize?: number;
 };
 
 export const HorizontalSlider = React.memo(function HorizontalSlider({
@@ -31,6 +33,7 @@ export const HorizontalSlider = React.memo(function HorizontalSlider({
   disabled = false,
   accentColor,
   style,
+  thumbSize = SLIDER_THUMB_SIZE,
 }: HorizontalSliderProps) {
   const trackRef = useRef<View>(null);
   const trackXRef = useRef(0);
@@ -168,12 +171,16 @@ export const HorizontalSlider = React.memo(function HorizontalSlider({
       onStartShouldSetResponderCapture={() => !disabled}
       style={[styles.touchArea, style]}
     >
-      <View pointerEvents="none" style={styles.trackContainer}>
+      <View pointerEvents="none" style={[styles.trackContainer, { height: thumbSize }]}>
         <View style={styles.track} />
         <View
           style={[
             styles.fill,
-            { backgroundColor: accentColor, width: `${ratio * 100}%` },
+            {
+              backgroundColor: accentColor,
+              top: (thumbSize - TRACK_HEIGHT) / 2,
+              width: `${ratio * 100}%`,
+            },
           ]}
         />
         <View
@@ -181,8 +188,11 @@ export const HorizontalSlider = React.memo(function HorizontalSlider({
             styles.thumb,
             {
               backgroundColor: accentColor,
+              borderRadius: thumbSize / 2,
+              height: thumbSize,
               left: `${ratio * 100}%`,
-              transform: [{ translateX: -SLIDER_THUMB_SIZE / 2 }],
+              transform: [{ translateX: -thumbSize / 2 }],
+              width: thumbSize,
             },
           ]}
         />

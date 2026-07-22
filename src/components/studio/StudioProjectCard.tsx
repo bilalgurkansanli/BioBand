@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { InstrumentArtBackground } from '../instrument/InstrumentArtBackground';
 import { colors } from '../../theme/colors';
 import type { StudioProject } from '../../types/studio';
 import { getProjectDurationMs } from '../../types/studio';
@@ -31,9 +32,10 @@ export function StudioProjectCard({ project, onPress }: Props) {
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <View style={styles.iconWrap}>
-        <Ionicons color={colors.accent} name="layers" size={24} />
-      </View>
+      {/* A project mixes tracks from different instruments, so it gets the
+          waveform art rather than any single instrument's — tracks inside
+          keep their own instrument art. */}
+      <InstrumentArtBackground variant="microphone" veilOpacity={0.78} />
       <View style={styles.content}>
         <Text style={styles.title}>{project.title}</Text>
         <Text style={styles.date}>{dateLabel}</Text>
@@ -59,19 +61,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     marginBottom: 12,
+    // Clips the background art to the rounded corners.
+    overflow: 'hidden',
     padding: 14,
   },
   pressed: {
     opacity: 0.85,
-  },
-  iconWrap: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 10,
-    height: 48,
-    justifyContent: 'center',
-    marginRight: 12,
-    width: 48,
   },
   content: {
     flex: 1,

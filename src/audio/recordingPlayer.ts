@@ -42,6 +42,8 @@ import type { InstrumentId, SavedRecording } from '../types/recording';
 
 export type RecordingPlaybackHandle = {
   stop: () => void;
+  /** Jumps playback to a position in milliseconds. */
+  seek: (positionMs: number) => void;
 };
 
 let activeMicPlayer: AudioPlayer | null = null;
@@ -157,10 +159,13 @@ export function releaseRecordingPlaybackResources(): void {
 /**
  * Plays a saved recording. Stops any previous playback first.
  * Calls onEnded when the track finishes (or immediately if empty/invalid).
+ * Calls onProgress periodically with the current playback position, so the
+ * UI can draw a scrubber — seeking is exposed on the returned handle.
  */
 export async function playSavedRecording(
   recording: SavedRecording,
   onEnded: () => void,
+  onProgress?: (positionMs: number, durationMs: number) => void,
 ): Promise<RecordingPlaybackHandle> {
   stopActivePlayback();
   await restorePlaybackAudioMode();
@@ -169,13 +174,17 @@ export async function playSavedRecording(
     const uri = recording.audioUri;
     if (!uri) {
       onEnded();
-      return { stop: stopActivePlayback };
+      return { stop: stopActivePlayback, seek: () => {} };
     }
 
     const player = createAudioPlayer({ uri });
     activeMicPlayer = player;
 
     const subscription = player.addListener('playbackStatusUpdate', (status) => {
+      if (status.isLoaded) {
+        const durationMs = status.duration > 0 ? status.duration * 1000 : recording.durationMs;
+        onProgress?.(status.currentTime * 1000, durationMs);
+      }
       if (status.didJustFinish) {
         stopActivePlayback();
         onEnded();
@@ -196,13 +205,16 @@ export async function playSavedRecording(
       stop: () => {
         stopActivePlayback();
       },
+      seek: (positionMs: number) => {
+        void player.seekTo(Math.max(0, positionMs) / 1000);
+      },
     };
   }
 
   const events = recording.events ?? [];
   if (events.length === 0) {
     onEnded();
-    return { stop: stopActivePlayback };
+    return { stop: stopActivePlayback, seek: () => {} };
   }
 
   await ensureInstrumentEngine(recording.instrument);
@@ -226,48 +238,80 @@ export async function playSavedRecording(
     ? recording.padBankId
     : 'drums';
 
-  const timers: ReturnType<typeof setTimeout>[] = [];
+  let timers: ReturnType<typeof setTimeout>[] = [];
+  let progressInterval: ReturnType<typeof setInterval> | null = null;
   let finished = false;
+
+  const clearScheduled = () => {
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+    timers = [];
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
+  };
 
   const finish = () => {
     if (finished) {
       return;
     }
     finished = true;
-    for (const timer of timers) {
-      clearTimeout(timer);
-    }
-    timers.length = 0;
+    clearScheduled();
     stopViolinPhrases();
     stopAllVoices();
     activeCancel = null;
     onEnded();
   };
 
-  for (const event of events) {
-    if (event.atMs > recording.durationMs) {
-      continue;
-    }
-    timers.push(
-      setTimeout(() => {
-        playInstrumentEvent(recording.instrument, event.soundId, event.velocity, padBankId);
-      }, event.atMs),
-    );
-  }
+  // Schedules remaining events/finish from `startAtMs` — reused by seek to
+  // reschedule playback from a new position instead of the start.
+  const schedule = (startAtMs: number) => {
+    clearScheduled();
+    finished = false;
+    const wallClockStart = Date.now();
 
-  timers.push(setTimeout(finish, Math.max(recording.durationMs, 0) + 50));
+    for (const event of events) {
+      if (event.atMs < startAtMs || event.atMs > recording.durationMs) {
+        continue;
+      }
+      timers.push(
+        setTimeout(() => {
+          playInstrumentEvent(recording.instrument, event.soundId, event.velocity, padBankId);
+        }, event.atMs - startAtMs),
+      );
+    }
+
+    const remainingMs = Math.max(recording.durationMs - startAtMs, 0);
+    timers.push(setTimeout(finish, remainingMs + 50));
+
+    if (onProgress) {
+      progressInterval = setInterval(() => {
+        const elapsed = Math.min(startAtMs + (Date.now() - wallClockStart), recording.durationMs);
+        onProgress(elapsed, recording.durationMs);
+      }, 100);
+    }
+  };
+
+  schedule(0);
 
   activeCancel = () => {
     finished = true;
-    for (const timer of timers) {
-      clearTimeout(timer);
-    }
-    timers.length = 0;
+    clearScheduled();
   };
 
   return {
     stop: () => {
       stopActivePlayback();
+    },
+    seek: (positionMs: number) => {
+      if (finished) {
+        return;
+      }
+      stopAllVoices();
+      schedule(Math.max(0, Math.min(positionMs, recording.durationMs)));
+      onProgress?.(Math.max(0, Math.min(positionMs, recording.durationMs)), recording.durationMs);
     },
   };
 }

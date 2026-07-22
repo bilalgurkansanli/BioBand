@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -14,12 +15,25 @@ import { useTranslation } from 'react-i18next';
 
 import { ScreenContainer } from '../components/ScreenContainer';
 import i18n, { saveLanguage } from '../i18n';
+import { ProfileAvatar } from '../components/ProfileAvatar';
 import {
+  cancelDailyPracticeReminder,
+  requestNotificationPermission,
+  scheduleDailyPracticeReminder,
+} from '../notifications/practiceReminder';
+import {
+  AVATAR_COLORS,
   DEFAULT_PROFILE_SETTINGS,
   loadProfileSettings,
   saveProfileSettings,
   type ProfileSettings,
 } from '../storage/profileSettingsStorage';
+import {
+  DEFAULT_PRACTICE_REMINDER_SETTINGS,
+  loadPracticeReminderSettings,
+  savePracticeReminderSettings,
+  type PracticeReminderSettings,
+} from '../storage/practiceReminderStorage';
 import { colors } from '../theme/colors';
 import type { InstrumentId } from '../types/recording';
 import type { ProfileStackParamList } from '../types/navigation';
@@ -28,19 +42,31 @@ import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
 type Props = NativeStackScreenProps<ProfileStackParamList, 'ProfileSettings'>;
 
 const INSTRUMENTS: InstrumentId[] = ['piano', 'drums', 'guitar', 'violin', 'pads'];
+const REMINDER_HOURS = [7, 8, 12, 17, 19, 20, 21, 22];
+
+function formatHourLabel(hour: number): string {
+  return `${hour < 10 ? `0${hour}` : hour}:00`;
+}
 
 export function ProfileSettingsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<ProfileSettings>(DEFAULT_PROFILE_SETTINGS);
+  const [reminder, setReminder] = useState<PracticeReminderSettings>(
+    DEFAULT_PRACTICE_REMINDER_SETTINGS,
+  );
+  const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const currentLang = i18n.language === 'tr' ? 'tr' : 'en';
 
   useEffect(() => {
-    void loadProfileSettings().then((value) => {
-      setSettings(value);
-      setLoading(false);
-    });
+    void Promise.all([loadProfileSettings(), loadPracticeReminderSettings()]).then(
+      ([profileValue, reminderValue]) => {
+        setSettings(profileValue);
+        setReminder(reminderValue);
+        setLoading(false);
+      },
+    );
   }, []);
 
   const persist = useCallback(async (next: ProfileSettings) => {
@@ -51,6 +77,55 @@ export function ProfileSettingsScreen({ navigation }: Props) {
       setSaving(false);
     }
   }, []);
+
+  const reminderNotificationCopy = {
+    title: t('profile.reminderNotifTitle'),
+    body: t('profile.reminderNotifBody'),
+  };
+
+  const persistReminder = useCallback(async (next: PracticeReminderSettings) => {
+    setSaving(true);
+    try {
+      setReminder(await savePracticeReminderSettings(next));
+    } finally {
+      setSaving(false);
+    }
+  }, []);
+
+  const onToggleReminder = async (enabled: boolean) => {
+    if (enabled) {
+      const granted = await requestNotificationPermission();
+      if (!granted) {
+        setReminderPermissionDenied(true);
+        return;
+      }
+      setReminderPermissionDenied(false);
+      const next = { ...reminder, enabled: true };
+      await persistReminder(next);
+      await scheduleDailyPracticeReminder(
+        next.hour,
+        next.minute,
+        reminderNotificationCopy.title,
+        reminderNotificationCopy.body,
+      );
+      return;
+    }
+    await persistReminder({ ...reminder, enabled: false });
+    await cancelDailyPracticeReminder();
+  };
+
+  const onSelectReminderHour = async (hour: number) => {
+    const next = { ...reminder, hour, minute: 0 };
+    await persistReminder(next);
+    if (next.enabled) {
+      await scheduleDailyPracticeReminder(
+        next.hour,
+        next.minute,
+        reminderNotificationCopy.title,
+        reminderNotificationCopy.body,
+      );
+    }
+  };
 
   const setLanguage = async (language: 'tr' | 'en') => {
     if (language === currentLang) {
@@ -106,15 +181,41 @@ export function ProfileSettingsScreen({ navigation }: Props) {
         <Text style={styles.sectionLabel}>{t('profile.settingsPersonal')}</Text>
         <View style={styles.card}>
           <Text style={styles.fieldLabel}>{t('profile.displayName')}</Text>
-          <TextInput
-            maxLength={40}
-            placeholder={t('profile.displayNamePlaceholder')}
-            placeholderTextColor={colors.textSecondary}
-            style={styles.input}
-            value={settings.displayName}
-            onBlur={() => void persist(settings)}
-            onChangeText={(displayName) => setSettings((prev) => ({ ...prev, displayName }))}
-          />
+          <View style={styles.avatarPreviewRow}>
+            <ProfileAvatar
+              color={settings.avatarColor}
+              displayName={settings.displayName}
+              size={40}
+            />
+            <TextInput
+              maxLength={40}
+              placeholder={t('profile.displayNamePlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              style={[styles.input, styles.avatarPreviewInput]}
+              value={settings.displayName}
+              onBlur={() => void persist(settings)}
+              onChangeText={(displayName) => setSettings((prev) => ({ ...prev, displayName }))}
+            />
+          </View>
+          <Text style={styles.fieldLabel}>{t('profile.avatarColor')}</Text>
+          <View style={styles.swatchRow}>
+            {AVATAR_COLORS.map((color) => (
+              <Pressable
+                accessibilityLabel={color}
+                key={color}
+                onPress={() => {
+                  const next = { ...settings, avatarColor: color };
+                  setSettings(next);
+                  void persist(next);
+                }}
+                style={[
+                  styles.swatch,
+                  { backgroundColor: color },
+                  settings.avatarColor === color && styles.swatchActive,
+                ]}
+              />
+            ))}
+          </View>
           <Text style={styles.fieldLabel}>{t('profile.favoriteInstrument')}</Text>
           <Text style={styles.hint}>{t('profile.favoriteInstrumentHint')}</Text>
           <View style={styles.chipWrap}>
@@ -140,6 +241,39 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               />
             ))}
           </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>{t('profile.reminderTitle')}</Text>
+        <View style={styles.card}>
+          <View style={styles.reminderToggleRow}>
+            <View style={styles.flex}>
+              <Text style={styles.fieldLabel}>{t('profile.reminderEnable')}</Text>
+              <Text style={styles.hint}>{t('profile.reminderHint')}</Text>
+            </View>
+            <Switch
+              onValueChange={(value) => void onToggleReminder(value)}
+              thumbColor="#FFFFFF"
+              trackColor={{ false: colors.surfaceLight, true: colors.accent }}
+              value={reminder.enabled}
+            />
+          </View>
+          {reminder.enabled ? (
+            <View style={styles.chipWrap}>
+              {REMINDER_HOURS.map((hour) => (
+                <Chip
+                  active={reminder.hour === hour}
+                  key={hour}
+                  label={formatHourLabel(hour)}
+                  onPress={() => void onSelectReminderHour(hour)}
+                />
+              ))}
+            </View>
+          ) : null}
+          {reminderPermissionDenied ? (
+            <Text style={styles.reminderWarning}>
+              {t('profile.reminderPermissionDenied')}
+            </Text>
+          ) : null}
         </View>
       </ScrollView>
     </ScreenContainer>
@@ -211,6 +345,21 @@ const styles = StyleSheet.create({
   scroll: {
     paddingBottom: 32,
   },
+  flex: {
+    flex: 1,
+  },
+  reminderToggleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 4,
+  },
+  reminderWarning: {
+    color: colors.error,
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 12,
+  },
   sectionLabel: {
     color: colors.text,
     fontSize: 16,
@@ -273,6 +422,30 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  avatarPreviewRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+  },
+  avatarPreviewInput: {
+    flex: 1,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 16,
+  },
+  swatch: {
+    borderColor: 'transparent',
+    borderRadius: 16,
+    borderWidth: 2,
+    height: 32,
+    width: 32,
+  },
+  swatchActive: {
+    borderColor: colors.text,
   },
   chipWrap: {
     flexDirection: 'row',

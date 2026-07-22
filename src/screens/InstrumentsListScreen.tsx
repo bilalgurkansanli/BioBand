@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,8 +13,29 @@ import { PianoIntroCard } from '../components/instrument/PianoIntroCard';
 import { ViolinIntroCard } from '../components/instrument/ViolinIntroCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { useProfileProgress } from '../hooks/useProfileProgress';
+import { initDrumsEngine } from '../instruments/drums/drumsEngine';
+import { initGuitarEngine } from '../instruments/guitar/guitarEngine';
+import { initPadsEngine } from '../instruments/pads/padsEngine';
+import { initPianoEngine } from '../instruments/piano/pianoEngine';
+import { initViolinEngine } from '../instruments/violin/violinEngine';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList } from '../types/navigation';
+
+// Each card's own preload only gets the ~350-860ms between tap and hand-off
+// to make its intro motif audible — plenty for drums' small kit, but guitar
+// (two full sample banks), pads (five banks + custom hydration), and violin
+// (14s+ arco files) routinely lose that race, so their first tap ever is
+// silent. Warming every engine here instead gives them the list screen's
+// dwell time (typically seconds) rather than under a second, with the same
+// zero-stall, fire-and-forget shape as the card's own preload.
+const WARM_UP_ENGINES = [
+  initPianoEngine,
+  initDrumsEngine,
+  initGuitarEngine,
+  initPadsEngine,
+  initViolinEngine,
+];
 
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'InstrumentsList'>;
 
@@ -79,6 +101,7 @@ const INSTRUMENTS: {
 export function InstrumentsListScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const isFocused = useIsFocused();
+  const { streakCount } = useProfileProgress();
   // While an intro runs, the whole window goes touch-inert so nothing else
   // can be opened mid-animation.
   const [introActive, setIntroActive] = useState(false);
@@ -86,6 +109,17 @@ export function InstrumentsListScreen({ navigation }: Props) {
   useEffect(() => {
     if (!isFocused) {
       setIntroActive(false);
+    }
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      return;
+    }
+    for (const warmUp of WARM_UP_ENGINES) {
+      warmUp().catch((err: unknown) => {
+        console.error('Instrument warm-up failed:', err);
+      });
     }
   }, [isFocused]);
 
@@ -107,7 +141,20 @@ export function InstrumentsListScreen({ navigation }: Props) {
 
   return (
     <ScreenContainer style={styles.container}>
-      <ScreenHeader title={t('instruments.title')} />
+      <ScreenHeader
+        title={t('instruments.title')}
+        right={
+          streakCount > 0 ? (
+            <View
+              accessibilityLabel={t('profile.streakCount', { count: streakCount })}
+              style={styles.streakBadge}
+            >
+              <Ionicons color={colors.accent} name="flame" size={20} />
+              <Text style={styles.streakBadgeText}>{streakCount}</Text>
+            </View>
+          ) : null
+        }
+      />
       <Text style={styles.subtitle}>{t('instruments.subtitle')}</Text>
 
       <ScrollView
@@ -158,5 +205,15 @@ const styles = StyleSheet.create({
   },
   introShield: {
     flex: 1,
+  },
+  streakBadge: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 4,
+  },
+  streakBadgeText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

@@ -8,6 +8,7 @@ import { initAudioMode } from './src/audio/initAudio';
 import { initI18n } from './src/i18n';
 import { lockPortraitOrientation } from './src/hooks/usePianoOrientation';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { configureNotificationHandler } from './src/notifications/practiceReminder';
 import { configureSystemUi, startSystemUiSync } from './src/system/configureSystemUi';
 import { colors } from './src/theme/colors';
 
@@ -28,6 +29,11 @@ export default function App() {
 
   useEffect(() => {
     const stopSystemUiSync = startSystemUiSync();
+    try {
+      configureNotificationHandler();
+    } catch (error) {
+      console.warn('Notification handler setup failed:', error);
+    }
 
     Promise.all([configureSystemUi(), initI18n(), initAudioMode(), lockPortraitOrientation()])
       .catch((error) => {

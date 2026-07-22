@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useMemo, useState } from 'react';
 
+import { buildBadges } from '../profile/badges';
 import {
   buildActiveChallenges,
   dailyChallengeId,
@@ -8,10 +9,13 @@ import {
 } from '../profile/challengeRotator';
 import {
   getPracticeMsForDay,
+  getPracticeMsForDays,
+  getTotalPracticeMs,
   hadPracticeOnDay,
   last7DayKeys,
   loadProfileProgress,
   markChallengeComplete,
+  previous7DayKeys,
   todayKey,
 } from '../storage/profileProgressStorage';
 import type { InstrumentId } from '../types/recording';
@@ -65,20 +69,29 @@ export function useProfileProgress() {
 
   const day = todayKey();
   const weekDays = useMemo(() => last7DayKeys(day), [day]);
+  const previousWeekDays = useMemo(() => previous7DayKeys(day), [day]);
   const challenges: ProfileChallenge[] = useMemo(
     () => buildActiveChallenges(progress, day),
     [progress, day],
   );
 
+  const totalPracticeMs = getTotalPracticeMs(progress);
+  const badges = useMemo(() => buildBadges(progress, totalPracticeMs), [progress, totalPracticeMs]);
+  const thisWeekMs = getPracticeMsForDays(progress, weekDays);
+  const lastWeekMs = getPracticeMsForDays(progress, previousWeekDays);
+  const weekTrendRatio = lastWeekMs > 0 ? (thisWeekMs - lastWeekMs) / lastWeekMs : null;
+
   const todayTotalMs = getPracticeMsForDay(progress, day);
-  const todayByInstrument = INSTRUMENTS.map((instrument) => ({
+  const todayByInstrumentAll = INSTRUMENTS.map((instrument) => ({
     instrument,
     ms: getPracticeMsForDay(progress, day, instrument),
-  })).filter((entry) => entry.ms > 0);
+  }));
+  const todayByInstrument = todayByInstrumentAll.filter((entry) => entry.ms > 0);
 
   const weekDots = weekDays.map((key) => ({
     dayKey: key,
     active: hadPracticeOnDay(progress, key),
+    isToday: key === day,
   }));
 
   return {
@@ -86,11 +99,18 @@ export function useProfileProgress() {
     loading,
     refresh,
     streakCount: progress.streakCount,
+    longestStreak: progress.longestStreak,
+    totalPracticeMs,
+    thisWeekMs,
+    lastWeekMs,
+    weekTrendRatio,
     todayTotalMs,
     todayByInstrument,
+    todayByInstrumentAll,
     dailyGoalMs: DAILY_PRACTICE_GOAL_MS,
     dailyGoalProgress: Math.min(1, todayTotalMs / DAILY_PRACTICE_GOAL_MS),
     weekDots,
     challenges,
+    badges,
   };
 }

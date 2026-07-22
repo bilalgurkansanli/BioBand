@@ -44,6 +44,7 @@
     "plugins": [
       "expo-localization",
       "expo-audio",
+      "expo-notifications",
       "expo-system-ui",
       [
         "expo-screen-orientation",

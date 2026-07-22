@@ -201,6 +201,7 @@ export function PadsScreen({ navigation }: Props) {
     studioProjectTitle,
     countdown,
     cancelStudioOverdub,
+    recordModePicker,
   } = useInstrumentRecording('pads');
   const { isPortrait } = usePianoOrientation(navigation);
 
@@ -603,6 +604,8 @@ export function PadsScreen({ navigation }: Props) {
       ) : (
         <RecordingBanner isRecording={isRecording} mode={mode} />
       )}
+
+      {recordModePicker}
 
       {looperVisible ? (
         <LooperBar

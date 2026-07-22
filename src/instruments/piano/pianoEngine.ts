@@ -539,11 +539,14 @@ function triggerVoice(
 
 /**
  * One-shot note (tutorial / play-along / FX taps). Auto-releases on its own.
+ * @param gainScale Extra output multiplier — used by Studio mix playback to
+ * apply a track's volume fader.
  */
 export function playNote(
   noteId: NoteId,
   toneSemitones = toneOffsetSemitones,
   voice: PianoVoiceId = currentVoice,
+  gainScale = 1,
 ): void {
   const midi = noteMidis.get(noteId);
   if (midi === undefined) {
@@ -559,16 +562,16 @@ export function playNote(
   const shiftedMidi = midi + toneSemitones;
 
   // 1) Dry piano immediately.
-  triggerVoice(noteId, shiftedMidi, voice, 1, '');
+  triggerVoice(noteId, shiftedMidi, voice, gainScale, '');
 
   // 2) Reverb: denser delayed reflections (no ConvolverNode — crackles on RN).
-  schedulePianoReverbTaps((gainScale, tapIndex) => {
-    triggerVoice(noteId, shiftedMidi, voice, gainScale, `:reverb:${tapIndex}`, true);
+  schedulePianoReverbTaps((tapScale, tapIndex) => {
+    triggerVoice(noteId, shiftedMidi, voice, gainScale * tapScale, `:reverb:${tapIndex}`, true);
   });
 
   // 3) Echo: quieter spaced repeats — leave echo path unchanged (full tail).
-  schedulePianoEchoRepeats((gainScale) => {
-    triggerVoice(noteId, shiftedMidi, voice, gainScale, ':echo');
+  schedulePianoEchoRepeats((tapScale) => {
+    triggerVoice(noteId, shiftedMidi, voice, gainScale * tapScale, ':echo');
   });
 }
 

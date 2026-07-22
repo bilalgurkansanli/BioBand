@@ -16,7 +16,12 @@ import {
 } from '../instruments/drumMachine/drumMachineRows';
 import { patternToSavedRecording } from '../instruments/drumMachine/patternToRecording';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
-import { deleteRecording, loadRecordings, saveRecording } from './recordingsStorage';
+import {
+  deleteRecording,
+  loadRecordings,
+  renameRecording,
+  saveRecording,
+} from './recordingsStorage';
 
 const STORAGE_KEY = '@bioband/drum-machine-patterns.v1';
 
@@ -120,6 +125,14 @@ export async function deleteDrumMachinePattern(id: string): Promise<void> {
 export async function deleteDrumMachineTake(id: string): Promise<void> {
   await deleteDrumMachinePattern(id);
   await deleteRecording(id);
+}
+
+/** Renames both the pattern store entry and the mirrored Kayıtlarım take. */
+export async function renameDrumMachineTake(id: string, title: string): Promise<void> {
+  const all = await loadDrumMachinePatterns();
+  const next = all.map((pattern) => (pattern.id === id ? { ...pattern, title } : pattern));
+  await persist(next);
+  await renameRecording(id, title);
 }
 
 /** One-time style sync: older patterns that only lived in DM storage. */

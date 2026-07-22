@@ -20,6 +20,7 @@ import { ViolinToolbar } from '../components/violin/ViolinToolbar';
 import { ViolinVoiceModal } from '../components/violin/ViolinVoiceModal';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useUserViolinSongs } from '../hooks/useUserViolinSongs';
 import { useViolinEngine } from '../hooks/useViolinEngine';
 import { useViolinPlayAlong } from '../hooks/useViolinPlayAlong';
 import {
@@ -93,9 +94,11 @@ export function ViolinScreen({ navigation }: Props) {
     studioProjectTitle,
     countdown,
     cancelStudioOverdub,
+    recordModePicker,
   } = useInstrumentRecording('violin');
   const { isPortrait } = usePianoOrientation(navigation);
-  const playAlong = useViolinPlayAlong(playSoundId);
+  const userSongs = useUserViolinSongs();
+  const playAlong = useViolinPlayAlong(playSoundId, userSongs.songs);
 
   useEffect(() => {
     let cancelled = false;
@@ -305,6 +308,8 @@ export function ViolinScreen({ navigation }: Props) {
         <RecordingBanner isRecording={isRecording} mode={mode} />
       )}
 
+      {recordModePicker}
+
       <ViolinPlayAlongHud
         countdownValue={playAlong.countdownValue}
         level={playAlong.level}
@@ -380,6 +385,7 @@ export function ViolinScreen({ navigation }: Props) {
         calibrateOffsetMs={playAlong.calibrateOffsetMs}
         calibratePreviewing={playAlong.calibratePreviewing}
         demoJustFinished={playAlong.demoJustFinished}
+        importing={userSongs.importing}
         offsetMaxMs={playAlong.offsetMaxMs}
         offsetMinMs={playAlong.offsetMinMs}
         onBackToSongList={playAlong.backToSongList}
@@ -387,7 +393,12 @@ export function ViolinScreen({ navigation }: Props) {
         onConfirmCalibrate={() => {
           void playAlong.confirmCalibrate();
         }}
+        onDeleteUserSong={(songId) => {
+          void userSongs.removeSong(songId);
+        }}
         onGoBack={playAlong.goBack}
+        onImportSong={userSongs.importSong}
+        onImportSongFromJsonText={userSongs.importSongFromJsonText}
         onPickBackingAudio={async (uri, hint) => {
           const result = await playAlong.pickBackingAudio(uri, hint);
           return { ok: result.ok };
@@ -409,6 +420,7 @@ export function ViolinScreen({ navigation }: Props) {
         results={playAlong.results}
         selectedSong={playAlong.selectedSong}
         tempo={playAlong.tempo}
+        userSongs={userSongs.songs}
         visible={isPlayAlongModalVisible}
       />
 

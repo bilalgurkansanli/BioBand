@@ -30,3 +30,14 @@ export async function deleteRecording(recordingId: string): Promise<void> {
     JSON.stringify(existing.filter((entry) => entry.id !== recordingId)),
   );
 }
+
+export async function renameRecording(
+  recordingId: string,
+  title: string,
+): Promise<void> {
+  const existing = await loadRecordings();
+  const next = existing.map((entry) =>
+    entry.id === recordingId ? { ...entry, title } : entry,
+  );
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+}

@@ -110,3 +110,7 @@ export async function pickChartDocument(): Promise<PickDocumentResult> {
     '*/*',
   ]);
 }
+
+export async function pickJsonDocument(): Promise<PickDocumentResult> {
+  return pickDocument(['application/json', '*/*']);
+}

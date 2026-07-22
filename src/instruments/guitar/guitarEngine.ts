@@ -234,7 +234,7 @@ function resolveMidi(
 export function pluckString(
   stringId: GuitarStringId,
   fretOrMidi?: number,
-  options?: { asMidi?: boolean; velocity?: number },
+  options?: { asMidi?: boolean; velocity?: number; gainScale?: number },
 ): void {
   const context = getSharedAudioContext();
   if (context.state === 'suspended') {
@@ -242,7 +242,8 @@ export function pluckString(
   }
 
   const velocity = clampGuitarVelocity(options?.velocity ?? GUITAR_VELOCITY_DEFAULT);
-  const gain = pluckGain(stringId, velocity);
+  const gainScale = options?.gainScale ?? 1;
+  const gain = pluckGain(stringId, velocity) * gainScale;
   const midi = resolveMidi(stringId, fretOrMidi, options?.asMidi);
   pluckSerial += 1;
   const dryTag = `guitar:shot:${stringId}:${midi}:${pluckSerial}`;
@@ -250,8 +251,8 @@ export function pluckString(
   pluckListener?.(stringId, velocity, midiToFret(stringId, midi));
   triggerPluck(midi, gain, dryTag, { velocity });
 
-  schedulePianoReverbTaps((gainScale, tapIndex) => {
-    triggerPluck(midi, gain * gainScale, `${dryTag}:reverb:${tapIndex}`, {
+  schedulePianoReverbTaps((tapScale, tapIndex) => {
+    triggerPluck(midi, gain * tapScale, `${dryTag}:reverb:${tapIndex}`, {
       shortTail: true,
       velocity,
     });
@@ -259,8 +260,8 @@ export function pluckString(
 
   // Each repeat needs its own tag — same-tag voices steal each other in sampleBank.
   let echoIndex = 0;
-  schedulePianoEchoRepeats((gainScale) => {
-    triggerPluck(midi, gain * gainScale, `${dryTag}:echo:${echoIndex++}`, { velocity });
+  schedulePianoEchoRepeats((tapScale) => {
+    triggerPluck(midi, gain * tapScale, `${dryTag}:echo:${echoIndex++}`, { velocity });
   });
 }
 
@@ -358,6 +359,7 @@ export function playChord(
     mode?: GuitarChordPlayMode;
     direction?: GuitarStrumDirection;
     gesture?: GuitarChordGesture;
+    gainScale?: number;
   },
 ): void {
   const chord = getChordById(chordId);
@@ -370,6 +372,7 @@ export function playChord(
   const mode = options?.mode ?? 'strum';
   const direction = options?.direction ?? 'down';
   const gesture = options?.gesture ?? 'swipe';
+  const gainScale = options?.gainScale ?? 1;
   const steps = buildChordPatternSteps(
     chord,
     mode,
@@ -383,6 +386,7 @@ export function playChord(
       pluckString(step.stringId, step.midi, {
         asMidi: true,
         velocity: step.velocity,
+        gainScale,
       });
     }, step.atMs);
     strumTimers.push(timer);
@@ -401,7 +405,7 @@ export function strumChord(
  * Play a recording / tutorial sound id: `s3:f5`, `chord:Em`, legacy `s3`, or
  * the performance form `chord:Em:arpeggio:up:swipe` (mode/direction/gesture).
  */
-export function playGuitarSoundId(soundId: string, velocity?: number): void {
+export function playGuitarSoundId(soundId: string, velocity?: number, gainScale = 1): void {
   if (soundId.startsWith('chord:')) {
     const [chordId, mode, direction, gesture] = soundId
       .slice('chord:'.length)
@@ -411,6 +415,7 @@ export function playGuitarSoundId(soundId: string, velocity?: number): void {
         mode: mode !== undefined && isGuitarChordPlayMode(mode) ? mode : 'strum',
         direction: direction === 'up' ? 'up' : 'down',
         gesture: gesture === 'tap' ? 'tap' : 'swipe',
+        gainScale,
       });
     }
     return;
@@ -418,18 +423,18 @@ export function playGuitarSoundId(soundId: string, velocity?: number): void {
 
   const midiMatch = soundId.match(/^midi:(\d{1,3})$/);
   if (midiMatch) {
-    pluckString('s6', Number(midiMatch[1]), { asMidi: true, velocity });
+    pluckString('s6', Number(midiMatch[1]), { asMidi: true, velocity, gainScale });
     return;
   }
 
   const fretted = soundId.match(/^(s[1-6]):f(\d{1,2})$/);
   if (fretted) {
-    pluckString(fretted[1] as GuitarStringId, Number(fretted[2]), { velocity });
+    pluckString(fretted[1] as GuitarStringId, Number(fretted[2]), { velocity, gainScale });
     return;
   }
 
   if (/^s[1-6]$/.test(soundId)) {
-    pluckString(soundId as GuitarStringId, 0, { velocity });
+    pluckString(soundId as GuitarStringId, 0, { velocity, gainScale });
   }
 }
 

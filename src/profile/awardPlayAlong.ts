@@ -3,6 +3,7 @@ import {
   getPracticeMsForDay,
   loadProfileProgress,
   markChallengeComplete,
+  recordSongCompletion,
   todayKey,
 } from '../storage/profileProgressStorage';
 import type { InstrumentId } from '../types/recording';
@@ -22,6 +23,14 @@ export type PlayAlongAwardInput = {
   elapsedMs: number;
 };
 
+/**
+ * Backstop cap for a single play-along completion, independent of each
+ * instrument hook's own cap — protects profile stats even if a hook forgets
+ * to set its step-mode startTimeRef (as usePianoPlayAlong's did, which made
+ * getElapsedMs() return a huge wall-clock delta for a few-minute session).
+ */
+const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
+
 async function maybeCompletePracticeChallenge(instrument: InstrumentId): Promise<void> {
   const day = todayKey();
   const dailyKind = getDailyChallengeKind(day);
@@ -39,7 +48,7 @@ async function maybeCompletePracticeChallenge(instrument: InstrumentId): Promise
  * Award practice time + check daily/weekly song challenges after a play-along finish.
  */
 export async function awardPlayAlongCompletion(input: PlayAlongAwardInput): Promise<void> {
-  const elapsed = Math.max(0, Math.round(input.elapsedMs));
+  const elapsed = Math.min(Math.max(0, Math.round(input.elapsedMs)), MAX_AWARD_ELAPSED_MS);
   if (elapsed > 0) {
     await addPracticeMs(input.instrument, elapsed);
   }
@@ -49,6 +58,8 @@ export async function awardPlayAlongCompletion(input: PlayAlongAwardInput): Prom
   if (input.stars < 1) {
     return;
   }
+
+  await recordSongCompletion();
 
   const day = todayKey();
   const dailyKind = getDailyChallengeKind(day);

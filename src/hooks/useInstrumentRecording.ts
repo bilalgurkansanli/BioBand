@@ -1,6 +1,6 @@
 import { useNavigation } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createElement, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,6 +14,7 @@ import {
   prepareRecordingAudioMode,
   restorePlaybackAudioMode,
 } from '../audio/initAudio';
+import { OptionListModal } from '../components/studio/OptionListModal';
 import {
   playStudioProject,
   stopStudioPlayback,
@@ -46,6 +47,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
   const [mode, setMode] = useState<RecordingMode | null>(null);
   const [studioSession, setStudioSession] = useState<StudioOverdubSession | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [showModePicker, setShowModePicker] = useState(false);
 
   const startTimeRef = useRef(0);
   const eventsRef = useRef<InstrumentEvent[]>([]);
@@ -277,27 +279,34 @@ export function useInstrumentRecording(instrument: InstrumentId) {
       return;
     }
 
-    Alert.alert(t('recording.chooseModeTitle'), t('recording.chooseModeMessage'), [
-      { text: t('recording.modeInstrument'), onPress: startInstrumentRecording },
-      {
-        text: t('recording.modeMicrophone'),
-        onPress: () => {
-          void startMicRecording(false);
-        },
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
-  }, [
-    countdown,
-    isRecording,
-    startInstrumentRecording,
-    startMicRecording,
-    startStudioOverdub,
-    stopRecording,
-    studioArmed,
-    studioSession,
-    t,
-  ]);
+    setShowModePicker(true);
+  }, [countdown, isRecording, startStudioOverdub, stopRecording, studioArmed, studioSession]);
+
+  const closeModePicker = useCallback(() => setShowModePicker(false), []);
+
+  const selectRecordingMode = useCallback(
+    (key: string) => {
+      setShowModePicker(false);
+      if (key === 'instrument') {
+        startInstrumentRecording();
+      } else {
+        void startMicRecording(false);
+      }
+    },
+    [startInstrumentRecording, startMicRecording],
+  );
+
+  const recordModePicker = createElement(OptionListModal, {
+    visible: showModePicker,
+    title: t('recording.chooseModeTitle'),
+    message: t('recording.chooseModeMessage'),
+    options: [
+      { key: 'instrument', label: t('recording.modeInstrument'), icon: 'musical-notes' },
+      { key: 'microphone', label: t('recording.modeMicrophone'), icon: 'mic' },
+    ],
+    onSelect: selectRecordingMode,
+    onClose: closeModePicker,
+  });
 
   useEffect(() => {
     return () => {
@@ -315,5 +324,6 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     studioProjectTitle: studioSession?.projectTitle ?? null,
     countdown,
     cancelStudioOverdub,
+    recordModePicker,
   };
 }

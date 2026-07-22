@@ -136,7 +136,8 @@ function triggerNote(
   });
 }
 
-export function playNote(stringId: ViolinStringId, position: number): void {
+/** @param gainScale Extra output multiplier — used by Studio mix playback. */
+export function playNote(stringId: ViolinStringId, position: number, gainScale = 1): void {
   const context = getSharedAudioContext();
   if (context.state === 'suspended') {
     void context.resume();
@@ -145,25 +146,25 @@ export function playNote(stringId: ViolinStringId, position: number): void {
   hitSerial += 1;
   const dryTag = `violin:${stringId}:${position}#${hitSerial}`;
 
-  triggerNote(stringId, position, dryTag);
+  triggerNote(stringId, position, dryTag, { gainScale });
 
-  schedulePianoReverbTaps((gainScale, tapIndex) => {
+  schedulePianoReverbTaps((tapScale, tapIndex) => {
     triggerNote(stringId, position, `${dryTag}:reverb:${tapIndex}`, {
       shortTail: true,
-      gainScale,
+      gainScale: gainScale * tapScale,
     });
   });
 
   // Each repeat needs its own tag — same-tag voices steal each other.
   let echoIndex = 0;
-  schedulePianoEchoRepeats((gainScale) => {
+  schedulePianoEchoRepeats((tapScale) => {
     triggerNote(stringId, position, `${dryTag}:echo:${echoIndex++}`, {
-      gainScale,
+      gainScale: gainScale * tapScale,
     });
   });
 }
 
-export function playPhrase(phraseId: PhraseId): void {
+export function playPhrase(phraseId: PhraseId, gainScale = 1): void {
   const phrase = getPhraseById(phraseId);
   if (!phrase) {
     return;
@@ -173,7 +174,7 @@ export function playPhrase(phraseId: PhraseId): void {
     const { stringId, position } = phrase.notes[i];
     const timer = setTimeout(() => {
       phraseTimers.delete(timer);
-      playNote(stringId, position);
+      playNote(stringId, position, gainScale);
     }, i * PHRASE_STAGGER_MS);
     phraseTimers.add(timer);
   }
@@ -187,24 +188,24 @@ export function stopViolinPhrases(): void {
   phraseTimers.clear();
 }
 
-export function playViolinSoundId(soundId: string): void {
+export function playViolinSoundId(soundId: string, gainScale = 1): void {
   const parsed = parseViolinSoundId(soundId);
   if (!parsed) {
     if (soundId.startsWith('phrase:')) {
       const phraseId = soundId.slice('phrase:'.length);
       if (isPhraseId(phraseId)) {
-        playPhrase(phraseId);
+        playPhrase(phraseId, gainScale);
       }
     }
     return;
   }
 
   if (parsed.kind === 'phrase') {
-    playPhrase(parsed.phraseId);
+    playPhrase(parsed.phraseId, gainScale);
     return;
   }
 
-  playNote(parsed.stringId, parsed.position);
+  playNote(parsed.stringId, parsed.position, gainScale);
 }
 
 export function releaseViolinEngine(): void {

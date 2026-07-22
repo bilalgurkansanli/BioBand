@@ -158,6 +158,7 @@ export function GuitarScreen({ navigation }: Props) {
     studioProjectTitle,
     countdown,
     cancelStudioOverdub,
+    recordModePicker,
   } = useInstrumentRecording('guitar');
   const { isPortrait } = usePianoOrientation(navigation);
   const userSongs = useUserGuitarSongs();
@@ -478,6 +479,8 @@ export function GuitarScreen({ navigation }: Props) {
       ) : (
         <RecordingBanner isRecording={isRecording} mode={mode} />
       )}
+
+      {recordModePicker}
 
       <GuitarPlayAlongHud
         countdownValue={playAlong.countdownValue}

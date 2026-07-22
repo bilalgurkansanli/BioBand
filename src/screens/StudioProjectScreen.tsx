@@ -1,20 +1,15 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { ScreenContainer } from '../components/ScreenContainer';
+import { AddTrackModal } from '../components/studio/AddTrackModal';
+import { OptionListModal } from '../components/studio/OptionListModal';
 import { PickTakeModal } from '../components/studio/PickTakeModal';
-import { nextVolumeStep, StudioTrackRow } from '../components/studio/StudioTrackRow';
+import { StudioTrackRow } from '../components/studio/StudioTrackRow';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioPlayback } from '../hooks/useStudioPlayback';
@@ -28,9 +23,9 @@ import {
 import { colors } from '../theme/colors';
 import type { InstrumentId, RecordingMode } from '../types/recording';
 import type { RecordingsStackParamList } from '../types/navigation';
-import { getProjectDurationMs } from '../types/studio';
+import { getProjectDurationMs, type StudioTrack } from '../types/studio';
 import { formatDuration } from '../utils/formatDuration';
-import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
+import { INSTRUMENT_ICONS, INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'StudioProject'>;
 
@@ -46,52 +41,23 @@ export function StudioProjectScreen({ navigation, route }: Props) {
     useStudioPlayback();
   const [pickTakeVisible, setPickTakeVisible] = useState(false);
   const [renameVisible, setRenameVisible] = useState(false);
+  const [addTrackVisible, setAddTrackVisible] = useState(false);
+  const [deleteProjectVisible, setDeleteProjectVisible] = useState(false);
+  const [overdubInstrumentVisible, setOverdubInstrumentVisible] = useState(false);
+  const [overdubModeInstrument, setOverdubModeInstrument] = useState<InstrumentId | null>(null);
+  const [trackDeleteTarget, setTrackDeleteTarget] = useState<StudioTrack | null>(null);
 
   const playingThis = isPlaying && playingProjectId === projectId;
 
-  const openAddMenu = () => {
-    Alert.alert(t('studio.addTrack'), undefined, [
-      {
-        text: t('studio.addFromTake'),
-        onPress: () => setPickTakeVisible(true),
-      },
-      {
-        text: t('studio.addOverdub'),
-        onPress: () => promptOverdubInstrument(),
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
-  };
-
   const promptOverdubInstrument = () => {
-    Alert.alert(
-      t('studio.pickInstrumentTitle'),
-      undefined,
-      [
-        ...INSTRUMENTS.map((instrument) => ({
-          text: t(INSTRUMENT_TITLE_KEYS[instrument]),
-          onPress: () => promptOverdubMode(instrument),
-        })),
-        { text: t('common.cancel'), style: 'cancel' as const },
-      ],
-    );
+    setOverdubInstrumentVisible(true);
   };
 
   const promptOverdubMode = (instrument: InstrumentId) => {
     if (!project) {
       return;
     }
-    Alert.alert(t('recording.chooseModeTitle'), t('recording.chooseModeMessage'), [
-      {
-        text: t('recording.modeInstrument'),
-        onPress: () => beginOverdub(instrument, 'instrument'),
-      },
-      {
-        text: t('recording.modeMicrophone'),
-        onPress: () => beginOverdub(instrument, 'microphone'),
-      },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    setOverdubModeInstrument(instrument);
   };
 
   const beginOverdub = (instrument: InstrumentId, mode: RecordingMode) => {
@@ -111,19 +77,10 @@ export function StudioProjectScreen({ navigation, route }: Props) {
     });
   };
 
-  const confirmDeleteProject = () => {
-    Alert.alert(t('studio.deleteProject'), t('studio.deleteProjectConfirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('recordings.deleteConfirm'),
-        style: 'destructive',
-        onPress: () => {
-          stop();
-          clearStudioOverdubSession();
-          void deleteStudioProject(projectId).then(() => navigation.goBack());
-        },
-      },
-    ]);
+  const removeProject = () => {
+    stop();
+    clearStudioOverdubSession();
+    void deleteStudioProject(projectId).then(() => navigation.goBack());
   };
 
   if (loading) {
@@ -217,11 +174,11 @@ export function StudioProjectScreen({ navigation, route }: Props) {
             </>
           )}
         </Pressable>
-        <Pressable onPress={openAddMenu} style={styles.addBtn}>
+        <Pressable onPress={() => setAddTrackVisible(true)} style={styles.addBtn}>
           <Ionicons color={colors.accent} name="add" size={20} />
           <Text style={styles.addBtnText}>{t('studio.addTrack')}</Text>
         </Pressable>
-        <Pressable onPress={confirmDeleteProject} style={styles.deleteProjectBtn}>
+        <Pressable onPress={() => setDeleteProjectVisible(true)} style={styles.deleteProjectBtn}>
           <Ionicons color={colors.error} name="trash-outline" size={20} />
         </Pressable>
       </View>
@@ -235,21 +192,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           <StudioTrackRow
             key={track.id}
             track={track}
-            onDelete={() => {
-              Alert.alert(t('studio.trackDelete'), t('studio.trackDeleteConfirm'), [
-                { text: t('common.cancel'), style: 'cancel' },
-                {
-                  text: t('recordings.deleteConfirm'),
-                  style: 'destructive',
-                  onPress: () => {
-                    if (playingThis) {
-                      stop();
-                    }
-                    void deleteTrack(track.id);
-                  },
-                },
-              ]);
-            }}
+            onDelete={() => setTrackDeleteTarget(track)}
             onToggleMute={() => {
               if (playingThis) {
                 stop();
@@ -262,11 +205,11 @@ export function StudioProjectScreen({ navigation, route }: Props) {
               }
               void patchTrack(track.id, { solo: !track.solo });
             }}
-            onVolumeCycle={() => {
+            onVolumeChange={(volume) => {
               if (playingThis) {
                 stop();
               }
-              void patchTrack(track.id, { volume: nextVolumeStep(track.volume) });
+              void patchTrack(track.id, { volume });
             }}
           />
         ))}
@@ -300,6 +243,87 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           if (value) {
             void rename(value);
           }
+        }}
+      />
+
+      <AddTrackModal
+        visible={addTrackVisible}
+        onClose={() => setAddTrackVisible(false)}
+        onPickFromTake={() => {
+          setAddTrackVisible(false);
+          // Open the next modal after this one has fully closed — opening both
+          // in the same tick can leave the new modal's backdrop unable to
+          // receive touches on Android until the previous one finishes
+          // dismissing.
+          setTimeout(() => setPickTakeVisible(true), 300);
+        }}
+        onRecordOverdub={() => {
+          setAddTrackVisible(false);
+          setTimeout(() => promptOverdubInstrument(), 300);
+        }}
+      />
+
+      <ConfirmDeleteModal
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('recordings.deleteConfirm')}
+        message={t('studio.deleteProjectConfirm')}
+        title={t('studio.deleteProject')}
+        visible={deleteProjectVisible}
+        onCancel={() => setDeleteProjectVisible(false)}
+        onConfirm={() => {
+          setDeleteProjectVisible(false);
+          removeProject();
+        }}
+      />
+
+      <OptionListModal
+        options={INSTRUMENTS.map((instrument) => ({
+          key: instrument,
+          label: t(INSTRUMENT_TITLE_KEYS[instrument]),
+          icon: INSTRUMENT_ICONS[instrument],
+        }))}
+        title={t('studio.pickInstrumentTitle')}
+        visible={overdubInstrumentVisible}
+        onClose={() => setOverdubInstrumentVisible(false)}
+        onSelect={(key) => {
+          setOverdubInstrumentVisible(false);
+          promptOverdubMode(key as InstrumentId);
+        }}
+      />
+
+      <OptionListModal
+        message={t('recording.chooseModeMessage')}
+        options={[
+          { key: 'instrument', label: t('recording.modeInstrument'), icon: 'musical-notes-outline' },
+          { key: 'microphone', label: t('recording.modeMicrophone'), icon: 'mic-outline' },
+        ]}
+        title={t('recording.chooseModeTitle')}
+        visible={overdubModeInstrument !== null}
+        onClose={() => setOverdubModeInstrument(null)}
+        onSelect={(key) => {
+          const instrument = overdubModeInstrument;
+          setOverdubModeInstrument(null);
+          if (instrument) {
+            beginOverdub(instrument, key as RecordingMode);
+          }
+        }}
+      />
+
+      <ConfirmDeleteModal
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('recordings.deleteConfirm')}
+        message={t('studio.trackDeleteConfirm')}
+        title={t('studio.trackDelete')}
+        visible={trackDeleteTarget !== null}
+        onCancel={() => setTrackDeleteTarget(null)}
+        onConfirm={() => {
+          if (trackDeleteTarget) {
+            if (playingThis) {
+              stop();
+            }
+            void deleteTrack(trackDeleteTarget.id);
+          }
+          setTrackDeleteTarget(null);
         }}
       />
     </ScreenContainer>
