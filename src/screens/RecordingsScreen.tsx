@@ -1,17 +1,10 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { RecordingCard } from '../components/recordings/RecordingCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -22,11 +15,15 @@ import { useRecordingActions } from '../hooks/useRecordingActions';
 import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioProjects } from '../hooks/useStudioProjects';
-import { deleteDrumMachineTake } from '../storage/drumMachinePatternsStorage';
-import { deleteRecording } from '../storage/recordingsStorage';
+import {
+  deleteDrumMachineTake,
+  renameDrumMachineTake,
+} from '../storage/drumMachinePatternsStorage';
+import { deleteRecording, renameRecording } from '../storage/recordingsStorage';
 import { colors } from '../theme/colors';
 import type { RecordingsStackParamList } from '../types/navigation';
 import type { SavedRecording } from '../types/recording';
+import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'RecordingsHome'>;
 type Segment = 'takes' | 'studio';
@@ -35,8 +32,10 @@ export function RecordingsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const [segment, setSegment] = useState<Segment>('takes');
   const [createVisible, setCreateVisible] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<SavedRecording | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SavedRecording | null>(null);
   const { recordings, loading: takesLoading, refresh: refreshTakes } = useRecordings();
-  const { playingId, loadingId, play } = useRecordingPlayback();
+  const { playingId, loadingId, positionMs, durationMs, play, seek } = useRecordingPlayback();
   const { busyId, share, download } = useRecordingActions();
   const { projects, loading: studioLoading, create } = useStudioProjects();
 
@@ -49,17 +48,17 @@ export function RecordingsScreen({ navigation }: Props) {
     await refreshTakes();
   };
 
+  const renameTake = async (recording: SavedRecording, title: string) => {
+    if (recording.source === 'drumMachine' || recording.id.startsWith('dm-')) {
+      await renameDrumMachineTake(recording.id, title);
+    } else {
+      await renameRecording(recording.id, title);
+    }
+    await refreshTakes();
+  };
+
   const confirmDeleteTake = (recording: SavedRecording) => {
-    Alert.alert(t('recordings.deleteConfirmTitle'), t('recordings.deleteConfirmMessage'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('recordings.deleteConfirm'),
-        style: 'destructive',
-        onPress: () => {
-          void removeTake(recording);
-        },
-      },
-    ]);
+    setDeleteTarget(recording);
   };
 
   return (
@@ -69,7 +68,7 @@ export function RecordingsScreen({ navigation }: Props) {
         onChange={(key) => setSegment(key as Segment)}
         segments={[
           { key: 'takes', label: t('recordings.segmentTakes') },
-          { key: 'studio', label: t('recordings.segmentStudio') },
+          { key: 'studio', label: t('recordings.segmentStudio'), badge: t('studio.beta') },
         ]}
         value={segment}
       />
@@ -96,13 +95,17 @@ export function RecordingsScreen({ navigation }: Props) {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <RecordingCard
+                  durationMs={playingId === item.id ? durationMs : undefined}
                   isBusy={busyId === item.id}
                   isLoading={loadingId === item.id}
                   isPlaying={playingId === item.id}
+                  positionMs={playingId === item.id ? positionMs : 0}
                   onDeletePress={() => confirmDeleteTake(item)}
                   onDownloadPress={() => void download(item)}
                   onPlayPress={() => void play(item)}
+                  onSeek={seek}
                   onSharePress={() => void share(item)}
+                  onTitlePress={() => setRenameTarget(item)}
                   recording={item}
                 />
               )}
@@ -162,6 +165,40 @@ export function RecordingsScreen({ navigation }: Props) {
           void create(value || t('studio.defaultTitle')).then((project) => {
             navigation.navigate('StudioProject', { projectId: project.id });
           });
+        }}
+      />
+
+      <TextPromptModal
+        confirmLabel={t('recordings.rename')}
+        initialValue={
+          renameTarget
+            ? renameTarget.title?.trim() || t(INSTRUMENT_TITLE_KEYS[renameTarget.instrument])
+            : ''
+        }
+        placeholder={t('recordings.renamePlaceholder')}
+        title={t('recordings.renameTitle')}
+        visible={renameTarget !== null}
+        onCancel={() => setRenameTarget(null)}
+        onConfirm={(value) => {
+          if (renameTarget && value) {
+            void renameTake(renameTarget, value);
+          }
+          setRenameTarget(null);
+        }}
+      />
+
+      <ConfirmDeleteModal
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('recordings.deleteConfirm')}
+        message={t('recordings.deleteConfirmMessage')}
+        title={t('recordings.deleteConfirmTitle')}
+        visible={deleteTarget !== null}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) {
+            void removeTake(deleteTarget);
+          }
+          setDeleteTarget(null);
         }}
       />
     </ScreenContainer>

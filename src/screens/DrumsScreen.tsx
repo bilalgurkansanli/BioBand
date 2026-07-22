@@ -147,6 +147,7 @@ export function DrumsScreen({ navigation }: Props) {
     studioProjectTitle,
     countdown,
     cancelStudioOverdub,
+    recordModePicker,
   } = useInstrumentRecording('drums');
   const { isPortrait } = usePianoOrientation(navigation);
 
@@ -367,6 +368,8 @@ export function DrumsScreen({ navigation }: Props) {
       ) : (
         <RecordingBanner isRecording={isRecording} mode={mode} />
       )}
+
+      {recordModePicker}
 
       <DrumsPlayAlongHud
         countdownValue={playAlong.countdownValue}

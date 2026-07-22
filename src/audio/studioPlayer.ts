@@ -110,23 +110,24 @@ function playInstrumentEvent(
   soundId: string,
   velocity?: number,
   padBankId: PadBankId = 'drums',
+  gainScale = 1,
 ): void {
   switch (instrument) {
     case 'piano':
-      playPianoNote(soundId as NoteId);
+      playPianoNote(soundId as NoteId, undefined, undefined, gainScale);
       return;
     case 'drums':
-      playHit(soundId as DrumSoundId, velocity);
+      playHit(soundId as DrumSoundId, velocity, gainScale);
       return;
     case 'pads':
       // Per-track bank — looper exports layer tracks from different banks.
-      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1);
+      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale);
       return;
     case 'guitar':
-      playGuitarSoundId(soundId, velocity);
+      playGuitarSoundId(soundId, velocity, gainScale);
       return;
     case 'violin':
-      playViolinSoundId(soundId);
+      playViolinSoundId(soundId, gainScale);
       return;
   }
 }
@@ -268,6 +269,7 @@ export async function playStudioProject(
               event.soundId,
               event.velocity,
               trackPadBank,
+              track.volume,
             );
           }, event.atMs),
         );

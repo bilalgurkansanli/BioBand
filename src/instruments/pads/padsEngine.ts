@@ -45,12 +45,16 @@ let bankFilter: BiquadFilterNode | null = null;
 let perfFilter: BiquadFilterNode | null = null;
 let brightTone: BiquadFilterNode | null = null;
 
-/** XY surface neutral position = wide-open lowpass, gentle Q. */
-const PERF_FILTER_NEUTRAL_HZ = 16000;
-const PERF_FILTER_NEUTRAL_Q = 0.7;
+/**
+ * XY surface neutral position = wide-open lowpass, gentle Q. Neutral must sit
+ * AT the touchable max, not past it — otherwise releasing from the brightest
+ * corner audibly overshoots brighter than anything reachable while dragging.
+ */
 const PERF_FILTER_MIN_HZ = 150;
-const PERF_FILTER_MAX_HZ = 14000;
+const PERF_FILTER_MAX_HZ = 16000;
+const PERF_FILTER_NEUTRAL_HZ = PERF_FILTER_MAX_HZ;
 const PERF_FILTER_MAX_Q = 7;
+const PERF_FILTER_NEUTRAL_Q = 0.7;
 
 function applyBankToBus(): void {
   if (!bankGain || !bankFilter) {
@@ -363,6 +367,7 @@ export function triggerPadForBank(
   bankId: PadBankId,
   id: PadSoundId,
   velocity = 1,
+  gainScale = 1,
 ): void {
   if (!initialized) {
     return;
@@ -388,7 +393,7 @@ export function triggerPadForBank(
   }
 
   const { buffer, rate } = resolved;
-  const hitGain = slot.gain * velocityGainScale(velocity);
+  const hitGain = slot.gain * velocityGainScale(velocity) * gainScale;
   const baseTag = `${padTagPrefix(bankId, id)}#${hitSerial++}`;
 
   if (slot.chokeGroup) {
@@ -397,21 +402,21 @@ export function triggerPadForBank(
 
   triggerHit(bankId, slot, buffer, rate, hitGain, baseTag);
 
-  schedulePianoReverbTaps((gainScale, tapIndex) => {
+  schedulePianoReverbTaps((tapScale, tapIndex) => {
     triggerHit(
       bankId,
       slot,
       buffer,
       rate,
-      hitGain * gainScale,
+      hitGain * tapScale,
       `${baseTag}:reverb:${tapIndex}`,
       true,
     );
   });
 
   let echoIndex = 0;
-  schedulePianoEchoRepeats((gainScale) => {
-    triggerHit(bankId, slot, buffer, rate, hitGain * gainScale, `${baseTag}:echo:${echoIndex++}`);
+  schedulePianoEchoRepeats((tapScale) => {
+    triggerHit(bankId, slot, buffer, rate, hitGain * tapScale, `${baseTag}:echo:${echoIndex++}`);
   });
 }
 

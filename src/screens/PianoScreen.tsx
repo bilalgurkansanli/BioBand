@@ -362,6 +362,7 @@ export function PianoScreen({ navigation }: Props) {
     studioProjectTitle,
     countdown,
     cancelStudioOverdub,
+    recordModePicker,
   } = useInstrumentRecording('piano');
 
   const { isPortrait } = usePianoOrientation(navigation);
@@ -556,6 +557,8 @@ export function PianoScreen({ navigation }: Props) {
       ) : (
         <RecordingBanner isRecording={isRecording} mode={mode} />
       )}
+
+      {recordModePicker}
 
       <PlayAlongHud
         countdownValue={playAlong.countdownValue}

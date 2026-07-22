@@ -5,6 +5,8 @@ import { colors } from '../../theme/colors';
 type Segment = {
   key: string;
   label: string;
+  /** Small pill shown next to the label (e.g. "Beta"). */
+  badge?: string;
 };
 
 type Props = {
@@ -26,6 +28,11 @@ export function StudioSegmentedControl({ segments, value, onChange }: Props) {
             style={[styles.segment, active && styles.segmentActive]}
           >
             <Text style={[styles.label, active && styles.labelActive]}>{segment.label}</Text>
+            {segment.badge ? (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{segment.badge}</Text>
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
@@ -47,6 +54,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 8,
     flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
     paddingVertical: 10,
   },
   segmentActive: {
@@ -59,5 +69,17 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     color: colors.text,
+  },
+  badge: {
+    backgroundColor: colors.accentMuted,
+    borderRadius: 6,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });

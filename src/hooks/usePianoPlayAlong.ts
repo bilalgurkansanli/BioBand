@@ -82,6 +82,8 @@ const RESULTS_DELAY_MS = 700;
 const CALIBRATE_PREVIEW_MS = 4500;
 const OFFSET_MIN_MS = -5000;
 const OFFSET_MAX_MS = 60_000;
+/** Cap on awarded practice time per finish — protects the profile stats. */
+const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
 
 function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   if (accuracy >= 0.9) {
@@ -229,7 +231,7 @@ export function usePianoPlayAlong(
       instrument: 'piano',
       songId: songRef.current?.id ?? null,
       stars,
-      elapsedMs: getElapsedMs(),
+      elapsedMs: Math.min(Math.max(0, getElapsedMs()), MAX_AWARD_ELAPSED_MS),
     });
 
     const timer = setTimeout(() => {
@@ -478,6 +480,9 @@ export function usePianoPlayAlong(
     clearTimers();
     setResults(null);
     notesFinishedRef.current = false;
+    // Without this, finishing step mode with no backing track computed the
+    // award elapsed from a stale/zero start (same bug fixed in drums/guitar/pads).
+    startTimeRef.current = Date.now();
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
     setProgress({ resolved: 0, total: session.events.length, hits: 0 });

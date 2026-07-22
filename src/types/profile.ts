@@ -5,9 +5,12 @@ export type DayKey = string;
 
 export type ProfileProgress = {
   streakCount: number;
+  longestStreak: number;
   lastPracticeDay: DayKey | null;
   practiceByDay: Record<DayKey, Partial<Record<InstrumentId, number>>>;
   completedChallengeIds: string[];
+  /** Lifetime count of play-along finishes with 1+ star, independent of challenge rotation. */
+  totalSongCompletions: number;
 };
 
 export type DailyChallengeKind =
@@ -34,7 +37,9 @@ export const CHALLENGE_PRACTICE_MS = 2 * 60 * 1000;
 
 export const EMPTY_PROFILE_PROGRESS: ProfileProgress = {
   streakCount: 0,
+  longestStreak: 0,
   lastPracticeDay: null,
   practiceByDay: {},
   completedChallengeIds: [],
+  totalSongCompletions: 0,
 };

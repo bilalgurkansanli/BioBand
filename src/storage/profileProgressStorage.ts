@@ -9,6 +9,20 @@ import {
 
 const STORAGE_KEY = '@bioband/profile-progress.v1';
 
+/**
+ * Defensive ceiling per addPracticeMs call — guards against a duration bug
+ * (e.g. a raw Date.now() timestamp fed in as an elapsed delta, ~1000x any
+ * real session) from ever corrupting today's total again.
+ */
+const MAX_PRACTICE_MS_PER_CALL = 60 * 60 * 1000;
+
+/**
+ * Same ceiling, applied per instrument per day, to heal values already sitting
+ * in storage from before the guard above existed (e.g. a corrupted entry
+ * showing hundreds of thousands of hours) instead of leaving it on screen.
+ */
+const MAX_DAILY_PRACTICE_MS = 24 * 60 * 60 * 1000;
+
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
 }
@@ -46,6 +60,30 @@ function isProfileProgress(value: unknown): value is ProfileProgress {
   );
 }
 
+/** Clamp any per-day per-instrument value to a sane ceiling, healing legacy
+ * corrupted entries (see MAX_DAILY_PRACTICE_MS) on load. */
+function sanitizePracticeByDay(
+  practiceByDay: ProfileProgress['practiceByDay'],
+): { practiceByDay: ProfileProgress['practiceByDay']; changed: boolean } {
+  let changed = false;
+  const sanitized: ProfileProgress['practiceByDay'] = {};
+  for (const [day, dayMap] of Object.entries(practiceByDay)) {
+    const sanitizedDay: Partial<Record<InstrumentId, number>> = {};
+    for (const [instrument, ms] of Object.entries(dayMap) as [InstrumentId, number][]) {
+      const safeMs =
+        typeof ms === 'number' && Number.isFinite(ms)
+          ? Math.min(Math.max(0, ms), MAX_DAILY_PRACTICE_MS)
+          : 0;
+      if (safeMs !== ms) {
+        changed = true;
+      }
+      sanitizedDay[instrument] = safeMs;
+    }
+    sanitized[day] = sanitizedDay;
+  }
+  return { practiceByDay: sanitized, changed };
+}
+
 /** If streak was broken (gap > 1 day), zero it out when loading. */
 export function normalizeStreak(progress: ProfileProgress, today: DayKey = todayKey()): ProfileProgress {
   const last = progress.lastPracticeDay;
@@ -56,6 +94,15 @@ export function normalizeStreak(progress: ProfileProgress, today: DayKey = today
     return progress;
   }
   return { ...progress, streakCount: 0 };
+}
+
+/** Backfills longestStreak for records saved before the field existed. */
+function withLongestStreakFloor(progress: ProfileProgress): ProfileProgress {
+  const floor = Math.max(progress.longestStreak ?? 0, progress.streakCount);
+  if (floor === progress.longestStreak) {
+    return progress;
+  }
+  return { ...progress, longestStreak: floor };
 }
 
 export async function loadProfileProgress(): Promise<ProfileProgress> {
@@ -74,10 +121,18 @@ export async function loadProfileProgress(): Promise<ProfileProgress> {
       practiceByDay: parsed.practiceByDay ?? {},
       completedChallengeIds: parsed.completedChallengeIds ?? [],
     });
-    if (normalized.streakCount !== parsed.streakCount) {
-      await persist(normalized);
+    const { practiceByDay, changed: practiceChanged } = sanitizePracticeByDay(
+      normalized.practiceByDay,
+    );
+    const result = withLongestStreakFloor({ ...normalized, practiceByDay });
+    if (
+      result.streakCount !== parsed.streakCount ||
+      result.longestStreak !== parsed.longestStreak ||
+      practiceChanged
+    ) {
+      await persist(result);
     }
-    return normalized;
+    return result;
   } catch {
     return { ...EMPTY_PROFILE_PROGRESS };
   }
@@ -98,6 +153,7 @@ function touchStreak(progress: ProfileProgress, day: DayKey): ProfileProgress {
   return {
     ...progress,
     streakCount: nextStreak,
+    longestStreak: Math.max(progress.longestStreak, nextStreak),
     lastPracticeDay: day,
   };
 }
@@ -109,10 +165,14 @@ export async function addPracticeMs(
   if (ms <= 0) {
     return loadProfileProgress();
   }
+  const safeMs = Math.min(ms, MAX_PRACTICE_MS_PER_CALL);
   const day = todayKey();
   const progress = await loadProfileProgress();
   const dayMap = { ...(progress.practiceByDay[day] ?? {}) };
-  dayMap[instrument] = (dayMap[instrument] ?? 0) + ms;
+  dayMap[instrument] = Math.min(
+    (dayMap[instrument] ?? 0) + safeMs,
+    MAX_DAILY_PRACTICE_MS,
+  );
   const next = touchStreak(
     {
       ...progress,
@@ -140,6 +200,17 @@ export async function markChallengeComplete(challengeId: string): Promise<Profil
   return next;
 }
 
+/** Bumps the lifetime song-completion counter (used by badges), independent of daily/weekly challenges. */
+export async function recordSongCompletion(): Promise<ProfileProgress> {
+  const progress = await loadProfileProgress();
+  const next: ProfileProgress = {
+    ...progress,
+    totalSongCompletions: progress.totalSongCompletions + 1,
+  };
+  await persist(next);
+  return next;
+}
+
 export function getPracticeMsForDay(
   progress: ProfileProgress,
   day: DayKey,
@@ -155,9 +226,30 @@ export function getPracticeMsForDay(
   return Object.values(dayMap).reduce((sum, value) => sum + (value ?? 0), 0);
 }
 
+/** Sum of all logged practice time, optionally scoped to one instrument. */
+export function getTotalPracticeMs(
+  progress: ProfileProgress,
+  instrument?: InstrumentId,
+): number {
+  return Object.keys(progress.practiceByDay).reduce(
+    (sum, day) => sum + getPracticeMsForDay(progress, day, instrument),
+    0,
+  );
+}
+
+/** Sum of practice time across a set of day keys (used for week-over-week comparisons). */
+export function getPracticeMsForDays(progress: ProfileProgress, days: DayKey[]): number {
+  return days.reduce((sum, day) => sum + getPracticeMsForDay(progress, day), 0);
+}
+
 /** Last 7 day keys ending today (oldest → newest). */
 export function last7DayKeys(today: DayKey = todayKey()): DayKey[] {
   return Array.from({ length: 7 }, (_, index) => addDays(today, index - 6));
+}
+
+/** The 7 day keys immediately before the current 7-day window (oldest → newest). */
+export function previous7DayKeys(today: DayKey = todayKey()): DayKey[] {
+  return Array.from({ length: 7 }, (_, index) => addDays(today, index - 13));
 }
 
 export function hadPracticeOnDay(progress: ProfileProgress, day: DayKey): boolean {

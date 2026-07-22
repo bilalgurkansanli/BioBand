@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useState } from 'react';
@@ -18,12 +20,14 @@ import type {
   PlayTempo,
   SupportLevel,
 } from '../../hooks/useViolinPlayAlong';
+import type { ImportViolinSongResult } from '../../hooks/useUserViolinSongs';
 import { VIOLIN_SONG_CATALOG } from '../../instruments/violin/songs/catalog';
 import type {
   ViolinSongDefinition,
   ViolinSongDifficulty,
   ViolinSongScope,
 } from '../../instruments/violin/songs/types';
+import type { UserViolinSong } from '../../storage/userViolinSongsStorage';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import {
   TutorialChoiceRow,
@@ -58,6 +62,8 @@ type ViolinPlayAlongModalProps = {
   results: ViolinPlayAlongResults | null;
   tempo: PlayTempo;
   demoJustFinished?: boolean;
+  userSongs: UserViolinSong[];
+  importing: boolean;
   calibrateOffsetMs: number;
   calibratePreviewing: boolean;
   audioBusy: boolean;
@@ -72,6 +78,9 @@ type ViolinPlayAlongModalProps = {
   onGoBack: () => void;
   onBackToSongList: () => void;
   onReplay: () => void;
+  onImportSong: () => Promise<ImportViolinSongResult>;
+  onImportSongFromJsonText: (text: string) => Promise<ImportViolinSongResult>;
+  onDeleteUserSong: (songId: string) => void;
   onPickBackingAudio: (
     sourceUri: string,
     fileNameHint?: string,
@@ -117,6 +126,8 @@ export function ViolinPlayAlongModal({
   results,
   tempo,
   demoJustFinished = false,
+  userSongs,
+  importing,
   calibrateOffsetMs,
   calibratePreviewing,
   audioBusy,
@@ -131,6 +142,9 @@ export function ViolinPlayAlongModal({
   onGoBack,
   onBackToSongList,
   onReplay,
+  onImportSong,
+  onImportSongFromJsonText,
+  onDeleteUserSong,
   onPickBackingAudio,
   onSetCalibrateOffset,
   onPreviewCalibrate,
@@ -139,6 +153,8 @@ export function ViolinPlayAlongModal({
 }: ViolinPlayAlongModalProps) {
   const { t } = useTranslation();
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyFilter>('all');
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   const songs =
     difficultyFilter === 'all'
@@ -163,6 +179,58 @@ export function ViolinPlayAlongModal({
       return;
     }
     await onPickBackingAudio(picked.asset.uri, picked.asset.name);
+  };
+
+  const handleImport = async () => {
+    if (!isDocumentPickerAvailable()) {
+      setPasteOpen(true);
+      return;
+    }
+    const result = await onImportSong();
+    if (result.ok) {
+      Alert.alert(t('violin.game.import.success'), result.song.title);
+      return;
+    }
+    if (result.code === 'canceled') {
+      return;
+    }
+    if (result.code === 'pickerUnavailable') {
+      setPasteOpen(true);
+      return;
+    }
+    Alert.alert(
+      t('violin.game.import.button'),
+      t(`violin.game.import.errors.${result.code}`),
+    );
+  };
+
+  const handlePasteSubmit = async () => {
+    const result = await onImportSongFromJsonText(pasteText);
+    if (result.ok) {
+      setPasteOpen(false);
+      setPasteText('');
+      Alert.alert(t('violin.game.import.success'), result.song.title);
+      return;
+    }
+    Alert.alert(
+      t('violin.game.import.pasteTitle'),
+      t(`violin.game.import.errors.${result.code}`),
+    );
+  };
+
+  const confirmDelete = (song: UserViolinSong) => {
+    Alert.alert(
+      t('violin.game.import.deleteTitle'),
+      t('violin.game.import.deleteMessage', { title: song.title }),
+      [
+        { text: t('violin.game.import.deleteCancel'), style: 'cancel' },
+        {
+          text: t('violin.game.import.deleteConfirm'),
+          style: 'destructive',
+          onPress: () => onDeleteUserSong(song.id),
+        },
+      ],
+    );
   };
 
   return (
@@ -194,6 +262,87 @@ export function ViolinPlayAlongModal({
               <>
                 <Text style={styles.sectionTitle}>{t('violin.game.pickSong')}</Text>
 
+                <Pressable
+                  disabled={importing}
+                  onPress={() => void handleImport()}
+                  style={({ pressed }) => [
+                    styles.importButton,
+                    pressed && styles.pressed,
+                    importing && styles.rowDisabled,
+                  ]}
+                >
+                  {importing ? (
+                    <ActivityIndicator color={colors.accent} size="small" />
+                  ) : (
+                    <Ionicons color={colors.accent} name="folder-open-outline" size={20} />
+                  )}
+                  <View style={styles.importTextWrap}>
+                    <Text style={styles.importTitle}>{t('violin.game.import.button')}</Text>
+                    <Text style={styles.importHint}>{t('violin.game.import.hint')}</Text>
+                  </View>
+                </Pressable>
+
+                <Pressable
+                  disabled={importing}
+                  onPress={() => setPasteOpen(true)}
+                  style={({ pressed }) => [
+                    styles.pasteButton,
+                    pressed && styles.pressed,
+                    importing && styles.rowDisabled,
+                  ]}
+                >
+                  <Ionicons color={colors.textSecondary} name="clipboard-outline" size={18} />
+                  <Text style={styles.pasteButtonText}>
+                    {t('violin.game.import.pasteButton')}
+                  </Text>
+                </Pressable>
+
+                <Text style={styles.sectionLabel}>{t('violin.game.import.mySongs')}</Text>
+                {userSongs.length === 0 ? (
+                  <Text style={styles.empty}>{t('violin.game.import.empty')}</Text>
+                ) : (
+                  userSongs.map((song) => (
+                    <View key={song.id} style={styles.userSongRow}>
+                      <Pressable
+                        onPress={() => onSelectSong(song.id)}
+                        style={({ pressed }) => [
+                          styles.listItem,
+                          styles.userSongMain,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <View style={styles.listItemMain}>
+                          <Text style={styles.listItemTitle}>{song.title}</Text>
+                          <Text style={styles.songMeta}>
+                            {song.artist ?? song.source.toUpperCase()}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          color={colors.textSecondary}
+                          name="chevron-forward"
+                          size={18}
+                        />
+                      </Pressable>
+                      <Pressable
+                        accessibilityLabel={t('violin.game.import.delete')}
+                        hitSlop={8}
+                        onPress={() => confirmDelete(song)}
+                        style={({ pressed }) => [
+                          styles.deleteBtn,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Ionicons
+                          color={colors.textSecondary}
+                          name="trash-outline"
+                          size={18}
+                        />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+
+                <Text style={styles.sectionLabel}>{t('violin.game.import.preloaded')}</Text>
                 <View style={styles.filterRow}>
                   {DIFFICULTY_FILTERS.map((option) => {
                     const selected = option === difficultyFilter;
@@ -451,6 +600,48 @@ export function ViolinPlayAlongModal({
           </ScrollView>
         </View>
       </View>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={pasteOpen}
+        onRequestClose={() => setPasteOpen(false)}
+      >
+        <View style={styles.overlay}>
+          <View style={styles.pasteCard}>
+            <ModalChromeHeader
+              closeLabel={t('violin.game.close')}
+              onClose={() => setPasteOpen(false)}
+              title={t('violin.game.import.pasteTitle')}
+            />
+            <Text style={styles.pasteHint}>{t('violin.game.import.pasteHint')}</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              multiline
+              placeholder={t('violin.game.import.pastePlaceholder')}
+              placeholderTextColor={colors.textSecondary}
+              style={styles.pasteInput}
+              textAlignVertical="top"
+              value={pasteText}
+              onChangeText={setPasteText}
+            />
+            <Pressable
+              disabled={importing || pasteText.trim().length === 0}
+              onPress={() => void handlePasteSubmit()}
+              style={({ pressed }) => [
+                styles.primaryButton,
+                pressed && styles.pressed,
+                (importing || pasteText.trim().length === 0) && styles.rowDisabled,
+              ]}
+            >
+              <Text style={styles.primaryButtonText}>
+                {t('violin.game.import.pasteSubmit')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -465,6 +656,17 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   card: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 1,
+    maxHeight: '88%',
+    maxWidth: 560,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    width: '100%',
+  },
+  pasteCard: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 16,
@@ -490,6 +692,74 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
+  },
+  sectionLabel: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginTop: 6,
+    textTransform: 'uppercase',
+  },
+  importButton: {
+    alignItems: 'center',
+    backgroundColor: `${colors.accent}18`,
+    borderColor: `${colors.accent}55`,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  importTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  importTitle: {
+    color: colors.accent,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  importHint: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  pasteButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  pasteButtonText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  pasteHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  pasteInput: {
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    color: colors.text,
+    fontFamily: 'monospace',
+    fontSize: 12,
+    marginBottom: 10,
+    maxHeight: 220,
+    minHeight: 140,
+    padding: 10,
   },
   filterRow: {
     flexDirection: 'row',
@@ -539,6 +809,25 @@ const styles = StyleSheet.create({
   difficultyBadge: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  userSongRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  userSongMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  deleteBtn: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    width: 44,
   },
   stepSubtitle: {
     color: colors.textSecondary,

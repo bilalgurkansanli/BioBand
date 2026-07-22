@@ -6,6 +6,7 @@ import {
   InstrumentArtBackground,
   type InstrumentArtVariant,
 } from '../instrument/InstrumentArtBackground';
+import { PlaybackScrubber } from './PlaybackScrubber';
 import { colors } from '../../theme/colors';
 import type { SavedRecording } from '../../types/recording';
 import { formatDuration } from '../../utils/formatDuration';
@@ -16,10 +17,14 @@ type RecordingCardProps = {
   isPlaying?: boolean;
   isLoading?: boolean;
   isBusy?: boolean;
+  positionMs?: number;
+  durationMs?: number;
   onPlayPress: () => void;
   onSharePress: () => void;
   onDownloadPress: () => void;
   onDeletePress?: () => void;
+  onTitlePress?: () => void;
+  onSeek?: (positionMs: number) => void;
 };
 
 export function RecordingCard({
@@ -27,10 +32,14 @@ export function RecordingCard({
   isPlaying = false,
   isLoading = false,
   isBusy = false,
+  positionMs = 0,
+  durationMs,
   onPlayPress,
   onSharePress,
   onDownloadPress,
   onDeletePress,
+  onTitlePress,
+  onSeek,
 }: RecordingCardProps) {
   const { t, i18n } = useTranslation();
 
@@ -66,73 +75,102 @@ export function RecordingCard({
   const playLabel = isPlaying ? t('recordings.stopPlayback') : t('recordings.play');
   const actionsDisabled = isLoading || isBusy;
   // The background art says which instrument the take belongs to — no icon.
-  const artVariant: InstrumentArtVariant = isDrumMachine
-    ? 'drumMachine'
-    : recording.mode === 'microphone'
-      ? 'microphone'
-      : recording.instrument;
+  // Always the instrument's own art, even for mic-recorded takes: the take
+  // is still that instrument, just captured through the microphone.
+  const artVariant: InstrumentArtVariant = isDrumMachine ? 'drumMachine' : recording.instrument;
 
   return (
     <View style={[styles.card, isPlaying && styles.cardPlaying]}>
       <InstrumentArtBackground variant={artVariant} veilOpacity={0.75} />
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.date}>{dateLabel}</Text>
-        <View style={styles.metaRow}>
-          <Text style={styles.meta}>{modeLabel}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.meta}>{formatDuration(recording.durationMs)}</Text>
-          <Text style={styles.metaDot}>·</Text>
-          <Text style={styles.meta}>{detailLabel}</Text>
+      <View style={styles.topRow}>
+        <View style={styles.content}>
+          {onTitlePress ? (
+            <Pressable
+              accessibilityLabel={t('recordings.rename')}
+              accessibilityRole="button"
+              hitSlop={6}
+              onPress={onTitlePress}
+              style={({ pressed }) => [styles.titleRow, pressed && styles.pressed]}
+            >
+              <Text numberOfLines={1} style={styles.title}>
+                {title}
+              </Text>
+              <Ionicons
+                color={colors.textSecondary}
+                name="pencil"
+                size={13}
+                style={styles.titleIcon}
+              />
+            </Pressable>
+          ) : (
+            <Text style={styles.title}>{title}</Text>
+          )}
+          <Text style={styles.date}>{dateLabel}</Text>
+          <View style={styles.metaRow}>
+            <Text style={styles.meta}>{modeLabel}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.meta}>{formatDuration(recording.durationMs)}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Text style={styles.meta}>{detailLabel}</Text>
+          </View>
+        </View>
+
+        <View style={styles.actions}>
+          {onDeletePress ? (
+            <ActionButton
+              disabled={actionsDisabled}
+              icon="trash-outline"
+              label={t('recordings.delete')}
+              onPress={onDeletePress}
+              variant="danger"
+            />
+          ) : null}
+          <ActionButton
+            disabled={actionsDisabled}
+            icon="download-outline"
+            label={t('recordings.download')}
+            onPress={onDownloadPress}
+          />
+          <ActionButton
+            disabled={actionsDisabled}
+            icon="share-outline"
+            label={t('recordings.share')}
+            onPress={onSharePress}
+          />
+          <Pressable
+            accessibilityLabel={playLabel}
+            accessibilityRole="button"
+            disabled={actionsDisabled && !isPlaying}
+            hitSlop={6}
+            onPress={onPlayPress}
+            style={({ pressed }) => [
+              styles.playButton,
+              isPlaying && styles.playButtonActive,
+              pressed && styles.pressed,
+              isLoading && styles.disabled,
+            ]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color={colors.accent} size="small" />
+            ) : (
+              <Ionicons
+                color={isPlaying ? '#FFFFFF' : colors.accent}
+                name={isPlaying ? 'stop' : 'play'}
+                size={22}
+              />
+            )}
+          </Pressable>
         </View>
       </View>
 
-      <View style={styles.actions}>
-        {onDeletePress ? (
-          <ActionButton
-            disabled={actionsDisabled}
-            icon="trash-outline"
-            label={t('recordings.delete')}
-            onPress={onDeletePress}
-          />
-        ) : null}
-        <ActionButton
-          disabled={actionsDisabled}
-          icon="download-outline"
-          label={t('recordings.download')}
-          onPress={onDownloadPress}
+      {isPlaying && onSeek ? (
+        <PlaybackScrubber
+          durationMs={durationMs ?? recording.durationMs}
+          onSeek={onSeek}
+          positionMs={positionMs}
         />
-        <ActionButton
-          disabled={actionsDisabled}
-          icon="share-outline"
-          label={t('recordings.share')}
-          onPress={onSharePress}
-        />
-        <Pressable
-          accessibilityLabel={playLabel}
-          accessibilityRole="button"
-          disabled={actionsDisabled && !isPlaying}
-          hitSlop={6}
-          onPress={onPlayPress}
-          style={({ pressed }) => [
-            styles.playButton,
-            isPlaying && styles.playButtonActive,
-            pressed && styles.pressed,
-            isLoading && styles.disabled,
-          ]}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.accent} size="small" />
-          ) : (
-            <Ionicons
-              color={isPlaying ? '#FFFFFF' : colors.accent}
-              name={isPlaying ? 'stop' : 'play'}
-              size={22}
-            />
-          )}
-        </Pressable>
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -142,9 +180,11 @@ type ActionButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
+  variant?: 'default' | 'danger';
 };
 
-function ActionButton({ icon, label, onPress, disabled }: ActionButtonProps) {
+function ActionButton({ icon, label, onPress, disabled, variant = 'default' }: ActionButtonProps) {
+  const isDanger = variant === 'danger';
   return (
     <Pressable
       accessibilityLabel={label}
@@ -154,40 +194,54 @@ function ActionButton({ icon, label, onPress, disabled }: ActionButtonProps) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.actionButton,
+        isDanger && styles.actionButtonDanger,
         pressed && styles.pressed,
         disabled && styles.disabled,
       ]}
     >
-      <Ionicons color={colors.textSecondary} name={icon} size={20} />
+      <Ionicons color={isDanger ? '#FFFFFF' : colors.text} name={icon} size={18} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: 12,
     borderWidth: 1,
-    flexDirection: 'row',
     marginBottom: 12,
     // Clips the background art to the rounded corners.
     overflow: 'hidden',
-    padding: 14,
+    padding: 16,
   },
   cardPlaying: {
     borderColor: colors.accent,
+  },
+  topRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   content: {
     flex: 1,
     marginRight: 8,
   },
+  titleRow: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    marginBottom: 2,
+    maxWidth: '100%',
+  },
   title: {
     color: colors.text,
+    flexShrink: 1,
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 2,
+  },
+  titleIcon: {
+    marginLeft: 6,
+    marginTop: 1,
   },
   date: {
     color: colors.textSecondary,
@@ -212,14 +266,21 @@ const styles = StyleSheet.create({
   actions: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 4,
+    gap: 6,
   },
   actionButton: {
     alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
     borderRadius: 18,
+    borderWidth: 1,
     height: 36,
     justifyContent: 'center',
     width: 36,
+  },
+  actionButtonDanger: {
+    backgroundColor: colors.error,
+    borderColor: colors.error,
   },
   playButton: {
     alignItems: 'center',

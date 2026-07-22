@@ -32,6 +32,7 @@ import {
 } from '../components/drumMachine/SongModeModal';
 import { StepSequencerGrid } from '../components/drumMachine/StepSequencerGrid';
 import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
+import { OptionListModal } from '../components/studio/OptionListModal';
 import { useDrumMachine, type SongChainEntry } from '../hooks/useDrumMachine';
 import { useDrumMachineEngine } from '../hooks/useDrumMachineEngine';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
@@ -125,6 +126,7 @@ export function DrumMachineScreen({ navigation }: Props) {
   const [typeOpen, setTypeOpen] = useState(false);
   const [naming, setNaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [recordModeOpen, setRecordModeOpen] = useState(false);
 
   // Microphone take of the running loop — saved into Kayıtlarım on stop.
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -192,14 +194,16 @@ export function DrumMachineScreen({ navigation }: Props) {
       toggleLiveRecord();
       return;
     }
-    Alert.alert(t('drumMachine.recordTitle'), t('drumMachine.recordHint'), [
-      {
-        text: t('drumMachine.recordMic'),
-        onPress: () => void startMicRecording(),
-      },
-      { text: t('drumMachine.recordLive'), onPress: toggleLiveRecord },
-      { text: t('common.cancel'), style: 'cancel' },
-    ]);
+    setRecordModeOpen(true);
+  };
+
+  const handleSelectRecordMode = (key: string) => {
+    setRecordModeOpen(false);
+    if (key === 'mic') {
+      void startMicRecording();
+    } else {
+      toggleLiveRecord();
+    }
   };
 
   const refreshPatterns = useCallback(async () => {
@@ -688,6 +692,18 @@ export function DrumMachineScreen({ navigation }: Props) {
         onSetHapticsOn={setHapticsOn}
         onSetDrumKitId={setDrumKitId}
         onResetDefaults={resetSettings}
+      />
+
+      <OptionListModal
+        visible={recordModeOpen}
+        title={t('drumMachine.recordTitle')}
+        message={t('drumMachine.recordHint')}
+        options={[
+          { key: 'mic', label: t('drumMachine.recordMic'), icon: 'mic' },
+          { key: 'live', label: t('drumMachine.recordLive'), icon: 'grid' },
+        ]}
+        onSelect={handleSelectRecordMode}
+        onClose={() => setRecordModeOpen(false)}
       />
 
       <LandscapeOverlay visible={isPortrait} />
