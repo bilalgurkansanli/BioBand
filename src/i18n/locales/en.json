@@ -4,6 +4,23 @@
     "recordings": "My Recordings",
     "profile": "Profile"
   },
+  "auth": {
+    "promptTitle": "Keep your progress",
+    "promptSubtitle": "Sign in with Google to keep your recordings, streaks, and settings across launches. As a guest, everything resets each time you open the app.",
+    "signInWithGoogle": "Sign in with Google",
+    "continueAsGuest": "Continue as guest",
+    "guestHint": "You can sign in later from Profile settings.",
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as {{email}}",
+    "syncedBadge": "Synced",
+    "signInSettingsHint": "Sign in to keep your progress and settings synced.",
+    "errors": {
+      "playServicesUnavailable": "Google Play Services is required and unavailable on this device.",
+      "noIdToken": "Google didn't return a sign-in token. Try again.",
+      "unconfigured": "Sign-in isn't set up for this build yet.",
+      "error": "Sign-in failed. Try again."
+    }
+  },
   "common": {
     "back": "Back",
     "cancel": "Cancel",
@@ -59,6 +76,7 @@
     "settingsLanguageHint": "Choose the app language.",
     "langTr": "Türkçe",
     "langEn": "English",
+    "langDe": "German",
     "settingsPersonal": "Personal",
     "displayName": "Display name",
     "displayNamePlaceholder": "Your name (optional)",
@@ -117,6 +135,7 @@
     "modeInstrument": "Instrument",
     "modeMicrophone": "Microphone",
     "modeDrumMachine": "Drum Machine",
+    "modeImported": "Imported",
     "eventCount": "{{count}} notes",
     "eventCount_one": "{{count}} note",
     "eventCount_other": "{{count}} notes",
@@ -138,7 +157,18 @@
     "shareError": "Could not share this recording.",
     "downloadSuccessTitle": "Saved",
     "downloadSuccessDocuments": "Saved as {{fileName}} in BioBand Recordings.",
-    "downloadError": "Could not download this recording."
+    "downloadError": "Could not download this recording.",
+    "exportFormatTitle": "Export as",
+    "exportFormatOriginal": "Original format",
+    "exportUnsupported": "MP4 export needs the original microphone audio — try MP3 instead.",
+    "import": {
+      "button": "Import audio",
+      "errors": {
+        "pickerUnavailable": "No file picker available in this build.",
+        "unsupported": "Unsupported file. Import an MP3, MP4/M4A, or WAV file.",
+        "readFailed": "Could not read this audio file."
+      }
+    }
   },
   "studio": {
     "title": "Studio",
@@ -170,6 +200,10 @@
     "trackSolo": "Solo",
     "trackDelete": "Remove track",
     "trackDeleteConfirm": "Remove this track from the project?",
+    "trackDownload": "Download",
+    "trackShare": "Share",
+    "trackPlay": "Play track",
+    "trackStopPlayback": "Stop playback",
     "volume": "Volume",
     "manyTracksHint": "Many tracks may strain the device — keep it around five when possible.",
     "overdubBanner": "Studio overdub — {{title}}. Tap Record to count in and layer a new track.",
@@ -574,7 +608,7 @@
       },
       "import": {
         "button": "Import song",
-        "hint": "JSON file or paste JSON",
+        "hint": "JSON/MIDI file or paste JSON",
         "preloaded": "Preloaded",
         "mySongs": "My songs",
         "empty": "No imported songs yet",
@@ -591,12 +625,13 @@
         "pasteSubmit": "Add",
         "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
-          "unsupported": "Unsupported file. Import a JSON file.",
+          "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
           "invalidSchema": "Invalid song format. An events array is required (each item needs soundId and atMs).",
           "invalidSound": "Invalid sound id. Use v1:0–v4:9 or phrase:id.",
           "emptySong": "No playable violin notes found in the file.",
           "tooManyNotes": "Too many notes (max 800).",
+          "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
           "pickerUnavailable": "No file picker — paste JSON instead."
         }

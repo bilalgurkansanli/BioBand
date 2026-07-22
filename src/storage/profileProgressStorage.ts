@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { notifyAppDataChanged } from './appDataChangeSignal';
 import type { InstrumentId } from '../types/recording';
 import {
   EMPTY_PROFILE_PROGRESS,
@@ -8,6 +9,25 @@ import {
 } from '../types/profile';
 
 const STORAGE_KEY = '@bioband/profile-progress.v1';
+
+/**
+ * Every mutator here does its own load → mutate → persist round trip. Two
+ * calls firing close together (e.g. a play-along finish and a recording save
+ * landing around the same time) can otherwise interleave: the second reads
+ * the value before the first's write lands, then overwrites it — silently
+ * dropping the first update. Routing every read-modify-write through this
+ * queue makes each operation atomic relative to the others.
+ */
+let writeQueue: Promise<unknown> = Promise.resolve();
+
+function withProgressLock<T>(operation: () => Promise<T>): Promise<T> {
+  const run = writeQueue.then(operation, operation);
+  writeQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
 
 /**
  * Defensive ceiling per addPracticeMs call — guards against a duration bug
@@ -68,6 +88,13 @@ function sanitizePracticeByDay(
   let changed = false;
   const sanitized: ProfileProgress['practiceByDay'] = {};
   for (const [day, dayMap] of Object.entries(practiceByDay)) {
+    if (!dayMap || typeof dayMap !== 'object' || Array.isArray(dayMap)) {
+      // Malformed day entry (e.g. null) — drop it rather than throwing and
+      // falling back to EMPTY_PROFILE_PROGRESS, which would wipe every
+      // other day's progress too.
+      changed = true;
+      continue;
+    }
     const sanitizedDay: Partial<Record<InstrumentId, number>> = {};
     for (const [instrument, ms] of Object.entries(dayMap) as [InstrumentId, number][]) {
       const safeMs =
@@ -105,7 +132,11 @@ function withLongestStreakFloor(progress: ProfileProgress): ProfileProgress {
   return { ...progress, longestStreak: floor };
 }
 
-export async function loadProfileProgress(): Promise<ProfileProgress> {
+export function loadProfileProgress(): Promise<ProfileProgress> {
+  return withProgressLock(loadProfileProgressUnlocked);
+}
+
+async function loadProfileProgressUnlocked(): Promise<ProfileProgress> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) {
@@ -140,6 +171,16 @@ export async function loadProfileProgress(): Promise<ProfileProgress> {
 
 async function persist(progress: ProfileProgress): Promise<void> {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+  notifyAppDataChanged();
+}
+
+/** Overwrites local progress wholesale — used to hydrate from a cloud sync on sign-in. */
+export function restoreProfileProgress(progress: ProfileProgress): Promise<ProfileProgress> {
+  return withProgressLock(async () => {
+    const normalized = withLongestStreakFloor(normalizeStreak(progress));
+    await persist(normalized);
+    return normalized;
+  });
 }
 
 function touchStreak(progress: ProfileProgress, day: DayKey): ProfileProgress {
@@ -158,57 +199,63 @@ function touchStreak(progress: ProfileProgress, day: DayKey): ProfileProgress {
   };
 }
 
-export async function addPracticeMs(
+export function addPracticeMs(
   instrument: InstrumentId,
   ms: number,
 ): Promise<ProfileProgress> {
-  if (ms <= 0) {
-    return loadProfileProgress();
-  }
-  const safeMs = Math.min(ms, MAX_PRACTICE_MS_PER_CALL);
-  const day = todayKey();
-  const progress = await loadProfileProgress();
-  const dayMap = { ...(progress.practiceByDay[day] ?? {}) };
-  dayMap[instrument] = Math.min(
-    (dayMap[instrument] ?? 0) + safeMs,
-    MAX_DAILY_PRACTICE_MS,
-  );
-  const next = touchStreak(
-    {
-      ...progress,
-      practiceByDay: {
-        ...progress.practiceByDay,
-        [day]: dayMap,
+  return withProgressLock(async () => {
+    if (ms <= 0) {
+      return loadProfileProgressUnlocked();
+    }
+    const safeMs = Math.min(ms, MAX_PRACTICE_MS_PER_CALL);
+    const day = todayKey();
+    const progress = await loadProfileProgressUnlocked();
+    const dayMap = { ...(progress.practiceByDay[day] ?? {}) };
+    dayMap[instrument] = Math.min(
+      (dayMap[instrument] ?? 0) + safeMs,
+      MAX_DAILY_PRACTICE_MS,
+    );
+    const next = touchStreak(
+      {
+        ...progress,
+        practiceByDay: {
+          ...progress.practiceByDay,
+          [day]: dayMap,
+        },
       },
-    },
-    day,
-  );
-  await persist(next);
-  return next;
+      day,
+    );
+    await persist(next);
+    return next;
+  });
 }
 
-export async function markChallengeComplete(challengeId: string): Promise<ProfileProgress> {
-  const progress = await loadProfileProgress();
-  if (progress.completedChallengeIds.includes(challengeId)) {
-    return progress;
-  }
-  const next: ProfileProgress = {
-    ...progress,
-    completedChallengeIds: [...progress.completedChallengeIds, challengeId],
-  };
-  await persist(next);
-  return next;
+export function markChallengeComplete(challengeId: string): Promise<ProfileProgress> {
+  return withProgressLock(async () => {
+    const progress = await loadProfileProgressUnlocked();
+    if (progress.completedChallengeIds.includes(challengeId)) {
+      return progress;
+    }
+    const next: ProfileProgress = {
+      ...progress,
+      completedChallengeIds: [...progress.completedChallengeIds, challengeId],
+    };
+    await persist(next);
+    return next;
+  });
 }
 
 /** Bumps the lifetime song-completion counter (used by badges), independent of daily/weekly challenges. */
-export async function recordSongCompletion(): Promise<ProfileProgress> {
-  const progress = await loadProfileProgress();
-  const next: ProfileProgress = {
-    ...progress,
-    totalSongCompletions: progress.totalSongCompletions + 1,
-  };
-  await persist(next);
-  return next;
+export function recordSongCompletion(): Promise<ProfileProgress> {
+  return withProgressLock(async () => {
+    const progress = await loadProfileProgressUnlocked();
+    const next: ProfileProgress = {
+      ...progress,
+      totalSongCompletions: progress.totalSongCompletions + 1,
+    };
+    await persist(next);
+    return next;
+  });
 }
 
 export function getPracticeMsForDay(

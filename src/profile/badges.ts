@@ -57,7 +57,7 @@ export const BADGE_META: Record<
   'streak-3': {
     image: require('../../assets/icons/streak-3.jpeg'),
     titleKey: 'profile.badgeStreak3',
-    imageSize: 100,
+    imageSize: 110,
   },
   'streak-7': {
     image: require('../../assets/icons/streak-7.jpeg'),
@@ -70,6 +70,7 @@ export const BADGE_META: Record<
   'practice-1h': {
     image: require('../../assets/icons/practice-1h.jpeg'),
     titleKey: 'profile.badgePractice1h',
+    imageSize: 108,
   },
   'practice-10h': {
     image: require('../../assets/icons/practice-10h.jpeg'),

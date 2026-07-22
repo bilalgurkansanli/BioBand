@@ -4,7 +4,7 @@ import type { ViolinSongDefinition } from '../instruments/violin/songs/types';
 
 const STORAGE_KEY = '@bioband/user-violin-songs.v1';
 
-export type UserViolinSongSource = 'json';
+export type UserViolinSongSource = 'json' | 'midi';
 
 export type UserViolinSong = ViolinSongDefinition & {
   source: UserViolinSongSource;
@@ -51,7 +51,7 @@ function isUserViolinSong(value: unknown): value is UserViolinSong {
     typeof song.id === 'string' &&
     typeof song.title === 'string' &&
     Array.isArray(song.events) &&
-    song.source === 'json' &&
+    (song.source === 'json' || song.source === 'midi') &&
     typeof song.importedAt === 'number' &&
     (song.difficulty === 'easy' ||
       song.difficulty === 'medium' ||

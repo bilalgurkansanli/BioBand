@@ -50,6 +50,15 @@ let activeMicPlayer: AudioPlayer | null = null;
 let activeCancel: (() => void) | null = null;
 let loadedInstrument: InstrumentId | null = null;
 
+// Bumped on every playSavedRecording() call. If two calls overlap (the user
+// taps play on a different recording before the first call's awaits
+// resolve), whichever resolves last would otherwise silently overwrite
+// `active*` without ever stopping the other's audio — an orphaned,
+// uncontrollable player. Each call snapshots its generation and checks it
+// after every await; a stale call bails out instead of touching shared
+// state.
+let playbackGeneration = 0;
+
 async function ensureInstrumentEngine(instrument: InstrumentId): Promise<void> {
   if (loadedInstrument && loadedInstrument !== instrument) {
     releaseInstrumentEngine(loadedInstrument);
@@ -167,8 +176,18 @@ export async function playSavedRecording(
   onEnded: () => void,
   onProgress?: (positionMs: number, durationMs: number) => void,
 ): Promise<RecordingPlaybackHandle> {
+  const generation = ++playbackGeneration;
+  const isSuperseded = () => generation !== playbackGeneration;
+  const noopHandle: RecordingPlaybackHandle = { stop: () => {}, seek: () => {} };
+
   stopActivePlayback();
   await restorePlaybackAudioMode();
+
+  if (isSuperseded()) {
+    // A newer playSavedRecording() call started while we were awaiting —
+    // it already owns `active*`; don't touch it or fire our own callbacks.
+    return noopHandle;
+  }
 
   if (recording.mode === 'microphone') {
     const uri = recording.audioUri;
@@ -181,6 +200,9 @@ export async function playSavedRecording(
     activeMicPlayer = player;
 
     const subscription = player.addListener('playbackStatusUpdate', (status) => {
+      if (isSuperseded()) {
+        return;
+      }
       if (status.isLoaded) {
         const durationMs = status.duration > 0 ? status.duration * 1000 : recording.durationMs;
         onProgress?.(status.currentTime * 1000, durationMs);
@@ -203,10 +225,14 @@ export async function playSavedRecording(
 
     return {
       stop: () => {
-        stopActivePlayback();
+        if (!isSuperseded()) {
+          stopActivePlayback();
+        }
       },
       seek: (positionMs: number) => {
-        void player.seekTo(Math.max(0, positionMs) / 1000);
+        if (!isSuperseded()) {
+          void player.seekTo(Math.max(0, positionMs) / 1000);
+        }
       },
     };
   }
@@ -218,6 +244,13 @@ export async function playSavedRecording(
   }
 
   await ensureInstrumentEngine(recording.instrument);
+
+  if (isSuperseded()) {
+    // Superseded while the engine was loading — the newer call has already
+    // taken over (and may have switched/released engines itself); bail out
+    // without releasing anything out from under it.
+    return noopHandle;
+  }
 
   // Replay with the kit/voice the take was performed on — not whatever the
   // engine happens to be left on. Older takes without one default to the base.
@@ -303,10 +336,12 @@ export async function playSavedRecording(
 
   return {
     stop: () => {
-      stopActivePlayback();
+      if (!isSuperseded()) {
+        stopActivePlayback();
+      }
     },
     seek: (positionMs: number) => {
-      if (finished) {
+      if (finished || isSuperseded()) {
         return;
       }
       stopAllVoices();

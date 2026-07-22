@@ -14,7 +14,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import { ScreenContainer } from '../components/ScreenContainer';
-import i18n, { saveLanguage } from '../i18n';
+import i18n, { saveLanguage, type AppLanguage } from '../i18n';
+import { signInWithGoogle } from '../auth/googleAuth';
+import { syncAfterSignIn, useAuthSession } from '../auth/useAuthSession';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import {
   cancelDailyPracticeReminder,
@@ -57,7 +59,22 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     DEFAULT_PRACTICE_REMINDER_SETTINGS,
   );
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
-  const currentLang = i18n.language === 'tr' ? 'tr' : 'en';
+  const [signingIn, setSigningIn] = useState(false);
+  const currentLang: AppLanguage =
+    i18n.language === 'tr' ? 'tr' : i18n.language === 'de' ? 'de' : 'en';
+  const { user, isSignedIn, signOut } = useAuthSession();
+
+  const handleSignIn = useCallback(async () => {
+    setSigningIn(true);
+    try {
+      const result = await signInWithGoogle();
+      if (result.ok) {
+        await syncAfterSignIn(result.session.user.id);
+      }
+    } finally {
+      setSigningIn(false);
+    }
+  }, []);
 
   useEffect(() => {
     void Promise.all([loadProfileSettings(), loadPracticeReminderSettings()]).then(
@@ -127,7 +144,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     }
   };
 
-  const setLanguage = async (language: 'tr' | 'en') => {
+  const setLanguage = async (language: AppLanguage) => {
     if (language === currentLang) {
       return;
     }
@@ -161,6 +178,60 @@ export function ProfileSettingsScreen({ navigation }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionLabel}>{t('profile.title')}</Text>
+        <View style={styles.card}>
+          {isSignedIn ? (
+            <>
+              <View style={styles.accountRow}>
+                <ProfileAvatar
+                  color={settings.avatarColor}
+                  displayName={settings.displayName || user?.email || ''}
+                  size={44}
+                />
+                <View style={styles.accountInfo}>
+                  <Text numberOfLines={1} style={styles.accountEmail}>
+                    {user?.email ?? ''}
+                  </Text>
+                  <View style={styles.accountBadge}>
+                    <Ionicons color={colors.accent} name="cloud-done-outline" size={13} />
+                    <Text style={styles.accountBadgeText}>{t('auth.syncedBadge')}</Text>
+                  </View>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => void signOut()}
+                style={({ pressed }) => [styles.signOutRow, pressed && styles.pressed]}
+              >
+                <View style={styles.signOutIconWrap}>
+                  <Ionicons color={colors.error} name="log-out-outline" size={18} />
+                </View>
+                <Text style={styles.signOutBtnText}>{t('auth.signOut')}</Text>
+                <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Text style={styles.hint}>{t('auth.signInSettingsHint')}</Text>
+              <Pressable
+                disabled={signingIn}
+                onPress={() => void handleSignIn()}
+                style={({ pressed }) => [
+                  styles.googleSignInBtn,
+                  pressed && styles.pressed,
+                  signingIn && styles.disabled,
+                ]}
+              >
+                {signingIn ? (
+                  <ActivityIndicator color="#1F1F1F" size="small" />
+                ) : (
+                  <Ionicons color="#1F1F1F" name="logo-google" size={18} />
+                )}
+                <Text style={styles.googleSignInBtnText}>{t('auth.signInWithGoogle')}</Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+
         <Text style={styles.sectionLabel}>{t('profile.settingsLanguage')}</Text>
         <View style={styles.card}>
           <Text style={styles.hint}>{t('profile.settingsLanguageHint')}</Text>
@@ -174,6 +245,11 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               active={currentLang === 'en'}
               label={t('profile.langEn')}
               onPress={() => void setLanguage('en')}
+            />
+            <LangChip
+              active={currentLang === 'de'}
+              label={t('profile.langDe')}
+              onPress={() => void setLanguage('de')}
             />
           </View>
         </View>
@@ -344,6 +420,83 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingBottom: 32,
+  },
+  googleSignInBtn: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 10,
+    paddingVertical: 12,
+  },
+  googleSignInBtnText: {
+    color: '#1F1F1F',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  accountRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 14,
+  },
+  accountInfo: {
+    flex: 1,
+    gap: 4,
+    minWidth: 0,
+  },
+  accountEmail: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  accountBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: `${colors.accent}18`,
+    borderRadius: 8,
+    flexDirection: 'row',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  accountBadgeText: {
+    color: colors.accent,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  signOutRow: {
+    alignItems: 'center',
+    backgroundColor: `${colors.error}14`,
+    borderColor: `${colors.error}33`,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  signOutIconWrap: {
+    alignItems: 'center',
+    backgroundColor: `${colors.error}22`,
+    borderRadius: 15,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  signOutBtnText: {
+    color: colors.error,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pressed: {
+    opacity: 0.8,
+  },
+  disabled: {
+    opacity: 0.5,
   },
   flex: {
     flex: 1,

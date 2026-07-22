@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -8,6 +8,7 @@ import {
   type InstrumentArtVariant,
 } from '../instrument/InstrumentArtBackground';
 import { HorizontalSlider } from '../piano/HorizontalSlider';
+import { PlaybackScrubber } from '../recordings/PlaybackScrubber';
 import { colors } from '../../theme/colors';
 import type { StudioTrack } from '../../types/studio';
 import { formatDuration } from '../../utils/formatDuration';
@@ -19,6 +20,15 @@ type Props = {
   onToggleSolo: () => void;
   onVolumeChange: (volume: number) => void;
   onDelete: () => void;
+  onDownloadPress: () => void;
+  onSharePress: () => void;
+  onPlayPress: () => void;
+  isPlaying?: boolean;
+  isLoading?: boolean;
+  isBusy?: boolean;
+  positionMs?: number;
+  durationMs?: number;
+  onSeek?: (positionMs: number) => void;
 };
 
 const MUTE_COLOR = colors.error;
@@ -30,6 +40,15 @@ export function StudioTrackRow({
   onToggleSolo,
   onVolumeChange,
   onDelete,
+  onDownloadPress,
+  onSharePress,
+  onPlayPress,
+  isPlaying = false,
+  isLoading = false,
+  isBusy = false,
+  positionMs = 0,
+  durationMs,
+  onSeek,
 }: Props) {
   const { t } = useTranslation();
   const [liveVolume, setLiveVolume] = useState<number | null>(null);
@@ -40,12 +59,15 @@ export function StudioTrackRow({
       ? t('recordings.modeMicrophone')
       : t('recordings.modeInstrument');
 
+  const playLabel = isPlaying ? t('studio.trackStopPlayback') : t('studio.trackPlay');
+  const actionsDisabled = isLoading || isBusy;
+
   // Always the instrument's own art, even for mic-recorded tracks: the track
   // is still that instrument, just captured through the microphone.
   const artVariant: InstrumentArtVariant = track.instrument;
 
   return (
-    <View style={[styles.card, track.muted && styles.cardMuted]}>
+    <View style={[styles.card, track.muted && styles.cardMuted, isPlaying && styles.cardPlaying]}>
       <InstrumentArtBackground variant={artVariant} veilOpacity={0.78} />
 
       <View style={styles.topRow}>
@@ -58,31 +80,75 @@ export function StudioTrackRow({
           </Text>
         </View>
 
-        <View style={styles.toggles}>
-          <ToggleButton
-            accessibilityLabel={t('studio.trackMute')}
-            active={track.muted}
-            activeColor={MUTE_COLOR}
-            icon={track.muted ? 'volume-mute' : 'volume-mute-outline'}
-            onPress={onToggleMute}
+        <View style={styles.actions}>
+          <ActionButton
+            disabled={actionsDisabled}
+            icon="trash-outline"
+            label={t('studio.trackDelete')}
+            onPress={onDelete}
+            variant="danger"
           />
-          <ToggleButton
-            accessibilityLabel={t('studio.trackSolo')}
-            active={track.solo}
-            activeColor={SOLO_COLOR}
-            icon={track.solo ? 'headset' : 'headset-outline'}
-            onPress={onToggleSolo}
+          <ActionButton
+            disabled={actionsDisabled}
+            icon="download-outline"
+            label={t('studio.trackDownload')}
+            onPress={onDownloadPress}
+          />
+          <ActionButton
+            disabled={actionsDisabled}
+            icon="share-outline"
+            label={t('studio.trackShare')}
+            onPress={onSharePress}
           />
           <Pressable
-            accessibilityLabel={t('studio.trackDelete')}
+            accessibilityLabel={playLabel}
             accessibilityRole="button"
+            disabled={actionsDisabled && !isPlaying}
             hitSlop={6}
-            onPress={onDelete}
-            style={({ pressed }) => [styles.deleteBtn, pressed && styles.pressed]}
+            onPress={onPlayPress}
+            style={({ pressed }) => [
+              styles.playButton,
+              isPlaying && styles.playButtonActive,
+              pressed && styles.pressed,
+              isLoading && styles.disabled,
+            ]}
           >
-            <Ionicons color="#FFFFFF" name="trash-outline" size={16} />
+            {isLoading ? (
+              <ActivityIndicator color={colors.accent} size="small" />
+            ) : (
+              <Ionicons
+                color={isPlaying ? '#FFFFFF' : colors.accent}
+                name={isPlaying ? 'stop' : 'play'}
+                size={20}
+              />
+            )}
           </Pressable>
         </View>
+      </View>
+
+      {isPlaying && onSeek ? (
+        <PlaybackScrubber
+          durationMs={durationMs ?? track.durationMs}
+          onSeek={onSeek}
+          positionMs={positionMs}
+        />
+      ) : null}
+
+      <View style={styles.toggles}>
+        <ToggleButton
+          accessibilityLabel={t('studio.trackMute')}
+          active={track.muted}
+          activeColor={MUTE_COLOR}
+          icon={track.muted ? 'volume-mute' : 'volume-mute-outline'}
+          onPress={onToggleMute}
+        />
+        <ToggleButton
+          accessibilityLabel={t('studio.trackSolo')}
+          active={track.solo}
+          activeColor={SOLO_COLOR}
+          icon={track.solo ? 'headset' : 'headset-outline'}
+          onPress={onToggleSolo}
+        />
       </View>
 
       <View style={styles.volumeRow}>
@@ -102,6 +168,35 @@ export function StudioTrackRow({
         <Text style={styles.volumeText}>{Math.round(displayVolume * 100)}%</Text>
       </View>
     </View>
+  );
+}
+
+type ActionButtonProps = {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  variant?: 'default' | 'danger';
+};
+
+function ActionButton({ icon, label, onPress, disabled, variant = 'default' }: ActionButtonProps) {
+  const isDanger = variant === 'danger';
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      disabled={disabled}
+      hitSlop={6}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionButton,
+        isDanger && styles.actionButtonDanger,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <Ionicons color={isDanger ? '#FFFFFF' : colors.text} name={icon} size={18} />
+    </Pressable>
   );
 }
 
@@ -151,6 +246,9 @@ const styles = StyleSheet.create({
   cardMuted: {
     opacity: 0.6,
   },
+  cardPlaying: {
+    borderColor: colors.accent,
+  },
   topRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -169,10 +267,44 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
   },
-  toggles: {
+  actions: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: 6,
+  },
+  actionButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  actionButtonDanger: {
+    backgroundColor: colors.error,
+    borderColor: colors.error,
+  },
+  playButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 20,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    marginLeft: 2,
+    width: 40,
+  },
+  playButtonActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  toggles: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
   },
   toggleBtn: {
     alignItems: 'center',
@@ -180,14 +312,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
-    height: 32,
-    justifyContent: 'center',
-    width: 32,
-  },
-  deleteBtn: {
-    alignItems: 'center',
-    backgroundColor: colors.error,
-    borderRadius: 16,
     height: 32,
     justifyContent: 'center',
     width: 32,
@@ -211,5 +335,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  disabled: {
+    opacity: 0.5,
   },
 });

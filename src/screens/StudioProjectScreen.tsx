@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -11,6 +11,8 @@ import { OptionListModal } from '../components/studio/OptionListModal';
 import { PickTakeModal } from '../components/studio/PickTakeModal';
 import { StudioTrackRow } from '../components/studio/StudioTrackRow';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
+import { useRecordingActions, type ExportFormatChoice } from '../hooks/useRecordingActions';
+import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioPlayback } from '../hooks/useStudioPlayback';
 import { useStudioProject } from '../hooks/useStudioProject';
@@ -25,9 +27,11 @@ import type { InstrumentId, RecordingMode } from '../types/recording';
 import type { RecordingsStackParamList } from '../types/navigation';
 import { getProjectDurationMs, type StudioTrack } from '../types/studio';
 import { formatDuration } from '../utils/formatDuration';
+import { canExportAudioFormat } from '../utils/recordingExport';
 import { INSTRUMENT_ICONS, INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'StudioProject'>;
+type TrackExportAction = 'share' | 'download';
 
 const INSTRUMENTS: InstrumentId[] = ['piano', 'drums', 'guitar', 'violin', 'pads'];
 
@@ -39,6 +43,16 @@ export function StudioProjectScreen({ navigation, route }: Props) {
   const { recordings } = useRecordings();
   const { play, stop, isPlaying, loading: playLoading, playingProjectId } =
     useStudioPlayback();
+  const {
+    playingId: playingTrackId,
+    loadingId: loadingTrackId,
+    positionMs: trackPositionMs,
+    durationMs: trackDurationMs,
+    play: playTrack,
+    stop: stopTrackPlayback,
+    seek: seekTrack,
+  } = useRecordingPlayback();
+  const { busyId, share: shareTrack, download: downloadTrack } = useRecordingActions();
   const [pickTakeVisible, setPickTakeVisible] = useState(false);
   const [renameVisible, setRenameVisible] = useState(false);
   const [addTrackVisible, setAddTrackVisible] = useState(false);
@@ -46,8 +60,44 @@ export function StudioProjectScreen({ navigation, route }: Props) {
   const [overdubInstrumentVisible, setOverdubInstrumentVisible] = useState(false);
   const [overdubModeInstrument, setOverdubModeInstrument] = useState<InstrumentId | null>(null);
   const [trackDeleteTarget, setTrackDeleteTarget] = useState<StudioTrack | null>(null);
+  const [trackExportTarget, setTrackExportTarget] = useState<{
+    track: StudioTrack;
+    action: TrackExportAction;
+  } | null>(null);
+  const modalHandoffTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (modalHandoffTimeoutRef.current) {
+        clearTimeout(modalHandoffTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Open the next modal after this one has fully closed — opening both
+  // native Modals in the same tick can leave the new one's backdrop unable
+  // to receive touches on Android until the previous one finishes
+  // dismissing.
+  const scheduleModalHandoff = (fn: () => void) => {
+    if (modalHandoffTimeoutRef.current) {
+      clearTimeout(modalHandoffTimeoutRef.current);
+    }
+    modalHandoffTimeoutRef.current = setTimeout(() => {
+      modalHandoffTimeoutRef.current = null;
+      fn();
+    }, 300);
+  };
 
   const playingThis = isPlaying && playingProjectId === projectId;
+
+  // Mixed project playback and a single track's preview share the same
+  // instrument engines — keep them mutually exclusive.
+  const stopAllPlayback = () => {
+    if (playingThis) {
+      stop();
+    }
+    stopTrackPlayback();
+  };
 
   const promptOverdubInstrument = () => {
     setOverdubInstrumentVisible(true);
@@ -64,7 +114,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
     if (!project) {
       return;
     }
-    stop();
+    stopAllPlayback();
     startStudioOverdubSession({
       projectId: project.id,
       projectTitle: project.title,
@@ -78,7 +128,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
   };
 
   const removeProject = () => {
-    stop();
+    stopAllPlayback();
     clearStudioOverdubSession();
     void deleteStudioProject(projectId).then(() => navigation.goBack());
   };
@@ -150,6 +200,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
             if (playingThis) {
               stop();
             } else {
+              stopTrackPlayback();
               void play(project);
             }
           }}
@@ -191,24 +242,32 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         {project.tracks.map((track) => (
           <StudioTrackRow
             key={track.id}
+            durationMs={playingTrackId === track.id ? trackDurationMs : undefined}
+            isBusy={busyId === track.id}
+            isLoading={loadingTrackId === track.id}
+            isPlaying={playingTrackId === track.id}
+            positionMs={playingTrackId === track.id ? trackPositionMs : 0}
             track={track}
             onDelete={() => setTrackDeleteTarget(track)}
-            onToggleMute={() => {
+            onDownloadPress={() => setTrackExportTarget({ track, action: 'download' })}
+            onPlayPress={() => {
               if (playingThis) {
                 stop();
               }
+              void playTrack(track);
+            }}
+            onSeek={seekTrack}
+            onSharePress={() => setTrackExportTarget({ track, action: 'share' })}
+            onToggleMute={() => {
+              stopAllPlayback();
               void patchTrack(track.id, { muted: !track.muted });
             }}
             onToggleSolo={() => {
-              if (playingThis) {
-                stop();
-              }
+              stopAllPlayback();
               void patchTrack(track.id, { solo: !track.solo });
             }}
             onVolumeChange={(volume) => {
-              if (playingThis) {
-                stop();
-              }
+              stopAllPlayback();
               void patchTrack(track.id, { volume });
             }}
           />
@@ -251,15 +310,11 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         onClose={() => setAddTrackVisible(false)}
         onPickFromTake={() => {
           setAddTrackVisible(false);
-          // Open the next modal after this one has fully closed — opening both
-          // in the same tick can leave the new modal's backdrop unable to
-          // receive touches on Android until the previous one finishes
-          // dismissing.
-          setTimeout(() => setPickTakeVisible(true), 300);
+          scheduleModalHandoff(() => setPickTakeVisible(true));
         }}
         onRecordOverdub={() => {
           setAddTrackVisible(false);
-          setTimeout(() => promptOverdubInstrument(), 300);
+          scheduleModalHandoff(() => promptOverdubInstrument());
         }}
       />
 
@@ -287,7 +342,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         onClose={() => setOverdubInstrumentVisible(false)}
         onSelect={(key) => {
           setOverdubInstrumentVisible(false);
-          promptOverdubMode(key as InstrumentId);
+          scheduleModalHandoff(() => promptOverdubMode(key as InstrumentId));
         }}
       />
 
@@ -318,12 +373,42 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         onCancel={() => setTrackDeleteTarget(null)}
         onConfirm={() => {
           if (trackDeleteTarget) {
-            if (playingThis) {
-              stop();
-            }
+            stopAllPlayback();
             void deleteTrack(trackDeleteTarget.id);
           }
           setTrackDeleteTarget(null);
+        }}
+      />
+
+      <OptionListModal
+        options={[
+          {
+            key: 'original',
+            label: t('recordings.exportFormatOriginal'),
+            icon: 'document-outline',
+          },
+          ...(trackExportTarget && canExportAudioFormat(trackExportTarget.track, 'mp3')
+            ? [{ key: 'mp3', label: 'MP3', icon: 'musical-notes-outline' as const }]
+            : []),
+          ...(trackExportTarget && canExportAudioFormat(trackExportTarget.track, 'mp4')
+            ? [{ key: 'mp4', label: 'MP4', icon: 'videocam-outline' as const }]
+            : []),
+        ]}
+        title={t('recordings.exportFormatTitle')}
+        visible={trackExportTarget !== null}
+        onClose={() => setTrackExportTarget(null)}
+        onSelect={(key) => {
+          const target = trackExportTarget;
+          setTrackExportTarget(null);
+          if (!target) {
+            return;
+          }
+          const format = key as ExportFormatChoice;
+          if (target.action === 'share') {
+            void shareTrack(target.track, format);
+          } else {
+            void downloadTrack(target.track, format);
+          }
         }}
       />
     </ScreenContainer>
