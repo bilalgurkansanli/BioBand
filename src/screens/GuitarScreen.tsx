@@ -499,26 +499,28 @@ export function GuitarScreen({ navigation }: Props) {
           </Text>
         </View>
       ) : (
-        <Fretboard
-          bendEnabled={bendEnabled}
-          chordPlayMode={chordPlayMode}
-          guideSoundId={playAlong.guideSoundId}
-          maxFret={maxFret}
-          onBend={onBend}
-          onChordPlayModeChange={setChordPlayMode}
-          onPluckIn={onPluckIn}
-          onPluckOut={onPluckOut}
-          onSelectChord={onSelectChord}
-          selectedChordId={selectedChordId}
-          showChordPlayModeBar={showChordPlayModeBar}
-          showFretNumbers={showFretNumbers}
-          stringAnimationEnabled={stringAnimation}
-          strongGuide={strongGuideHighlight}
-          theme={voice.theme}
-          velocityCurve={velocityCurve}
-          visibleChordIds={visibleChordIds}
-          visiblePlayModes={visiblePlayModes}
-        />
+        <View style={styles.fretboardWrap}>
+          <Fretboard
+            bendEnabled={bendEnabled}
+            chordPlayMode={chordPlayMode}
+            guideSoundId={playAlong.guideSoundId}
+            maxFret={maxFret}
+            onBend={onBend}
+            onChordPlayModeChange={setChordPlayMode}
+            onPluckIn={onPluckIn}
+            onPluckOut={onPluckOut}
+            onSelectChord={onSelectChord}
+            selectedChordId={selectedChordId}
+            showChordPlayModeBar={showChordPlayModeBar}
+            showFretNumbers={showFretNumbers}
+            stringAnimationEnabled={stringAnimation}
+            strongGuide={strongGuideHighlight}
+            theme={voice.theme}
+            velocityCurve={velocityCurve}
+            visibleChordIds={visibleChordIds}
+            visiblePlayModes={visiblePlayModes}
+          />
+        </View>
       )}
 
       <PianoMetronomeModal
@@ -640,6 +642,14 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  // Caps the fretboard's width on tablets — otherwise it stretches to fill
+  // the whole landscape width, leaving frets/strings absurdly wide.
+  fretboardWrap: {
+    alignSelf: 'center',
+    flex: 1,
+    maxWidth: 900,
+    width: '100%',
   },
   loading: {
     alignItems: 'center',

@@ -18,10 +18,16 @@ const MAX_TRACKS_TO_KEEP = 2;
 const CHORD_TICK_WINDOW = 8;
 const GUITAR_MIDI_MIN = 40; // E2
 const GUITAR_MIDI_MAX = 76; // E5 (12th fret high e)
+/** Lowest voice must sit this far under the tune to be worth keeping. */
+const BASS_MIN_INTERVAL = 7;
 
 type RawNote = {
   tick: number;
+  /** Tick the note was released — null when the file never closes it. */
+  endTick: number | null;
   noteNumber: number;
+  /** 0..1, from the MIDI strike velocity. */
+  velocity: number;
   trackIndex: number;
 };
 
@@ -30,7 +36,54 @@ function titleFromFileName(fileName: string): string {
   return base.length > 0 ? base : 'Imported MIDI';
 }
 
-/** Wrap any pitch into the fretted guitar range, then pick best string/fret. */
+/**
+ * One octave shift for the whole piece — the one leaving the fewest notes off
+ * the fretboard, breaking ties toward the middle of the neck.
+ *
+ * Folding each note into range on its own is what makes an imported riff stop
+ * sounding like itself: a descending line suddenly leaps an octave up, and
+ * contour is the most recognisable thing a line has. Moving the whole piece
+ * keeps every interval intact.
+ */
+export function chooseOctaveShift(midiNumbers: number[]): number {
+  if (midiNumbers.length === 0) {
+    return 0;
+  }
+
+  const centre = (GUITAR_MIDI_MIN + GUITAR_MIDI_MAX) / 2;
+  const mean = midiNumbers.reduce((sum, n) => sum + n, 0) / midiNumbers.length;
+
+  let bestShift = 0;
+  let bestOutside = Infinity;
+  let bestDistance = Infinity;
+
+  for (let shift = -72; shift <= 72; shift += 12) {
+    let outside = 0;
+    for (const n of midiNumbers) {
+      const shifted = n + shift;
+      if (shifted < GUITAR_MIDI_MIN || shifted > GUITAR_MIDI_MAX) {
+        outside += 1;
+      }
+    }
+    const distance = Math.abs(mean + shift - centre);
+
+    if (
+      outside < bestOutside ||
+      (outside === bestOutside && distance < bestDistance)
+    ) {
+      bestOutside = outside;
+      bestDistance = distance;
+      bestShift = shift;
+    }
+  }
+
+  return bestShift;
+}
+
+/**
+ * Land a pitch on the fretboard, folding only what the whole-piece shift
+ * missed, then pick the best string/fret for it.
+ */
 export function midiToGuitarSoundId(midiNumber: number): string {
   let n = Math.round(midiNumber);
   while (n < GUITAR_MIDI_MIN) {
@@ -68,32 +121,54 @@ function scoreTrack(notes: RawNote[]): number {
   return notes.length * 2 + avgPitch;
 }
 
-function thinChords(notes: RawNote[]): RawNote[] {
+/**
+ * Split notes that start nearly together into the tune (top note) and the
+ * voice under it (bottom note, when it is far enough below to be a real part
+ * rather than a doubling). Keeping only the top line is what strips a song of
+ * the thing that identifies it — the walking bass of a blues, the low riff of
+ * Nothing Else Matters — leaving a correct but unrecognisable melody.
+ */
+function splitChords(notes: RawNote[]): { melody: RawNote[]; bass: RawNote[] } {
   if (notes.length === 0) {
-    return [];
+    return { melody: [], bass: [] };
   }
 
   const sorted = [...notes].sort(
     (a, b) => a.tick - b.tick || b.noteNumber - a.noteNumber,
   );
-  const kept: RawNote[] = [];
+  const melody: RawNote[] = [];
+  const bass: RawNote[] = [];
+
   let groupTick = sorted[0].tick;
-  let groupBest = sorted[0];
+  let groupTop = sorted[0];
+  let groupBottom = sorted[0];
+
+  const flush = (): void => {
+    melody.push(groupTop);
+    if (groupTop.noteNumber - groupBottom.noteNumber >= BASS_MIN_INTERVAL) {
+      bass.push(groupBottom);
+    }
+  };
 
   for (let i = 1; i < sorted.length; i++) {
     const note = sorted[i];
     if (note.tick - groupTick <= CHORD_TICK_WINDOW) {
-      if (note.noteNumber > groupBest.noteNumber) {
-        groupBest = note;
+      if (note.noteNumber > groupTop.noteNumber) {
+        groupTop = note;
+      }
+      if (note.noteNumber < groupBottom.noteNumber) {
+        groupBottom = note;
       }
       continue;
     }
-    kept.push(groupBest);
+    flush();
     groupTick = note.tick;
-    groupBest = note;
+    groupTop = note;
+    groupBottom = note;
   }
-  kept.push(groupBest);
-  return kept;
+  flush();
+
+  return { melody, bass };
 }
 
 export function midiBytesToGuitarSong(
@@ -117,6 +192,18 @@ export function midiBytesToGuitarSong(
 
   midi.tracks.forEach((track, trackIndex) => {
     let absTick = 0;
+    const list: RawNote[] = [];
+    /** Notes sounding right now, so a note-off can give them their ring time. */
+    const open = new Map<number, RawNote>();
+
+    const close = (noteNumber: number, tick: number): void => {
+      const note = open.get(noteNumber);
+      if (note) {
+        note.endTick = tick;
+        open.delete(noteNumber);
+      }
+    };
+
     for (const event of track) {
       absTick += event.deltaTime;
 
@@ -137,14 +224,27 @@ export function midiBytesToGuitarSong(
         event.velocity > 0 &&
         !('channel' in event && event.channel === 9)
       ) {
-        const list = notesByTrack.get(trackIndex) ?? [];
-        list.push({
+        // A retrigger without an intervening note-off ends the previous one.
+        close(event.noteNumber, absTick);
+        const note: RawNote = {
           tick: absTick,
+          endTick: null,
           noteNumber: event.noteNumber,
+          velocity: Math.min(1, Math.max(0.05, event.velocity / 127)),
           trackIndex,
-        });
-        notesByTrack.set(trackIndex, list);
+        };
+        open.set(event.noteNumber, note);
+        list.push(note);
+      } else if (
+        event.type === 'noteOff' ||
+        (event.type === 'noteOn' && event.velocity === 0)
+      ) {
+        close(event.noteNumber, absTick);
       }
+    }
+
+    if (list.length > 0) {
+      notesByTrack.set(trackIndex, list);
     }
   });
 
@@ -158,10 +258,12 @@ export function midiBytesToGuitarSong(
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_TRACKS_TO_KEEP);
 
-  const rawNotes = thinChords(ranked.flatMap((entry) => entry.notes));
-  if (rawNotes.length === 0) {
+  const { melody, bass } = splitChords(ranked.flatMap((entry) => entry.notes));
+  if (melody.length === 0) {
     throw new UserGuitarSongParseError('emptySong');
   }
+
+  const octaveShift = chooseOctaveShift(melody.map((note) => note.noteNumber));
 
   tempoMap.sort((a, b) => a.tick - b.tick);
 
@@ -188,19 +290,41 @@ export function midiBytesToGuitarSong(
     return Math.round(ms);
   }
 
-  let events: GuitarSongEvent[] = rawNotes.map((note) => ({
-    soundId: midiToGuitarSoundId(note.noteNumber),
-    atMs: ticksToMs(note.tick),
-  }));
+  const toEvent = (
+    note: RawNote,
+    role: 'melody' | 'accompaniment',
+  ): GuitarSongEvent => {
+    const atMs = ticksToMs(note.tick);
+    const durationMs =
+      note.endTick !== null ? Math.max(1, ticksToMs(note.endTick) - atMs) : undefined;
+    return {
+      soundId: midiToGuitarSoundId(note.noteNumber + octaveShift),
+      atMs,
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      velocity: note.velocity,
+      ...(role === 'accompaniment' ? { role } : {}),
+    };
+  };
+
+  let events: GuitarSongEvent[] = melody.map((note) => toEvent(note, 'melody'));
+
+  // The under-voice is only worth carrying if the tune still fits the cap.
+  if (bass.length > 0 && events.length + bass.length <= MAX_USER_GUITAR_EVENTS) {
+    events = events.concat(bass.map((note) => toEvent(note, 'accompaniment')));
+  }
 
   events.sort((a, b) => a.atMs - b.atMs || a.soundId.localeCompare(b.soundId));
 
+  // Drop exact same-time duplicates after fitting. Melody and bass are merged
+  // by now, so a clash need not be adjacent within its onset group.
   const deduped: GuitarSongEvent[] = [];
+  const seen = new Set<string>();
   for (const event of events) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.atMs === event.atMs && prev.soundId === event.soundId) {
+    const key = `${event.atMs}:${event.soundId}`;
+    if (seen.has(key)) {
       continue;
     }
+    seen.add(key);
     deduped.push(event);
   }
   events = deduped;

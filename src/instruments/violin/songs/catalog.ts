@@ -1,9 +1,13 @@
 import {
   CROSS_STRING_EVENTS,
+  CROSS_STRING_METER,
   G_SCALE_EVENTS,
+  G_SCALE_METER,
   MIXED_WARMUP_EVENTS,
   OPEN_STRINGS_EVENTS,
+  OPEN_STRINGS_METER,
   TWINKLE_MOTIF_EVENTS,
+  TWINKLE_MOTIF_METER,
 } from './patterns';
 import { VIOLIN_EXTRA_SONGS } from './patternsExtra';
 import type { ViolinSongDefinition } from './types';
@@ -16,6 +20,7 @@ const VIOLIN_EXERCISES: ViolinSongDefinition[] = [
     difficulty: 'easy',
     events: OPEN_STRINGS_EVENTS,
     partialCount: 4,
+    meter: OPEN_STRINGS_METER,
   },
   {
     id: 'g-scale',
@@ -23,6 +28,7 @@ const VIOLIN_EXERCISES: ViolinSongDefinition[] = [
     difficulty: 'easy',
     events: G_SCALE_EVENTS,
     partialCount: 5,
+    meter: G_SCALE_METER,
   },
   {
     id: 'twinkle-motif',
@@ -30,6 +36,7 @@ const VIOLIN_EXERCISES: ViolinSongDefinition[] = [
     difficulty: 'easy',
     events: TWINKLE_MOTIF_EVENTS,
     partialCount: 7,
+    meter: TWINKLE_MOTIF_METER,
   },
   {
     id: 'cross-string',
@@ -37,8 +44,11 @@ const VIOLIN_EXERCISES: ViolinSongDefinition[] = [
     difficulty: 'medium',
     events: CROSS_STRING_EVENTS,
     partialCount: 7,
+    meter: CROSS_STRING_METER,
   },
   {
+    // Free-time by design — the run and the return are twice the speed of the
+    // steps around them, so no meter is claimed.
     id: 'mixed-warmup',
     title: 'Mixed Warm-up',
     difficulty: 'hard',

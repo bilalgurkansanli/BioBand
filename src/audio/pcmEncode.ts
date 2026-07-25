@@ -12,74 +12,108 @@ function floatTo16BitPCM(input: Float32Array): Int16Array {
   return output;
 }
 
-/** Builds a canonical 16-bit PCM WAV file from decoded channel data. */
-export function encodeWavPcm16(channels: Float32Array[], sampleRate: number): Uint8Array {
-  const numChannels = channels.length;
-  const numFrames = channels[0]?.length ?? 0;
-  const bytesPerSample = 2;
-  const blockAlign = numChannels * bytesPerSample;
-  const dataSize = numFrames * blockAlign;
-
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-
-  function writeString(offset: number, value: string) {
-    for (let i = 0; i < value.length; i++) {
-      view.setUint8(offset + i, value.charCodeAt(i));
-    }
+export class EncodeCanceledError extends Error {
+  constructor(message = 'Encoding was canceled.') {
+    super(message);
+    this.name = 'EncodeCanceledError';
   }
-
-  writeString(0, 'RIFF');
-  view.setUint32(4, 36 + dataSize, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * blockAlign, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bytesPerSample * 8, true);
-  writeString(36, 'data');
-  view.setUint32(40, dataSize, true);
-
-  const int16Channels = channels.map(floatTo16BitPCM);
-  let offset = 44;
-  for (let frame = 0; frame < numFrames; frame++) {
-    for (let ch = 0; ch < numChannels; ch++) {
-      view.setInt16(offset, int16Channels[ch][frame], true);
-      offset += 2;
-    }
-  }
-
-  return new Uint8Array(buffer);
 }
 
-/** Encodes decoded channel data to MP3 (mono or stereo) via a pure-JS encoder — no native module. */
-export function encodeMp3Pcm16(
+export type EncodeMp3Options = {
+  kbps?: number;
+  /** 0..1. Reported once per yield, so a few times a second. */
+  onProgress?: (ratio: number) => void;
+  /** Polled at every yield — return `true` to abort with `EncodeCanceledError`. */
+  shouldCancel?: () => boolean;
+};
+
+/**
+ * Blocks encoded between two yields back to the event loop.
+ * 24 blocks is ~0.63 s of 44.1 kHz audio — short enough that the progress bar
+ * and the cancel button stay responsive, long enough that the yields
+ * themselves cost nothing measurable.
+ */
+const BLOCKS_PER_SLICE = 24;
+
+function yieldToEventLoop(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * True when the two channels carry the exact same samples.
+ *
+ * The offline bounce always renders two channels, but every instrument voice
+ * is a mono source fanned out equally by the graph, so both sides are usually
+ * bit-identical. Encoding one channel instead of two then costs about a third
+ * less time for an identical-sounding file. (The file does not shrink — the
+ * encoder is constant-bitrate, so it spends the same 128 kbps either way.)
+ */
+function channelsAreIdentical(left: Float32Array, right: Float32Array): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let i = 0; i < left.length; i++) {
+    if (left[i] !== right[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Encodes decoded channel data to MP3 via a pure-JS encoder — no native module.
+ *
+ * The encode is sliced and awaited rather than run in one go. lamejs is plain
+ * JavaScript on the same thread that draws the UI, so a one-shot encode of a
+ * few minutes of audio freezes the app outright for as long as it runs, with
+ * no spinner and no way out. Slicing it costs nothing and keeps the screen
+ * alive, the progress honest, and the cancel button real.
+ */
+export async function encodeMp3Pcm16Async(
   channels: Float32Array[],
   sampleRate: number,
-  kbps = 128,
-): Uint8Array {
-  const numChannels = Math.min(2, channels.length) as 1 | 2;
-  const encoder = new Mp3Encoder(numChannels, sampleRate, kbps);
-  const left = floatTo16BitPCM(channels[0] ?? new Float32Array(0));
-  const right = numChannels === 2 ? floatTo16BitPCM(channels[1]) : undefined;
+  options: EncodeMp3Options = {},
+): Promise<Uint8Array> {
+  const kbps = options.kbps ?? 128;
+  const stereo =
+    channels.length >= 2 && !channelsAreIdentical(channels[0], channels[1]);
+  const source = stereo ? [channels[0], channels[1]] : [channels[0] ?? new Float32Array(0)];
+  const numChannels = source.length as 1 | 2;
 
+  const encoder = new Mp3Encoder(numChannels, sampleRate, kbps);
+  const totalFrames = source[0].length;
   const chunks: Uint8Array[] = [];
-  const totalFrames = left.length;
+
+  let blocksSinceYield = 0;
   for (let i = 0; i < totalFrames; i += MP3_BLOCK_SIZE) {
-    const leftChunk = left.subarray(i, i + MP3_BLOCK_SIZE);
-    const rightChunk = right?.subarray(i, i + MP3_BLOCK_SIZE);
-    const encoded = encoder.encodeBuffer(leftChunk, rightChunk);
+    // Converted a block at a time: a whole-file Int16 copy of both channels
+    // would otherwise sit in memory beside the Float32 render for the entire
+    // encode.
+    const left = floatTo16BitPCM(source[0].subarray(i, i + MP3_BLOCK_SIZE));
+    const right = stereo
+      ? floatTo16BitPCM(source[1].subarray(i, i + MP3_BLOCK_SIZE))
+      : undefined;
+
+    const encoded = encoder.encodeBuffer(left, right);
     if (encoded.length > 0) {
       chunks.push(encoded);
     }
+
+    if (++blocksSinceYield >= BLOCKS_PER_SLICE) {
+      blocksSinceYield = 0;
+      options.onProgress?.(Math.min(1, (i + MP3_BLOCK_SIZE) / totalFrames));
+      await yieldToEventLoop();
+      if (options.shouldCancel?.()) {
+        throw new EncodeCanceledError();
+      }
+    }
   }
+
   const tail = encoder.flush();
   if (tail.length > 0) {
     chunks.push(tail);
   }
+  options.onProgress?.(1);
 
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
   const result = new Uint8Array(totalLength);

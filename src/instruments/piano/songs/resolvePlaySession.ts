@@ -16,12 +16,34 @@ export type ResolvedPlaySession = {
   audioEndMs: number | null;
 };
 
+/**
+ * The excerpt is measured in notes the user actually plays. Counting
+ * accompaniment would roughly halve it for any song carrying a bass line.
+ */
+function melodyOnly(events: SongEvent[]): SongEvent[] {
+  return events.filter((event) => (event.role ?? 'melody') === 'melody');
+}
+
+/**
+ * The piano's sample set starts at C4, so a left hand can only be produced by
+ * stretching a sample a full octave down — playback rate 0.5, which smears the
+ * attack and reads as some other, duller instrument sitting behind the piano
+ * rather than as the piano itself. This is an instrument app: each instrument
+ * has to sound like itself, so the piano plays the tune alone.
+ *
+ * The accompaniment stays in the charts. Give the piano real samples below C4
+ * and deleting this one call is all it takes to hear it.
+ */
+function pianoVoiceOnly(events: SongEvent[]): SongEvent[] {
+  return melodyOnly(events);
+}
+
 function defaultPartialWindow(song: SongDefinition): SongPartialWindow {
   if (song.partialWindowMs) {
     return song.partialWindowMs;
   }
   const eventsStart = song.backingTrack?.eventsStartMs ?? 0;
-  const events = song.events;
+  const events = melodyOnly(song.events);
   if (events.length === 0) {
     return { startMs: eventsStart, endMs: eventsStart };
   }
@@ -34,15 +56,21 @@ function defaultPartialWindow(song: SongDefinition): SongPartialWindow {
 }
 
 function fallbackPartialEvents(song: SongDefinition): SongEvent[] {
-  const endIdx = Math.min(49, song.events.length - 1);
+  const melody = melodyOnly(song.events);
+  const endIdx = Math.min(49, melody.length - 1);
   if (endIdx < 0) {
     return [];
   }
-  const startRel = song.events[0].atMs;
-  return song.events.slice(0, endIdx + 1).map((event) => ({
-    noteId: event.noteId,
-    atMs: event.atMs - startRel,
-  }));
+  const startRel = melody[0].atMs;
+  const endRel = melody[endIdx].atMs;
+  // Only the timeline is rebased — length, strength, role and transpose all
+  // have to survive, or accompaniment gets promoted into the scored chart.
+  return song.events
+    .filter((event) => event.atMs >= startRel && event.atMs <= endRel)
+    .map((event) => ({
+      ...event,
+      atMs: event.atMs - startRel,
+    }));
 }
 
 /**
@@ -67,18 +95,20 @@ export function resolvePlaySession(
       const sliced = song.events
         .filter((event) => event.atMs >= startRel && event.atMs <= endRel)
         .map((event) => ({
-          noteId: event.noteId,
+          ...event,
           atMs: event.atMs - startRel,
         }));
       return {
-        events: sliced.length > 0 ? sliced : fallbackPartialEvents(song),
+        events: pianoVoiceOnly(
+          sliced.length > 0 ? sliced : fallbackPartialEvents(song),
+        ),
         useBacking: false,
         audioStartMs: 0,
         audioEndMs: null,
       };
     }
     return {
-      events: song.events,
+      events: pianoVoiceOnly(song.events),
       useBacking: false,
       audioStartMs: 0,
       audioEndMs: null,
@@ -94,7 +124,7 @@ export function resolvePlaySession(
   const audioEndMs = songScope === 'partial' ? window.endMs : null;
 
   const absolute = song.events.map((event) => ({
-    noteId: event.noteId,
+    ...event,
     atMs: eventsStart + event.atMs,
   }));
 
@@ -103,18 +133,16 @@ export function resolvePlaySession(
   );
 
   const events = inWindow.map((event) => ({
-    noteId: event.noteId,
+    ...event,
     atMs: Math.max(0, event.atMs - audioStartMs),
   }));
 
   return {
-    events: events.length > 0 ? events : fallbackPartialEvents(song),
+    events: pianoVoiceOnly(
+      events.length > 0 ? events : fallbackPartialEvents(song),
+    ),
     useBacking: true,
     audioStartMs,
     audioEndMs,
   };
-}
-
-export function songHasBackingTrack(song: SongDefinition | null | undefined): boolean {
-  return songHasBackingAudio(song?.backingTrack);
 }

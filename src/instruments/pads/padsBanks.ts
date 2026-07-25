@@ -514,10 +514,6 @@ function buildCustomDefinition(): PadBankDefinition {
   };
 }
 
-export function getCustomPadSlots(): CustomPadSlot[] {
-  return customSlots;
-}
-
 export function setCustomPadSlots(slots: CustomPadSlot[]): void {
   customSlots = slots.slice(0, PAD_SOUND_IDS.length);
   while (customSlots.length < PAD_SOUND_IDS.length) {

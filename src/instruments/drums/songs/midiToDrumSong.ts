@@ -13,6 +13,8 @@ const DEFAULT_MICROSECONDS_PER_BEAT = 500_000;
 /**
  * General MIDI percussion note → BioBand pad.
  * Unmapped percussion (claves, shakers, etc.) is skipped.
+ * Pads are addressed by identity, not by pitch — transposing an import would
+ * only send hits to the wrong pads, so no octave fitting happens here.
  */
 const GM_NOTE_TO_PAD: Record<number, DrumSoundId> = {
   35: 'kick',
@@ -42,6 +44,8 @@ const GM_NOTE_TO_PAD: Record<number, DrumSoundId> = {
 type RawHit = {
   tick: number;
   padId: DrumSoundId;
+  /** 0..1, from the MIDI strike velocity. A struck drum has no written length. */
+  velocity: number;
 };
 
 function titleFromFileName(fileName: string): string {
@@ -98,7 +102,11 @@ export function midiBytesToDrumSong(
         if (!padId) {
           continue;
         }
-        hits.push({ tick: absTick, padId });
+        hits.push({
+          tick: absTick,
+          padId,
+          velocity: Math.min(1, Math.max(0.05, event.velocity / 127)),
+        });
       }
     }
   });
@@ -135,6 +143,7 @@ export function midiBytesToDrumSong(
   let events: DrumSongEvent[] = hits.map((hit) => ({
     padId: hit.padId,
     atMs: ticksToMs(hit.tick),
+    velocity: hit.velocity,
   }));
 
   events.sort((a, b) => a.atMs - b.atMs || a.padId.localeCompare(b.padId));

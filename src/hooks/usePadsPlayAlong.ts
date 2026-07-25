@@ -25,6 +25,17 @@ import {
 } from '../instruments/piano/songs/songBackingPlayer';
 import { getSharedAudioContext, prepareSamplePlayback } from '../audio/sampleBank';
 import {
+  startSongScheduler,
+  type SongSchedulerHandle,
+} from '../audio/songScheduler';
+import {
+  melodyEvents,
+  resolveDurations,
+  resolveVelocities,
+  roleOf,
+  type NotePerformance,
+} from '../instruments/shared/songPerformance';
+import {
   copySongAudioFile,
   copySongPianoLessFile,
   getSongAudioBinding,
@@ -100,7 +111,11 @@ function clampOffset(ms: number): number {
 }
 
 export function usePadsPlayAlong(
-  triggerPad: (id: PadSoundId) => void,
+  triggerPad: (
+    id: PadSoundId,
+    velocity?: number,
+    performance?: NotePerformance,
+  ) => void,
   extraSongs: PadSongDefinition[] = [],
   onUserSongOffsetSaved?: (songId: string, eventsStartMs: number) => void,
 ) {
@@ -125,7 +140,14 @@ export function usePadsPlayAlong(
 
   const songRef = useRef<PadSongDefinition | null>(null);
   const sessionRef = useRef<ResolvedPadSession | null>(null);
+  /** Everything that sounds, accompaniment included. */
   const eventsRef = useRef<PadSongEvent[]>([]);
+  /** Only what the user is asked to play — drives the guide and the score. */
+  const chartRef = useRef<PadSongEvent[]>([]);
+  /** Ring time and strike strength per entry of `eventsRef`. */
+  const durationsRef = useRef<number[]>([]);
+  const velocitiesRef = useRef<number[]>([]);
+  const schedulerRef = useRef<SongSchedulerHandle | null>(null);
   const playModeRef = useRef<PlayMode | null>(null);
   const songScopeRef = useRef<PadSongScope | null>(null);
   const levelRef = useRef<SupportLevel>('guided');
@@ -139,6 +161,13 @@ export function usePadsPlayAlong(
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const notesFinishedRef = useRef(false);
+  /**
+   * Bumped by every start attempt. The starters await before installing their
+   * timers, so without this a second tap (double-tapped level or Replay)
+   * interleaves with the first and both sets of timers survive — leaving an
+   * orphaned scheduler that `clearTimers` can no longer reach.
+   */
+  const runIdRef = useRef(0);
   const hadSavedBindingRef = useRef(false);
 
   phaseRef.current = phase;
@@ -147,6 +176,10 @@ export function usePadsPlayAlong(
   tempoRef.current = tempo;
 
   const clearTimers = useCallback(() => {
+    if (schedulerRef.current) {
+      schedulerRef.current.stop();
+      schedulerRef.current = null;
+    }
     if (tickRef.current) {
       clearInterval(tickRef.current);
       tickRef.current = null;
@@ -178,12 +211,16 @@ export function usePadsPlayAlong(
     if (session?.useBacking) {
       return getBackingElapsedMs(session.audioStartMs);
     }
-    const wall = Date.now() - startTimeRef.current;
-    return wall * TEMPO_RATES[tempoRef.current];
+    // The audio clock is the one the hits are actually placed on. Wall time
+    // drifts against it under render load, which is exactly when the hit
+    // windows must not move.
+    const elapsed =
+      (getSharedAudioContext().currentTime - startTimeRef.current) * 1000;
+    return elapsed * TEMPO_RATES[tempoRef.current];
   }, []);
 
   const updateGuide = useCallback(() => {
-    const events = eventsRef.current;
+    const events = chartRef.current;
     if (events.length === 0 || pointerRef.current >= events.length) {
       setGuidePadId(null);
       return;
@@ -200,7 +237,7 @@ export function usePadsPlayAlong(
     stopSessionAudio();
     setGuidePadId(null);
 
-    const events = eventsRef.current;
+    const events = chartRef.current;
     const stats = statsRef.current;
     const scored = stats.hits + stats.misses + stats.wrongPresses;
     const accuracy = scored > 0 ? stats.hits / scored : 0;
@@ -230,7 +267,7 @@ export function usePadsPlayAlong(
 
   const maybeFinishAfterNotes = useCallback(() => {
     const session = sessionRef.current;
-    const events = eventsRef.current;
+    const events = chartRef.current;
     if (pointerRef.current < events.length) {
       return;
     }
@@ -250,7 +287,7 @@ export function usePadsPlayAlong(
     pointerRef.current += 1;
     updateGuide();
 
-    const events = eventsRef.current;
+    const events = chartRef.current;
     setProgress({
       resolved: pointerRef.current,
       total: events.length,
@@ -272,8 +309,28 @@ export function usePadsPlayAlong(
     const session = resolvePadPlaySession(song, mode, scope);
     sessionRef.current = session;
     eventsRef.current = session.events;
+    // Accompaniment sounds but is never highlighted or scored — the user is
+    // still only asked to play the part in front of them.
+    chartRef.current = melodyEvents(session.events);
+    durationsRef.current = resolveDurations(session.events, {
+      isSameNote: (a, b) => a.padId === b.padId,
+    });
+    velocitiesRef.current = resolveVelocities(session.events, song.meter);
     return session;
   }, []);
+
+  /** Length and strength written for the event at `index` of `eventsRef`. */
+  const performanceFor = useCallback(
+    (index: number, atTime?: number): NotePerformance => {
+      const durationMs = durationsRef.current[index];
+      return {
+        atTime,
+        sustainSeconds: durationMs ? durationMs / 1000 : undefined,
+        velocity: velocitiesRef.current[index],
+      };
+    },
+    [],
+  );
 
   const finishDemo = useCallback(() => {
     clearTimers();
@@ -309,7 +366,7 @@ export function usePadsPlayAlong(
 
   const startTick = useCallback(() => {
     tickRef.current = setInterval(() => {
-      const events = eventsRef.current;
+      const events = chartRef.current;
       const session = sessionRef.current;
       if (!events.length || phaseRef.current !== 'playing') {
         return;
@@ -364,20 +421,43 @@ export function usePadsPlayAlong(
     }
 
     notesFinishedRef.current = false;
-    startTimeRef.current = Date.now();
+    startTimeRef.current = getSharedAudioContext().currentTime;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
     setPhase('playing');
     updateGuide();
 
     if (session.useBacking) {
       void playBackingFrom(session.audioStartMs);
+    } else {
+      // The user plays the part in front of them; anything written as
+      // accompaniment plays underneath so they hear the groove, not a bare
+      // pattern.
+      const accompaniment = session.events
+        .map((event, index) => ({ event, index }))
+        .filter((entry) => roleOf(entry.event) !== 'melody');
+
+      if (accompaniment.length > 0) {
+        schedulerRef.current?.stop();
+        schedulerRef.current = startSongScheduler({
+          events: accompaniment.map((entry) => entry.event),
+          rate: TEMPO_RATES[tempoRef.current],
+          onEvent: (event, position, atContextTime) => {
+            triggerPad(
+              event.padId,
+              undefined,
+              performanceFor(accompaniment[position].index, atContextTime),
+            );
+          },
+        });
+      }
     }
     startTick();
-  }, [buildSession, startTick, updateGuide]);
+  }, [buildSession, performanceFor, startTick, triggerPad, updateGuide]);
 
   const startDemo = useCallback(async () => {
+    const runId = ++runIdRef.current;
     const session = buildSession();
     if (!session) {
       return;
@@ -389,24 +469,30 @@ export function usePadsPlayAlong(
     notesFinishedRef.current = false;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
     setPhase('demo');
-    setGuidePadId(session.events[0]?.padId ?? null);
+    setGuidePadId(chartRef.current[0]?.padId ?? null);
 
     await ensureBackingReady(session);
+    if (runIdRef.current !== runId) {
+      return;
+    }
 
     const rate = TEMPO_RATES[tempoRef.current];
 
     if (session.useBacking) {
       await playBackingFrom(session.audioStartMs);
-      startTimeRef.current = Date.now();
+      if (runIdRef.current !== runId) {
+        return;
+      }
+      startTimeRef.current = getSharedAudioContext().currentTime;
 
       tickRef.current = setInterval(() => {
         if (phaseRef.current !== 'demo') {
           return;
         }
         const elapsed = getElapsedMs();
-        const events = eventsRef.current;
+        const events = chartRef.current;
         let idx = 0;
         while (idx < events.length && events[idx].atMs <= elapsed) {
           idx += 1;
@@ -431,35 +517,45 @@ export function usePadsPlayAlong(
       return;
     }
 
-    startTimeRef.current = Date.now();
-    session.events.forEach((event, index) => {
-      const timer = setTimeout(() => {
-        triggerPad(event.padId);
-        setGuidePadId(event.padId);
-        setProgress({
-          resolved: index + 1,
-          total: session.events.length,
-          hits: 0,
-        });
-      }, event.atMs / rate);
-      timersRef.current.push(timer);
-    });
+    startTimeRef.current = getSharedAudioContext().currentTime;
 
-    const lastAtMs = session.events[session.events.length - 1]?.atMs ?? 0;
-    const endTimer = setTimeout(() => {
-      finishDemo();
-    }, lastAtMs / rate + 1500);
-    timersRef.current.push(endTimer);
+    const chart = chartRef.current;
+    let reached = 0;
+
+    schedulerRef.current?.stop();
+    schedulerRef.current = startSongScheduler({
+      events: session.events,
+      rate,
+      onEvent: (event, index, atContextTime) => {
+        triggerPad(
+          event.padId,
+          undefined,
+          performanceFor(index, atContextTime),
+        );
+      },
+      onAdvance: (_index, event) => {
+        while (reached < chart.length && chart[reached].atMs <= event.atMs) {
+          reached += 1;
+        }
+        const current = Math.max(0, reached - 1);
+        pointerRef.current = current;
+        setGuidePadId(chart[current]?.padId ?? null);
+        setProgress({ resolved: reached, total: chart.length, hits: 0 });
+      },
+      onDone: finishDemo,
+    });
   }, [
     buildSession,
     clearTimers,
     ensureBackingReady,
     finishDemo,
     getElapsedMs,
+    performanceFor,
     triggerPad,
   ]);
 
   const startStepMode = useCallback(async () => {
+    const runId = ++runIdRef.current;
     const session = buildSession();
     if (!session) {
       return;
@@ -470,21 +566,28 @@ export function usePadsPlayAlong(
     notesFinishedRef.current = false;
     // Without this, finishing step mode with no backing track computed the
     // award elapsed from a stale/zero start (same bug fixed in drums/guitar).
-    startTimeRef.current = Date.now();
+    startTimeRef.current = getSharedAudioContext().currentTime;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
     setPhase('playing');
     updateGuide();
 
     await ensureBackingReady(session);
+    if (runIdRef.current !== runId) {
+      return;
+    }
     if (session.useBacking) {
       await playBackingFrom(session.audioStartMs);
+      if (runIdRef.current !== runId) {
+        return;
+      }
       startTick();
     }
   }, [buildSession, clearTimers, ensureBackingReady, startTick, updateGuide]);
 
   const startCountdown = useCallback(async () => {
+    const runId = ++runIdRef.current;
     const session = buildSession();
     if (!session) {
       return;
@@ -497,6 +600,9 @@ export function usePadsPlayAlong(
     setGuidePadId(null);
 
     await ensureBackingReady(session);
+    if (runIdRef.current !== runId) {
+      return;
+    }
 
     for (let step = 1; step <= COUNTDOWN_START; step++) {
       const timer = setTimeout(() => {
@@ -518,6 +624,9 @@ export function usePadsPlayAlong(
     songRef.current = null;
     sessionRef.current = null;
     eventsRef.current = [];
+    chartRef.current = [];
+    durationsRef.current = [];
+    velocitiesRef.current = [];
     setPlayMode(null);
     setSongScope(null);
     setResults(null);
@@ -877,7 +986,7 @@ export function usePadsPlayAlong(
         play();
       }
 
-      const events = eventsRef.current;
+      const events = chartRef.current;
       if (!events.length || phaseRef.current !== 'playing') {
         return;
       }

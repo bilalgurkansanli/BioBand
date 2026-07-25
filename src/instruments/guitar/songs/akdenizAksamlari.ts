@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~96 BPM — mid-tempo classic. */
@@ -85,16 +86,22 @@ function verseBounce(startMs: number): GuitarSongEvent[] {
 export const AKDENIZ_AKSAMLARI_EVENTS: GuitarSongEvent[] = [
   ...openingHook(0),
   ...openingHook(BAR),
-  e('chord:Am', BAR * 2),
+  bed('chord:Am', BAR * 2),
   ...verseBounce(BAR * 2),
-  e('chord:Am', BAR * 10),
+  bed('chord:Am', BAR * 10),
   ...andalusianLine(BAR * 10),
-  e('chord:Am', BAR * 14),
+  bed('chord:Am', BAR * 14),
   ...andalusianLine(BAR * 14),
-  e('chord:E', BAR * 18),
+  bed('chord:E', BAR * 18),
   ...openingHook(BAR * 18),
   note('s2', 0, BAR * 19),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const AKDENIZ_AKSAMLARI_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+};
 
 /** Two opening hooks. */
 export const AKDENIZ_AKSAMLARI_PARTIAL_COUNT = 16;

@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /**
@@ -111,27 +112,33 @@ function bridgeLoop(startMs: number): GuitarSongEvent[] {
 export const DEGMESIN_ELLERIMIZ_EVENTS: GuitarSongEvent[] = [
   ...introTease(0),
   ...introTease(BAR * 2),
-  e('chord:Dm', BAR * 4),
+  bed('chord:Dm', BAR * 4),
   ...verseAh(BAR * 4),
-  e('chord:Gm', BAR * 8),
+  bed('chord:Gm', BAR * 8),
   ...verseDudak(BAR * 8),
-  e('chord:A', BAR * 12),
+  bed('chord:A', BAR * 12),
   ...verseAh(BAR * 12),
-  e('chord:Gm', BAR * 16),
+  bed('chord:Gm', BAR * 16),
   ...chorusDegmesin(BAR * 16),
-  e('chord:Dm', BAR * 20),
+  bed('chord:Dm', BAR * 20),
   ...bridgeLoop(BAR * 20),
-  e('chord:C', BAR * 24),
+  bed('chord:C', BAR * 24),
   note('s2', 3, BAR * 24 + BEAT),
   note('s2', 1, BAR * 24 + BEAT * 2),
   note('s2', 0, BAR * 24 + BEAT * 3),
   note('s3', 3, BAR * 25),
   note('s2', 1, BAR * 26),
-  e('chord:Dm', BAR * 27),
+  bed('chord:Dm', BAR * 27),
   note('s2', 3, BAR * 27),
   note('s2', 1, BAR * 27 + BEAT * 2),
   note('s2', 0, BAR * 28),
 ];
+
+/** 6/8 — BEAT is the eighth, so the bar carries six. */
+export const DEGMESIN_ELLERIMIZ_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 6,
+};
 
 /** Two intro teases. */
 export const DEGMESIN_ELLERIMIZ_PARTIAL_COUNT = 12;

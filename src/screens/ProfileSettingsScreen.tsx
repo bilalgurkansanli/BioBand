@@ -1,6 +1,8 @@
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,12 +11,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 import { ScreenContainer } from '../components/ScreenContainer';
 import i18n, { saveLanguage, type AppLanguage } from '../i18n';
+import { signInWithApple } from '../auth/appleAuth';
 import { signInWithGoogle } from '../auth/googleAuth';
 import { syncAfterSignIn, useAuthSession } from '../auth/useAuthSession';
 import { ProfileAvatar } from '../components/ProfileAvatar';
@@ -24,7 +29,6 @@ import {
   scheduleDailyPracticeReminder,
 } from '../notifications/practiceReminder';
 import {
-  AVATAR_COLORS,
   DEFAULT_PROFILE_SETTINGS,
   loadProfileSettings,
   saveProfileSettings,
@@ -60,6 +64,8 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   );
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [signOutConfirmVisible, setSignOutConfirmVisible] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
   const currentLang: AppLanguage =
     i18n.language === 'tr' ? 'tr' : i18n.language === 'de' ? 'de' : 'en';
   const { user, isSignedIn, signOut } = useAuthSession();
@@ -69,7 +75,31 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     try {
       const result = await signInWithGoogle();
       if (result.ok) {
-        await syncAfterSignIn(result.session.user.id);
+        await syncAfterSignIn(result.session.user.id, result.googleProfile);
+        const [nextSettings, nextReminder] = await Promise.all([
+          loadProfileSettings(),
+          loadPracticeReminderSettings(),
+        ]);
+        setSettings(nextSettings);
+        setReminder(nextReminder);
+      }
+    } finally {
+      setSigningIn(false);
+    }
+  }, []);
+
+  const handleAppleSignIn = useCallback(async () => {
+    setSigningIn(true);
+    try {
+      const result = await signInWithApple();
+      if (result.ok) {
+        await syncAfterSignIn(result.session.user.id, result.appleProfile);
+        const [nextSettings, nextReminder] = await Promise.all([
+          loadProfileSettings(),
+          loadPracticeReminderSettings(),
+        ]);
+        setSettings(nextSettings);
+        setReminder(nextReminder);
       }
     } finally {
       setSigningIn(false);
@@ -184,8 +214,8 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <>
               <View style={styles.accountRow}>
                 <ProfileAvatar
-                  color={settings.avatarColor}
                   displayName={settings.displayName || user?.email || ''}
+                  photoUrl={settings.avatarPhotoUrl}
                   size={44}
                 />
                 <View style={styles.accountInfo}>
@@ -199,7 +229,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
                 </View>
               </View>
               <Pressable
-                onPress={() => void signOut()}
+                onPress={() => setSignOutConfirmVisible(true)}
                 style={({ pressed }) => [styles.signOutRow, pressed && styles.pressed]}
               >
                 <View style={styles.signOutIconWrap}>
@@ -228,8 +258,22 @@ export function ProfileSettingsScreen({ navigation }: Props) {
                 )}
                 <Text style={styles.googleSignInBtnText}>{t('auth.signInWithGoogle')}</Text>
               </Pressable>
+              {Platform.OS === 'ios' ? (
+                <AppleAuthentication.AppleAuthenticationButton
+                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                  cornerRadius={10}
+                  style={[styles.appleSignInBtn, signingIn && styles.disabled]}
+                  onPress={() => {
+                    if (!signingIn) {
+                      void handleAppleSignIn();
+                    }
+                  }}
+                />
+              ) : null}
             </>
           )}
+          <Text style={styles.localDataHint}>{t('auth.localDataHint')}</Text>
         </View>
 
         <Text style={styles.sectionLabel}>{t('profile.settingsLanguage')}</Text>
@@ -259,8 +303,8 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           <Text style={styles.fieldLabel}>{t('profile.displayName')}</Text>
           <View style={styles.avatarPreviewRow}>
             <ProfileAvatar
-              color={settings.avatarColor}
               displayName={settings.displayName}
+              photoUrl={settings.avatarPhotoUrl}
               size={40}
             />
             <TextInput
@@ -272,25 +316,6 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               onBlur={() => void persist(settings)}
               onChangeText={(displayName) => setSettings((prev) => ({ ...prev, displayName }))}
             />
-          </View>
-          <Text style={styles.fieldLabel}>{t('profile.avatarColor')}</Text>
-          <View style={styles.swatchRow}>
-            {AVATAR_COLORS.map((color) => (
-              <Pressable
-                accessibilityLabel={color}
-                key={color}
-                onPress={() => {
-                  const next = { ...settings, avatarColor: color };
-                  setSettings(next);
-                  void persist(next);
-                }}
-                style={[
-                  styles.swatch,
-                  { backgroundColor: color },
-                  settings.avatarColor === color && styles.swatchActive,
-                ]}
-              />
-            ))}
           </View>
           <Text style={styles.fieldLabel}>{t('profile.favoriteInstrument')}</Text>
           <Text style={styles.hint}>{t('profile.favoriteInstrumentHint')}</Text>
@@ -351,7 +376,35 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             </Text>
           ) : null}
         </View>
+
+        <Text style={styles.sectionLabel}>{t('common.about')}</Text>
+        <View style={styles.card}>
+          <Pressable
+            onPress={() => setPrivacyVisible(true)}
+            style={({ pressed }) => [styles.privacyRow, pressed && styles.pressed]}
+          >
+            <Ionicons color={colors.textSecondary} name="shield-checkmark-outline" size={18} />
+            <Text style={styles.privacyRowText}>{t('common.privacyPolicy')}</Text>
+            <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+          </Pressable>
+        </View>
       </ScrollView>
+
+      <ConfirmDeleteModal
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('auth.signOut')}
+        icon="log-out-outline"
+        message={t('auth.signOutConfirmMessage')}
+        title={t('auth.signOutConfirmTitle')}
+        visible={signOutConfirmVisible}
+        onCancel={() => setSignOutConfirmVisible(false)}
+        onConfirm={() => {
+          setSignOutConfirmVisible(false);
+          void signOut();
+        }}
+      />
+
+      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
     </ScreenContainer>
   );
 }
@@ -431,6 +484,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingVertical: 12,
   },
+  appleSignInBtn: {
+    height: 44,
+    marginTop: 10,
+  },
   googleSignInBtnText: {
     color: '#1F1F1F',
     fontSize: 14,
@@ -492,6 +549,17 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  privacyRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  privacyRowText: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   pressed: {
     opacity: 0.8,
   },
@@ -533,6 +601,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
     marginBottom: 12,
+  },
+  localDataHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 12,
   },
   langRow: {
     flexDirection: 'row',
@@ -583,22 +657,6 @@ const styles = StyleSheet.create({
   },
   avatarPreviewInput: {
     flex: 1,
-  },
-  swatchRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16,
-  },
-  swatch: {
-    borderColor: 'transparent',
-    borderRadius: 16,
-    borderWidth: 2,
-    height: 32,
-    width: 32,
-  },
-  swatchActive: {
-    borderColor: colors.text,
   },
   chipWrap: {
     flexDirection: 'row',

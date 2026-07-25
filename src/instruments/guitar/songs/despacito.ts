@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~89 BPM — Despacito. */
@@ -73,16 +74,19 @@ function despacitoClimb(startMs: number): GuitarSongEvent[] {
 export const DESPACITO_EVENTS: GuitarSongEvent[] = [
   ...despacitoHook(0),
   ...despacitoHook(BAR * 2),
-  e('chord:Bm', BAR * 4),
+  bed('chord:Bm', BAR * 4),
   ...despacitoVerse(BAR * 4),
-  e('chord:G', BAR * 12),
+  bed('chord:G', BAR * 12),
   ...despacitoClimb(BAR * 12),
-  e('chord:D', BAR * 14),
+  bed('chord:D', BAR * 14),
   ...despacitoHook(BAR * 14),
-  e('chord:A', BAR * 16),
+  bed('chord:A', BAR * 16),
   ...despacitoVerse(BAR * 16),
   note('s5', 2, BAR * 24),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const DESPACITO_METER: SongMeter = { beatMs: BEAT, beatsPerBar: 4 };
 
 /** Two intro hooks. */
 export const DESPACITO_PARTIAL_COUNT = 14;

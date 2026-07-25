@@ -1,7 +1,14 @@
+import type { SongMeter } from '../../piano/songs/types';
 import type { GuitarSongEvent } from './types';
 
-function e(soundId: string, atMs: number): GuitarSongEvent {
-  return { soundId, atMs };
+function e(
+  soundId: string,
+  atMs: number,
+  durationMs?: number,
+): GuitarSongEvent {
+  return durationMs === undefined
+    ? { soundId, atMs }
+    : { soundId, atMs, durationMs };
 }
 
 /**
@@ -42,12 +49,14 @@ function cMajorMotif(startMs: number): GuitarSongEvent[] {
  */
 function themeA(startMs: number): GuitarSongEvent[] {
   return [
-    // Cm — long G, then motif
-    e('s1:f3', startMs),
+    // Cm — long G, then motif. The theme's identity is that the answering
+    // figure arrives *after* a whole bar of one tone, so the long notes state
+    // their bar length rather than being cut back to a derived ceiling.
+    e('s1:f3', startMs, BAR),
     ...cmMotif(startMs + BAR),
 
     // Gm — long D, then short answer
-    e('s2:f3', startMs + BAR * 2),
+    e('s2:f3', startMs + BAR * 2, BAR),
     e('s2:f3', startMs + BAR * 3),
     e('s2:f1', startMs + BAR * 3 + BEAT * 2),
     e('s2:f3', startMs + BAR * 3 + BEAT * 3),
@@ -55,7 +64,7 @@ function themeA(startMs: number): GuitarSongEvent[] {
     e('s2:f3', startMs + BAR * 3 + BEAT * 5),
 
     // Bb — long F
-    e('s1:f1', startMs + BAR * 4),
+    e('s1:f1', startMs + BAR * 4, BAR),
     e('s1:f1', startMs + BAR * 5),
     e('s2:f1', startMs + BAR * 5 + BEAT * 2),
     e('s1:f1', startMs + BAR * 5 + BEAT * 3),
@@ -63,7 +72,7 @@ function themeA(startMs: number): GuitarSongEvent[] {
     e('s1:f1', startMs + BAR * 5 + BEAT * 5),
 
     // Fm — long C + descending run (sheet: 4–3–1–1)
-    e('s2:f1', startMs + BAR * 6),
+    e('s2:f1', startMs + BAR * 6, BAR),
     e('s2:f4', startMs + BAR * 7),
     e('s2:f3', startMs + BAR * 7 + BEAT),
     e('s3:f1', startMs + BAR * 7 + BEAT * 2),
@@ -86,8 +95,14 @@ export const GAME_OF_THRONES_EVENTS: GuitarSongEvent[] = [
   // Closing Cm sustain (sheet ending gesture)
   e('s2:f1', BAR * 12),
   e('s1:f3', BAR * 12 + BEAT * 3),
-  e('s2:f1', BAR * 13),
+  e('s2:f1', BAR * 13, BAR),
 ];
+
+/** 6/4 — BEAT is the quarter, six to the bar. */
+export const GAME_OF_THRONES_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 6,
+};
 
 /** Intro only (4 bars of the famous motif). */
 export const GAME_OF_THRONES_PARTIAL_COUNT = 24;

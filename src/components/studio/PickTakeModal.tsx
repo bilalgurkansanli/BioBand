@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -12,9 +12,10 @@ type Props = {
   takes: SavedRecording[];
   onClose: () => void;
   onSelect: (take: SavedRecording) => void;
+  onRecordInstead?: () => void;
 };
 
-export function PickTakeModal({ visible, takes, onClose, onSelect }: Props) {
+export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInstead }: Props) {
   const { t } = useTranslation();
 
   return (
@@ -37,7 +38,18 @@ export function PickTakeModal({ visible, takes, onClose, onSelect }: Props) {
             </Pressable>
           </View>
           {takes.length === 0 ? (
-            <Text style={styles.empty}>{t('studio.pickTakeEmpty')}</Text>
+            <View>
+              <Text style={styles.empty}>{t('studio.pickTakeEmpty')}</Text>
+              {onRecordInstead ? (
+                <Pressable
+                  onPress={onRecordInstead}
+                  style={({ pressed }) => [styles.recordCta, pressed && styles.pressed]}
+                >
+                  <Ionicons color="#FFFFFF" name="mic" size={18} />
+                  <Text style={styles.recordCtaText}>{t('studio.pickTakeRecord')}</Text>
+                </Pressable>
+              ) : null}
+            </View>
           ) : (
             <ScrollView style={styles.list}>
               {takes.map((take) => (
@@ -95,6 +107,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     maxHeight: '80%',
+    maxWidth: 420,
     padding: 20,
     width: '100%',
   },
@@ -121,6 +134,21 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     marginBottom: 16,
+  },
+  recordCta: {
+    alignItems: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    marginBottom: 8,
+    paddingVertical: 12,
+  },
+  recordCtaText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
   },
   list: {
     marginBottom: 8,

@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/bilalgurkansanli/BioBand/security/advisories/new
+    about: Please report privately rather than in a public issue. See SECURITY.md.
+  - name: 💬 Questions and ideas
+    url: https://github.com/bilalgurkansanli/BioBand/discussions
+    about: For open-ended questions, setup help, or half-formed ideas.
+  - name: 📖 Architecture notes
+    url: https://github.com/bilalgurkansanli/BioBand/blob/main/docs/ARCHITECTURE.md
+    about: How the audio engine, scheduler and song format work — worth a read before filing an audio bug.

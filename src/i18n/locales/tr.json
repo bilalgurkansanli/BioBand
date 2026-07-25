@@ -11,15 +11,22 @@
     "continueAsGuest": "Konuk olarak devam et",
     "guestHint": "Daha sonra Profil ayarlarından giriş yapabilirsin.",
     "signOut": "Çıkış yap",
-    "signedInAs": "{{email}} olarak giriş yapıldı",
     "syncedBadge": "Senkronize",
     "signInSettingsHint": "İlerlemeni ve ayarlarını senkronize tutmak için giriş yap.",
     "errors": {
       "playServicesUnavailable": "Google Play Hizmetleri gerekli ama bu cihazda yok.",
       "noIdToken": "Google bir giriş jetonu döndürmedi. Tekrar dene.",
       "unconfigured": "Bu sürümde giriş henüz ayarlanmamış.",
-      "error": "Giriş başarısız oldu. Tekrar dene."
-    }
+      "error": "Giriş başarısız oldu. Tekrar dene.",
+      "notAvailable": "Apple ile giriş bu cihazda kullanılamıyor.",
+      "noIdentityToken": "Apple bir giriş jetonu döndürmedi. Tekrar dene."
+    },
+    "signOutConfirmTitle": "Çıkış yapılsın mı?",
+    "signOutConfirmMessage": "Çıkış yaparsan, tekrar giriş yapana kadar uygulamayı her açtığında verilerin sıfırlanır.",
+    "localDataHint": "Kayıtların, Studio projelerin ve içe aktardığın şarkılar sadece bu cihazda saklanır — buluta yedeklenmez. Sadece ilerlemen, rozetlerin ve ayarların senkronize edilir.",
+    "acceptPrivacyPrefix": "",
+    "acceptPrivacyLink": "Gizlilik Politikası'nı",
+    "acceptPrivacySuffix": " okudum ve kabul ediyorum."
   },
   "common": {
     "back": "Geri",
@@ -29,7 +36,9 @@
     "writeReview": "Yorum Yaz",
     "close": "Kapat",
     "minutesShort": "{{count}} dk",
-    "hoursShort": "{{count}} saat"
+    "hoursShort": "{{count}} saat",
+    "about": "Hakkında",
+    "privacyPolicy": "Gizlilik Politikası"
   },
   "profile": {
     "title": "Profil",
@@ -49,7 +58,15 @@
     "weekTrendDown": "Geçen haftaya göre %{{percent}} azalış",
     "weekTrendFlat": "Geçen haftayla aynı",
     "weekTrendNew": "Bu hafta yeni başladın — devam et",
-    "weekdayShort": ["Pz", "Pt", "Sa", "Ça", "Pe", "Cu", "Ct"],
+    "weekdayShort": [
+      "Pz",
+      "Pt",
+      "Sa",
+      "Ça",
+      "Pe",
+      "Cu",
+      "Ct"
+    ],
     "todayTitle": "Bugünkü pratik",
     "todayEmpty": "Bugün henüz pratik yok.",
     "dailyGoal": "Yumuşak hedef: {{goal}}",
@@ -80,7 +97,6 @@
     "settingsPersonal": "Kişisel",
     "displayName": "Görünen ad",
     "displayNamePlaceholder": "Adın (isteğe bağlı)",
-    "avatarColor": "Avatar rengi",
     "favoriteInstrument": "Favori enstrüman",
     "favoriteInstrumentHint": "İsteğe bağlı — sadece profil hissiyatı için.",
     "favoriteNone": "Yok",
@@ -97,7 +113,6 @@
     "piano": "Piyano",
     "pianoDescription": "Tuşlara basarak çal.",
     "open": "Aç",
-    "pianoHint": "Tuşlara basılı tutabilirsin. Aynı anda birden fazla tuş = akor.",
     "pianoLoading": "Piyano sesleri yükleniyor...",
     "pianoLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "pianoLandscapeRequired": "Piyano yatay modda çalışır",
@@ -157,10 +172,8 @@
     "shareError": "Kayıt paylaşılamadı.",
     "downloadSuccessTitle": "Kaydedildi",
     "downloadSuccessDocuments": "{{fileName}} BioBand Recordings klasörüne kaydedildi.",
+    "downloadSuccessFolder": "{{fileName}} seçtiğin klasöre kaydedildi.",
     "downloadError": "Kayıt indirilemedi.",
-    "exportFormatTitle": "Nasıl dışa aktarılsın?",
-    "exportFormatOriginal": "Orijinal format",
-    "exportUnsupported": "MP4 için orijinal mikrofon sesi gerekiyor — MP3 dene.",
     "import": {
       "button": "Ses dosyası yükle",
       "errors": {
@@ -168,7 +181,11 @@
         "unsupported": "Desteklenmeyen dosya. MP3, MP4/M4A veya WAV yükle.",
         "readFailed": "Bu ses dosyası okunamadı."
       }
-    }
+    },
+    "localDataHint": "Kayıtlar sadece bu cihazda saklanır — buluta yedeklenmez.",
+    "exportEmpty": "Bu kayıtta dışa aktarılacak ses yok.",
+    "exportingTitle": "Dışa aktarılıyor",
+    "exportingMessage": "Kaydın ses dosyası hazırlanıyor. Bu işlem uzun kayıtlarda biraz sürebilir."
   },
   "studio": {
     "title": "Studio",
@@ -205,11 +222,31 @@
     "trackPlay": "Track'i dinle",
     "trackStopPlayback": "Dinlemeyi durdur",
     "volume": "Ses",
-    "manyTracksHint": "Çok track cihazı zorlayabilir — mümkünse 5 civarında tut.",
     "overdubBanner": "Studio overdub — {{title}}. Kayıt'a bas, geri sayım sonrası yeni track ekle.",
     "overdubCountdown": "{{count}}",
     "overdubSaved": "Track studio'ya eklendi.",
-    "cancelOverdub": "Overdub'ı iptal et"
+    "cancelOverdub": "Overdub'ı iptal et",
+    "pickTakeRecord": "Kayıt al",
+    "timelineEmpty": "Timeline'ı düzenlemeye başlamak için bir track ekle.",
+    "clipHint": "Bir klibi zamanda kaydırmak için sağa veya sola sürükle.",
+    "rotateHint": "Timeline'ı kullanmak için cihazını yatay çevir.",
+    "zoomIn": "Yakınlaştır",
+    "zoomOut": "Uzaklaştır",
+    "trackOptions": "Track seçenekleri",
+    "trackDuplicate": "Track'i çoğalt",
+    "volumeUp": "Sesi artır",
+    "volumeDown": "Sesi azalt",
+    "exportEmpty": "Dışa aktarmadan önce en az bir sesli track ekle.",
+    "instrumentVoice": "Enstrüman sesi",
+    "bpm": "BPM",
+    "bpmUp": "Tempoyu artır",
+    "bpmDown": "Tempoyu azalt",
+    "settingsTitle": "Studio ayarları",
+    "metronome": "Metronom",
+    "loop": "Döngüde çal",
+    "grid": "Beat ızgarası",
+    "snap": "Izgaraya yapıştır",
+    "snapResolution": "Izgara çözünürlüğü"
   },
   "drumMachine": {
     "title": "Bateri Makinesi",
@@ -246,7 +283,6 @@
     "hapticsHint": "Hücrelere dokununca kısa bir titreşim verir.",
     "kitTitle": "Bateri kiti",
     "kitHint": "Drums bankasının sesi — kaydedilen take de aynı kitle çalınır.",
-    "liveRecord": "Canlı yazım",
     "tapTempo": "Tap tempo",
     "resetDefaults": "Varsayılana dön",
     "recordTitle": "Kayıt",
@@ -353,7 +389,8 @@
     "banner": {
       "instrument": "Kayıt devam ediyor — çaldıkların kaydediliyor.",
       "microphone": "Kayıt devam ediyor — mikrofon açık."
-    }
+    },
+    "saveError": "Bu kayıt kaydedilemedi. Cihazının depolama alanı dolmuş olabilir — yer açıp tekrar dene."
   },
   "drums": {
     "pads": {
@@ -419,10 +456,6 @@
       "scopeFull": "Tüm şarkıyla ilerle",
       "scopeFullHint": "Tüm vuruşları baştan sona çal",
       "pickMode": "Nasıl devam etmek istersin?",
-      "modeDrums": "Sadece davul",
-      "modeDrumsHint": "Şarkıyı yalnızca davul sesleriyle çal / izle",
-      "modeFullBand": "Tam şarkıyla devam et",
-      "modeFullBandHint": "Kendi parçan çalar; sen davulu çalarsın",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Davulla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
@@ -557,10 +590,6 @@
       "scopeFull": "Tüm şarkıyla ilerle",
       "scopeFullHint": "Tüm notaları baştan sona çal",
       "pickMode": "Nasıl devam etmek istersin?",
-      "modeViolin": "Sadece keman",
-      "modeViolinHint": "Şarkıyı yalnızca keman sesiyle çal / izle",
-      "modeFullBand": "Tam şarkıyla devam et",
-      "modeFullBandHint": "Kendi parçan çalar; sen kemanı çalarsın",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Kemanla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
@@ -666,8 +695,7 @@
       "groups": {
         "open": "Açık",
         "power": "Power",
-        "barre": "Barre",
-        "rock": "Power & barre"
+        "barre": "Barre"
       },
       "strumHint": "Aşağı veya yukarı kaydırarak çal. Seçili akora dokunarak temizle."
     },
@@ -750,10 +778,6 @@
       "scopeFull": "Tüm şarkıyla ilerle",
       "scopeFullHint": "Tüm notaları baştan sona çal",
       "pickMode": "Nasıl devam etmek istersin?",
-      "modeGuitar": "Sadece gitar",
-      "modeGuitarHint": "Şarkıyı yalnızca gitar sesiyle çal / izle",
-      "modeFullBand": "Tam şarkıyla devam et",
-      "modeFullBandHint": "Kendi parçan çalar; sen gitarı çalarsın",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Gitarla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
@@ -919,7 +943,6 @@
     },
     "settings": {
       "title": "Ayarlar",
-      "showPadLabels": "Pad isim etiketleri",
       "strongGuideHighlight": "Güçlü öğretici vurgusu",
       "showSpeedHud": "Hız göstergesi",
       "noteRepeat": "Note repeat (basılı tutunca roll)",
@@ -973,10 +996,6 @@
         "empty": "Bu zorlukta şarkı yok"
       },
       "pickMode": "Nasıl devam etmek istersin?",
-      "modePads": "Sadece padler",
-      "modePadsHint": "Şarkıyı yalnızca pad sesleriyle çal / izle",
-      "modeFullBand": "Tam şarkıyla devam et",
-      "modeFullBandHint": "Kendi parçan çalar; sen padlere vurursun",
       "pickScope": "Ne kadarını çalmak istersin?",
       "scopePartial": "Bir kısmı ile devam et",
       "scopePartialHint": "Şarkıdan kısa bir kesit",
@@ -1106,11 +1125,7 @@
       "editModeBanner": "Düzenleme modu: özelleştirmek için bir pada dokun"
     }
   },
-  "language": {
-    "toggle": "Dil"
-  },
   "piano": {
-    "comingSoonTitle": "Yakında",
     "toolbar": {
       "metronome": "Metronom",
       "sustain": "Sustain pedalı",
@@ -1159,8 +1174,6 @@
       "auto": "Otomatik"
     },
     "scale": {
-      "title": "Gam",
-      "subtitle": "Seçilen gamdaki tuşlar hafif yanar.",
       "off": "Kapalı",
       "close": "Kapat",
       "names": {
@@ -1195,12 +1208,6 @@
     "volume": {
       "title": "Ses",
       "close": "Kapat"
-    },
-    "nav": {
-      "jumpStart": "Başa git",
-      "stepLeft": "Önceki tuşlar",
-      "stepRight": "Sonraki tuşlar",
-      "jumpEnd": "Sona git"
     },
     "tone": {
       "thickLabel": "Kalın",
@@ -1252,10 +1259,6 @@
         "empty": "Bu zorlukta şarkı yok"
       },
       "pickMode": "Nasıl devam etmek istersin?",
-      "modePiano": "Sadece piyano",
-      "modePianoHint": "Şarkıyı yalnızca piyano sesiyle çal / izle",
-      "modeFullBand": "Tam şarkıyla devam et",
-      "modeFullBandHint": "Kendi orijinal kaydın alçak çalar; piyanoyu sen yüksek çalarsın",
       "pickScope": "Ne kadarını çalmak istersin?",
       "scopePartial": "Bir kısmı ile devam et",
       "scopePartialHint": "Şarkıdan kısa bir kesit (~50 nota)",
@@ -1276,13 +1279,6 @@
         "title": "Orijinal kaydı ekle",
         "hint": "BioBand telifli şarkı dosyası gömmez. Bu parçanın kendi MP3/M4A kaydını seç; piyanoyu onun üstünde çalarsın.",
         "button": "Ses dosyası seç",
-        "busy": "Ses kaydediliyor…",
-        "pianoLessDivider": "Daha gerçekçi deneyim",
-        "pianoLessHint": "En gerçekçi his için, piyano parçası OLMAYAN bir versiyon yükle (karaoke / stem). Canlı piyanon eksik kısmı dolduracak!",
-        "pianoLessButton": "Piyanosuz versiyon yükle",
-        "pianoLessReady": "Piyanosuz versiyon yüklü ✓",
-        "pianoLessSuccess": "Piyanosuz kayıt eklendi",
-        "pianoLessSuccessHint": "Canlı piyanon artık orijinal piyano parçasının yerini alacak — gerçek grup hissinin keyfini çıkar!",
         "errors": {
           "canceled": "Dosya seçilmedi.",
           "pickerUnavailable": "Dosya seçici bu kurulumda yok.",
@@ -1296,8 +1292,7 @@
         "offset": "Ofset: {{ms}} ms",
         "preview": "Önizle",
         "stopPreview": "Durdur",
-        "confirm": "Tamam",
-        "reopen": "Ses senkronunu ayarla"
+        "confirm": "Tamam"
       },
       "levels": {
         "guided": "Önce izle",
@@ -1310,7 +1305,6 @@
       "hud": {
         "countdown": "Hazır ol… {{count}}",
         "watching": "İzle… şarkı senin için çalınıyor",
-        "watchingBand": "Dinle… orijinal şarkı çalıyor, tuşları izle",
         "bandLive": "Grup / orijinal kayıt",
         "bandPerform": "Yanan tuşa bas — piyanoyu sen çalıyorsun",
         "listeningOutro": "Piyano partisi bitti — şarkıyı dinlemeye devam",
@@ -1323,7 +1317,6 @@
         "title": "Şarkı bitti!",
         "accuracy": "İsabet oranı: %{{percent}}",
         "hits": "Senin çaldıkların: {{count}}",
-        "autos": "Senin yerine çalınan: {{count}}",
         "misses": "Kaçırılan: {{count}}",
         "wrong": "Yanlış tuşlar: {{count}}",
         "replay": "Tekrar çal",
@@ -1341,11 +1334,6 @@
         "deleteConfirm": "Sil",
         "deleteCancel": "Vazgeç",
         "success": "Şarkı eklendi",
-        "successWithAudio": "Şarkı Grup Modu sesiyle eklendi",
-        "attachAudioPrompt": "\"{{title}}\" için orijinal MP3/M4A ekleyelim mi? Grup Modu’nda piyanonun altında çalar.",
-        "attachAudioYes": "Ses ekle",
-        "attachAudioSkip": "Sadece piyano",
-        "hasBandAudio": "Grup Modu hazır",
         "pasteButton": "JSON yapıştır",
         "pasteTitle": "Şarkı JSON’u",
         "pasteHint": "title ve events içeren JSON yapıştır (dosya seçici yoksa bu yol kullanılır).",
@@ -1369,18 +1357,8 @@
     }
   },
   "tutorial": {
-    "start": "Öğreticiyi Başlat",
-    "title": "Piyano Öğreticisi",
     "pickSong": "Bir şarkı seç",
-    "watchDescription": "Önce 5 saniye bot çalar, sonra sırayla sen çalarsın.",
-    "watchNow": "Hemen İzle",
-    "backToSongs": "Şarkı listesine dön",
     "close": "Kapat",
-    "banner": {
-      "watching": "Dinle… Bot şarkıyı çalıyor.",
-      "practice": "Şimdi sen çal! Yeşil tuşa bas.",
-      "complete": "Harika! Şarkıyı tamamladın."
-    },
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m groove + nakarat + klavye bölümü."
@@ -1455,5 +1433,108 @@
         "description": "Mabel Matiz — «Yandı gönül…» / «Çal beni…» (kolaynota)."
       }
     }
+  },
+  "privacy": {
+    "screenTitle": "Gizlilik Politikası",
+    "lastUpdated": "Son güncelleme: 23 Temmuz 2026",
+    "contactLabel": "Bu politika veya verilerinle ilgili sorunuz mu var? E-posta:",
+    "contactEmail": "bilalsanli129@gmail.com",
+    "viewOnGithub": "Tam metni GitHub'da görüntüle",
+    "sections": [
+      {
+        "title": "Konuk olarak kullanma",
+        "body": "Giriş yapmazsan BioBand tamamen cihazında çalışır. Yaptığın hiçbir şey — kayıtlar, pratik ilerlemesi, ayarlar — hiçbir yere gönderilmez ve uygulama açılışları arasında saklanmaz: uygulamayı kapatıp yeniden açtığında her şey sıfırlanır."
+      },
+      {
+        "title": "Google ile giriş yapma",
+        "body": "Google ile giriş yapmayı seçersen, Google Sign-In'i yalnızca kimliğini doğrulamak ve profilini Google hesabındaki ad ve fotoğrafla kişiselleştirmek için kullanırız. Giriş yaptığında aşağıdaki küçük veriler bulut veritabanımıza senkronize edilir, böylece cihazlar arasında seni takip eder:\n\n• Görünen adın, favori enstrümanın ve profil fotoğrafı URL'in\n• Pratik ilerlemesi: seri (streak) günler, toplam pratik süresi, tamamlanan görevler, kazanılan rozetler\n• Pratik hatırlatma saati tercihin\n\nBu veriler hesabına bağlıdır ve yalnızca senin tarafından okunup yazılabilir (bu sunucu tarafında da uygulanır, sadece uygulama içinde değil)."
+      },
+      {
+        "title": "Asla toplamadığımız veya yüklemediğimiz veriler",
+        "body": "Kayıtların, Studio projelerin, içe aktardığın şarkılar ve oluşturduğun veya içe aktardığın herhangi bir ses yalnızca cihazında kalır. Sesini yüklemeyiz, iletmeyiz, yedeklemeyiz veya hiçbir şekilde erişimimiz olmaz. Ayrıca analiz verisi, reklam kimlikleri toplamayız veya seni diğer uygulamalarda ya da web sitelerinde takip etmeyiz."
+      },
+      {
+        "title": "Üçüncü taraf hizmetler",
+        "body": "• Google Sign-In — yalnızca kimlik doğrulama için kullanılır. Google'ın hesap verilerini nasıl işlediğini görmek için Google'ın Gizlilik Politikasına (policies.google.com/privacy) bakabilirsin.\n• Bulut veritabanımız — yukarıda açıklanan küçük ilerleme/ayar verilerini saklamak için kullandığımız üçüncü taraf bir barındırma sağlayıcısı."
+      },
+      {
+        "title": "Haklarınız (KVKK / GDPR)",
+        "body": "BioBand'in geliştiricisi, yukarıda açıklanan hesap verileri için veri sorumlusu sıfatıyla hareket eder (iletişim: aşağıdaki e-posta). Bulut veritabanımız verileri Türkiye/AB dışında barındırabileceğinden, hesap verilerini senkronize etmeyi seçmen bu aktarıma rıza gösterdiğin anlamına gelir.\n\nÜlkenin kanununa bağlı olarak — Türkiye'nin Kişisel Verilerin Korunması Kanunu (KVKK) ve AB'nin GDPR'ı dahil — şu haklara sahipsin: verilerinin işlenip işlenmediğini öğrenme, bilgi talep etme, yanlış verilerin düzeltilmesini isteme, verilerinin silinmesini isteme, işlenmesine itiraz etme ve hukuka aykırı işleme nedeniyle uğradığın zararın tazminini isteme. Bu haklardan herhangi birini kullanmak için aşağıdaki e-postadan bize ulaş."
+      },
+      {
+        "title": "Seçeneklerin",
+        "body": "• Profil → Ayarlar kısmından istediğin zaman çıkış yapabilirsin. Bu, o cihazda saklanan tüm verileri anında temizler ve uygulamayı yeni bir konuk durumuna döndürür.\n• Bulut verilerini silme: Aşağıdaki e-postadan bize ulaş, hesabın altında saklanan ilerleme/ayar verilerini sileriz."
+      },
+      {
+        "title": "Bu politikadaki değişiklikler",
+        "body": "Bu politikayı zaman zaman güncelleyebiliriz. Herhangi bir değişiklik bu sayfada yeni bir \"Son güncelleme\" tarihiyle yayınlanır."
+      }
+    ]
+  },
+  "launch": {
+    "welcome": "BioBand'e hoş geldiniz",
+    "title": "Yükleniyor…",
+    "quotes": [
+      {
+        "text": "Kaybetmekten korktuğun an, kaybettiğin andır.",
+        "author": "Bilal Gürkan Şanlı"
+      },
+      {
+        "text": "Müziksiz bir hayat, bir hata olurdu.",
+        "author": "Friedrich Nietzsche"
+      },
+      {
+        "text": "Çalışkan olmak zorundaydım. Benim kadar çalışan herkes aynı yere gelir.",
+        "author": "Johann Sebastian Bach"
+      },
+      {
+        "text": "Müzik, söylenemeyeni ve hakkında susulamayanı anlatır.",
+        "author": "Victor Hugo"
+      },
+      {
+        "text": "Kalpten gelen, yine kalbe gitsin.",
+        "author": "Ludwig van Beethoven"
+      },
+      {
+        "text": "İki tür müzik vardır: iyi müzik ve diğeri.",
+        "author": "Duke Ellington"
+      },
+      {
+        "text": "Enstrümanını öğren, müziği öğren, sonra hepsini unut ve sadece çal.",
+        "author": "Charlie Parker"
+      },
+      {
+        "text": "Doksan üç yaşındayım ve hâlâ her gün çalışıyorum, çünkü ilerlediğimi görüyorum.",
+        "author": "Pablo Casals"
+      },
+      {
+        "text": "Dâhilik yüzde bir ilham, yüzde doksan dokuz terdir.",
+        "author": "Thomas Edison"
+      },
+      {
+        "text": "Pratik mükemmelleştirmez; ancak doğru pratik mükemmelleştirir.",
+        "author": "Vince Lombardi"
+      },
+      {
+        "text": "Başlamak için harika olman gerekmez, harika olmak için başlaman gerekir.",
+        "author": "Zig Ziglar"
+      },
+      {
+        "text": "Melodi, müziğin özüdür.",
+        "author": "Wolfgang Amadeus Mozart"
+      },
+      {
+        "text": "Bin millik yolculuk tek bir adımla başlar.",
+        "author": "Lao Tzu"
+      },
+      {
+        "text": "Bilmek yetmez, uygulamak gerekir. İstemek yetmez, yapmak gerekir.",
+        "author": "Johann Wolfgang von Goethe"
+      },
+      {
+        "text": "Müzik benim sığınağımdı. Notaların arasındaki boşluğa sokulabilirdim.",
+        "author": "Maya Angelou"
+      }
+    ]
   }
 }

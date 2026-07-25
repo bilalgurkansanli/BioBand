@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -73,6 +74,13 @@ export const SARI_GELIN_EVENTS: GuitarSongEvent[] = [
   e('chord:Am', BAR * 19),
   note('s3', 2, BAR * 19 + BEAT),
 ];
+
+/** 4/4; the tune enters a beat after the chord, so the bar starts there. */
+export const SARI_GELIN_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+  barStartMs: BEAT,
+};
 
 /** Chord + the opening line. */
 export const SARI_GELIN_PARTIAL_COUNT = 10;

@@ -1,4 +1,5 @@
 import { requireOptionalNativeModule } from 'expo-modules-core';
+import { Platform } from 'react-native';
 
 export type PickedDocument = {
   name: string;
@@ -101,12 +102,33 @@ export async function pickAudioDocument(): Promise<
   return picked;
 }
 
+/**
+ * Chart picker — MIDI and song JSON only.
+ *
+ * The list used to end in `*​/*`, which made the system browser offer every
+ * file on the device: photos, PDFs, anything. A wildcard also cannot be
+ * narrowed afterwards, so the only feedback was an error after the user had
+ * already chosen.
+ *
+ * The MIME types differ per platform on purpose. Android matches the list
+ * literally against what the file provider reports, and plenty of providers
+ * label a `.mid` as a generic binary — without `application/octet-stream`
+ * those files show up greyed out and cannot be picked at all. iOS maps each
+ * type to a UTI instead, where `public.midi-audio` already matches `.mid`
+ * properly and the octet-stream equivalent (`public.data`) would let
+ * everything back in.
+ */
 export async function pickChartDocument(): Promise<PickDocumentResult> {
-  return pickDocument([
-    'application/json',
+  const types = [
     'audio/midi',
     'audio/mid',
     'audio/x-midi',
-    '*/*',
-  ]);
+    'application/x-midi',
+    'application/json',
+    'text/json',
+  ];
+
+  return pickDocument(
+    Platform.OS === 'android' ? [...types, 'application/octet-stream'] : types,
+  );
 }

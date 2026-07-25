@@ -1,10 +1,17 @@
 import type { PadBankId } from '../padsBanks';
 import type { PadSoundId } from '../padsSounds';
-import type { SongBackingTrack } from '../../piano/songs/types';
+import type { SongBackingTrack, SongMeter } from '../../piano/songs/types';
+import type { SongRole } from '../../shared/songPerformance';
 
 export type PadSongEvent = {
   padId: PadSoundId;
   atMs: number;
+  /** How long the pad rings. Omit and it is derived from the following gap. */
+  durationMs?: number;
+  /** 0..1 hit strength. Omit for an accent derived from `meter`. */
+  velocity?: number;
+  /** Accompaniment is played but never highlighted or scored. */
+  role?: SongRole;
 };
 
 export type PadSongDifficulty = 'easy' | 'medium' | 'hard';
@@ -29,6 +36,8 @@ export type PadSongDefinition = {
    * bank (Turkish usûl lessons play on the Turkish bank's darbuka/bendir).
    */
   bankId?: PadBankId;
+  /** Enables metrical accents; charts without it still get phrase shaping. */
+  meter?: SongMeter;
 };
 
 export type ResolvedPadSession = {

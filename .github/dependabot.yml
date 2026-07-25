@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # Expo pins many packages to versions the SDK expects, so npm updates are
+  # grouped and monthly — `npx expo install --check` remains the source of
+  # truth for anything Expo owns.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      - dependency-name: expo
+      - dependency-name: expo-*
+      - dependency-name: react-native
+      - dependency-name: react
+      - dependency-name: '@react-native*'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

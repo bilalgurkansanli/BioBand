@@ -28,8 +28,10 @@ import {
   initPianoEngine,
   playNote as playPianoNote,
   releasePianoEngine,
+  setPianoVoice,
 } from '../instruments/piano/pianoEngine';
 import type { NoteId } from '../instruments/piano/pianoNotes';
+import { PIANO_VOICES, type PianoVoiceId } from '../instruments/piano/pianoVoices';
 import {
   initViolinEngine,
   playViolinSoundId,
@@ -41,6 +43,7 @@ import { isViolinVoiceId } from '../instruments/violin/violinVoices';
 import type { InstrumentId } from '../types/recording';
 import {
   getProjectDurationMs,
+  getTrackStartMs,
   isTrackAudible,
   type StudioProject,
   type StudioTrack,
@@ -48,12 +51,22 @@ import {
 
 export type StudioPlaybackHandle = {
   stop: () => void;
+  /** Jumps the whole mix to a position in ms (reschedules every track). */
+  seek: (positionMs: number) => void;
 };
 
 export type StudioPlayOptions = {
   /** Track ids to skip (e.g. armed overdub slot — unused for beds). */
   excludeTrackIds?: string[];
   onEnded?: () => void;
+  /** Where to begin playback, in ms from project start (default 0). */
+  startAtMs?: number;
+  /** Periodic playback position, so the UI can drive a playhead/seek. */
+  onProgress?: (positionMs: number, durationMs: number) => void;
+  /** Restart from 0 when the mix ends instead of stopping. */
+  loop?: boolean;
+  /** Tempo multiplier — 1 plays as recorded, 2 plays twice as fast. */
+  rate?: number;
 };
 
 const loadedEngines = new Set<InstrumentId>();
@@ -187,10 +200,16 @@ export async function playStudioProject(
   const tracks = audibleTracks(project, options.excludeTrackIds);
   const durationMs = getProjectDurationMs({ ...project, tracks: project.tracks });
   const onEnded = options.onEnded;
+  const onProgress = options.onProgress;
+  const loop = options.loop ?? false;
+  // All scheduling below works in "material time" (the ms stored on tracks);
+  // wall-clock delays are that time divided by the rate.
+  const rate = Math.max(0.1, options.rate ?? 1);
+  const initialStartAtMs = Math.max(0, Math.min(options.startAtMs ?? 0, durationMs));
 
   if (tracks.length === 0 || durationMs <= 0) {
     onEnded?.();
-    return { stop: stopActivePlayback };
+    return { stop: stopActivePlayback, seek: () => {} };
   }
 
   const instruments = new Set(tracks.map((track) => track.instrument));
@@ -219,77 +238,169 @@ export async function playStudioProject(
     );
   }
 
-  const timers: ReturnType<typeof setTimeout>[] = [];
+  // Piano bus is global as well — first piano track's voice wins.
+  const pianoTrack = tracks.find((track) => track.instrument === 'piano');
+  if (pianoTrack) {
+    const voice = PIANO_VOICES.find((entry) => entry.id === pianoTrack.pianoVoiceId);
+    setPianoVoice((voice?.id ?? 'acoustic') as PianoVoiceId);
+  }
+
+  let timers: ReturnType<typeof setTimeout>[] = [];
+  let progressInterval: ReturnType<typeof setInterval> | null = null;
   let finished = false;
+
+  const clearScheduled = () => {
+    for (const timer of timers) {
+      clearTimeout(timer);
+    }
+    timers = [];
+    if (progressInterval) {
+      clearInterval(progressInterval);
+      progressInterval = null;
+    }
+  };
 
   const finish = () => {
     if (finished) {
       return;
     }
-    finished = true;
-    for (const timer of timers) {
-      clearTimeout(timer);
+    if (loop) {
+      // Seamlessly restart the mix from the top instead of ending.
+      stopMicPlayers();
+      stopViolinPhrases();
+      stopAllVoices();
+      schedule(0);
+      return;
     }
-    timers.length = 0;
+    finished = true;
+    clearScheduled();
     stopMicPlayers();
     stopViolinPhrases();
     stopAllVoices();
     activeCancel = null;
+    onProgress?.(durationMs, durationMs);
     onEnded?.();
   };
 
-  for (const track of tracks) {
-    if (track.mode === 'microphone' && track.audioUri) {
-      const player = createAudioPlayer({ uri: track.audioUri });
-      player.volume = track.volume;
-      activeMicPlayers.push(player);
-      void player.seekTo(0).then(() => {
-        if (!finished && activeMicPlayers.includes(player)) {
-          player.play();
-        }
-      });
-      continue;
-    }
+  // (Re)schedule the whole mix from an absolute project position. Reused by
+  // seek so jumping restarts every audible track from the new spot, honoring
+  // each track's timeline offset (startMs).
+  const schedule = (startAtMs: number) => {
+    clearScheduled();
+    stopMicPlayers();
+    finished = false;
+    const clampedStart = Math.max(0, Math.min(startAtMs, durationMs));
+    const wallClockStart = Date.now();
 
-    if (track.mode === 'instrument' && track.events) {
-      const trackPadBank: PadBankId = isPadBankId(track.padBankId)
-        ? track.padBankId
-        : 'drums';
-      for (const event of track.events) {
-        if (event.atMs > track.durationMs) {
-          continue;
-        }
-        timers.push(
-          setTimeout(() => {
-            if (finished) {
-              return;
+    for (const track of tracks) {
+      const trackStart = getTrackStartMs(track);
+      const trackEnd = trackStart + track.durationMs;
+      if (trackEnd <= clampedStart) {
+        // Clip already finished before the playhead — nothing to schedule.
+        continue;
+      }
+
+      if (track.mode === 'microphone' && track.audioUri) {
+        const uri = track.audioUri;
+        const volume = track.volume;
+        const startPlayer = (seekMs: number) => {
+          if (finished) {
+            return;
+          }
+          const player = createAudioPlayer({ uri });
+          player.volume = volume;
+          if (rate !== 1) {
+            try {
+              // Keep vocals natural while the tempo changes.
+              player.shouldCorrectPitch = true;
+              player.setPlaybackRate(rate, 'high');
+            } catch {
+              // Older runtimes: fall back to the plain property.
+              player.playbackRate = rate;
             }
-            playInstrumentEvent(
-              track.instrument,
-              event.soundId,
-              event.velocity,
-              trackPadBank,
-              track.volume,
-            );
-          }, event.atMs),
-        );
+          }
+          activeMicPlayers.push(player);
+          void player.seekTo(Math.max(0, seekMs) / 1000).then(() => {
+            if (!finished && activeMicPlayers.includes(player)) {
+              player.play();
+            }
+          });
+        };
+        if (clampedStart <= trackStart) {
+          // Clip starts later on the timeline — delay it into place.
+          timers.push(setTimeout(() => startPlayer(0), (trackStart - clampedStart) / rate));
+        } else {
+          // Playhead is already inside the clip — jump into it.
+          startPlayer(clampedStart - trackStart);
+        }
+        continue;
+      }
+
+      if (track.mode === 'instrument' && track.events) {
+        const trackPadBank: PadBankId = isPadBankId(track.padBankId)
+          ? track.padBankId
+          : 'drums';
+        for (const event of track.events) {
+          if (event.atMs > track.durationMs) {
+            continue;
+          }
+          const absAtMs = trackStart + event.atMs;
+          if (absAtMs < clampedStart) {
+            continue;
+          }
+          timers.push(
+            setTimeout(() => {
+              if (finished) {
+                return;
+              }
+              playInstrumentEvent(
+                track.instrument,
+                event.soundId,
+                event.velocity,
+                trackPadBank,
+                track.volume,
+              );
+            }, (absAtMs - clampedStart) / rate),
+          );
+        }
       }
     }
-  }
 
-  timers.push(setTimeout(finish, Math.max(durationMs, 0) + 50));
+    timers.push(setTimeout(finish, Math.max(durationMs - clampedStart, 0) / rate + 50));
+
+    if (onProgress) {
+      onProgress(clampedStart, durationMs);
+      progressInterval = setInterval(() => {
+        // Wall-clock elapsed converts back to material time via the rate, so
+        // the playhead still spans the whole timeline — just faster/slower.
+        const elapsed = Math.min(
+          clampedStart + (Date.now() - wallClockStart) * rate,
+          durationMs,
+        );
+        onProgress(elapsed, durationMs);
+      }, 100);
+    }
+  };
+
+  schedule(initialStartAtMs);
 
   activeCancel = () => {
     finished = true;
-    for (const timer of timers) {
-      clearTimeout(timer);
-    }
-    timers.length = 0;
+    clearScheduled();
   };
 
   return {
     stop: () => {
       stopActivePlayback();
+    },
+    seek: (positionMs: number) => {
+      if (finished) {
+        return;
+      }
+      stopMicPlayers();
+      stopViolinPhrases();
+      stopAllVoices();
+      schedule(Math.max(0, Math.min(positionMs, durationMs)));
     },
   };
 }

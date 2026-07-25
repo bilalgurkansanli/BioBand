@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~88 BPM — folk march. */
@@ -77,15 +78,21 @@ function phraseClose(startMs: number): GuitarSongEvent[] {
  * Melody-first from the TAB; sparse Am/C landmarks.
  */
 export const CANAKKALE_TURKUSU_EVENTS: GuitarSongEvent[] = [
-  e('chord:Am', 0),
+  bed('chord:Am', 0),
   ...phraseA(0),
-  e('chord:C', BAR * 4),
+  bed('chord:C', BAR * 4),
   ...phraseB(BAR * 4),
-  e('chord:Am', BAR * 7),
+  bed('chord:Am', BAR * 7),
   ...phraseClose(BAR * 7),
-  e('chord:Am', BAR * 10),
+  bed('chord:Am', BAR * 10),
   ...phraseA(BAR * 10),
 ];
+
+/** 4/4 march — BEAT is the quarter. */
+export const CANAKKALE_TURKUSU_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+};
 
 /** Opening Am + phrase A. */
 export const CANAKKALE_TURKUSU_PARTIAL_COUNT = 15;

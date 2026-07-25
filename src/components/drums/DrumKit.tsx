@@ -103,13 +103,13 @@ function HardwareStands({
 }: {
   width: number;
   height: number;
-  positions: Array<{
+  positions: {
     id: DrumSoundId;
     kind: string;
     centerX: number;
     centerY: number;
     size: number;
-  }>;
+  }[];
 }) {
   const byId = Object.fromEntries(positions.map((p) => [p.id, p]));
   const crash = byId.crash;

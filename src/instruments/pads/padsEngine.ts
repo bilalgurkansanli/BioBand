@@ -29,6 +29,7 @@ import {
 import type { PadSoundId } from './padsSounds';
 import { PAD_SYNTH_FILES } from './padsSynth';
 import { TURKISH_PERC_FILES } from './padsTurkish';
+import type { NotePerformance } from '../shared/songPerformance';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
@@ -336,6 +337,15 @@ function velocityGainScale(velocity: number): number {
   return 0.35 + 0.65 * clamped;
 }
 
+/**
+ * Song playback places pad hits on the audio clock instead of a JS timer.
+ * There is no length here on purpose: a pad's decay belongs to the pad, not to
+ * the chart that triggers it.
+ */
+type HitScheduling = {
+  startAtSeconds?: number;
+};
+
 function triggerHit(
   bankId: PadBankId,
   slot: PadSlotDef,
@@ -344,17 +354,26 @@ function triggerHit(
   gain: number,
   tag: string,
   shortTail = false,
+  scheduling?: HitScheduling,
 ): void {
   const env = slot.envelope;
   const bankRate = getPadBank(bankId).audio.playbackRate;
   const rate = bankRate * env.rateScale * baseRate;
   const output = slot.bright ? ensureBrightTone() : ensureBankBus();
 
+  // A slot's envelope is its voice: a clap is short, a bendir breathes for two
+  // seconds. A chart's note spacing is NOT a damper — a struck pad rings for
+  // its own decay whether or not the next hit is close behind, exactly as the
+  // drum kit does. Clipping to the gap cut the tail off four hits in five and
+  // turned the Turkish banks into a row of clicks.
+  const heldSeconds = env.holdSeconds;
+
   playSample(buffer, rate, gain, output, tag, {
     shortTail,
     attackSeconds: shortTail ? 0.004 : env.attackSeconds,
-    holdSeconds: shortTail ? Math.min(0.55, env.holdSeconds) : env.holdSeconds,
+    holdSeconds: shortTail ? Math.min(0.55, env.holdSeconds) : heldSeconds,
     releaseSeconds: shortTail ? 0.4 : env.releaseSeconds,
+    startAtSeconds: scheduling?.startAtSeconds,
   });
 }
 
@@ -362,12 +381,18 @@ function triggerHit(
  * Trigger a pad from an explicit bank — looper layers and multi-bank studio
  * tracks play with their own bank's sounds regardless of the UI selection.
  * (The bus EQ profile stays on the current bank — one global bus.)
+ *
+ * @param performance Song playback supplies the moment the hit must sound, how
+ * long it is held and how hard it is struck; its strength drives the same
+ * velocity curve as a finger, never a second gain on top. Interactive taps omit
+ * it and keep the immediate, fixed-envelope behaviour.
  */
 export function triggerPadForBank(
   bankId: PadBankId,
   id: PadSoundId,
   velocity = 1,
   gainScale = 1,
+  performance?: NotePerformance,
 ): void {
   if (!initialized) {
     return;
@@ -385,6 +410,8 @@ export function triggerPadForBank(
   }
 
   // Closed hat chokes a ringing open hat — including its reverb/echo tails.
+  // The choke lands now even for a hit placed ahead of the clock: releasing by
+  // tag has no scheduled form, and the lookahead is far shorter than the tail.
   if (slot.chokeOpenHat) {
     releaseVoicesByTagPrefix(padTagPrefix(bankId, 'pad04'), 0.04);
   }
@@ -393,16 +420,24 @@ export function triggerPadForBank(
   }
 
   const { buffer, rate } = resolved;
-  const hitGain = slot.gain * velocityGainScale(velocity) * gainScale;
+  const hitGain =
+    slot.gain * velocityGainScale(performance?.velocity ?? velocity) * gainScale;
   const baseTag = `${padTagPrefix(bankId, id)}#${hitSerial++}`;
 
   if (slot.chokeGroup) {
     rememberChokeTag(slot.chokeGroup, baseTag);
   }
 
-  triggerHit(bankId, slot, buffer, rate, hitGain, baseTag);
+  const atTime = performance?.atTime;
+  const aheadOfClock = atTime !== undefined;
+  const tapStart = (delayMs: number): number | undefined =>
+    atTime === undefined ? undefined : atTime + delayMs / 1000;
 
-  schedulePianoReverbTaps((tapScale, tapIndex) => {
+  triggerHit(bankId, slot, buffer, rate, hitGain, baseTag, false, {
+    startAtSeconds: atTime,
+  });
+
+  schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
     triggerHit(
       bankId,
       slot,
@@ -411,17 +446,31 @@ export function triggerPadForBank(
       hitGain * tapScale,
       `${baseTag}:reverb:${tapIndex}`,
       true,
+      { startAtSeconds: tapStart(delayMs) },
     );
-  });
+  }, aheadOfClock);
 
   let echoIndex = 0;
-  schedulePianoEchoRepeats((tapScale) => {
-    triggerHit(bankId, slot, buffer, rate, hitGain * tapScale, `${baseTag}:echo:${echoIndex++}`);
-  });
+  schedulePianoEchoRepeats((tapScale, delayMs) => {
+    triggerHit(
+      bankId,
+      slot,
+      buffer,
+      rate,
+      hitGain * tapScale,
+      `${baseTag}:echo:${echoIndex++}`,
+      false,
+      { startAtSeconds: tapStart(delayMs) },
+    );
+  }, aheadOfClock);
 }
 
-export function triggerPad(id: PadSoundId, velocity = 1): void {
-  triggerPadForBank(currentBankId, id, velocity);
+export function triggerPad(
+  id: PadSoundId,
+  velocity = 1,
+  performance?: NotePerformance,
+): void {
+  triggerPadForBank(currentBankId, id, velocity, 1, performance);
 }
 
 /**

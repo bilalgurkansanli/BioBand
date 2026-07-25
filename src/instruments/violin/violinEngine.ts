@@ -26,11 +26,17 @@ import {
   type ViolinStringId,
 } from './violinSounds';
 import { getViolinVoice, type ViolinVoiceId } from './violinVoices';
+import {
+  velocityGain,
+  type NotePerformance,
+} from '../shared/songPerformance';
 
 /** Musical spacing for phrase presets (arco notes need room). */
 const PHRASE_STAGGER_MS = 220;
 /** User feedback: 0.48 was too loud next to the other instruments. */
 const NOTE_GAIN = 0.36;
+/** Bow lift at the end of a written note — long enough to stay legato. */
+const VIOLIN_RELEASE_SECONDS = 0.28;
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
@@ -109,7 +115,13 @@ function triggerNote(
   stringId: ViolinStringId,
   position: number,
   tag: string,
-  options?: { shortTail?: boolean; gainScale?: number },
+  options?: {
+    shortTail?: boolean;
+    gainScale?: number;
+    startAtSeconds?: number;
+    /** Written note length — the bow stroke is carved to match. */
+    sustainSeconds?: number;
+  },
 ): void {
   const voice = getViolinVoice(currentVoiceId);
   const midi = getMidi(stringId, position);
@@ -124,6 +136,28 @@ function triggerNote(
   const shortTail = options?.shortTail ?? false;
   const output = ensureVoiceBus();
 
+  // Every note used to be the same fixed stroke, so a whole note and a
+  // sixteenth came out identical — on a sustaining instrument that flattens a
+  // melody into a row of identical bow strokes. A written length carves the
+  // stroke to size instead.
+  //
+  // The note is held for its FULL written length and the release runs on past
+  // it into the next note. A bow does not stop between slurred notes, and
+  // shortening each one to make room for its own release turned fast passages
+  // into a row of disconnected blips. Notes that genuinely need separating —
+  // a repeat of the same pitch — are already shortened in the chart itself.
+  const sustain = options?.sustainSeconds;
+  const holdSeconds = shortTail
+    ? 0.1
+    : sustain !== undefined
+      ? Math.max(0.06, sustain)
+      : (voice.audio.holdSeconds ?? 0.45);
+  const releaseSeconds = shortTail
+    ? 0.14
+    : sustain !== undefined
+      ? VIOLIN_RELEASE_SECONDS
+      : (voice.audio.releaseSeconds ?? 0.4);
+
   playSample(buffer, rate, gain, output, tag, {
     shortTail,
     // Arco files are 14s+ — the envelope carves a bow stroke out of them,
@@ -131,13 +165,22 @@ function triggerNote(
     // some recordings are a thin crescendo). The attack ramp hides the cut.
     offsetSeconds: config.offsetSeconds,
     attackSeconds: shortTail ? undefined : 0.02,
-    holdSeconds: shortTail ? 0.1 : (voice.audio.holdSeconds ?? 0.45),
-    releaseSeconds: shortTail ? 0.14 : (voice.audio.releaseSeconds ?? 0.4),
+    holdSeconds,
+    releaseSeconds,
+    startAtSeconds: options?.startAtSeconds,
   });
 }
 
-/** @param gainScale Extra output multiplier — used by Studio mix playback. */
-export function playNote(stringId: ViolinStringId, position: number, gainScale = 1): void {
+/**
+ * @param gainScale Extra output multiplier — used by Studio mix playback.
+ * @param performance Song playback supplies the moment, length and strength.
+ */
+export function playNote(
+  stringId: ViolinStringId,
+  position: number,
+  gainScale = 1,
+  performance?: NotePerformance,
+): void {
   const context = getSharedAudioContext();
   if (context.state === 'suspended') {
     void context.resume();
@@ -146,22 +189,36 @@ export function playNote(stringId: ViolinStringId, position: number, gainScale =
   hitSerial += 1;
   const dryTag = `violin:${stringId}:${position}#${hitSerial}`;
 
-  triggerNote(stringId, position, dryTag, { gainScale });
+  const atTime = performance?.atTime;
+  const aheadOfClock = atTime !== undefined;
+  const sustainSeconds = performance?.sustainSeconds;
+  const dynamics = gainScale * velocityGain(performance?.velocity);
+  const tapStart = (delayMs: number): number | undefined =>
+    atTime === undefined ? undefined : atTime + delayMs / 1000;
 
-  schedulePianoReverbTaps((tapScale, tapIndex) => {
+  triggerNote(stringId, position, dryTag, {
+    gainScale: dynamics,
+    startAtSeconds: atTime,
+    sustainSeconds,
+  });
+
+  schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
     triggerNote(stringId, position, `${dryTag}:reverb:${tapIndex}`, {
       shortTail: true,
-      gainScale: gainScale * tapScale,
+      gainScale: dynamics * tapScale,
+      startAtSeconds: tapStart(delayMs),
     });
-  });
+  }, aheadOfClock);
 
   // Each repeat needs its own tag — same-tag voices steal each other.
   let echoIndex = 0;
-  schedulePianoEchoRepeats((tapScale) => {
+  schedulePianoEchoRepeats((tapScale, delayMs) => {
     triggerNote(stringId, position, `${dryTag}:echo:${echoIndex++}`, {
-      gainScale: gainScale * tapScale,
+      gainScale: dynamics * tapScale,
+      startAtSeconds: tapStart(delayMs),
+      sustainSeconds,
     });
-  });
+  }, aheadOfClock);
 }
 
 export function playPhrase(phraseId: PhraseId, gainScale = 1): void {
@@ -188,7 +245,11 @@ export function stopViolinPhrases(): void {
   phraseTimers.clear();
 }
 
-export function playViolinSoundId(soundId: string, gainScale = 1): void {
+export function playViolinSoundId(
+  soundId: string,
+  gainScale = 1,
+  performance?: NotePerformance,
+): void {
   const parsed = parseViolinSoundId(soundId);
   if (!parsed) {
     if (soundId.startsWith('phrase:')) {
@@ -205,7 +266,7 @@ export function playViolinSoundId(soundId: string, gainScale = 1): void {
     return;
   }
 
-  playNote(parsed.stringId, parsed.position, gainScale);
+  playNote(parsed.stringId, parsed.position, gainScale, performance);
 }
 
 export function releaseViolinEngine(): void {

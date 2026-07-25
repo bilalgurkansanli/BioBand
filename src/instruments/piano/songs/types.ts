@@ -1,8 +1,28 @@
 import type { NoteId } from '../pianoNotes';
+import type { SongRole } from '../../shared/songPerformance';
 
 export type SongEvent = {
   noteId: NoteId;
   atMs: number;
+  /**
+   * How long the note is held. Omit and it is derived from the gap to the next
+   * note in the same voice — which is what turns a written half note back into
+   * a half note instead of a short note followed by silence.
+   */
+  durationMs?: number;
+  /** 0..1 strike strength. Omit for an accent derived from `meter`. */
+  velocity?: number;
+  /**
+   * Accompaniment is played but never highlighted or scored — the user still
+   * only plays the tune. Omit for 'melody'.
+   */
+  role?: SongRole;
+  /**
+   * Semitones away from the written pitch when sounding. The keyboard is two
+   * octaves wide, so an accompaniment is written on it and sent an octave down
+   * (`-12`) to sit under the tune instead of fighting it for the same keys.
+   */
+  transpose?: number;
 };
 
 export type SongBackingTrack = {
@@ -33,6 +53,21 @@ export type SongPartialWindow = {
   endMs: number;
 };
 
+/**
+ * Where the beat falls, so notes can be weighted by their position in the bar.
+ * Without it every note is struck equally hard and the tune loses its shape.
+ */
+export type SongMeter = {
+  /** One beat in ms. */
+  beatMs: number;
+  /** 4 for 4/4, 3 for 3/4, 9 for a 9/8 aksak count. Defaults to 4. */
+  beatsPerBar?: number;
+  /** Beats carrying a secondary stress (0-based); derived when omitted. */
+  strongBeats?: number[];
+  /** Where beat 0 of the first bar sits. Defaults to 0. */
+  barStartMs?: number;
+};
+
 export type SongDefinition = {
   id: string;
   /** Display title — song titles are proper names, not translated. */
@@ -41,6 +76,8 @@ export type SongDefinition = {
   descriptionKey?: string;
   previewDurationMs: number;
   events: SongEvent[];
+  /** Enables metrical accents; charts without it still get phrase shaping. */
+  meter?: SongMeter;
   /** Present when a full-mix backing track is available for Band Mode. */
   backingTrack?: SongBackingTrack;
   /**

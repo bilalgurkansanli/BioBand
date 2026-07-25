@@ -162,6 +162,10 @@ export function PianoScreen({ navigation }: Props) {
     return () => {
       cancelled = true;
     };
+    // Hydration runs once, on mount. Listing `tone` here would re-read stored
+    // settings and clobber the user's live tone slider every time the hook
+    // returned a new object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounce persistence so scrubbing an FX slider does not hammer
@@ -402,6 +406,12 @@ export function PianoScreen({ navigation }: Props) {
     [scaleId, scaleLock, scaleNoteIds, chordMode],
   );
 
+  // Depend on the two fields the key handlers actually read, not on the whole
+  // play-along object — that changes identity on every progress tick, and the
+  // keyboard would redraw with it.
+  const playAlongIsActive = playAlong.isActive;
+  const playAlongHandleNotePress = playAlong.handleNotePress;
+
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
       if (haptics) {
@@ -412,9 +422,9 @@ export function PianoScreen({ navigation }: Props) {
         Vibration.vibrate([0, 35]);
       }
 
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         captureEvent(noteId);
-        playAlong.handleNotePress(noteId);
+        playAlongHandleNotePress(noteId);
         return;
       }
 
@@ -438,12 +448,20 @@ export function PianoScreen({ navigation }: Props) {
         noteOn(id);
       }
     },
-    [captureEvent, haptics, noteOn, playAlong, recordNoteOn, resolveSoundedNotes],
+    [
+      captureEvent,
+      haptics,
+      noteOn,
+      playAlongHandleNotePress,
+      playAlongIsActive,
+      recordNoteOn,
+      resolveSoundedNotes,
+    ],
   );
 
   const onNotePressOut = useCallback(
     (noteId: NoteId) => {
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         return;
       }
       const sounded = activePressRef.current.get(noteId);
@@ -460,20 +478,22 @@ export function PianoScreen({ navigation }: Props) {
         noteOff(id);
       }
     },
-    [noteOff, playAlong.isActive],
+    [noteOff, playAlongIsActive],
   );
 
   const handleSettingsPress = useCallback(() => {
     setSettingsModalVisible(true);
   }, []);
 
+  const playAlongOpen = playAlong.open;
+
   const handleStartTutorialFromSettings = useCallback(() => {
-    playAlong.open();
-  }, [playAlong]);
+    playAlongOpen();
+  }, [playAlongOpen]);
 
   const handleGamePress = useCallback(() => {
-    playAlong.open();
-  }, [playAlong]);
+    playAlongOpen();
+  }, [playAlongOpen]);
 
   const isPlayAlongModalVisible =
     playAlong.phase === 'pickSong' ||

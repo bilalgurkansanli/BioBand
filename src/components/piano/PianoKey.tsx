@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
@@ -59,7 +60,13 @@ function getLabelBadgeStyle(
   return { backgroundColor: octave >= 5 ? badgeColorHigh : badgeColorLow };
 }
 
-export function PianoKey({
+/**
+ * Memoised: the screen re-renders on every progress tick, tone nudge and
+ * settings change, and without this all 24 keys were rebuilt each time. The key
+ * takes no callbacks and `pointerEvents` is off — touches are handled by the
+ * keyboard — so a key only needs redrawing when its own state or size changes.
+ */
+export const PianoKey = memo(function PianoKey({
   noteId,
   letterLabel,
   solfegeLabel,
@@ -145,7 +152,7 @@ export function PianoKey({
       ) : null}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   key: {

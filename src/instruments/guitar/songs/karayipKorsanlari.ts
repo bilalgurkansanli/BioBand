@@ -1,9 +1,12 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~100 BPM — 6/8 felt as two pulses; BEAT = eighth. */
 const BEAT = 300;
 const BAR = BEAT * 6;
+/** Staccato: a little over half an eighth, so the silence after it is heard. */
+const STAB = 160;
 
 /**
  * Iconic Am pirate motif (Musa Çetiner TAB neighborhood):
@@ -55,21 +58,28 @@ export const KARAYIP_KORSANLARI_EVENTS: GuitarSongEvent[] = [
   ...pirateHook(BAR * 2),
   ...pirateAnswer(BAR * 4),
   ...pirateHook(BAR * 6),
-  e('chord:Am', BAR * 8),
+  bed('chord:Am', BAR * 8),
   ...pirateRise(BAR * 8 + BEAT),
-  e('chord:C', BAR * 10),
+  bed('chord:C', BAR * 10),
   ...pirateAnswer(BAR * 10 + BEAT),
-  e('chord:G', BAR * 12),
+  bed('chord:G', BAR * 12),
   ...pirateHook(BAR * 12 + BEAT),
-  e('chord:Am', BAR * 14),
+  bed('chord:Am', BAR * 14),
   ...pirateHook(BAR * 14 + BEAT),
-  // Closing punch — staccato A’s then resolve
-  note('s3', 2, BAR * 16),
-  note('s3', 2, BAR * 16 + BEAT * 2),
-  note('s3', 2, BAR * 16 + BEAT * 4),
-  note('s2', 0, BAR * 17),
+  // Closing punch — staccato A’s then resolve. Stated, because a punch that
+  // rings until the next one is not a punch.
+  note('s3', 2, BAR * 16, STAB),
+  note('s3', 2, BAR * 16 + BEAT * 2, STAB),
+  note('s3', 2, BAR * 16 + BEAT * 4, STAB),
+  note('s2', 0, BAR * 17, STAB),
   note('s3', 2, BAR * 17 + BEAT * 3),
 ];
+
+/** 6/8 — BEAT is the eighth, so the bar carries six. */
+export const KARAYIP_KORSANLARI_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 6,
+};
 
 /** Two hook statements (recognizable open). */
 export const KARAYIP_KORSANLARI_PARTIAL_COUNT = 16;

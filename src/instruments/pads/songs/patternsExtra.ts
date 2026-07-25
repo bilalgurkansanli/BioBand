@@ -1,4 +1,6 @@
+import { createGrid, groupStresses } from '../../shared/rhythm';
 import type { PadSoundId } from '../padsSounds';
+import type { SongMeter } from '../../piano/songs/types';
 import type { PadSongEvent } from './types';
 
 /**
@@ -88,40 +90,53 @@ export const HALAY_EVENTS: PadSongEvent[] = (() => {
   return sorted(events);
 })();
 
+// 9/8 aksak is 2+2+2+3 eighths, so its stresses fall at eighths 0, 2, 4 and 6
+// — not at even thirds. Counting it as an even meter puts the accents in the
+// wrong place, which is precisely what stops an usûl sounding like itself.
+const AKSAK_9_8_GROUPS = [2, 2, 2, 3];
+const aksak98 = createGrid({
+  bpm: 120,
+  groups: AKSAK_9_8_GROUPS,
+  unit: 'eighth',
+});
+
+export const AKSAK_9_8_METER: SongMeter = {
+  beatMs: aksak98.eighthMs,
+  beatsPerBar: 9,
+  strongBeats: groupStresses(AKSAK_9_8_GROUPS),
+};
+
 /** Roman havası 9/8 (2+2+2+3) — the aksak feel. */
 export const ROMAN_9_8_EVENTS: PadSongEvent[] = (() => {
-  const E = quarterMs(120) / 2; // eighth-note pulse
-  const bar = E * 9;
+  const E = aksak98.eighthMs;
   const events: PadSongEvent[] = [];
-  for (let index = 0; index < 2; index++) {
-    const o = index * bar;
-    events.push(hit('pad01', o));
-    events.push(hit('pad02', o + E * 2));
-    events.push(hit('pad01', o + E * 4));
-    events.push(hit('pad02', o + E * 6));
-    if (index === 1) {
-      events.push(hit('pad04', o + E * 7));
+  for (let bar = 0; bar < 2; bar++) {
+    events.push(hit('pad01', aksak98.group(bar, 0)));
+    events.push(hit('pad02', aksak98.group(bar, 1)));
+    events.push(hit('pad01', aksak98.group(bar, 2)));
+    events.push(hit('pad02', aksak98.group(bar, 3)));
+    if (bar === 1) {
+      // The long group's inner eighths — where the aksak lift lives.
+      events.push(hit('pad04', aksak98.group(bar, 3, E)));
     }
-    events.push(hit('pad02', o + E * 8));
+    events.push(hit('pad02', aksak98.group(bar, 3, E * 2)));
   }
   return sorted(events);
 })();
 
 /** 9/8 on spoons — same aksak skeleton, kaşık voicing over düm anchors. */
 export const KASIK_9_8_EVENTS: PadSongEvent[] = (() => {
-  const E = quarterMs(120) / 2;
-  const bar = E * 9;
+  const E = aksak98.eighthMs;
   const events: PadSongEvent[] = [];
-  for (let index = 0; index < 2; index++) {
-    const o = index * bar;
-    events.push(hit('pad01', o));
-    events.push(hit('pad13', o));
-    events.push(hit('pad13', o + E * 2));
-    events.push(hit('pad01', o + E * 4));
-    events.push(hit('pad13', o + E * 4));
-    events.push(hit('pad13', o + E * 6));
-    events.push(hit('pad14', o + E * 7));
-    events.push(hit('pad13', o + E * 8));
+  for (let bar = 0; bar < 2; bar++) {
+    events.push(hit('pad01', aksak98.group(bar, 0)));
+    events.push(hit('pad13', aksak98.group(bar, 0)));
+    events.push(hit('pad13', aksak98.group(bar, 1)));
+    events.push(hit('pad01', aksak98.group(bar, 2)));
+    events.push(hit('pad13', aksak98.group(bar, 2)));
+    events.push(hit('pad13', aksak98.group(bar, 3)));
+    events.push(hit('pad14', aksak98.group(bar, 3, E)));
+    events.push(hit('pad13', aksak98.group(bar, 3, E * 2)));
   }
   return sorted(events);
 })();

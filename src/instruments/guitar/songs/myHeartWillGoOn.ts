@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -90,6 +91,13 @@ export const MY_HEART_WILL_GO_ON_EVENTS: GuitarSongEvent[] = [
   e('chord:G', BAR * 28),
   note('s3', 0, BAR * 28 + BEAT),
 ];
+
+/** 4/4; every phrase enters a beat late, so the bar starts there. */
+export const MY_HEART_WILL_GO_ON_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+  barStartMs: BEAT,
+};
 
 /** Chord + first verse line. */
 export const MY_HEART_WILL_GO_ON_PARTIAL_COUNT = 13;

@@ -11,15 +11,22 @@
     "continueAsGuest": "Als Gast fortfahren",
     "guestHint": "Du kannst dich später in den Profileinstellungen anmelden.",
     "signOut": "Abmelden",
-    "signedInAs": "Angemeldet als {{email}}",
     "syncedBadge": "Synchronisiert",
     "signInSettingsHint": "Melde dich an, um deinen Fortschritt und deine Einstellungen zu synchronisieren.",
     "errors": {
       "playServicesUnavailable": "Google Play-Dienste werden benötigt, sind aber auf diesem Gerät nicht verfügbar.",
       "noIdToken": "Google hat kein Anmeldetoken zurückgegeben. Versuch es erneut.",
       "unconfigured": "Die Anmeldung ist für diesen Build noch nicht eingerichtet.",
-      "error": "Anmeldung fehlgeschlagen. Versuch es erneut."
-    }
+      "error": "Anmeldung fehlgeschlagen. Versuch es erneut.",
+      "notAvailable": "Anmelden mit Apple ist auf diesem Gerät nicht verfügbar.",
+      "noIdentityToken": "Apple hat kein Anmeldetoken zurückgegeben. Versuch es erneut."
+    },
+    "signOutConfirmTitle": "Abmelden?",
+    "signOutConfirmMessage": "Wenn du dich abmeldest, wird dein Fortschritt bei jedem App-Start zurückgesetzt, bis du dich wieder anmeldest.",
+    "localDataHint": "Deine Aufnahmen, Studio-Projekte und importierten Lieder werden nur auf diesem Gerät gespeichert — sie werden nicht in der Cloud gesichert. Nur dein Fortschritt, deine Abzeichen und Einstellungen werden synchronisiert.",
+    "acceptPrivacyPrefix": "Ich akzeptiere die ",
+    "acceptPrivacyLink": "Datenschutzrichtlinie",
+    "acceptPrivacySuffix": "."
   },
   "common": {
     "back": "Zurück",
@@ -29,7 +36,9 @@
     "writeReview": "Rezension schreiben",
     "close": "Schließen",
     "minutesShort": "{{count}} Min.",
-    "hoursShort": "{{count}} Std."
+    "hoursShort": "{{count}} Std.",
+    "about": "Über",
+    "privacyPolicy": "Datenschutzrichtlinie"
   },
   "profile": {
     "title": "Profil",
@@ -49,7 +58,15 @@
     "weekTrendDown": "{{percent}}% weniger als letzte Woche",
     "weekTrendFlat": "Gleich wie letzte Woche",
     "weekTrendNew": "Neu diese Woche — mach weiter so",
-    "weekdayShort": ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"],
+    "weekdayShort": [
+      "So",
+      "Mo",
+      "Di",
+      "Mi",
+      "Do",
+      "Fr",
+      "Sa"
+    ],
     "todayTitle": "Heutiges Üben",
     "todayEmpty": "Heute noch nichts geübt.",
     "dailyGoal": "Kleines Ziel: {{goal}}",
@@ -80,7 +97,6 @@
     "settingsPersonal": "Persönlich",
     "displayName": "Anzeigename",
     "displayNamePlaceholder": "Dein Name (optional)",
-    "avatarColor": "Avatar-Farbe",
     "favoriteInstrument": "Lieblingsinstrument",
     "favoriteInstrumentHint": "Optional — nur für dein Profilgefühl.",
     "favoriteNone": "Keins",
@@ -97,7 +113,6 @@
     "piano": "Klavier",
     "pianoDescription": "Tippe die Tasten zum Spielen.",
     "open": "Öffnen",
-    "pianoHint": "Halte Tasten für gehaltene Noten. Mehrere Tasten gleichzeitig = Akkorde.",
     "pianoLoading": "Klavierklänge werden geladen...",
     "pianoLoadError": "Klänge konnten nicht geladen werden. Geh zurück und versuch es erneut.",
     "pianoLandscapeRequired": "Klavier funktioniert nur im Querformat",
@@ -157,10 +172,8 @@
     "shareError": "Diese Aufnahme konnte nicht geteilt werden.",
     "downloadSuccessTitle": "Gespeichert",
     "downloadSuccessDocuments": "Als {{fileName}} in BioBand Recordings gespeichert.",
+    "downloadSuccessFolder": "{{fileName}} wurde im gewählten Ordner gespeichert.",
     "downloadError": "Diese Aufnahme konnte nicht heruntergeladen werden.",
-    "exportFormatTitle": "Exportieren als",
-    "exportFormatOriginal": "Originalformat",
-    "exportUnsupported": "MP4-Export benötigt das originale Mikrofonaudio — versuch es mit MP3.",
     "import": {
       "button": "Audio importieren",
       "errors": {
@@ -168,7 +181,11 @@
         "unsupported": "Nicht unterstützte Datei. Importiere eine MP3-, MP4/M4A- oder WAV-Datei.",
         "readFailed": "Diese Audiodatei konnte nicht gelesen werden."
       }
-    }
+    },
+    "localDataHint": "Aufnahmen werden nur auf diesem Gerät gespeichert — sie werden nicht in der Cloud gesichert.",
+    "exportEmpty": "Diese Aufnahme enthält kein Audio zum Exportieren.",
+    "exportingTitle": "Wird exportiert",
+    "exportingMessage": "Die Audiodatei wird vorbereitet. Bei langen Aufnahmen dauert das einen Moment."
   },
   "studio": {
     "title": "Studio",
@@ -205,11 +222,31 @@
     "trackPlay": "Spur abspielen",
     "trackStopPlayback": "Wiedergabe stoppen",
     "volume": "Lautstärke",
-    "manyTracksHint": "Viele Spuren können das Gerät belasten — bleib möglichst bei etwa fünf.",
     "overdubBanner": "Studio-Overdub — {{title}}. Tippe auf Aufnehmen, um einzuzählen und eine neue Spur zu schichten.",
     "overdubCountdown": "{{count}}",
     "overdubSaved": "Spur zum Studio hinzugefügt.",
-    "cancelOverdub": "Overdub abbrechen"
+    "cancelOverdub": "Overdub abbrechen",
+    "pickTakeRecord": "Aufnahme machen",
+    "timelineEmpty": "Füge eine Spur hinzu, um deine Timeline zu arrangieren.",
+    "clipHint": "Ziehe einen Clip nach links oder rechts, um ihn zeitlich zu verschieben.",
+    "rotateHint": "Drehe dein Gerät, um die Timeline zu nutzen.",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "trackOptions": "Spuroptionen",
+    "trackDuplicate": "Spur duplizieren",
+    "volumeUp": "Lautstärke erhöhen",
+    "volumeDown": "Lautstärke verringern",
+    "exportEmpty": "Füge mindestens eine hörbare Spur hinzu, bevor du exportierst.",
+    "instrumentVoice": "Instrumentenklang",
+    "bpm": "BPM",
+    "bpmUp": "Tempo erhöhen",
+    "bpmDown": "Tempo verringern",
+    "settingsTitle": "Studio-Einstellungen",
+    "metronome": "Metronom",
+    "loop": "Wiedergabe wiederholen",
+    "grid": "Beat-Raster",
+    "snap": "Am Raster einrasten",
+    "snapResolution": "Raster-Auflösung"
   },
   "drumMachine": {
     "title": "Drum Machine",
@@ -246,7 +283,6 @@
     "hapticsHint": "Vibriert kurz beim Tippen auf Rasterzellen.",
     "kitTitle": "Schlagzeug-Kit",
     "kitHint": "Der Klang der Drums-Bank — gespeicherte Aufnahmen werden mit demselben Kit abgespielt.",
-    "liveRecord": "Live-Aufnahme",
     "tapTempo": "Tap-Tempo",
     "resetDefaults": "Auf Standard zurücksetzen",
     "recordTitle": "Aufnehmen",
@@ -353,7 +389,8 @@
     "banner": {
       "instrument": "Aufnahme läuft — dein Spiel wird aufgezeichnet.",
       "microphone": "Aufnahme läuft — Mikrofon ist aktiv."
-    }
+    },
+    "saveError": "Diese Aufnahme konnte nicht gespeichert werden. Möglicherweise ist der Speicher deines Geräts voll — schaffe Platz und versuche es erneut."
   },
   "drums": {
     "pads": {
@@ -419,10 +456,6 @@
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jeden Schlag von Anfang bis Ende spielen",
       "pickMode": "Wie möchtest du fortfahren?",
-      "modeDrums": "Nur Schlagzeug",
-      "modeDrumsHint": "Spiele/schau dir das Lied nur mit Schlagzeugklängen an",
-      "modeFullBand": "Mit dem ganzen Lied fortfahren",
-      "modeFullBandHint": "Dein Track spielt; du spielst das Schlagzeug dazu",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Schlagzeug dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -557,10 +590,6 @@
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jede Note von Anfang bis Ende spielen",
       "pickMode": "Wie möchtest du fortfahren?",
-      "modeViolin": "Nur Geige",
-      "modeViolinHint": "Spiele/schau dir das Lied nur mit Geigenklang an",
-      "modeFullBand": "Mit dem ganzen Lied fortfahren",
-      "modeFullBandHint": "Dein Track spielt; du spielst die Geige dazu",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Geige dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -666,8 +695,7 @@
       "groups": {
         "open": "Offen",
         "power": "Power",
-        "barre": "Barré",
-        "rock": "Power & Barré"
+        "barre": "Barré"
       },
       "strumHint": "Wische nach unten oder oben zum Spielen. Tippe den ausgewählten Akkord an, um ihn zu löschen."
     },
@@ -750,10 +778,6 @@
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jede Note von Anfang bis Ende spielen",
       "pickMode": "Wie möchtest du fortfahren?",
-      "modeGuitar": "Nur Gitarre",
-      "modeGuitarHint": "Spiele/schau dir das Lied nur mit Gitarrenklang an",
-      "modeFullBand": "Mit dem ganzen Lied fortfahren",
-      "modeFullBandHint": "Dein Track spielt; du spielst die Gitarre dazu",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Gitarre dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -919,7 +943,6 @@
     },
     "settings": {
       "title": "Einstellungen",
-      "showPadLabels": "Pad-Namensbeschriftung",
       "strongGuideHighlight": "Starke Tutorial-Hervorhebung",
       "showSpeedHud": "Geschwindigkeitsanzeige",
       "noteRepeat": "Notenwiederholung (halten zum Rollen)",
@@ -973,10 +996,6 @@
         "empty": "Keine Lieder in dieser Schwierigkeit"
       },
       "pickMode": "Wie möchtest du fortfahren?",
-      "modePads": "Nur Pads",
-      "modePadsHint": "Spiele/schau dir das Lied nur mit Pad-Klängen an",
-      "modeFullBand": "Mit dem ganzen Lied fortfahren",
-      "modeFullBandHint": "Dein Track spielt; du schlägst die Pads dazu",
       "pickScope": "Wie viel möchtest du spielen?",
       "scopePartial": "Mit einem Teil fortfahren",
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
@@ -1106,11 +1125,7 @@
       "editModeBanner": "Bearbeitungsmodus: Tippe ein Pad an, um es anzupassen"
     }
   },
-  "language": {
-    "toggle": "Sprache"
-  },
   "piano": {
-    "comingSoonTitle": "Demnächst",
     "toolbar": {
       "metronome": "Metronom",
       "sustain": "Haltepedal",
@@ -1159,8 +1174,6 @@
       "auto": "Automatisch"
     },
     "scale": {
-      "title": "Tonleiter",
-      "subtitle": "Tasten der gewählten Tonleiter leuchten sanft.",
       "off": "Aus",
       "close": "Schließen",
       "names": {
@@ -1195,12 +1208,6 @@
     "volume": {
       "title": "Lautstärke",
       "close": "Schließen"
-    },
-    "nav": {
-      "jumpStart": "Zum Anfang springen",
-      "stepLeft": "Vorherige Tasten",
-      "stepRight": "Nächste Tasten",
-      "jumpEnd": "Zum Ende springen"
     },
     "tone": {
       "thickLabel": "Dick",
@@ -1252,10 +1259,6 @@
         "empty": "Keine Lieder in dieser Schwierigkeit"
       },
       "pickMode": "Wie möchtest du fortfahren?",
-      "modePiano": "Nur Klavier",
-      "modePianoHint": "Spiele/schau dir das Lied nur mit Klavierklang an",
-      "modeFullBand": "Mit dem ganzen Lied fortfahren",
-      "modeFullBandHint": "Dein Originaltrack spielt leise; du spielst Klavier dazu",
       "pickScope": "Wie viel möchtest du spielen?",
       "scopePartial": "Mit einem Teil fortfahren",
       "scopePartialHint": "Ein kurzer Ausschnitt (~50 Noten)",
@@ -1276,13 +1279,6 @@
         "title": "Originaltrack hinzufügen",
         "hint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A dieses Tracks, um Klavier dazu zu spielen.",
         "button": "Audiodatei wählen",
-        "busy": "Audio wird gespeichert…",
-        "pianoLessDivider": "Besseres Erlebnis",
-        "pianoLessHint": "Für das realistischste Gefühl lade eine Version OHNE den Klavierpart hoch (Karaoke / Stem). Dein Live-Klavier füllt es auf!",
-        "pianoLessButton": "Klavierlose Version hochladen",
-        "pianoLessReady": "Klavierlose Version geladen ✓",
-        "pianoLessSuccess": "Klavierloser Track hinzugefügt",
-        "pianoLessSuccessHint": "Dein Live-Klavier ersetzt jetzt den ursprünglichen Klavierpart — genieße das echte Bandgefühl!",
         "errors": {
           "canceled": "Keine Datei ausgewählt.",
           "pickerUnavailable": "Dateiauswahl in diesem Build nicht verfügbar.",
@@ -1296,8 +1292,7 @@
         "offset": "Versatz: {{ms}} ms",
         "preview": "Vorschau",
         "stopPreview": "Stopp",
-        "confirm": "Sieht gut aus",
-        "reopen": "Audio-Sync anpassen"
+        "confirm": "Sieht gut aus"
       },
       "levels": {
         "guided": "Erst zuschauen",
@@ -1310,7 +1305,6 @@
       "hud": {
         "countdown": "Bereit machen… {{count}}",
         "watching": "Zuschauen… das Lied spielt für dich",
-        "watchingBand": "Zuhören… Originallied spielt, schau auf die Tasten",
         "bandLive": "Band / Originaltrack",
         "bandPerform": "Tippe die leuchtende Taste an — du spielst das Klavier",
         "listeningOutro": "Klavierpart fertig — hör dem Lied weiter zu",
@@ -1323,7 +1317,6 @@
         "title": "Lied beendet!",
         "accuracy": "Genauigkeit: {{percent}}%",
         "hits": "Du hast gespielt: {{count}}",
-        "autos": "Für dich gespielt: {{count}}",
         "misses": "Verpasst: {{count}}",
         "wrong": "Falsche Tasten: {{count}}",
         "replay": "Nochmal spielen",
@@ -1341,11 +1334,6 @@
         "deleteConfirm": "Löschen",
         "deleteCancel": "Abbrechen",
         "success": "Lied hinzugefügt",
-        "successWithAudio": "Lied mit Band-Modus-Audio hinzugefügt",
-        "attachAudioPrompt": "Ein Original-MP3/M4A für „{{title}}\" hinzufügen, damit der Band-Modus unter deinem Klavier spielen kann?",
-        "attachAudioYes": "Audio hinzufügen",
-        "attachAudioSkip": "Nur Klavier",
-        "hasBandAudio": "Band-Modus bereit",
         "pasteButton": "JSON einfügen",
         "pasteTitle": "Lied-JSON",
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
@@ -1369,18 +1357,8 @@
     }
   },
   "tutorial": {
-    "start": "Tutorial starten",
-    "title": "Klavier-Tutorial",
     "pickSong": "Wähle ein Lied",
-    "watchDescription": "Der Bot spielt 5 Sekunden lang, dann spielst du mit.",
-    "watchNow": "Jetzt zuschauen",
-    "backToSongs": "Zurück zur Liedliste",
     "close": "Schließen",
-    "banner": {
-      "watching": "Zuhören… Der Bot spielt.",
-      "practice": "Du bist dran! Drücke die grüne Taste.",
-      "complete": "Gut gemacht! Du hast das Lied beendet."
-    },
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m-Groove + Refrain + Keyboard-Teil."
@@ -1455,5 +1433,108 @@
         "description": "Mabel Matiz — «Yandı gönül…» / «Çal beni…» (kolaynota)."
       }
     }
+  },
+  "privacy": {
+    "screenTitle": "Datenschutzrichtlinie",
+    "lastUpdated": "Zuletzt aktualisiert: 23. Juli 2026",
+    "contactLabel": "Fragen zu dieser Richtlinie oder deinen Daten? E-Mail:",
+    "contactEmail": "bilalsanli129@gmail.com",
+    "viewOnGithub": "Vollständige Richtlinie auf GitHub ansehen",
+    "sections": [
+      {
+        "title": "Nutzung als Gast",
+        "body": "Wenn du dich nicht anmeldest, funktioniert BioBand vollständig auf deinem Gerät. Nichts, was du tust — Aufnahmen, Übungsfortschritt, Einstellungen — wird irgendwohin gesendet, und nichts davon bleibt zwischen App-Starts erhalten: Beim Schließen und erneuten Öffnen der App wird alles zurückgesetzt."
+      },
+      {
+        "title": "Anmeldung mit Google",
+        "body": "Wenn du dich mit Google anmeldest, verwenden wir Google Sign-In nur zur Authentifizierung und um dein Profil mit Name und Foto aus deinem Google-Konto zu personalisieren. Durch die Anmeldung werden folgende kleine Daten mit unserer Cloud-Datenbank synchronisiert, damit sie dich geräteübergreifend begleiten:\n\n• Dein Anzeigename, Lieblingsinstrument und die URL deines Profilfotos\n• Übungsfortschritt: Serien (Streaks), gesamte Übungszeit, abgeschlossene Herausforderungen, erhaltene Abzeichen\n• Deine bevorzugte Erinnerungszeit für das Üben\n\nDiese Daten sind an dein Konto gebunden und werden ausschließlich von dir gelesen oder geschrieben (serverseitig durchgesetzt, nicht nur in der App)."
+      },
+      {
+        "title": "Was wir niemals sammeln oder hochladen",
+        "body": "Deine Aufnahmen, Studio-Projekte, importierten Songs und jegliches von dir erstelltes oder importiertes Audio bleiben ausschließlich auf deinem Gerät. Wir laden dein Audio nicht hoch, übertragen, sichern es nicht und haben keinerlei Zugriff darauf. Wir sammeln außerdem keine Analysedaten, Werbekennungen und verfolgen deine Aktivität nicht in anderen Apps oder auf anderen Websites."
+      },
+      {
+        "title": "Drittanbieterdienste",
+        "body": "• Google Sign-In — wird ausschließlich zur Authentifizierung verwendet. Siehe die Datenschutzrichtlinie von Google (policies.google.com/privacy) für den Umgang mit deinen Kontodaten.\n• Unsere Cloud-Datenbank — ein externer Hosting-Anbieter, den wir nur zur Speicherung der oben beschriebenen kleinen Fortschritts-/Einstellungsdaten verwenden."
+      },
+      {
+        "title": "Deine Rechte (KVKK / DSGVO)",
+        "body": "Der Entwickler von BioBand handelt als Verantwortlicher für die oben beschriebenen Kontodaten (Kontakt: E-Mail unten). Da unsere Cloud-Datenbank Daten außerhalb der Türkei/EU hosten kann, bedeutet die Synchronisierung deiner Kontodaten, dass du dieser Übertragung zustimmst.\n\nJe nach geltendem Recht — einschließlich der türkischen KVKK und der EU-DSGVO — hast du das Recht: zu erfahren, ob deine Daten verarbeitet werden, Auskunft zu verlangen, die Berichtigung unrichtiger Daten zu verlangen, die Löschung deiner Daten zu verlangen, der Verarbeitung zu widersprechen und Schadensersatz für durch rechtswidrige Verarbeitung verursachte Schäden zu verlangen. Um eines dieser Rechte auszuüben, kontaktiere uns unter der unten stehenden E-Mail-Adresse."
+      },
+      {
+        "title": "Deine Wahlmöglichkeiten",
+        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten und setzt die App in einen neuen Gast-Zustand zurück.\n• Löschen deiner Cloud-Daten: Kontaktiere uns unter der unten stehenden E-Mail-Adresse, und wir löschen die unter deinem Konto gespeicherten Fortschritts-/Einstellungsdaten."
+      },
+      {
+        "title": "Änderungen an dieser Richtlinie",
+        "body": "Wir können diese Richtlinie von Zeit zu Zeit aktualisieren. Änderungen werden auf dieser Seite mit einem neuen Datum „Zuletzt aktualisiert\" veröffentlicht."
+      }
+    ]
+  },
+  "launch": {
+    "welcome": "Willkommen bei BioBand",
+    "title": "Wird geladen…",
+    "quotes": [
+      {
+        "text": "Der Moment, in dem du Angst hast zu verlieren, ist der Moment, in dem du verloren hast.",
+        "author": "Bilal Gürkan Şanlı"
+      },
+      {
+        "text": "Ohne Musik wäre das Leben ein Irrtum.",
+        "author": "Friedrich Nietzsche"
+      },
+      {
+        "text": "Ich habe fleißig sein müssen. Wer ebenso fleißig ist, wird es ebenso weit bringen.",
+        "author": "Johann Sebastian Bach"
+      },
+      {
+        "text": "Musik drückt aus, was nicht gesagt werden kann und worüber zu schweigen unmöglich ist.",
+        "author": "Victor Hugo"
+      },
+      {
+        "text": "Von Herzen — möge es wieder zu Herzen gehen.",
+        "author": "Ludwig van Beethoven"
+      },
+      {
+        "text": "Es gibt zwei Arten von Musik: gute Musik und die andere.",
+        "author": "Duke Ellington"
+      },
+      {
+        "text": "Beherrsche dein Instrument, beherrsche die Musik, dann vergiss alles und spiel einfach.",
+        "author": "Charlie Parker"
+      },
+      {
+        "text": "Ich bin dreiundneunzig und übe noch jeden Tag, weil ich glaube, dass ich Fortschritte mache.",
+        "author": "Pablo Casals"
+      },
+      {
+        "text": "Genie ist ein Prozent Inspiration und neunundneunzig Prozent Transpiration.",
+        "author": "Thomas Edison"
+      },
+      {
+        "text": "Übung macht nicht den Meister. Nur richtige Übung macht den Meister.",
+        "author": "Vince Lombardi"
+      },
+      {
+        "text": "Du musst nicht großartig sein, um anzufangen, aber du musst anfangen, um großartig zu werden.",
+        "author": "Zig Ziglar"
+      },
+      {
+        "text": "Die Melodie ist das Wesen der Musik.",
+        "author": "Wolfgang Amadeus Mozart"
+      },
+      {
+        "text": "Eine Reise von tausend Meilen beginnt mit einem einzigen Schritt.",
+        "author": "Lao Tzu"
+      },
+      {
+        "text": "Es ist nicht genug zu wissen, man muss auch anwenden; es ist nicht genug zu wollen, man muss auch tun.",
+        "author": "Johann Wolfgang von Goethe"
+      },
+      {
+        "text": "Musik war meine Zuflucht. Ich konnte in den Raum zwischen den Noten kriechen.",
+        "author": "Maya Angelou"
+      }
+    ]
   }
 }

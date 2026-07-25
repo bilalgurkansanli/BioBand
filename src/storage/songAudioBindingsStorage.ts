@@ -158,20 +158,6 @@ export async function mergeSongWithAudioBinding(
   return { ...song, backingTrack };
 }
 
-export function backingFromBinding(
-  binding: SongAudioBinding,
-  existing?: SongBackingTrack,
-): SongBackingTrack {
-  return {
-    ...(existing?.module != null ? { module: existing.module } : {}),
-    uri: binding.localUri,
-    ...(binding.pianoLessLocalUri
-      ? { pianoLessUri: binding.pianoLessLocalUri }
-      : {}),
-    eventsStartMs: binding.eventsStartMs,
-  };
-}
-
 export { songHasBackingAudio };
 
 function isSongAudioBinding(value: unknown): value is SongAudioBinding {

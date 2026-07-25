@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Serdar Ortaç — "Mesafe"
 // Musa Çetiner / kolaynota.com — Easy Piano, Am (Sol# → Ab).
@@ -11,7 +11,7 @@ const S = Q / 4;
 const H = Q * 2;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -262,7 +262,7 @@ function secondEnding(startBar: number): Ev[] {
   ];
 }
 
-const MESAFE_EVENTS: Ev[] = [
+const MESAFE_MELODY: Ev[] = [
   // Page 1 — verse with written repeat (bars 1–4 twice)
   ...verseBlock(0),
   ...verseBlock(4),
@@ -278,11 +278,54 @@ const MESAFE_EVENTS: Ev[] = [
   ...secondEnding(32),
 ];
 
-const LAST_MS = MESAFE_EVENTS[MESAFE_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar, in La minor with the Sol# leading tone. The
+ * verse spells Am outright (Mi-Do-La), answers on Dm where the line lands
+ * Re-Fa, and closes on E; every Sol# in the chart is that same E dominant.
+ * The hook rocks Dm against C — the melody's own Re-block against Do-block —
+ * and «Boşver» sits on the Si-Re of G before falling back through E to Am.
+ * Written on the keyboard and sounded an octave down, under a tune that runs
+ * from Do4 to Sol5.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Verse ×2
+  ['A4', 'A4'], ['D4', 'D4'], ['A4', 'A4'], ['E4', 'E4'],
+  ['A4', 'A4'], ['D4', 'D4'], ['A4', 'A4'], ['E4', 'E4'],
+  // "Hiç yüzünden…" lead-in — the Sol# half bars are E
+  ['A4', 'A4'], ['A4', 'E4'], ['A4', 'A4'], ['A4', 'E4'],
+  // Main hook — Dm block, Do block, twice
+  ['D4', 'D4'], ['D4', 'D4'], ['C4', 'C4'], ['C4', 'C4'],
+  ['D4', 'D4'], ['D4', 'D4'], ['C4', 'C4'], ['C4', 'C4'],
+  // "Boşver / mesafe koy"
+  ['G4', 'G4'], ['G4', 'G4'], ['E4', 'A4'], ['E4', 'A4'],
+  // Chorus + 1st ending
+  ['A4', 'A4'], ['D4', 'D4'], ['D4', 'G4'], ['A4', 'A4'],
+  ['A4', 'A4'], ['D4', 'D4'], ['E4', 'A4'], ['A4', 'A4'],
+  // 2nd ending
+  ['E4', 'E4'], ['E4', 'A4'], ['E4', 'E4'], ['A4', 'A4'],
+];
+
+/** Root on beats 1 and 3 — a half-note pulse under a sixteenth-note hook. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * H,
+    durationMs: H,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const MESAFE_EVENTS: Ev[] = [...MESAFE_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = MESAFE_MELODY[MESAFE_MELODY.length - 1]?.atMs ?? 0;
 
 // Partial ≈ "Hiç yüzünden darılmak…" (~50 notes from hook start)
+// Counted over the tune — the bass runs underneath the whole excerpt.
 const PARTIAL_START_MS = 12 * BAR;
-const hookNotes = MESAFE_EVENTS.filter((e) => e.atMs >= PARTIAL_START_MS);
+const hookNotes = MESAFE_MELODY.filter((e) => e.atMs >= PARTIAL_START_MS);
 const partialNotes = hookNotes.slice(0, 50);
 
 export const mesafeSong: SongDefinition = {
@@ -292,6 +335,7 @@ export const mesafeSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.mesafe.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: MESAFE_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? PARTIAL_START_MS,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

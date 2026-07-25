@@ -10,6 +10,13 @@ import {
 
 const STORAGE_KEY = '@bioband/studio-projects.v1';
 
+/** Timestamp alone collides when two tracks are added in the same millisecond
+ * (e.g. tapping Duplicate twice quickly), which would break React keys and make
+ * a patch hit both copies. */
+function newTrackId(): string {
+  return `track-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function isInstrumentId(value: unknown): value is InstrumentId {
   return (
     value === 'piano' ||
@@ -46,6 +53,7 @@ function isStudioTrack(value: unknown): value is StudioTrack {
     typeof track.muted === 'boolean' &&
     typeof track.solo === 'boolean' &&
     typeof track.volume === 'number' &&
+    (track.startMs === undefined || typeof track.startMs === 'number') &&
     (track.events === undefined ||
       (Array.isArray(track.events) && track.events.every(isInstrumentEvent))) &&
     (track.audioUri === undefined || typeof track.audioUri === 'string') &&
@@ -53,7 +61,8 @@ function isStudioTrack(value: unknown): value is StudioTrack {
     (track.drumKitId === undefined || typeof track.drumKitId === 'string') &&
     (track.guitarVoiceId === undefined || typeof track.guitarVoiceId === 'string') &&
     (track.violinVoiceId === undefined || typeof track.violinVoiceId === 'string') &&
-    (track.padBankId === undefined || typeof track.padBankId === 'string')
+    (track.padBankId === undefined || typeof track.padBankId === 'string') &&
+    (track.pianoVoiceId === undefined || typeof track.pianoVoiceId === 'string')
   );
 }
 
@@ -67,6 +76,7 @@ function isStudioProject(value: unknown): value is StudioProject {
     typeof project.title === 'string' &&
     typeof project.createdAt === 'number' &&
     typeof project.updatedAt === 'number' &&
+    (project.bpm === undefined || typeof project.bpm === 'number') &&
     Array.isArray(project.tracks) &&
     project.tracks.every(isStudioTrack)
   );
@@ -131,6 +141,22 @@ export async function renameStudioProject(
   return next;
 }
 
+export async function updateStudioProjectBpm(
+  projectId: string,
+  bpm: number,
+): Promise<StudioProject | null> {
+  const clamped = Math.min(240, Math.max(40, Math.round(bpm)));
+  const all = await loadStudioProjects();
+  const index = all.findIndex((project) => project.id === projectId);
+  if (index < 0) {
+    return null;
+  }
+  const next: StudioProject = { ...all[index], bpm: clamped, updatedAt: Date.now() };
+  all[index] = next;
+  await persist(all);
+  return next;
+}
+
 export async function deleteStudioProject(projectId: string): Promise<void> {
   const all = await loadStudioProjects();
   const project = all.find((entry) => entry.id === projectId);
@@ -163,7 +189,20 @@ export async function updateStudioProject(
 export async function updateStudioTrack(
   projectId: string,
   trackId: string,
-  patch: Partial<Pick<StudioTrack, 'muted' | 'solo' | 'volume'>>,
+  patch: Partial<
+    Pick<
+      StudioTrack,
+      | 'muted'
+      | 'solo'
+      | 'volume'
+      | 'startMs'
+      | 'drumKitId'
+      | 'guitarVoiceId'
+      | 'violinVoiceId'
+      | 'padBankId'
+      | 'pianoVoiceId'
+    >
+  >,
 ): Promise<StudioProject | null> {
   const project = await getStudioProject(projectId);
   if (!project) {
@@ -178,6 +217,10 @@ export async function updateStudioTrack(
             patch.volume === undefined
               ? track.volume
               : Math.min(1, Math.max(0, patch.volume)),
+          startMs:
+            patch.startMs === undefined
+              ? track.startMs
+              : Math.max(0, Math.round(patch.startMs)),
         }
       : track,
   );
@@ -221,6 +264,7 @@ function buildTrackFromTake(
     muted: false,
     solo: false,
     volume: 1,
+    startMs: 0,
     events: take.events ? take.events.map((event) => ({ ...event })) : undefined,
     audioUri,
     sourceTakeId: take.id,
@@ -228,6 +272,7 @@ function buildTrackFromTake(
     guitarVoiceId: take.guitarVoiceId,
     violinVoiceId: take.violinVoiceId,
     padBankId: take.padBankId,
+    pianoVoiceId: take.pianoVoiceId,
   };
 }
 
@@ -248,11 +293,46 @@ export async function addTrackFromTake(
     return project;
   }
 
-  const trackId = `track-${Date.now()}`;
+  const trackId = newTrackId();
   const track = buildTrackFromTake(projectId, take, trackId);
   return updateStudioProject({
     ...project,
     tracks: [...project.tracks, track],
+  });
+}
+
+/** Clone an existing track (new id, copied mic audio) and append it. */
+export async function duplicateStudioTrack(
+  projectId: string,
+  trackId: string,
+): Promise<StudioProject | null> {
+  const project = await getStudioProject(projectId);
+  if (!project) {
+    return null;
+  }
+  const source = project.tracks.find((track) => track.id === trackId);
+  if (!source) {
+    return project;
+  }
+
+  const newId = newTrackId();
+  let audioUri = source.audioUri;
+  if (source.mode === 'microphone' && source.audioUri) {
+    // Give the copy its own file so deleting one never removes the other's audio.
+    audioUri = copyStudioTrackAudio(projectId, newId, source.audioUri);
+  }
+
+  const clone: StudioTrack = {
+    ...source,
+    id: newId,
+    createdAt: Date.now(),
+    events: source.events ? source.events.map((event) => ({ ...event })) : undefined,
+    audioUri,
+  };
+
+  return updateStudioProject({
+    ...project,
+    tracks: [...project.tracks, clone],
   });
 }
 

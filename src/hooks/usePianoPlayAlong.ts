@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { awardPlayAlongCompletion } from '../profile/awardPlayAlong';
 import type { NoteId } from '../instruments/piano/pianoNotes';
@@ -26,6 +26,17 @@ import {
   type SongScope,
 } from '../instruments/piano/songs/types';
 import { getSharedAudioContext, prepareSamplePlayback } from '../audio/sampleBank';
+import {
+  startSongScheduler,
+  type SongSchedulerHandle,
+} from '../audio/songScheduler';
+import {
+  melodyEvents,
+  resolveDurations,
+  resolveVelocities,
+  roleOf,
+  type NotePerformance,
+} from '../instruments/shared/songPerformance';
 import {
   copySongAudioFile,
   copySongPianoLessFile,
@@ -103,7 +114,7 @@ function clampOffset(ms: number): number {
 }
 
 export function usePianoPlayAlong(
-  playNote: (noteId: NoteId) => void,
+  playNote: (noteId: NoteId, performance?: NotePerformance) => void,
   extraSongs: SongDefinition[] = [],
   onUserSongOffsetSaved?: (songId: string, eventsStartMs: number) => void,
 ) {
@@ -127,7 +138,14 @@ export function usePianoPlayAlong(
 
   const songRef = useRef<SongDefinition | null>(null);
   const sessionRef = useRef<ResolvedPlaySession | null>(null);
+  /** Everything that sounds, accompaniment included. */
   const eventsRef = useRef<SongEvent[]>([]);
+  /** Only what the user is asked to play — drives the guide and the score. */
+  const chartRef = useRef<SongEvent[]>([]);
+  /** Sustain and strike strength per entry of `eventsRef`. */
+  const durationsRef = useRef<number[]>([]);
+  const velocitiesRef = useRef<number[]>([]);
+  const schedulerRef = useRef<SongSchedulerHandle | null>(null);
   const playModeRef = useRef<PlayMode | null>(null);
   const songScopeRef = useRef<SongScope | null>(null);
   const levelRef = useRef<SupportLevel>('guided');
@@ -143,6 +161,13 @@ export function usePianoPlayAlong(
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const notesFinishedRef = useRef(false);
+  /**
+   * Bumped by every start attempt. The starters await before installing their
+   * timers, so without this a second tap (double-tapped level or Replay)
+   * interleaves with the first and both sets of timers survive — leaving an
+   * orphaned scheduler that `clearTimers` can no longer reach.
+   */
+  const runIdRef = useRef(0);
   /** True when user already had a saved binding (skip calibrate on re-entry). */
   const hadSavedBindingRef = useRef(false);
 
@@ -152,6 +177,10 @@ export function usePianoPlayAlong(
   tempoRef.current = tempo;
 
   const clearTimers = useCallback(() => {
+    if (schedulerRef.current) {
+      schedulerRef.current.stop();
+      schedulerRef.current = null;
+    }
     if (tickRef.current) {
       clearInterval(tickRef.current);
       tickRef.current = null;
@@ -188,12 +217,16 @@ export function usePianoPlayAlong(
       // Backing player.playbackRate keeps currentTime in song-time.
       return getBackingElapsedMs(session.audioStartMs);
     }
-    const wall = Date.now() - startTimeRef.current;
-    return wall * TEMPO_RATES[tempoRef.current];
+    // The audio clock is the one the notes are actually placed on. Wall time
+    // drifts against it under render load, which is exactly when the hit
+    // windows must not move.
+    const elapsed =
+      (getSharedAudioContext().currentTime - startTimeRef.current) * 1000;
+    return elapsed * TEMPO_RATES[tempoRef.current];
   }, []);
 
   const updateGuide = useCallback(() => {
-    const events = eventsRef.current;
+    const events = chartRef.current;
     if (events.length === 0 || pointerRef.current >= events.length) {
       clearGuides();
       return;
@@ -210,7 +243,7 @@ export function usePianoPlayAlong(
     stopSessionAudio();
     clearGuides();
 
-    const events = eventsRef.current;
+    const events = chartRef.current;
     const stats = statsRef.current;
     const totalNotes = events.length;
     const scored =
@@ -242,7 +275,7 @@ export function usePianoPlayAlong(
 
   const maybeFinishAfterNotes = useCallback(() => {
     const session = sessionRef.current;
-    const events = eventsRef.current;
+    const events = chartRef.current;
     if (pointerRef.current < events.length) {
       return;
     }
@@ -262,7 +295,7 @@ export function usePianoPlayAlong(
     pointerRef.current += 1;
     updateGuide();
 
-    const events = eventsRef.current;
+    const events = chartRef.current;
     setProgress({
       resolved: pointerRef.current,
       total: events.length,
@@ -284,8 +317,29 @@ export function usePianoPlayAlong(
     const session = resolvePlaySession(song, mode, scope);
     sessionRef.current = session;
     eventsRef.current = session.events;
+    // Accompaniment sounds but is never highlighted or scored — the user is
+    // still only asked to play the tune.
+    chartRef.current = melodyEvents(session.events);
+    durationsRef.current = resolveDurations(session.events, {
+      isSameNote: (a, b) => a.noteId === b.noteId,
+    });
+    velocitiesRef.current = resolveVelocities(session.events, song.meter);
     return session;
   }, []);
+
+  /** Length and strength written for the event at `index` of `eventsRef`. */
+  const performanceFor = useCallback(
+    (index: number, atTime?: number): NotePerformance => {
+      const durationMs = durationsRef.current[index];
+      return {
+        atTime,
+        sustainSeconds: durationMs ? durationMs / 1000 : undefined,
+        velocity: velocitiesRef.current[index],
+        transposeSemitones: eventsRef.current[index]?.transpose,
+      };
+    },
+    [],
+  );
 
   const finishDemo = useCallback(() => {
     clearTimers();
@@ -321,7 +375,7 @@ export function usePianoPlayAlong(
 
   const startTick = useCallback(() => {
     tickRef.current = setInterval(() => {
-      const events = eventsRef.current;
+      const events = chartRef.current;
       const session = sessionRef.current;
       if (!events.length || phaseRef.current !== 'playing') {
         return;
@@ -376,20 +430,41 @@ export function usePianoPlayAlong(
     }
 
     notesFinishedRef.current = false;
-    startTimeRef.current = Date.now();
+    startTimeRef.current = getSharedAudioContext().currentTime;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
     setPhase('playing');
     updateGuide();
 
     if (session.useBacking) {
       void playBackingFrom(session.audioStartMs);
+    } else {
+      // The user plays the tune; anything written as accompaniment plays
+      // underneath so they hear the song rather than a bare melody line.
+      const accompaniment = session.events
+        .map((event, index) => ({ event, index }))
+        .filter((entry) => roleOf(entry.event) !== 'melody');
+
+      if (accompaniment.length > 0) {
+        schedulerRef.current?.stop();
+        schedulerRef.current = startSongScheduler({
+          events: accompaniment.map((entry) => entry.event),
+          rate: TEMPO_RATES[tempoRef.current],
+          onEvent: (event, position, atContextTime) => {
+            playNote(
+              event.noteId,
+              performanceFor(accompaniment[position].index, atContextTime),
+            );
+          },
+        });
+      }
     }
     startTick();
-  }, [buildSession, startTick, updateGuide]);
+  }, [buildSession, performanceFor, playNote, startTick, updateGuide]);
 
   const startDemo = useCallback(async () => {
+    const runId = ++runIdRef.current;
     const session = buildSession();
     if (!session) {
       return;
@@ -401,24 +476,30 @@ export function usePianoPlayAlong(
     notesFinishedRef.current = false;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
     setPhase('demo');
-    setGuideNoteId(session.events[0]?.noteId ?? null);
+    setGuideNoteId(chartRef.current[0]?.noteId ?? null);
 
     await ensureBackingReady(session);
+    if (runIdRef.current !== runId) {
+      return;
+    }
 
     const rate = TEMPO_RATES[tempoRef.current];
 
     if (session.useBacking) {
       await playBackingFrom(session.audioStartMs);
-      startTimeRef.current = Date.now();
+      if (runIdRef.current !== runId) {
+        return;
+      }
+      startTimeRef.current = getSharedAudioContext().currentTime;
 
       tickRef.current = setInterval(() => {
         if (phaseRef.current !== 'demo') {
           return;
         }
         const elapsed = getElapsedMs();
-        const events = eventsRef.current;
+        const events = chartRef.current;
         let idx = 0;
         while (idx < events.length && events[idx].atMs <= elapsed) {
           idx += 1;
@@ -443,35 +524,41 @@ export function usePianoPlayAlong(
       return;
     }
 
-    startTimeRef.current = Date.now();
-    session.events.forEach((event, index) => {
-      const timer = setTimeout(() => {
-        playNote(event.noteId);
-        setGuideNoteId(event.noteId);
-        setProgress({
-          resolved: index + 1,
-          total: session.events.length,
-          hits: 0,
-        });
-      }, event.atMs / rate);
-      timersRef.current.push(timer);
-    });
+    startTimeRef.current = getSharedAudioContext().currentTime;
 
-    const lastAtMs = session.events[session.events.length - 1]?.atMs ?? 0;
-    const endTimer = setTimeout(() => {
-      finishDemo();
-    }, lastAtMs / rate + 1500);
-    timersRef.current.push(endTimer);
+    const chart = chartRef.current;
+    let reached = 0;
+
+    schedulerRef.current?.stop();
+    schedulerRef.current = startSongScheduler({
+      events: session.events,
+      rate,
+      onEvent: (event, index, atContextTime) => {
+        playNote(event.noteId, performanceFor(index, atContextTime));
+      },
+      onAdvance: (_index, event) => {
+        while (reached < chart.length && chart[reached].atMs <= event.atMs) {
+          reached += 1;
+        }
+        const current = Math.max(0, reached - 1);
+        pointerRef.current = current;
+        setGuideNoteId(chart[current]?.noteId ?? null);
+        setProgress({ resolved: reached, total: chart.length, hits: 0 });
+      },
+      onDone: finishDemo,
+    });
   }, [
     buildSession,
     clearTimers,
     ensureBackingReady,
     finishDemo,
     getElapsedMs,
+    performanceFor,
     playNote,
   ]);
 
   const startStepMode = useCallback(async () => {
+    const runId = ++runIdRef.current;
     const session = buildSession();
     if (!session) {
       return;
@@ -482,21 +569,28 @@ export function usePianoPlayAlong(
     notesFinishedRef.current = false;
     // Without this, finishing step mode with no backing track computed the
     // award elapsed from a stale/zero start (same bug fixed in drums/guitar/pads).
-    startTimeRef.current = Date.now();
+    startTimeRef.current = getSharedAudioContext().currentTime;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
-    setProgress({ resolved: 0, total: session.events.length, hits: 0 });
+    setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
     setPhase('playing');
     updateGuide();
 
     await ensureBackingReady(session);
+    if (runIdRef.current !== runId) {
+      return;
+    }
     if (session.useBacking) {
       await playBackingFrom(session.audioStartMs);
+      if (runIdRef.current !== runId) {
+        return;
+      }
       startTick();
     }
   }, [buildSession, clearTimers, ensureBackingReady, startTick, updateGuide]);
 
   const startCountdown = useCallback(async () => {
+    const runId = ++runIdRef.current;
     const session = buildSession();
     if (!session) {
       return;
@@ -509,6 +603,9 @@ export function usePianoPlayAlong(
     clearGuides();
 
     await ensureBackingReady(session);
+    if (runIdRef.current !== runId) {
+      return;
+    }
 
     for (let step = 1; step <= COUNTDOWN_START; step++) {
       const timer = setTimeout(() => {
@@ -530,6 +627,9 @@ export function usePianoPlayAlong(
     songRef.current = null;
     sessionRef.current = null;
     eventsRef.current = [];
+    chartRef.current = [];
+    durationsRef.current = [];
+    velocitiesRef.current = [];
     setPlayMode(null);
     setSongScope(null);
     setResults(null);
@@ -900,7 +1000,7 @@ export function usePianoPlayAlong(
         play();
       }
 
-      const events = eventsRef.current;
+      const events = chartRef.current;
       if (!events.length || phaseRef.current !== 'playing') {
         return;
       }
@@ -948,8 +1048,16 @@ export function usePianoPlayAlong(
   const hasBackingAudio = songHasBackingAudio(selectedSong?.backingTrack);
   const hasPianoLessBacking = hasPianoLessTrack(selectedSong?.backingTrack);
 
+  // Rebuilding this every render handed the screen a new array each time,
+  // which was enough to invalidate the key-press callbacks and redraw all 24
+  // keys on any unrelated state change.
+  const songs = useMemo(
+    () => [...PIANO_SONGS, ...extraSongs],
+    [extraSongs],
+  );
+
   return {
-    songs: [...PIANO_SONGS, ...extraSongs],
+    songs,
     phase,
     selectedSong,
     playMode,

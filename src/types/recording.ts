@@ -35,6 +35,8 @@ export type SavedRecording = {
   violinVoiceId?: string;
   /** Pad bank the take was performed with — playback restores this timbre. */
   padBankId?: string;
+  /** Piano voice the take was performed with — playback restores this timbre. */
+  pianoVoiceId?: string;
 };
 
 // Piano note ids are the canonical sound ids for the piano track.

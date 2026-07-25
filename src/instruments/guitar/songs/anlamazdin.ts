@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~86 BPM — Ayla Dikmen ballad. */
@@ -87,16 +88,19 @@ function bridgeDilerim(startMs: number): GuitarSongEvent[] {
 export const ANLAMAZDIN_EVENTS: GuitarSongEvent[] = [
   ...introLead(0),
   ...introLead(BAR),
-  e('chord:Am', BAR * 2),
+  bed('chord:Am', BAR * 2),
   ...verseSevilirken(BAR * 2),
-  e('chord:B7', BAR * 6),
+  bed('chord:B7', BAR * 6),
   ...chorusAnlamazdin(BAR * 6),
-  e('chord:Am', BAR * 10),
+  bed('chord:Am', BAR * 10),
   ...bridgeDilerim(BAR * 10),
-  e('chord:E', BAR * 18),
+  bed('chord:E', BAR * 18),
   ...chorusAnlamazdin(BAR * 18),
   note('s2', 0, BAR * 22),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const ANLAMAZDIN_METER: SongMeter = { beatMs: BEAT, beatsPerBar: 4 };
 
 /** Two intro lead statements. */
 export const ANLAMAZDIN_PARTIAL_COUNT = 16;

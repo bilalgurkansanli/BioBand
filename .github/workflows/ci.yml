@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A new push to the same PR cancels the run already in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, lint & bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Zero tolerance: a new warning is a failed build. The project is clean
+      # today, and that is only worth keeping if it is enforced.
+      - name: Lint
+        run: npx eslint . --max-warnings 0
+
+      - name: Project health
+        run: npx expo-doctor
+
+      # The real regression test until there is a suite: a broken import, a
+      # missing asset or a bad `require()` path all fail here rather than on a
+      # user's device.
+      - name: Bundle for Android
+        run: npx expo export --platform android --output-dir /tmp/bioband-bundle
+
+      - name: Report bundle size
+        run: |
+          echo "### Bundle size" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          du -sh /tmp/bioband-bundle >> "$GITHUB_STEP_SUMMARY"
+          du -sh /tmp/bioband-bundle/_expo /tmp/bioband-bundle/assets >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

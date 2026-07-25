@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 type ViolinNoteCellProps = {
@@ -19,7 +20,12 @@ type ViolinNoteCellProps = {
 };
 
 /** Visual finger pad only — touch is handled by the fingerboard surface. */
-export function ViolinNoteCell({
+/**
+ * Memoised for the same reason as PianoKey: the fingerboard holds one of these
+ * per position per string, they take only primitives and no callbacks, and the
+ * screen re-renders on every guide change and progress tick.
+ */
+export const ViolinNoteCell = memo(function ViolinNoteCell({
   isActive,
   isOpenString,
   isGuide,
@@ -92,7 +98,7 @@ export function ViolinNoteCell({
       {labelText}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   hit: {

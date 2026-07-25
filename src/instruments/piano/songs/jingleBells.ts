@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Jingle Bells — Michael Kravchuk lead sheet (F major, 4/4).
 // Form: Verse + Chorus + Verse + Chorus (≥50 notes; full sing-along).
@@ -9,7 +9,7 @@ const H = 2 * Q;
 const W = 4 * Q;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function bar(startBar: number, notes: [NoteId, number][]): Ev[] {
   const t0 = startBar * BAR;
@@ -169,21 +169,63 @@ const CHORUS: Ev[] = [
   ...bar(15, [['F4', 0]]),
 ];
 
+// Chord roots per bar, from the lead sheet's F / Bb / C7 harmony. Written on
+// the keyboard and sounded an octave down — a bass in the melody's own two
+// octaves would just crowd the tune.
+const VERSE_ROOTS: NoteId[] = [
+  'F4', 'F4', 'F4', 'F4',
+  'Bb4', 'C4', 'C4', 'F4',
+  'F4', 'F4', 'F4', 'F4',
+  'Bb4', 'C4', 'C4', 'F4',
+];
+const CHORUS_ROOTS: NoteId[] = [
+  'F4', 'F4', 'F4', 'F4',
+  'Bb4', 'Bb4', 'F4', 'C4',
+  'F4', 'F4', 'F4', 'F4',
+  'Bb4', 'Bb4', 'C4', 'F4',
+];
+
+/** Root on beats 1 and 3 — the sleigh-ride two-feel under the tune. */
+function bassLine(roots: NoteId[], barOffset: number): Ev[] {
+  const events: Ev[] = [];
+  roots.forEach((noteId, barIndex) => {
+    for (const beat of [0, 2]) {
+      events.push({
+        noteId,
+        atMs: (barOffset + barIndex) * BAR + beat * Q,
+        durationMs: H,
+        role: 'accompaniment',
+        transpose: -12,
+      });
+    }
+  });
+  return events;
+}
+
 // Verse → Chorus → Verse → Chorus (64 bars)
-const JINGLE_BELLS_EVENTS: Ev[] = [
+const MELODY: Ev[] = [
   ...atBars(VERSE, 0),
   ...atBars(CHORUS, 16),
   ...atBars(VERSE, 32),
   ...atBars(CHORUS, 48),
 ];
 
-const LAST_MS = JINGLE_BELLS_EVENTS[JINGLE_BELLS_EVENTS.length - 1]?.atMs ?? 0;
+const JINGLE_BELLS_EVENTS: Ev[] = [
+  ...MELODY,
+  ...bassLine(VERSE_ROOTS, 0),
+  ...bassLine(CHORUS_ROOTS, 16),
+  ...bassLine(VERSE_ROOTS, 32),
+  ...bassLine(CHORUS_ROOTS, 48),
+].sort((a, b) => a.atMs - b.atMs);
+
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
 
 // "Bir kısmı": 1-based notes 46–96 (51 notes) — mostly first chorus into verse 2.
 const PARTIAL_START_INDEX = 45; // 1-based note 46
 const PARTIAL_END_INDEX = 95; // 1-based note 96 (inclusive)
-const partialFirst = JINGLE_BELLS_EVENTS[PARTIAL_START_INDEX];
-const partialLast = JINGLE_BELLS_EVENTS[PARTIAL_END_INDEX];
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const partialFirst = MELODY[PARTIAL_START_INDEX];
+const partialLast = MELODY[PARTIAL_END_INDEX];
 
 export const jingleBellsSong: SongDefinition = {
   id: 'jingle-bells',
@@ -192,6 +234,7 @@ export const jingleBellsSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.jingleBells.description',
   previewDurationMs: Math.min(12000, LAST_MS + W),
   events: JINGLE_BELLS_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs:
     partialFirst && partialLast
       ? {

@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -70,7 +70,7 @@ export function ProfileScreen() {
       void loadProfileSettings().then(setProfileSettings);
     }, []),
   );
-  const { displayName, avatarColor } = profileSettings;
+  const { displayName, avatarPhotoUrl } = profileSettings;
 
   const goPractice = () => {
     navigation.getParent()?.navigate('Instruments' as keyof RootTabParamList);
@@ -104,7 +104,7 @@ export function ProfileScreen() {
       />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.identityRow}>
-          <ProfileAvatar color={avatarColor} displayName={displayName} size={48} />
+          <ProfileAvatar displayName={displayName} photoUrl={avatarPhotoUrl} size={48} />
           <View style={styles.flex}>
             {displayName ? (
               <Text style={styles.greeting}>
@@ -363,6 +363,7 @@ function BadgeCell({ badge }: { badge: Badge }) {
             meta.imageSize
               ? { height: meta.imageSize, width: meta.imageSize }
               : null,
+            meta.imageOffsetY ? { transform: [{ translateY: meta.imageOffsetY }] } : null,
             !badge.earned && styles.badgeImageLocked,
           ]}
         />

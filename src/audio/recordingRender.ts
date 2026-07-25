@@ -5,6 +5,7 @@ import { resolveGuitarDryEvents } from './dryBounce/guitarDryEvents';
 import { resolvePadsDryEvents } from './dryBounce/padsDryEvents';
 import { resolvePianoDryEvents } from './dryBounce/pianoDryEvents';
 import { resolveViolinDryEvents } from './dryBounce/violinDryEvents';
+import type { PianoVoiceId } from '../instruments/piano/pianoVoices';
 import type { SavedRecording } from '../types/recording';
 
 export type RenderedPcm = {
@@ -47,7 +48,7 @@ export async function renderRecordingPcm(recording: SavedRecording): Promise<Ren
   const { sampleEvents, oscillatorEvents } = await (() => {
     switch (recording.instrument) {
       case 'piano':
-        return resolvePianoDryEvents(events);
+        return resolvePianoDryEvents(events, recording.pianoVoiceId as PianoVoiceId | undefined);
       case 'drums':
         return resolveDrumsDryEvents(events, recording.drumKitId);
       case 'guitar':

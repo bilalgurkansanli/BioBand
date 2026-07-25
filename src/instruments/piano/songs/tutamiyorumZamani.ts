@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Müslüm Gürses / Kenan Doğulu — "Tutamıyorum Zamanı"
 // Musa Çetiner / kolaynota.com — Easy Piano, Am, 4/4.
@@ -10,7 +10,7 @@ const E = Q / 2;
 const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -191,7 +191,7 @@ function chorus(startBar: number): Ev[] {
   ];
 }
 
-const TUTAMIYORUM_EVENTS: Ev[] = [
+const TUTAMIYORUM_MELODY: Ev[] = [
   ...intro(0),
   // First pass: İnadına… gel / Bu gidişin… gel
   ...verseA(3),
@@ -207,15 +207,57 @@ const TUTAMIYORUM_EVENTS: Ev[] = [
   ...chorus(31),
 ];
 
-const LAST_MS = TUTAMIYORUM_EVENTS[TUTAMIYORUM_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar, in La minor. The verse is an Am chart: the
+ * Do-Si motif and the La answers are all tonic, the Sol-La-Sol-Fa bar leans on
+ * C, and the two bars built on Fa take F. The chorus hook is where it moves —
+ * the Re blocks (with their Do# neighbour) take Dm, and the Si-Do-Re answer
+ * takes G. The B that ends each intro cell is the E dominant.
+ * Written on the keyboard and sounded an octave down, under a tune that sits
+ * between Mi4 and Mi5.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Intro motif
+  ['A4', 'E4'], ['A4', 'G4'], ['A4', 'A4'], ['A4', 'E4'],
+  // "İnadına yenilmeden…" ×2
+  ['A4', 'A4'], ['C4', 'A4'], ['A4', 'A4'], ['A4', 'A4'],
+  ['A4', 'A4'], ['C4', 'A4'], ['F4', 'F4'],
+  ['A4', 'E4'], ['A4', 'A4'], ['C4', 'A4'], ['A4', 'A4'], ['A4', 'A4'],
+  ['A4', 'A4'], ['C4', 'A4'], ['F4', 'F4'],
+  // "kaybetme gel"
+  ['A4', 'G4'], ['A4', 'A4'], ['A4', 'A4'], ['D4', 'G4'], ['A4', 'A4'],
+  // Chorus title hook ×2
+  ['A4', 'D4'], ['D4', 'G4'], ['A4', 'A4'], ['A4', 'F4'], ['D4', 'D4'],
+  ['D4', 'A4'], ['A4', 'A4'],
+  ['A4', 'D4'], ['D4', 'G4'], ['A4', 'A4'], ['A4', 'F4'], ['D4', 'D4'],
+  ['D4', 'A4'], ['A4', 'A4'],
+];
+
+/** Root on beats 1 and 3 — a half-note pulse under the tune. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * 2 * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const TUTAMIYORUM_EVENTS: Ev[] = [...TUTAMIYORUM_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = TUTAMIYORUM_MELODY[TUTAMIYORUM_MELODY.length - 1]?.atMs ?? 0;
 
 // Partial ≈ first verse page (~50 notes): intro + "İnadına… kaybetme gel"
+// Counted over the tune — the bass runs underneath the whole excerpt.
 const PARTIAL_END_MS = 11 * BAR;
-const verseNotes = TUTAMIYORUM_EVENTS.filter((e) => e.atMs < PARTIAL_END_MS);
+const verseNotes = TUTAMIYORUM_MELODY.filter((e) => e.atMs < PARTIAL_END_MS);
 const partialNotes =
   verseNotes.length >= 50
     ? verseNotes.slice(0, 50)
-    : TUTAMIYORUM_EVENTS.slice(0, 50);
+    : TUTAMIYORUM_MELODY.slice(0, 50);
 
 export const tutamiyorumZamaniSong: SongDefinition = {
   id: 'tutamiyorum-zamani',
@@ -224,6 +266,7 @@ export const tutamiyorumZamaniSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.tutamiyorumZamani.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: TUTAMIYORUM_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

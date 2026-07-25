@@ -1,4 +1,4 @@
-import { Platform, StyleSheet, type ViewProps } from 'react-native';
+import { StyleSheet, type ViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
@@ -13,13 +13,6 @@ export function ScreenContainer({ children, style, ...rest }: ScreenContainerPro
       {children}
     </SafeAreaView>
   );
-}
-
-/** @deprecated Use configureSystemUi from src/system/configureSystemUi */
-export function configureAndroidSystemBars(): void {
-  if (Platform.OS === 'android') {
-    void import('../system/configureSystemUi').then(({ configureSystemUi }) => configureSystemUi());
-  }
 }
 
 const styles = StyleSheet.create({

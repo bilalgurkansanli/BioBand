@@ -1,5 +1,5 @@
 import { loadSample } from '../sampleBank';
-import type { DryOscillatorEvent, DrySampleEvent } from '../offlineBounce';
+import type { DryFilter, DryOscillatorEvent, DrySampleEvent } from '../offlineBounce';
 import { BASE_SAMPLE_FILES, getNoteSampleConfig } from '../../instruments/piano/pianoSamples';
 import { PIANO_NOTES, type NoteId } from '../../instruments/piano/pianoNotes';
 import type { PianoVoiceId } from '../../instruments/piano/pianoVoices';
@@ -11,11 +11,21 @@ function midiToFrequency(midi: number): number {
   return 440 * 2 ** ((midi - 69) / 12);
 }
 
-/** Mirrors pianoEngine.ts's bass-scale curves (they vary slightly per synth voice —
- * this shared approximation is fine for a dry export, not the live interactive feel). */
-function bassScale(frequency: number): number {
+/** Mirrors pianoEngine.ts's per-voice bass-scale curves (playOrgan/playRhodes/playSynthLead). */
+function organBassScale(frequency: number): number {
+  return frequency < 180 ? 0.45 : frequency < 280 ? 0.6 : frequency < 400 ? 0.8 : 1;
+}
+function rhodesBassScale(frequency: number): number {
   return frequency < 180 ? 0.5 : frequency < 280 ? 0.65 : frequency < 400 ? 0.82 : 1;
 }
+function synthBassScale(frequency: number): number {
+  return frequency < 180 ? 0.55 : frequency < 280 ? 0.7 : frequency < 400 ? 0.85 : 1;
+}
+
+/** Mirrors pianoEngine.ts's brightFilter (highshelf, 1800Hz, +4dB). */
+const BRIGHT_FILTER: DryFilter = { type: 'highshelf', frequency: 1800, gainDb: 4 };
+/** Mirrors pianoEngine.ts's musicBoxFilter (lowpass, 4500Hz, Q0.7) — anti-alias for the pitched-up sample. */
+const MUSIC_BOX_FILTER: DryFilter = { type: 'lowpass', frequency: 4500, q: 0.7 };
 
 /**
  * Dry (no reverb/echo) resolution of recorded piano note events into schedulable
@@ -46,18 +56,28 @@ export async function resolvePianoDryEvents(
         buffer,
         playbackRate: config.playbackRate,
         gain,
+        filters:
+          voice === 'bright'
+            ? [BRIGHT_FILTER]
+            : voice === 'musicBox'
+              ? [MUSIC_BOX_FILTER]
+              : undefined,
       });
       continue;
     }
 
     const frequency = midiToFrequency(midi);
-    const scale = bassScale(frequency);
 
     if (voice === 'organ') {
+      const scale = organBassScale(frequency);
       oscillatorEvents.push({
         atMs: event.atMs,
         frequency,
         durationMs: 530,
+        // Organ sustains at peak for ~0.35s before the 0.18s decay (see
+        // playOrgan in pianoEngine.ts) — without this it sounds like a fast
+        // pluck instead of the sustained tone actually heard live.
+        sustainSeconds: 0.35,
         gain: 0.8,
         waveform: 'sine',
         partials: [
@@ -67,6 +87,7 @@ export async function resolvePianoDryEvents(
         ],
       });
     } else if (voice === 'rhodes') {
+      const scale = rhodesBassScale(frequency);
       oscillatorEvents.push({
         atMs: event.atMs,
         frequency,
@@ -79,6 +100,7 @@ export async function resolvePianoDryEvents(
         ],
       });
     } else if (voice === 'synth') {
+      const scale = synthBassScale(frequency);
       oscillatorEvents.push({
         atMs: event.atMs,
         frequency,

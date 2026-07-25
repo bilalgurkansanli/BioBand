@@ -1,0 +1,87 @@
+name: Bug report
+description: Something in the app does not work the way it should
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please do **not** use this form for security
+        problems — follow
+        [SECURITY.md](https://github.com/bilalgurkansanli/BioBand/blob/main/SECURITY.md)
+        instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+      placeholder: |
+        Tapping a piano key right after opening the app produces no sound.
+        I expected it to play immediately.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Cold-start the app
+        2. Tap Piano as soon as the instrument list appears
+        3. Tap any white key
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in the app
+      options:
+        - Piano
+        - Drums
+        - Guitar
+        - Violin
+        - Pads
+        - Drum Machine
+        - Tutorial Mode / play-along
+        - Song or MIDI import
+        - Recordings (playback, download, share)
+        - Studio
+        - Profile / streaks / badges
+        - Sign-in or cloud sync
+        - Launch / startup
+        - Something else
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and OS
+      placeholder: Pixel 7, Android 14 — or iPhone 13, iOS 17.4
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      description: Profile → Settings, or the branch/commit if you built it yourself.
+      placeholder: v1.9, or main @ 0d5ba61
+    validations:
+      required: true
+
+  - type: textarea
+    id: audio-detail
+    attributes:
+      label: Audio details
+      description: |
+        Only if the problem involves sound or timing. Which instrument voice or
+        drum kit was selected, whether headphones or Bluetooth were connected,
+        and whether anything else was playing audio at the time.
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots, video or logs
+      description: Drag files straight into this box. A short screen recording is worth a lot for timing bugs.

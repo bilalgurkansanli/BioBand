@@ -4,6 +4,25 @@ import type { SavedRecording } from '../types/recording';
 
 const STORAGE_KEY = '@bioband/recordings';
 
+/**
+ * Lenient shape check for stored takes. Deliberately only validates the fields
+ * every code path relies on — dropping a user's recording because of a stricter
+ * rule would be worse than keeping a slightly odd one.
+ */
+function isSavedRecording(value: unknown): value is SavedRecording {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const entry = value as SavedRecording;
+  return (
+    typeof entry.id === 'string' &&
+    typeof entry.createdAt === 'number' &&
+    typeof entry.instrument === 'string' &&
+    typeof entry.mode === 'string' &&
+    typeof entry.durationMs === 'number'
+  );
+}
+
 export async function saveRecording(recording: SavedRecording): Promise<void> {
   const existing = await loadRecordings();
   existing.unshift(recording);
@@ -17,7 +36,13 @@ export async function loadRecordings(): Promise<SavedRecording[]> {
   }
 
   try {
-    return JSON.parse(raw) as SavedRecording[];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      // Corrupt/legacy value — treat as empty instead of crashing every caller
+      // that expects to map/filter over an array.
+      return [];
+    }
+    return parsed.filter(isSavedRecording);
   } catch {
     return [];
   }

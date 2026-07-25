@@ -11,7 +11,6 @@ export const BAND_BACKING_VOLUME_FULL = 0.28;
 export const BAND_BACKING_VOLUME_PIANO_LESS = 0.65;
 
 let currentBackingVolume = BAND_BACKING_VOLUME_FULL;
-let usingPianoLess = false;
 /** Desired song-time playback rate (applied when a player exists). */
 let desiredPlaybackRate = 1;
 
@@ -41,15 +40,12 @@ export async function prepareBackingTrack(source: SongBackingTrack): Promise<voi
   // Piano-less stem gets priority — best "play-along" feel.
   if (typeof source.pianoLessUri === 'string' && source.pianoLessUri.length > 0) {
     activePlayer = createAudioPlayer({ uri: source.pianoLessUri }, { updateInterval: 50 });
-    usingPianoLess = true;
     currentBackingVolume = BAND_BACKING_VOLUME_PIANO_LESS;
   } else if (typeof source.uri === 'string' && source.uri.length > 0) {
     activePlayer = createAudioPlayer({ uri: source.uri }, { updateInterval: 50 });
-    usingPianoLess = false;
     currentBackingVolume = BAND_BACKING_VOLUME_FULL;
   } else if (typeof source.module === 'number') {
     activePlayer = createAudioPlayer(source.module, { updateInterval: 50 });
-    usingPianoLess = false;
     currentBackingVolume = BAND_BACKING_VOLUME_FULL;
   }
 
@@ -82,18 +78,8 @@ export async function playBackingFrom(startMs: number): Promise<void> {
   activePlayer.play();
 }
 
-export function setBackingVolume(volume: number): void {
-  if (activePlayer) {
-    activePlayer.volume = Math.max(0, Math.min(1, volume));
-  }
-}
-
 export function pauseBackingTrack(): void {
   activePlayer?.pause();
-}
-
-export function resumeBackingTrack(): void {
-  activePlayer?.play();
 }
 
 export function getBackingCurrentTimeMs(): number {
@@ -101,17 +87,6 @@ export function getBackingCurrentTimeMs(): number {
     return 0;
   }
   return Math.max(0, activePlayer.currentTime * 1000);
-}
-
-export function getBackingDurationMs(): number {
-  if (!activePlayer) {
-    return 0;
-  }
-  return Math.max(0, activePlayer.duration * 1000);
-}
-
-export function isBackingPlaying(): boolean {
-  return activePlayer?.playing ?? false;
 }
 
 /** Session elapsed relative to audioStartMs (clamped ≥ 0). */
@@ -143,13 +118,7 @@ export async function stopBackingTrack(): Promise<void> {
     }
     activePlayer = null;
   }
-  usingPianoLess = false;
   desiredPlaybackRate = 1;
-}
-
-/** True when the active backing is a piano-less stem (better play-along feel). */
-export function isUsingPianoLessBacking(): boolean {
-  return usingPianoLess;
 }
 
 /** True when the source has a piano-less URI attached. */
@@ -163,6 +132,3 @@ export function hasPianoLessTrack(
 }
 
 /** Current backing volume (depends on full-mix vs piano-less). */
-export function getBackingVolume(): number {
-  return currentBackingVolume;
-}

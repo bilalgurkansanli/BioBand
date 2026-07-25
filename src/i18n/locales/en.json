@@ -11,15 +11,22 @@
     "continueAsGuest": "Continue as guest",
     "guestHint": "You can sign in later from Profile settings.",
     "signOut": "Sign out",
-    "signedInAs": "Signed in as {{email}}",
     "syncedBadge": "Synced",
     "signInSettingsHint": "Sign in to keep your progress and settings synced.",
     "errors": {
       "playServicesUnavailable": "Google Play Services is required and unavailable on this device.",
       "noIdToken": "Google didn't return a sign-in token. Try again.",
       "unconfigured": "Sign-in isn't set up for this build yet.",
-      "error": "Sign-in failed. Try again."
-    }
+      "error": "Sign-in failed. Try again.",
+      "notAvailable": "Sign in with Apple isn't available on this device.",
+      "noIdentityToken": "Apple didn't return a sign-in token. Try again."
+    },
+    "signOutConfirmTitle": "Sign out?",
+    "signOutConfirmMessage": "If you sign out, your data will reset each time you open the app until you sign in again.",
+    "localDataHint": "Your recordings, Studio projects, and imported songs are stored only on this device — they aren't backed up to the cloud. Only your progress, badges, and settings sync.",
+    "acceptPrivacyPrefix": "I accept the ",
+    "acceptPrivacyLink": "Privacy Policy",
+    "acceptPrivacySuffix": "."
   },
   "common": {
     "back": "Back",
@@ -29,7 +36,9 @@
     "writeReview": "Write a Review",
     "close": "Close",
     "minutesShort": "{{count}} min",
-    "hoursShort": "{{count}} hr"
+    "hoursShort": "{{count}} hr",
+    "about": "About",
+    "privacyPolicy": "Privacy Policy"
   },
   "profile": {
     "title": "Profile",
@@ -49,7 +58,15 @@
     "weekTrendDown": "Down {{percent}}% vs last week",
     "weekTrendFlat": "Same as last week",
     "weekTrendNew": "New this week — keep it going",
-    "weekdayShort": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+    "weekdayShort": [
+      "Su",
+      "Mo",
+      "Tu",
+      "We",
+      "Th",
+      "Fr",
+      "Sa"
+    ],
     "todayTitle": "Today's practice",
     "todayEmpty": "No practice logged yet today.",
     "dailyGoal": "Soft goal: {{goal}}",
@@ -80,7 +97,6 @@
     "settingsPersonal": "Personal",
     "displayName": "Display name",
     "displayNamePlaceholder": "Your name (optional)",
-    "avatarColor": "Avatar color",
     "favoriteInstrument": "Favorite instrument",
     "favoriteInstrumentHint": "Optional — just for your profile feel.",
     "favoriteNone": "None",
@@ -97,7 +113,6 @@
     "piano": "Piano",
     "pianoDescription": "Tap the keys to play.",
     "open": "Open",
-    "pianoHint": "Hold keys for sustained notes. Multiple keys at once = chords.",
     "pianoLoading": "Loading piano sounds...",
     "pianoLoadError": "Could not load sounds. Go back and try again.",
     "pianoLandscapeRequired": "Piano works in landscape only",
@@ -157,10 +172,8 @@
     "shareError": "Could not share this recording.",
     "downloadSuccessTitle": "Saved",
     "downloadSuccessDocuments": "Saved as {{fileName}} in BioBand Recordings.",
+    "downloadSuccessFolder": "{{fileName}} was saved to the folder you picked.",
     "downloadError": "Could not download this recording.",
-    "exportFormatTitle": "Export as",
-    "exportFormatOriginal": "Original format",
-    "exportUnsupported": "MP4 export needs the original microphone audio — try MP3 instead.",
     "import": {
       "button": "Import audio",
       "errors": {
@@ -168,7 +181,11 @@
         "unsupported": "Unsupported file. Import an MP3, MP4/M4A, or WAV file.",
         "readFailed": "Could not read this audio file."
       }
-    }
+    },
+    "localDataHint": "Recordings are stored only on this device — they aren't backed up to the cloud.",
+    "exportEmpty": "This take has no audio to export.",
+    "exportingTitle": "Exporting",
+    "exportingMessage": "Preparing the audio file. Long takes can take a moment."
   },
   "studio": {
     "title": "Studio",
@@ -205,11 +222,31 @@
     "trackPlay": "Play track",
     "trackStopPlayback": "Stop playback",
     "volume": "Volume",
-    "manyTracksHint": "Many tracks may strain the device — keep it around five when possible.",
     "overdubBanner": "Studio overdub — {{title}}. Tap Record to count in and layer a new track.",
     "overdubCountdown": "{{count}}",
     "overdubSaved": "Track added to studio.",
-    "cancelOverdub": "Cancel overdub"
+    "cancelOverdub": "Cancel overdub",
+    "pickTakeRecord": "Record a take",
+    "timelineEmpty": "Add a track to start arranging your timeline.",
+    "clipHint": "Drag a clip left or right to move it in time.",
+    "rotateHint": "Rotate your device to use the timeline.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "trackOptions": "Track options",
+    "trackDuplicate": "Duplicate track",
+    "volumeUp": "Increase volume",
+    "volumeDown": "Decrease volume",
+    "exportEmpty": "Add at least one audible track before exporting.",
+    "instrumentVoice": "Instrument sound",
+    "bpm": "BPM",
+    "bpmUp": "Increase tempo",
+    "bpmDown": "Decrease tempo",
+    "settingsTitle": "Studio settings",
+    "metronome": "Metronome",
+    "loop": "Loop playback",
+    "grid": "Beat grid",
+    "snap": "Snap to grid",
+    "snapResolution": "Snap resolution"
   },
   "drumMachine": {
     "title": "Drum Machine",
@@ -246,7 +283,6 @@
     "hapticsHint": "Vibrates briefly when tapping grid cells.",
     "kitTitle": "Drum kit",
     "kitHint": "The drums bank sound — saved takes play back with the same kit.",
-    "liveRecord": "Live record",
     "tapTempo": "Tap tempo",
     "resetDefaults": "Reset to defaults",
     "recordTitle": "Record",
@@ -353,7 +389,8 @@
     "banner": {
       "instrument": "Recording — your playing is being captured.",
       "microphone": "Recording — microphone is active."
-    }
+    },
+    "saveError": "Could not save this recording. Your device may be out of storage — free up some space and try again."
   },
   "drums": {
     "pads": {
@@ -419,10 +456,6 @@
       "scopeFull": "Go with the full song",
       "scopeFullHint": "Play every hit from start to end",
       "pickMode": "How do you want to continue?",
-      "modeDrums": "Drums only",
-      "modeDrumsHint": "Play / watch the song with drum sounds only",
-      "modeFullBand": "Continue with the full song",
-      "modeFullBandHint": "Your track plays; you play the drums on top",
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play drums over it.",
       "pickAudioButton": "Choose audio file",
@@ -557,10 +590,6 @@
       "scopeFull": "Go with the full song",
       "scopeFullHint": "Play every note from start to end",
       "pickMode": "How do you want to continue?",
-      "modeViolin": "Violin only",
-      "modeViolinHint": "Play / watch the song with violin sound only",
-      "modeFullBand": "Continue with the full song",
-      "modeFullBandHint": "Your track plays; you play the violin on top",
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play violin over it.",
       "pickAudioButton": "Choose audio file",
@@ -666,8 +695,7 @@
       "groups": {
         "open": "Open",
         "power": "Power",
-        "barre": "Barre",
-        "rock": "Power & barre"
+        "barre": "Barre"
       },
       "strumHint": "Swipe down or up to play. Tap the selected chord to clear."
     },
@@ -750,10 +778,6 @@
       "scopeFull": "Go with the full song",
       "scopeFullHint": "Play every note from start to end",
       "pickMode": "How do you want to continue?",
-      "modeGuitar": "Guitar only",
-      "modeGuitarHint": "Play / watch the song with guitar sound only",
-      "modeFullBand": "Continue with the full song",
-      "modeFullBandHint": "Your track plays; you play the guitar on top",
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play guitar over it.",
       "pickAudioButton": "Choose audio file",
@@ -919,7 +943,6 @@
     },
     "settings": {
       "title": "Settings",
-      "showPadLabels": "Pad name labels",
       "strongGuideHighlight": "Strong tutorial highlight",
       "showSpeedHud": "Speed indicator",
       "noteRepeat": "Note repeat (hold to roll)",
@@ -973,10 +996,6 @@
         "empty": "No songs in this difficulty"
       },
       "pickMode": "How do you want to continue?",
-      "modePads": "Pads only",
-      "modePadsHint": "Play / watch the song with pad sounds only",
-      "modeFullBand": "Continue with the full song",
-      "modeFullBandHint": "Your track plays; you hit pads on top",
       "pickScope": "How much do you want to play?",
       "scopePartial": "Continue with a part",
       "scopePartialHint": "A short excerpt from the song",
@@ -1106,11 +1125,7 @@
       "editModeBanner": "Edit mode: tap a pad to customize it"
     }
   },
-  "language": {
-    "toggle": "Language"
-  },
   "piano": {
-    "comingSoonTitle": "Coming Soon",
     "toolbar": {
       "metronome": "Metronome",
       "sustain": "Sustain pedal",
@@ -1159,8 +1174,6 @@
       "auto": "Auto"
     },
     "scale": {
-      "title": "Scale",
-      "subtitle": "Keys in the selected scale glow softly.",
       "off": "Off",
       "close": "Close",
       "names": {
@@ -1195,12 +1208,6 @@
     "volume": {
       "title": "Volume",
       "close": "Close"
-    },
-    "nav": {
-      "jumpStart": "Jump to start",
-      "stepLeft": "Previous keys",
-      "stepRight": "Next keys",
-      "jumpEnd": "Jump to end"
     },
     "tone": {
       "thickLabel": "Thick",
@@ -1252,10 +1259,6 @@
         "empty": "No songs in this difficulty"
       },
       "pickMode": "How do you want to continue?",
-      "modePiano": "Piano only",
-      "modePianoHint": "Play / watch the song with piano sound only",
-      "modeFullBand": "Continue with the full song",
-      "modeFullBandHint": "Your original track plays quietly; you play piano on top",
       "pickScope": "How much do you want to play?",
       "scopePartial": "Continue with a part",
       "scopePartialHint": "A short excerpt (~50 notes)",
@@ -1276,13 +1279,6 @@
         "title": "Add the original track",
         "hint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A of this track so you can play piano over it.",
         "button": "Choose audio file",
-        "busy": "Saving audio…",
-        "pianoLessDivider": "Better experience",
-        "pianoLessHint": "For the most realistic feel, upload a version WITHOUT the piano part (karaoke / stem). Your live piano will fill in!",
-        "pianoLessButton": "Upload piano-less version",
-        "pianoLessReady": "Piano-less version loaded ✓",
-        "pianoLessSuccess": "Piano-less track added",
-        "pianoLessSuccessHint": "Your live piano will now replace the original piano part — enjoy the real band feel!",
         "errors": {
           "canceled": "No file selected.",
           "pickerUnavailable": "File picker unavailable in this build.",
@@ -1296,8 +1292,7 @@
         "offset": "Offset: {{ms}} ms",
         "preview": "Preview",
         "stopPreview": "Stop",
-        "confirm": "Looks good",
-        "reopen": "Adjust audio sync"
+        "confirm": "Looks good"
       },
       "levels": {
         "guided": "Watch first",
@@ -1310,7 +1305,6 @@
       "hud": {
         "countdown": "Get ready… {{count}}",
         "watching": "Watch… the song is playing for you",
-        "watchingBand": "Listen… original song playing, watch the keys",
         "bandLive": "Band / original track",
         "bandPerform": "Tap the glowing key — you play the piano",
         "listeningOutro": "Piano part done — keep listening to the song",
@@ -1323,7 +1317,6 @@
         "title": "Song finished!",
         "accuracy": "Accuracy: {{percent}}%",
         "hits": "You played: {{count}}",
-        "autos": "Played for you: {{count}}",
         "misses": "Missed: {{count}}",
         "wrong": "Wrong keys: {{count}}",
         "replay": "Play again",
@@ -1341,11 +1334,6 @@
         "deleteConfirm": "Delete",
         "deleteCancel": "Cancel",
         "success": "Song added",
-        "successWithAudio": "Song added with Band Mode audio",
-        "attachAudioPrompt": "Add an original MP3/M4A for \"{{title}}\" so Band Mode can play under your piano?",
-        "attachAudioYes": "Add audio",
-        "attachAudioSkip": "Piano only",
-        "hasBandAudio": "Band Mode ready",
         "pasteButton": "Paste JSON",
         "pasteTitle": "Song JSON",
         "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
@@ -1369,18 +1357,8 @@
     }
   },
   "tutorial": {
-    "start": "Start Tutorial",
-    "title": "Piano Tutorial",
     "pickSong": "Choose a song",
-    "watchDescription": "The bot plays for 5 seconds, then you play along.",
-    "watchNow": "Watch Now",
-    "backToSongs": "Back to song list",
     "close": "Close",
-    "banner": {
-      "watching": "Listen… The bot is playing.",
-      "practice": "Your turn! Press the green key.",
-      "complete": "Great job! You finished the song."
-    },
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m groove + chorus + keyboard section."
@@ -1455,5 +1433,108 @@
         "description": "Mabel Matiz — «Yandı gönül…» / «Çal beni…» (kolaynota)."
       }
     }
+  },
+  "privacy": {
+    "screenTitle": "Privacy Policy",
+    "lastUpdated": "Last updated: July 23, 2026",
+    "contactLabel": "Questions about this policy or your data? Email:",
+    "contactEmail": "bilalsanli129@gmail.com",
+    "viewOnGithub": "View full policy on GitHub",
+    "sections": [
+      {
+        "title": "Using the app as a guest",
+        "body": "If you don't sign in, BioBand works entirely on your device. Nothing you do — recordings, practice progress, settings — is sent anywhere, and none of it is kept between app launches: closing and reopening the app resets it to a fresh state."
+      },
+      {
+        "title": "Signing in with Google",
+        "body": "If you choose to sign in with Google, we use Google Sign-In only to authenticate you and to personalize your profile with the name and photo from your Google account. Signing in lets the following small pieces of data sync to our cloud database, so they follow you across devices:\n\n• Your display name, favorite instrument, and profile photo URL\n• Practice progress: streaks, total practice time, completed challenges, earned badges\n• Your practice-reminder time preference\n\nThis data is tied to your account and is only ever read or written by you (enforced server-side, not just in the app)."
+      },
+      {
+        "title": "What we never collect or upload",
+        "body": "Your recordings, Studio projects, imported songs, and any audio you create or import stay only on your device. We do not upload, transmit, back up, or have any access to your audio. We also do not collect analytics, advertising identifiers, or track your activity in other apps or on other websites."
+      },
+      {
+        "title": "Third-party services",
+        "body": "• Google Sign-In — used solely for authentication. See Google's Privacy Policy (policies.google.com/privacy) for how Google handles your account data.\n• Our cloud database — a third-party hosting provider we use only to store the small progress/settings data described above."
+      },
+      {
+        "title": "Your rights (KVKK / GDPR)",
+        "body": "The developer of BioBand acts as the data controller for the account data described above (contact: the email below). Because our cloud database may host data outside Türkiye/the EU, choosing to sync your account data means you consent to this transfer.\n\nDepending on your country's law — including Turkey's Personal Data Protection Law (KVKK) and the EU's GDPR — you have the right to: learn whether your data is being processed, request information about it, request correction of inaccurate data, request deletion of your data, object to its processing, and seek compensation for damages caused by unlawful processing. To exercise any of these rights, contact us at the email below."
+      },
+      {
+        "title": "Your choices",
+        "body": "• Sign out at any time from Profile → Settings. This immediately clears all data stored on that device and returns the app to a fresh guest state.\n• Delete your cloud data: contact us at the email below and we will delete the progress/settings data stored under your account."
+      },
+      {
+        "title": "Changes to this policy",
+        "body": "We may update this policy from time to time. Any changes will be posted on this page with a new \"Last updated\" date."
+      }
+    ]
+  },
+  "launch": {
+    "welcome": "Welcome to BioBand",
+    "title": "Loading…",
+    "quotes": [
+      {
+        "text": "The moment you fear losing is the moment you have lost.",
+        "author": "Bilal Gürkan Şanlı"
+      },
+      {
+        "text": "Without music, life would be a mistake.",
+        "author": "Friedrich Nietzsche"
+      },
+      {
+        "text": "I was obliged to be industrious. Whoever is equally industrious will succeed just as well.",
+        "author": "Johann Sebastian Bach"
+      },
+      {
+        "text": "Music expresses that which cannot be said and on which it is impossible to be silent.",
+        "author": "Victor Hugo"
+      },
+      {
+        "text": "From the heart — may it return to the heart.",
+        "author": "Ludwig van Beethoven"
+      },
+      {
+        "text": "There are two kinds of music: good music, and the other kind.",
+        "author": "Duke Ellington"
+      },
+      {
+        "text": "Master your instrument, master the music, then forget all of it and just play.",
+        "author": "Charlie Parker"
+      },
+      {
+        "text": "I am ninety-three, and I still practise every day, because I think I am making progress.",
+        "author": "Pablo Casals"
+      },
+      {
+        "text": "Genius is one percent inspiration and ninety-nine percent perspiration.",
+        "author": "Thomas Edison"
+      },
+      {
+        "text": "Practice does not make perfect. Only perfect practice makes perfect.",
+        "author": "Vince Lombardi"
+      },
+      {
+        "text": "You do not have to be great to start, but you have to start to be great.",
+        "author": "Zig Ziglar"
+      },
+      {
+        "text": "Melody is the essence of music.",
+        "author": "Wolfgang Amadeus Mozart"
+      },
+      {
+        "text": "A journey of a thousand miles begins with a single step.",
+        "author": "Lao Tzu"
+      },
+      {
+        "text": "Knowing is not enough; we must apply. Willing is not enough; we must do.",
+        "author": "Johann Wolfgang von Goethe"
+      },
+      {
+        "text": "Music was my refuge. I could crawl into the space between the notes.",
+        "author": "Maya Angelou"
+      }
+    ]
   }
 }

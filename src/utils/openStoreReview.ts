@@ -9,10 +9,6 @@ export const ANDROID_PACKAGE_ID = 'com.bioband.app';
  */
 export const IOS_APP_STORE_ID = '';
 
-export function getStoreDisplayName(): 'Google Play Store' | 'App Store' {
-  return Platform.OS === 'ios' ? 'App Store' : 'Google Play Store';
-}
-
 function getStoreReviewUrl(): string {
   if (Platform.OS === 'ios') {
     if (IOS_APP_STORE_ID) {

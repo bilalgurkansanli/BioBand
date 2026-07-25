@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Mustafa Sandal — "Aya Benzer" (Detay, 1998)
 // Musa Çetiner / kolaynota.com — Am (no key sig; Sol#→Ab, Fa#→Gb).
@@ -10,7 +10,7 @@ const E = Q / 2;
 const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -324,7 +324,7 @@ function endingSeni(startBar: number): Ev[] {
   ];
 }
 
-const AYA_EVENTS: Ev[] = [
+const AYA_MELODY: Ev[] = [
   ...introHead(0),
   ...introRun(4),
   // M8–9 rest → vocal
@@ -338,13 +338,60 @@ const AYA_EVENTS: Ev[] = [
   ...endingSeni(38),
 ];
 
-const LAST_MS = AYA_EVENTS[AYA_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar, in La minor. The intro riff spells Dm on its
+ * La-Fa cell and C on its Sol-Mi answer, and turns on E where the Sol# comes
+ * in. The verse and chorus sit on Am, dropping to G on every Si-La-Sol figure
+ * and to Dm where the line holds Re; the «Aya benzer» tag falls Am–Dm–F–C
+ * before the last Si bars go back to E.
+ * Written on the keyboard and sounded an octave down, under a tune that
+ * reaches Si5.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Intro riff (M1–6)
+  ['D4', 'D4'], ['C4', 'C4'], ['D4', 'D4'], ['E4', 'E4'],
+  ['D4', 'C4'], ['C4', 'E4'],
+  // Chart rests here for three bars; the bass holds the tonic
+  ['A4', 'A4'], ['A4', 'A4'], ['A4', 'A4'],
+  // «Ben dönerim…» verse ×2
+  ['A4', 'A4'], ['A4', 'A4'], ['A4', 'G4'], ['D4', 'A4'], ['A4', 'A4'],
+  ['A4', 'A4'], ['A4', 'G4'], ['A4', 'A4'], ['E4', 'A4'],
+  // «İyi dinle…» bridge
+  ['A4', 'G4'], ['A4', 'A4'], ['G4', 'A4'], ['A4', 'G4'],
+  ['A4', 'A4'], ['G4', 'A4'],
+  // Pre-chorus
+  ['E4', 'E4'], ['A4', 'A4'], ['G4', 'A4'],
+  // «Aya benzer…» chorus + «bekle» ending
+  ['A4', 'A4'], ['A4', 'D4'], ['F4', 'F4'], ['C4', 'E4'], ['E4', 'E4'],
+  ['A4', 'A4'], ['A4', 'A4'],
+  // Chorus again + «seni» ending
+  ['A4', 'D4'], ['F4', 'F4'], ['C4', 'E4'], ['E4', 'E4'],
+  ['E4', 'E4'], ['A4', 'A4'],
+];
 
-const introNotes = AYA_EVENTS.filter((e) => e.atMs < 6 * BAR);
+/** Root on beats 1 and 3 — a half-note pulse under the riff. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * 2 * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const AYA_EVENTS: Ev[] = [...AYA_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = AYA_MELODY[AYA_MELODY.length - 1]?.atMs ?? 0;
+
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const introNotes = AYA_MELODY.filter((e) => e.atMs < 6 * BAR);
 const partialNotes =
   introNotes.length >= 50
     ? introNotes.slice(0, 50)
-    : AYA_EVENTS.slice(0, 50);
+    : AYA_MELODY.slice(0, 50);
 
 export const ayaBenzerSong: SongDefinition = {
   id: 'aya-benzer',
@@ -353,6 +400,7 @@ export const ayaBenzerSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.ayaBenzer.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: AYA_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

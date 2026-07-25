@@ -9,6 +9,7 @@ import {
 } from '../instruments/pads/padsEngine';
 import type { PadBankId } from '../instruments/pads/padsBanks';
 import type { PadSoundId } from '../instruments/pads/padsSounds';
+import type { NotePerformance } from '../instruments/shared/songPerformance';
 
 export function usePadsEngine(bankId: PadBankId = 'drums') {
   const [ready, setReady] = useState(false);
@@ -51,9 +52,12 @@ export function usePadsEngine(bankId: PadBankId = 'drums') {
     }
   }, [bankId, ready]);
 
-  const triggerPad = useCallback((id: PadSoundId, velocity = 1) => {
-    engineTriggerPad(id, velocity);
-  }, []);
+  const triggerPad = useCallback(
+    (id: PadSoundId, velocity = 1, performance?: NotePerformance) => {
+      engineTriggerPad(id, velocity, performance);
+    },
+    [],
+  );
 
   return { ready, error, triggerPad };
 }

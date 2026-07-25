@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~84 BPM — classic Turkish ballad. */
@@ -77,17 +78,23 @@ function bridge(startMs: number): GuitarSongEvent[] {
  * Melody-first Am ballad; sparse Am/E landmarks.
  */
 export const YILDIZLARIN_ALTINDA_EVENTS: GuitarSongEvent[] = [
-  e('chord:Am', 0),
+  bed('chord:Am', 0),
   ...verseA(0),
-  e('chord:Dm', BAR * 4),
+  bed('chord:Dm', BAR * 4),
   ...verseB(BAR * 4),
-  e('chord:Am', BAR * 8),
+  bed('chord:Am', BAR * 8),
   ...bridge(BAR * 8),
-  e('chord:E', BAR * 12),
+  bed('chord:E', BAR * 12),
   ...verseB(BAR * 12),
-  e('chord:Am', BAR * 16),
+  bed('chord:Am', BAR * 16),
   ...verseA(BAR * 16),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const YILDIZLARIN_ALTINDA_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+};
 
 /** First verse A (with opening Am). */
 export const YILDIZLARIN_ALTINDA_PARTIAL_COUNT = 17;

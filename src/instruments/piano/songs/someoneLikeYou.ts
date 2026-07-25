@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Adele — "Someone Like You" (2011). Full verse + pre-chorus + chorus +
 // bridge, simplified to A major. Source: noobnotes.net easy letter-note
@@ -9,7 +9,7 @@ const Q = 550;
 const E = Q / 2;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -158,7 +158,7 @@ function bridge(startBar: number): Ev[] {
   ];
 }
 
-const EVENTS: Ev[] = [
+const MELODY: Ev[] = [
   ...verse(0),
   ...preChorus(5),
   ...chorus(12),
@@ -167,8 +167,46 @@ const EVENTS: Ev[] = [
   ...chorus(32),
 ];
 
-const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;
-const partialNotes = EVENTS.slice(0, 60);
+/**
+ * Chord root per bar, in A major. The melody is A-major pentatonic throughout
+ * (A B C# E F#), so bars are read by which triad holds the notes on the beats:
+ * the verse cell B-A-E-E-C# turns over the I–iii–vi–IV that every one of those
+ * notes belongs to, the pre-chorus leans on F#m/Bm where the line sits on
+ * F#-A-B, and verse 2 vamps on nothing but A and B — genuinely one harmony, so
+ * it stays on the tonic rather than inventing changes.
+ * Written on the keyboard, sounded an octave down under the tune.
+ */
+const BAR_ROOTS: NoteId[] = [
+  // Verse — A | C#m | F#m | D | A
+  'A4', 'Db4', 'Gb4', 'D4', 'A4',
+  // Pre-chorus — A | F#m | D | F#m | D | Bm | E
+  'A4', 'Gb4', 'D4', 'Gb4', 'D4', 'B4', 'E4',
+  // Chorus — A | C#m | F#m | D | E | Bm | A
+  'A4', 'Db4', 'Gb4', 'D4', 'E4', 'B4', 'A4',
+  // Verse 2 — an A/B vamp, held on the tonic
+  'A4', 'A4', 'A4', 'A4', 'A4', 'A4',
+  // Bridge — A | A | Bm | Bm | A | F#m | A
+  'A4', 'A4', 'B4', 'B4', 'A4', 'Gb4', 'A4',
+  // Chorus repeat
+  'A4', 'Db4', 'Gb4', 'D4', 'E4', 'B4', 'A4',
+];
+
+/** Root on beats 1 and 3 — a half-note bass, not an arpeggio to compete with. */
+const BASS: Ev[] = BAR_ROOTS.flatMap((noteId, barIndex) =>
+  [0, 2].map((beat) => ({
+    noteId,
+    atMs: barIndex * BAR + beat * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const EVENTS: Ev[] = [...MELODY, ...BASS].sort((a, b) => a.atMs - b.atMs);
+
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const partialNotes = MELODY.slice(0, 60);
 
 export const someoneLikeYouSong: SongDefinition = {
   id: 'someone-like-you',
@@ -177,6 +215,7 @@ export const someoneLikeYouSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.someoneLikeYou.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

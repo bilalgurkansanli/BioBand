@@ -77,9 +77,6 @@ export const GUITAR_ELECTRIC_SAMPLE_FILES: Record<GuitarElectricSampleId, number
   Fs5: require('../../../assets/samples/guitar/electric/Fs5.mp3'),
 };
 
-/** @deprecated Use GUITAR_ACOUSTIC_SAMPLE_FILES — kept for any leftover imports. */
-export const GUITAR_SAMPLE_FILES = GUITAR_ACOUSTIC_SAMPLE_FILES;
-
 const ACOUSTIC_ANCHORS: { id: GuitarAcousticSampleId; midi: number }[] = [
   { id: 'E2', midi: 40 },
   { id: 'G2', midi: 43 },

@@ -20,6 +20,7 @@ import {
   KIT_SOUND_OVERRIDES,
   type DrumSoundId,
 } from './drumsSounds';
+import type { NotePerformance } from '../shared/songPerformance';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
@@ -170,6 +171,8 @@ function triggerHit(
   gain: number,
   tag: string,
   shortTail = false,
+  /** Absolute context time to sound at (song playback). */
+  startAtSeconds?: number,
 ): void {
   const env = HIT_ENVELOPES[id];
   const kitRate = getDrumKit(currentKitId).audio.playbackRate;
@@ -182,6 +185,7 @@ function triggerHit(
     attackSeconds: shortTail ? 0.004 : env.attackSeconds,
     holdSeconds: shortTail ? Math.min(0.55, env.holdSeconds) : env.holdSeconds,
     releaseSeconds: shortTail ? 0.4 : env.releaseSeconds,
+    startAtSeconds,
   });
 }
 
@@ -190,8 +194,18 @@ function triggerHit(
  * gain from a soft ghost note (~1/3 level) up to the full pad gain.
  * @param gainScale Extra output multiplier independent of velocity — used by
  * Studio mix playback to apply a track's volume fader.
+ * @param performance Song playback supplies the moment the hit must sound and
+ * how hard it is struck; its strength drives the same velocity curve as a
+ * finger, never a second gain on top. A struck drum has no written length —
+ * the sample rings for as long as the kit says. Interactive taps omit it and
+ * keep the immediate behaviour.
  */
-export function playHit(id: DrumSoundId, velocity = 1, gainScale = 1): void {
+export function playHit(
+  id: DrumSoundId,
+  velocity = 1,
+  gainScale = 1,
+  performance?: NotePerformance,
+): void {
   const buffer = kitBuffers.get(currentKitId)?.get(id) ?? buffers.get(id);
   if (!buffer) {
     return;
@@ -203,25 +217,49 @@ export function playHit(id: DrumSoundId, velocity = 1, gainScale = 1): void {
   }
 
   // Closed hat chokes a ringing open hat (real kit behaviour) — including
-  // the open hat's pending reverb/echo tails.
+  // the open hat's pending reverb/echo tails. The choke lands now even for a
+  // hit placed ahead of the clock: releasing by tag has no scheduled form, and
+  // the lookahead is far shorter than the open hat's tail.
   if (id === 'hihatClosed') {
     releaseVoicesByTagPrefix(padTagPrefix('hihatOpen'), 0.04);
   }
 
-  const clampedVelocity = Math.max(0.1, Math.min(1, velocity));
+  const clampedVelocity = Math.max(
+    0.1,
+    Math.min(1, performance?.velocity ?? velocity),
+  );
   const hitGain = DRUM_HIT_GAINS[id] * (0.35 + 0.65 * clampedVelocity) * gainScale;
   const baseTag = `${padTagPrefix(id)}#${hitSerial++}`;
 
-  triggerHit(id, buffer, hitGain, baseTag);
+  const atTime = performance?.atTime;
+  const aheadOfClock = atTime !== undefined;
+  const tapStart = (delayMs: number): number | undefined =>
+    atTime === undefined ? undefined : atTime + delayMs / 1000;
 
-  schedulePianoReverbTaps((tapScale, tapIndex) => {
-    triggerHit(id, buffer, hitGain * tapScale, `${baseTag}:reverb:${tapIndex}`, true);
-  });
+  triggerHit(id, buffer, hitGain, baseTag, false, atTime);
+
+  schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
+    triggerHit(
+      id,
+      buffer,
+      hitGain * tapScale,
+      `${baseTag}:reverb:${tapIndex}`,
+      true,
+      tapStart(delayMs),
+    );
+  }, aheadOfClock);
 
   let echoIndex = 0;
-  schedulePianoEchoRepeats((tapScale) => {
-    triggerHit(id, buffer, hitGain * tapScale, `${baseTag}:echo:${echoIndex++}`);
-  });
+  schedulePianoEchoRepeats((tapScale, delayMs) => {
+    triggerHit(
+      id,
+      buffer,
+      hitGain * tapScale,
+      `${baseTag}:echo:${echoIndex++}`,
+      false,
+      tapStart(delayMs),
+    );
+  }, aheadOfClock);
 }
 
 /**

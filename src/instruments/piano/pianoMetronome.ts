@@ -284,10 +284,6 @@ export function getMetronomeSubdivision(): MetronomeSubdivision {
   return subdivision;
 }
 
-export function isMetronomeRunning(): boolean {
-  return running;
-}
-
 export function setMetronomeBpm(nextBpm: number): void {
   bpm = clampBpm(nextBpm);
   if (running) {

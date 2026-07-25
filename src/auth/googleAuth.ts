@@ -17,8 +17,13 @@ function ensureConfigured(): void {
   configured = true;
 }
 
+export type GoogleProfile = {
+  name: string | null;
+  photoUrl: string | null;
+};
+
 export type GoogleSignInResult =
-  | { ok: true; session: Session }
+  | { ok: true; session: Session; googleProfile: GoogleProfile }
   | { ok: false; code: 'canceled' | 'playServicesUnavailable' | 'noIdToken' | 'unconfigured' | 'error' };
 
 /** Runs the native Google account picker, then exchanges the ID token for a Supabase session. */
@@ -30,6 +35,10 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
 
   try {
     await GoogleSignin.hasPlayServices();
+    // Clear any cached Google session first — otherwise the SDK can silently
+    // reuse the last account instead of showing the chooser, which defeats
+    // the point of letting the user pick which account to sign in with.
+    await GoogleSignin.signOut().catch(() => {});
     const response = await GoogleSignin.signIn();
     if (response.type !== 'success') {
       return { ok: false, code: 'canceled' };
@@ -46,7 +55,14 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
     if (error || !data.session) {
       return { ok: false, code: 'error' };
     }
-    return { ok: true, session: data.session };
+    return {
+      ok: true,
+      session: data.session,
+      googleProfile: {
+        name: response.data.user.name,
+        photoUrl: response.data.user.photo,
+      },
+    };
   } catch (error) {
     if (isErrorWithCode(error)) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {

@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Manifest — "Yaşanacaksa"
 // Musa Çetiner / kolaynota.com — Am, 4/4. Sol#→Ab.
@@ -10,7 +10,7 @@ const E = Q / 2;
 const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -268,7 +268,7 @@ function bridgeCoda(startBar: number): Ev[] {
   ];
 }
 
-const EVENTS: Ev[] = [
+const MELODY: Ev[] = [
   ...verseA(0),
   ...verseB(8),
   ...preChorus(16),
@@ -286,8 +286,47 @@ const EVENTS: Ev[] = [
   ...bridgeCoda(31),
 ];
 
-const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;
-const partialNotes = EVENTS.slice(0, 50);
+/**
+ * Chord root for each half bar, in La minor. The verse alternates the tonic
+ * with the E its Si/Mi bars spell; the «Yaşanacaksa» chorus falls Am–F and
+ * every Sol# bar is the E dominant, which is the only thing that Sol# can be.
+ * The bridge's Fa-Sol block takes Dm and its Sol-La-Si answer takes G.
+ * Written on the keyboard and sounded an octave down, under a tune that runs
+ * up to Sol5.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // «Bu hikaye…» verse
+  ['A4', 'A4'], ['A4', 'A4'], ['E4', 'A4'], ['A4', 'E4'],
+  ['A4', 'D4'], ['E4', 'A4'], ['A4', 'A4'], ['A4', 'G4'],
+  // Bridge
+  ['C4', 'C4'], ['D4', 'C4'], ['D4', 'G4'], ['A4', 'A4'],
+  ['A4', 'A4'], ['A4', 'A4'], ['D4', 'A4'], ['A4', 'A4'],
+  ['A4', 'A4'], ['A4', 'A4'], ['A4', 'F4'], ['A4', 'A4'],
+  // «Yaşanacaksa…» chorus ×2 — the Sol# bars are E
+  ['A4', 'A4'], ['A4', 'A4'], ['F4', 'F4'], ['A4', 'A4'],
+  ['E4', 'E4'], ['E4', 'E4'],
+  ['A4', 'A4'], ['A4', 'A4'], ['F4', 'F4'], ['A4', 'A4'],
+  ['E4', 'E4'],
+  // Coda
+  ['A4', 'A4'], ['A4', 'G4'], ['E4', 'F4'], ['A4', 'E4'], ['E4', 'A4'],
+];
+
+/** Root on beats 1 and 3 — a half-note pulse under the tune. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * 2 * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const EVENTS: Ev[] = [...MELODY, ...BASS].sort((a, b) => a.atMs - b.atMs);
+
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const partialNotes = MELODY.slice(0, 50);
 
 export const yasanacaksaSong: SongDefinition = {
   id: 'yasanacaksa',
@@ -296,6 +335,7 @@ export const yasanacaksaSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.yasanacaksa.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

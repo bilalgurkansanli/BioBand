@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -78,6 +79,9 @@ export const YESTERDAY_EVENTS: GuitarSongEvent[] = [
   e('chord:G', VERSE_MS * 2 + BAR),
   note('s3', 0, VERSE_MS * 2 + BAR + BEAT),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const YESTERDAY_METER: SongMeter = { beatMs: BEAT, beatsPerBar: 4 };
 
 /** First "Yesterday…" line with its chords. */
 export const YESTERDAY_PARTIAL_COUNT = 13;

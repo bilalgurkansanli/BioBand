@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -56,6 +57,9 @@ export const FUR_ELISE_EVENTS: GuitarSongEvent[] = [
   e('chord:Am', STEP * (PHRASE_STEPS * 3 + 5)),
   ...eliseEnding(STEP * (PHRASE_STEPS * 3 + 6)),
 ];
+
+/** 3/8 — the eighth is two STEPs, three of them to the bar. */
+export const FUR_ELISE_METER: SongMeter = { beatMs: STEP * 2, beatsPerBar: 3 };
 
 /** First statement through the A landing. */
 export const FUR_ELISE_PARTIAL_COUNT = 12;
