@@ -1,10 +1,13 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { syncAfterSignIn } from '../auth/useAuthSession';
+import { signInWithApple } from '../auth/appleAuth';
 import { signInWithGoogle } from '../auth/googleAuth';
+import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 import { ScreenContainer } from '../components/ScreenContainer';
 import i18n, { saveLanguage, type AppLanguage } from '../i18n';
 import { markOnboardingPromptSeen } from '../storage/appDataKeys';
@@ -13,6 +16,7 @@ import { colors } from '../theme/colors';
 
 type Props = {
   onDone: () => void;
+  skipLanguageStep?: boolean;
 };
 
 type Step = 'language' | 'auth';
@@ -23,11 +27,13 @@ const LANGUAGES: { code: AppLanguage; label: string; flag: string }[] = [
   { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
 ];
 
-export function AuthPromptScreen({ onDone }: Props) {
+export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
   const { t } = useTranslation();
-  const [step, setStep] = useState<Step>('language');
+  const [step, setStep] = useState<Step>(skipLanguageStep ? 'auth' : 'language');
   const [signingIn, setSigningIn] = useState(false);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [privacyVisible, setPrivacyVisible] = useState(false);
 
   const selectLanguage = async (language: AppLanguage) => {
     await i18n.changeLanguage(language);
@@ -46,7 +52,26 @@ export function AuthPromptScreen({ onDone }: Props) {
     try {
       const result = await signInWithGoogle();
       if (result.ok) {
-        await syncAfterSignIn(result.session.user.id);
+        await syncAfterSignIn(result.session.user.id, result.googleProfile);
+        await finish();
+        return;
+      }
+      if (result.code === 'canceled') {
+        return;
+      }
+      setErrorKey(`auth.errors.${result.code}`);
+    } finally {
+      setSigningIn(false);
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setErrorKey(null);
+    setSigningIn(true);
+    try {
+      const result = await signInWithApple();
+      if (result.ok) {
+        await syncAfterSignIn(result.session.user.id, result.appleProfile);
         await finish();
         return;
       }
@@ -102,13 +127,30 @@ export function AuthPromptScreen({ onDone }: Props) {
 
         {errorKey ? <Text style={styles.error}>{t(errorKey)}</Text> : null}
 
+        <View style={styles.acceptRow}>
+          <Pressable
+            hitSlop={6}
+            onPress={() => setPrivacyAccepted((prev) => !prev)}
+            style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}
+          >
+            {privacyAccepted ? <Ionicons color="#FFFFFF" name="checkmark" size={13} /> : null}
+          </Pressable>
+          <Text style={styles.acceptText}>
+            {t('auth.acceptPrivacyPrefix')}
+            <Text style={styles.acceptLink} onPress={() => setPrivacyVisible(true)}>
+              {t('auth.acceptPrivacyLink')}
+            </Text>
+            {t('auth.acceptPrivacySuffix')}
+          </Text>
+        </View>
+
         <Pressable
-          disabled={signingIn || !isSupabaseConfigured}
+          disabled={signingIn || !isSupabaseConfigured || !privacyAccepted}
           onPress={() => void handleGoogleSignIn()}
           style={({ pressed }) => [
             styles.googleButton,
             pressed && styles.pressed,
-            (signingIn || !isSupabaseConfigured) && styles.disabled,
+            (signingIn || !isSupabaseConfigured || !privacyAccepted) && styles.disabled,
           ]}
         >
           {signingIn ? (
@@ -121,6 +163,20 @@ export function AuthPromptScreen({ onDone }: Props) {
           <Text style={styles.googleButtonText}>{t('auth.signInWithGoogle')}</Text>
         </Pressable>
 
+        {Platform.OS === 'ios' ? (
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+            cornerRadius={14}
+            style={[styles.appleButton, (signingIn || !privacyAccepted) && styles.disabled]}
+            onPress={() => {
+              if (!signingIn && privacyAccepted) {
+                void handleAppleSignIn();
+              }
+            }}
+          />
+        ) : null}
+
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
           <Text style={styles.dividerText}>or</Text>
@@ -128,9 +184,13 @@ export function AuthPromptScreen({ onDone }: Props) {
         </View>
 
         <Pressable
-          disabled={signingIn}
+          disabled={signingIn || !privacyAccepted}
           onPress={handleContinueAsGuest}
-          style={({ pressed }) => [styles.guestButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.guestButton,
+            pressed && styles.pressed,
+            !privacyAccepted && styles.disabled,
+          ]}
         >
           <Ionicons color={colors.textSecondary} name="person-outline" size={17} />
           <Text style={styles.guestButtonText}>{t('auth.continueAsGuest')}</Text>
@@ -138,6 +198,8 @@ export function AuthPromptScreen({ onDone }: Props) {
 
         <Text style={styles.guestHint}>{t('auth.guestHint')}</Text>
       </View>
+
+      <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
     </ScreenContainer>
   );
 }
@@ -228,6 +290,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  appleButton: {
+    height: 48,
+    marginTop: 10,
+    width: '100%',
+  },
   dividerRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -269,6 +336,38 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingHorizontal: 16,
     textAlign: 'center',
+  },
+  acceptRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+    paddingHorizontal: 4,
+    width: '100%',
+  },
+  checkbox: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    height: 20,
+    justifyContent: 'center',
+    marginTop: 1,
+    width: 20,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  acceptText: {
+    color: colors.textSecondary,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  acceptLink: {
+    color: colors.accent,
+    fontWeight: '700',
   },
   pressed: {
     opacity: 0.8,

@@ -1,9 +1,14 @@
 import type { DrumSoundId } from '../drumsSounds';
-import type { SongBackingTrack } from '../../piano/songs/types';
+import type { SongBackingTrack, SongMeter } from '../../piano/songs/types';
+import type { SongRole } from '../../shared/songPerformance';
 
 export type DrumSongEvent = {
   padId: DrumSoundId;
   atMs: number;
+  /** 0..1 hit strength. Omit for an accent derived from `meter`. */
+  velocity?: number;
+  /** Accompaniment is played but never highlighted or scored. */
+  role?: SongRole;
 };
 
 export type DrumSongDifficulty = 'easy' | 'medium' | 'hard';
@@ -24,6 +29,8 @@ export type DrumSongDefinition = {
   partialCount?: number;
   /** Optional backing track for Band Mode (reuses piano format). */
   backingTrack?: SongBackingTrack;
+  /** Enables metrical accents; charts without it still get phrase shaping. */
+  meter?: SongMeter;
 };
 
 export type ResolvedDrumSession = {

@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { ExportProgressModal } from '../components/recordings/ExportProgressModal';
 import { RecordingCard } from '../components/recordings/RecordingCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { OptionListModal } from '../components/studio/OptionListModal';
 import { StudioProjectCard } from '../components/studio/StudioProjectCard';
 import { StudioSegmentedControl } from '../components/studio/StudioSegmentedControl';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
-import { useRecordingActions, type ExportFormatChoice } from '../hooks/useRecordingActions';
+import { useRecordingActions } from '../hooks/useRecordingActions';
 import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioProjects } from '../hooks/useStudioProjects';
@@ -24,11 +24,9 @@ import { deleteRecording, renameRecording } from '../storage/recordingsStorage';
 import { colors } from '../theme/colors';
 import type { RecordingsStackParamList } from '../types/navigation';
 import type { SavedRecording } from '../types/recording';
-import { canExportAudioFormat } from '../utils/recordingExport';
+import type { StudioProject } from '../types/studio';
 import { importAudioRecording } from '../utils/recordingImport';
 import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
-
-type ExportAction = 'share' | 'download';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'RecordingsHome'>;
 type Segment = 'takes' | 'studio';
@@ -39,15 +37,13 @@ export function RecordingsScreen({ navigation }: Props) {
   const [createVisible, setCreateVisible] = useState(false);
   const [renameTarget, setRenameTarget] = useState<SavedRecording | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SavedRecording | null>(null);
-  const [exportTarget, setExportTarget] = useState<{
-    recording: SavedRecording;
-    action: ExportAction;
-  } | null>(null);
   const [importing, setImporting] = useState(false);
   const { recordings, loading: takesLoading, refresh: refreshTakes } = useRecordings();
   const { playingId, loadingId, positionMs, durationMs, play, seek } = useRecordingPlayback();
-  const { busyId, share, download } = useRecordingActions();
-  const { projects, loading: studioLoading, create } = useStudioProjects();
+  const { busyId, job, cancel, share, download, shareProjectMix, downloadProjectMix } =
+    useRecordingActions();
+  const { projects, loading: studioLoading, create, remove } = useStudioProjects();
+  const [deleteProjectTarget, setDeleteProjectTarget] = useState<StudioProject | null>(null);
 
   const handleImport = async () => {
     setImporting(true);
@@ -119,6 +115,7 @@ export function RecordingsScreen({ navigation }: Props) {
               <Text style={styles.newButtonText}>{t('recordings.import.button')}</Text>
             </Pressable>
           </View>
+          <Text style={styles.localDataHint}>{t('recordings.localDataHint')}</Text>
 
           {takesLoading ? (
             <View style={styles.centered}>
@@ -143,10 +140,10 @@ export function RecordingsScreen({ navigation }: Props) {
                   isPlaying={playingId === item.id}
                   positionMs={playingId === item.id ? positionMs : 0}
                   onDeletePress={() => confirmDeleteTake(item)}
-                  onDownloadPress={() => setExportTarget({ recording: item, action: 'download' })}
+                  onDownloadPress={() => void download(item)}
                   onPlayPress={() => void play(item)}
                   onSeek={seek}
-                  onSharePress={() => setExportTarget({ recording: item, action: 'share' })}
+                  onSharePress={() => void share(item)}
                   onTitlePress={() => setRenameTarget(item)}
                   recording={item}
                 />
@@ -183,6 +180,10 @@ export function RecordingsScreen({ navigation }: Props) {
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <StudioProjectCard
+                  isBusy={busyId === item.id}
+                  onDeletePress={() => setDeleteProjectTarget(item)}
+                  onDownloadPress={() => void downloadProjectMix(item)}
+                  onSharePress={() => void shareProjectMix(item)}
                   onPress={() =>
                     navigation.navigate('StudioProject', { projectId: item.id })
                   }
@@ -244,37 +245,22 @@ export function RecordingsScreen({ navigation }: Props) {
         }}
       />
 
-      <OptionListModal
-        options={[
-          {
-            key: 'original',
-            label: t('recordings.exportFormatOriginal'),
-            icon: 'document-outline',
-          },
-          ...(exportTarget && canExportAudioFormat(exportTarget.recording, 'mp3')
-            ? [{ key: 'mp3', label: 'MP3', icon: 'musical-notes-outline' as const }]
-            : []),
-          ...(exportTarget && canExportAudioFormat(exportTarget.recording, 'mp4')
-            ? [{ key: 'mp4', label: 'MP4', icon: 'videocam-outline' as const }]
-            : []),
-        ]}
-        title={t('recordings.exportFormatTitle')}
-        visible={exportTarget !== null}
-        onClose={() => setExportTarget(null)}
-        onSelect={(key) => {
-          const target = exportTarget;
-          setExportTarget(null);
-          if (!target) {
-            return;
+      <ConfirmDeleteModal
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('recordings.deleteConfirm')}
+        message={t('studio.deleteProjectConfirm')}
+        title={t('studio.deleteProject')}
+        visible={deleteProjectTarget !== null}
+        onCancel={() => setDeleteProjectTarget(null)}
+        onConfirm={() => {
+          if (deleteProjectTarget) {
+            void remove(deleteProjectTarget.id);
           }
-          const format = key as ExportFormatChoice;
-          if (target.action === 'share') {
-            void share(target.recording, format);
-          } else {
-            void download(target.recording, format);
-          }
+          setDeleteProjectTarget(null);
         }}
       />
+
+      <ExportProgressModal job={job} onCancel={cancel} />
     </ScreenContainer>
   );
 }
@@ -312,6 +298,13 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 14,
     marginBottom: 12,
+  },
+  localDataHint: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 12,
+    marginTop: -6,
   },
   listContent: {
     paddingBottom: 24,

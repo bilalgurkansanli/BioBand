@@ -11,6 +11,10 @@ import type { PianoLabelMode } from '../../storage/pianoSettingsStorage';
 import { PianoKey } from './PianoKey';
 
 const KEY_GAP = 2;
+// Uncapped, keys stretch to fill a tablet's full landscape width awkwardly —
+// this keeps them at a comfortable playing size; `wrapper`'s alignItems:
+// 'center' centers the now-narrower keyboard in the remaining space.
+const MAX_WHITE_KEY_WIDTH = 72;
 
 type KeyLayout = {
   whiteKeyWidth: number;
@@ -93,9 +97,9 @@ export function PianoKeyboard({
   const { whiteKeyWidth, whiteKeyHeight, blackKeyWidth, blackKeyHeight, keyboardWidth, keyLayout } =
     useMemo(() => {
       const whiteKeyCount = WHITE_PIANO_NOTES.length;
-      const computedWhiteWidth = Math.max(
-        24,
-        Math.floor((width - whiteKeyCount * KEY_GAP) / whiteKeyCount),
+      const computedWhiteWidth = Math.min(
+        MAX_WHITE_KEY_WIDTH,
+        Math.max(24, Math.floor((width - whiteKeyCount * KEY_GAP) / whiteKeyCount)),
       );
       const computedKeyboardWidth = whiteKeyCount * (computedWhiteWidth + KEY_GAP) - KEY_GAP;
       const computedWhiteHeight = Math.max(100, height * 0.98);

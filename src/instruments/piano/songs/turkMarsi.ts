@@ -1,191 +1,247 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
-// Mozart — Rondo Alla Turca (Türk Marşı), K.331
-// Musa Çetiner kolaynota — 2/4, Am. Sol#→Ab, Re#→Eb, Fa#→Gb.
-// Melody only. Final return uses A–B–C–B cadence (not the G–F#–E turn).
-// Quarter ≈ 440ms.
+// Mozart — Rondo alla Turca (Türk Marşı), K.331 third movement.
+// Pitches and rhythms follow the Mutopia Project's public-domain engraving
+// (typeset by Rune Zedeler and Chris Sawer), not a simplified letter sheet.
+//
+// SOUNDING KEY IS E MINOR — a fourth below Mozart's A minor. The theme climbs
+// to C6 in its fourth bar and the coda reaches E6, while this keyboard stops
+// at B5. At concert pitch that peak has to be folded back an octave, which is
+// what flattens the theme's rise into a monotone and makes the tune stop
+// sounding like itself. Moving the whole piece down one fourth keeps every
+// interval, every octave leap and the true ending intact; only the absolute
+// key differs, and a fourth is the smallest shift that fits the coda too.
+//
+// Form: A – B – A – coda (the real Alla Turca ending, not an invented cadence).
+// Quarter ≈ 440ms, 2/4.
 const Q = 440;
 const E = Q / 2;
 const S = Q / 4;
 const BAR = 2 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
-function at(bar: number, offset: number, noteId: NoteId): Ev {
-  return { noteId, atMs: bar * BAR + offset };
+function n(bar: number, offset: number, noteId: NoteId, durationMs: number): Ev {
+  return { noteId, atMs: bar * BAR + offset, durationMs };
+}
+
+/** Left hand — heard, never highlighted, sounded an octave below the keys. */
+function lh(bar: number, offset: number, noteId: NoteId, durationMs: number): Ev {
+  return {
+    noteId,
+    atMs: bar * BAR + offset,
+    durationMs,
+    role: 'accompaniment',
+    transpose: -12,
+  };
 }
 
 /**
- * A theme. `cBar` = bar where Do lands (downbeat).
- * Pickup sits on the previous upbeat. Cadence Mi is E4 (same octave as Sol#–Fa#), not E5.
+ * The A theme: one pickup beat plus eight bars.
+ *
+ * The shape is a three-step climb — F#-E-D#-E → G, then B → C, then the same
+ * turn an OCTAVE UP landing on G5. That upper-octave bar is the whole point of
+ * the melody; kept in the lower octave the theme never lifts off.
  */
-function themeA(cBar: number, pickupBeat: number = Q): Ev[] {
-  const pBar = cBar - 1;
-  return [
-    // Pickup: Si La Sol# La
-    at(pBar, pickupBeat, 'B4'),
-    at(pBar, pickupBeat + S, 'A4'),
-    at(pBar, pickupBeat + 2 * S, 'Ab4'),
-    at(pBar, pickupBeat + 3 * S, 'A4'),
-    // Do | Re Do Si Do
-    at(cBar, 0, 'C5'),
-    at(cBar, Q, 'D5'),
-    at(cBar, Q + S, 'C5'),
-    at(cBar, Q + 2 * S, 'B4'),
-    at(cBar, Q + 3 * S, 'C5'),
-    // Mi | Fa Mi Re# Mi
-    at(cBar + 1, 0, 'E5'),
-    at(cBar + 1, Q, 'F5'),
-    at(cBar + 1, Q + S, 'E5'),
-    at(cBar + 1, Q + 2 * S, 'Eb5'),
-    at(cBar + 1, Q + 3 * S, 'E5'),
-    // Si La Sol# La ×2
-    at(cBar + 2, 0, 'B4'),
-    at(cBar + 2, S, 'A4'),
-    at(cBar + 2, 2 * S, 'Ab4'),
-    at(cBar + 2, 3 * S, 'A4'),
-    at(cBar + 2, Q, 'B4'),
-    at(cBar + 2, Q + S, 'A4'),
-    at(cBar + 2, Q + 2 * S, 'Ab4'),
-    at(cBar + 2, Q + 3 * S, 'A4'),
-    // Do | La Do
-    at(cBar + 3, 0, 'C5'),
-    at(cBar + 3, Q, 'A4'),
-    at(cBar + 3, Q + E, 'C5'),
-    // Si La Sol La ×2 | Si La Sol Fa# | Mi — G NATURAL, verified against the
-    // Mutopia engraving of K.331: m5–7 top line is B + <fis a> + <e g> dyads
-    // (with an explicit g! natural), i.e. B–A–G♮–A … B–A–G♮–F# → E.
-    at(cBar + 4, 0, 'B4'),
-    at(cBar + 4, S, 'A4'),
-    at(cBar + 4, 2 * S, 'G4'),
-    at(cBar + 4, 3 * S, 'A4'),
-    at(cBar + 4, Q, 'B4'),
-    at(cBar + 4, Q + S, 'A4'),
-    at(cBar + 4, Q + 2 * S, 'G4'),
-    at(cBar + 4, Q + 3 * S, 'A4'),
-    at(cBar + 5, 0, 'B4'),
-    at(cBar + 5, S, 'A4'),
-    at(cBar + 5, 2 * S, 'G4'),
-    at(cBar + 5, 3 * S, 'Gb4'),
-    at(cBar + 5, Q, 'E4'),
-  ];
-}
-
-/** B section (contrast). */
-function middle(startBar: number): Ev[] {
+function themeA(startBar: number): Ev[] {
   const b = startBar;
-  return [
-    // Mi Fa | Sol Sol | La Sol Fa Mi | Re
-    at(b, 0, 'E5'),
-    at(b, E, 'F5'),
-    at(b, Q, 'G5'),
-    at(b, Q + E, 'G5'),
-    at(b + 1, 0, 'A5'),
-    at(b + 1, S, 'G5'),
-    at(b + 1, 2 * S, 'F5'),
-    at(b + 1, 3 * S, 'E5'),
-    at(b + 1, Q, 'D5'),
-    at(b + 2, 0, 'E5'),
-    at(b + 2, E, 'F5'),
-    at(b + 2, Q, 'G5'),
-    at(b + 2, Q + E, 'G5'),
-    at(b + 3, 0, 'A5'),
-    at(b + 3, S, 'G5'),
-    at(b + 3, 2 * S, 'F5'),
-    at(b + 3, 3 * S, 'E5'),
-    at(b + 3, Q, 'D5'),
-    // Do Re | Mi Mi | Fa Mi Re Do | Do  (first ending on Do)
-    at(b + 4, 0, 'C5'),
-    at(b + 4, E, 'D5'),
-    at(b + 4, Q, 'E5'),
-    at(b + 4, Q + E, 'E5'),
-    at(b + 5, 0, 'F5'),
-    at(b + 5, S, 'E5'),
-    at(b + 5, 2 * S, 'D5'),
-    at(b + 5, 3 * S, 'C5'),
-    at(b + 5, Q, 'C5'),
-    // Do Re | Mi Mi | Fa Mi Re Do | Si
-    at(b + 6, 0, 'C5'),
-    at(b + 6, E, 'D5'),
-    at(b + 6, Q, 'E5'),
-    at(b + 6, Q + E, 'E5'),
-    at(b + 7, 0, 'F5'),
-    at(b + 7, S, 'E5'),
-    at(b + 7, 2 * S, 'D5'),
-    at(b + 7, 3 * S, 'C5'),
-    at(b + 7, Q, 'B4'),
+  const out: Ev[] = [
+    // Pickup on beat 2 of the previous bar: F# E D# E.
+    n(b - 1, Q, 'Gb4', S),
+    n(b - 1, Q + S, 'E4', S),
+    n(b - 1, Q + 2 * S, 'Eb4', S),
+    n(b - 1, Q + 3 * S, 'E4', S),
+
+    // G (eighth + rest) | A G F# G
+    n(b, 0, 'G4', E),
+    n(b, Q, 'A4', S),
+    n(b, Q + S, 'G4', S),
+    n(b, Q + 2 * S, 'Gb4', S),
+    n(b, Q + 3 * S, 'G4', S),
+
+    // B (eighth + rest) | C B A# B
+    n(b + 1, 0, 'B4', E),
+    n(b + 1, Q, 'C5', S),
+    n(b + 1, Q + S, 'B4', S),
+    n(b + 1, Q + 2 * S, 'Bb4', S),
+    n(b + 1, Q + 3 * S, 'B4', S),
+
+    // The octave lift: F# E D# E, twice.
+    n(b + 2, 0, 'Gb5', S),
+    n(b + 2, S, 'E5', S),
+    n(b + 2, 2 * S, 'Eb5', S),
+    n(b + 2, 3 * S, 'E5', S),
+    n(b + 2, Q, 'Gb5', S),
+    n(b + 2, Q + S, 'E5', S),
+    n(b + 2, Q + 2 * S, 'Eb5', S),
+    n(b + 2, Q + 3 * S, 'E5', S),
+
+    // G (accented quarter) | E G
+    n(b + 3, 0, 'G5', Q),
+    n(b + 3, Q, 'E5', E),
+    n(b + 3, Q + E, 'G5', E),
   ];
+
+  // Three bars of F# E D E over the dominant, the last turning to C#.
+  const turns: NoteId[][] = [
+    ['Gb5', 'E5', 'D5', 'E5'],
+    ['Gb5', 'E5', 'D5', 'E5'],
+    ['Gb5', 'E5', 'D5', 'Db5'],
+  ];
+  turns.forEach((bar, i) => {
+    bar.forEach((noteId, j) => {
+      out.push(n(b + 4 + i, j * E, noteId, E));
+    });
+  });
+
+  // Cadence.
+  out.push(n(b + 7, 0, 'B4', Q));
+
+  // Left hand: staccato chords on every eighth — the march tread the piece is
+  // named for. Bars 1–4 sit on E minor, bars 5–7 on the B dominant.
+  const tonicBars = [b, b + 1, b + 2, b + 3];
+  for (const bar of tonicBars) {
+    out.push(lh(bar, 0, 'E5', E));
+    for (const beat of [E, Q, Q + E]) {
+      out.push(lh(bar, beat, 'G5', E));
+      out.push(lh(bar, beat, 'B5', E));
+    }
+  }
+  for (const bar of [b + 4, b + 5]) {
+    out.push(lh(bar, 0, 'B4', E));
+    for (const beat of [E, Q, Q + E]) {
+      out.push(lh(bar, beat, 'Gb5', E));
+      out.push(lh(bar, beat, 'B5', E));
+    }
+  }
+  out.push(lh(b + 6, 0, 'B4', E));
+  out.push(lh(b + 6, E, 'Gb5', E));
+  out.push(lh(b + 6, E, 'B5', E));
+  out.push(lh(b + 6, Q, 'Gb5', E));
+  out.push(lh(b + 6, Q + E, 'Gb5', E));
+  out.push(lh(b + 7, 0, 'B4', Q));
+
+  return out;
 }
 
 /**
- * Final A return — after Do, the G–Fa#–Mi turn is NOT used.
- * Sheet cadence: La Si | Do Si | La Sol# | La Mi Fa Re | Do Si | La
+ * B section. Enters on a two-eighth pickup so the sixteenth run lands inside
+ * the bar and the answering note falls on a downbeat.
  */
-function themeAClose(cBar: number): Ev[] {
-  const pBar = cBar - 1;
-  return [
-    // Pickup on the upbeat (beat 2) so the four sixteenths flow straight into
-    // the Do downbeat — at beat 1 they leave a half-bar hole before Do.
-    at(pBar, Q, 'B4'),
-    at(pBar, Q + S, 'A4'),
-    at(pBar, Q + 2 * S, 'Ab4'),
-    at(pBar, Q + 3 * S, 'A4'),
-    at(cBar, 0, 'C5'),
-    at(cBar, Q, 'D5'),
-    at(cBar, Q + S, 'C5'),
-    at(cBar, Q + 2 * S, 'B4'),
-    at(cBar, Q + 3 * S, 'C5'),
-    at(cBar + 1, 0, 'E5'),
-    at(cBar + 1, Q, 'F5'),
-    at(cBar + 1, Q + S, 'E5'),
-    at(cBar + 1, Q + 2 * S, 'Eb5'),
-    at(cBar + 1, Q + 3 * S, 'E5'),
-    at(cBar + 2, 0, 'B4'),
-    at(cBar + 2, S, 'A4'),
-    at(cBar + 2, 2 * S, 'Ab4'),
-    at(cBar + 2, 3 * S, 'A4'),
-    at(cBar + 2, Q, 'B4'),
-    at(cBar + 2, Q + S, 'A4'),
-    at(cBar + 2, Q + 2 * S, 'Ab4'),
-    at(cBar + 2, Q + 3 * S, 'A4'),
-    // Do | La Si — then the real 2nd-ending run (Mutopia rightaa):
-    // C–B–A–G#–A then DOWN to E–F–D (source: a→e is a falling fourth), and
-    // the final cadence Do–Si–La. Keeping E–F–D in the low octave preserves
-    // the run's downward sweep instead of leaping up mid-phrase.
-    at(cBar + 3, 0, 'C5'),
-    at(cBar + 3, Q, 'A4'),
-    at(cBar + 3, Q + E, 'B4'),
-    at(cBar + 4, 0, 'C5'),
-    at(cBar + 4, E, 'B4'),
-    at(cBar + 4, Q, 'A4'),
-    at(cBar + 4, Q + E, 'Ab4'),
-    at(cBar + 5, 0, 'A4'),
-    at(cBar + 5, S, 'E4'),
-    at(cBar + 5, 2 * S, 'F4'),
-    at(cBar + 5, 3 * S, 'D4'),
-    at(cBar + 5, Q, 'C5'),
-    at(cBar + 5, Q + E, 'B4'),
-    at(cBar + 6, 0, 'A4'),
-  ];
+function sectionB(startBar: number): Ev[] {
+  const b = startBar;
+  const out: Ev[] = [];
+
+  /** One phrase: [pickup pair], then run bar, then the note it resolves to. */
+  const phrase = (
+    bar: number,
+    pickup: [NoteId, NoteId],
+    held: NoteId,
+    run: [NoteId, NoteId, NoteId, NoteId],
+    landing: NoteId,
+  ): void => {
+    out.push(n(bar - 1, Q, pickup[0], E));
+    out.push(n(bar - 1, Q + E, pickup[1], E));
+    out.push(n(bar, 0, held, E));
+    out.push(n(bar, E, held, E));
+    run.forEach((noteId, i) => {
+      out.push(n(bar, Q + i * S, noteId, S));
+    });
+    out.push(n(bar + 1, 0, landing, Q));
+  };
+
+  phrase(b, ['B4', 'C5'], 'D5', ['E5', 'D5', 'C5', 'B4'], 'A4');
+  phrase(b + 2, ['B4', 'C5'], 'D5', ['E5', 'D5', 'C5', 'B4'], 'A4');
+  // Second half sits a step lower and cadences on B.
+  phrase(b + 4, ['G4', 'A4'], 'B4', ['C5', 'B4', 'A4', 'G4'], 'G4');
+  phrase(b + 6, ['G4', 'A4'], 'B4', ['C5', 'B4', 'A4', 'G4'], 'Gb4');
+
+  // Left hand keeps the tread going underneath.
+  for (let i = 0; i < 8; i++) {
+    const bar = b + i;
+    const root: NoteId = i < 4 ? 'E5' : 'B4';
+    const upper: NoteId = i < 4 ? 'G5' : 'Gb5';
+    out.push(lh(bar, 0, root, E));
+    for (const beat of [E, Q, Q + E]) {
+      out.push(lh(bar, beat, upper, E));
+      out.push(lh(bar, beat, 'B5', E));
+    }
+  }
+
+  return out;
 }
 
-// 2nd A pickup on the upbeat of bar 7 so the sixteenths run straight into the
-// bar-8 Do (at beat 1 they'd leave a half-bar hole before the downbeat).
+/**
+ * The real coda: the repeated G# figure, the turn, then the A-major march —
+ * here E major — that actually ends the piece.
+ */
+function coda(startBar: number): Ev[] {
+  const b = startBar;
+  const out: Ev[] = [];
+
+  // E, then the hammered G# that opens the coda.
+  out.push(n(b, 0, 'E5', Q));
+  out.push(n(b, Q, 'Ab5', Q * 0.75));
+  out.push(n(b, Q + Q * 0.75, 'Ab5', S));
+  out.push(n(b + 1, 0, 'Ab5', 2 * Q));
+
+  // A–G#–F#–G# turn, twice, then the held A.
+  const turn: NoteId[] = ['A5', 'Ab5', 'Gb5', 'Ab5'];
+  turn.forEach((noteId, i) => out.push(n(b + 2, i * S, noteId, S)));
+  turn.forEach((noteId, i) => out.push(n(b + 2, Q + i * S, noteId, S)));
+  out.push(n(b + 3, 0, 'A5', 2 * Q));
+
+  // Four detached G#s, then the F#–B step that sets up the march.
+  for (let i = 0; i < 4; i++) {
+    out.push(n(b + 4, i * E, 'Ab5', E));
+  }
+  out.push(n(b + 5, 0, 'Gb5', Q + E));
+  out.push(n(b + 5, Q + E, 'B5', E));
+
+  // The march. Root on the long beat, the octave answer on the short one.
+  const march: [NoteId, number][] = [
+    ['Ab5', 0],
+    ['B5', 1],
+    ['Ab5', 2],
+    ['B5', 3],
+  ];
+  march.forEach(([answer, i]) => {
+    const bar = b + 6 + i;
+    out.push(n(bar, 0, 'E5', Q + E));
+    out.push(n(bar, Q + E, answer, E));
+    out.push(lh(bar, 0, 'E5', Q + E));
+    out.push(lh(bar, 0, 'B5', Q + E));
+  });
+
+  // Final cadence. Mozart stamps it out as full chords; one key at a time is
+  // what this keyboard teaches, so it is spelled as the chord's own notes in
+  // sequence and the last one is left ringing.
+  out.push(n(b + 10, 0, 'B5', E));
+  out.push(n(b + 10, E, 'Ab5', E));
+  out.push(n(b + 10, Q, 'E5', E));
+  out.push(n(b + 10, Q + E, 'B5', E));
+  out.push(n(b + 11, 0, 'E5', 3 * Q));
+  out.push(lh(b + 10, 0, 'E5', 2 * Q));
+  out.push(lh(b + 11, 0, 'E5', 3 * Q));
+
+  return out;
+}
+
 const EVENTS: Ev[] = [
-  ...themeA(1, Q),
-  ...themeA(8, Q),
-  ...middle(14),
-  ...themeAClose(23),
-];
+  ...themeA(1),
+  ...themeA(9),
+  ...sectionB(18),
+  ...themeA(27),
+  ...coda(35),
+].sort((a, b) => a.atMs - b.atMs);
 
-const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;
+const MELODY = EVENTS.filter((event) => event.role !== 'accompaniment');
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
 
-const themeNotes = EVENTS.filter((e) => e.atMs < 8 * BAR);
-const partialNotes =
-  themeNotes.length >= 50
-    ? themeNotes.slice(0, 50)
-    : EVENTS.slice(0, 50);
+// The excerpt is the first statement of the theme.
+const themeNotes = MELODY.filter((event) => event.atMs < 9 * BAR);
+const partialNotes = themeNotes.length > 0 ? themeNotes : MELODY.slice(0, 50);
 
 export const turkMarsiSong: SongDefinition = {
   id: 'turk-marsi',
@@ -194,6 +250,7 @@ export const turkMarsiSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.turkMarsi.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 2 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

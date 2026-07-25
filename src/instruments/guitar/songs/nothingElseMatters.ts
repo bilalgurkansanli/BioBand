@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -7,29 +8,35 @@ import type { GuitarSongEvent } from './types';
  */
 const BEAT = 340;
 const BAR = BEAT * 6;
+/**
+ * Fingerpicked notes are not stopped at the next pluck — nothing frets or mutes
+ * them, so the arpeggio stacks into the Em chord it spells out. Damped at one
+ * eighth each it is a scale, not an arpeggio.
+ */
+const RING = BAR;
 
 /** Signature bar: E2 → G3 → B3 → E4 → B3 → G3, all open strings. */
 function introArpeggio(startMs: number): GuitarSongEvent[] {
   return [
-    note('s6', 0, startMs),
-    note('s3', 0, startMs + BEAT),
-    note('s2', 0, startMs + BEAT * 2),
-    note('s1', 0, startMs + BEAT * 3),
-    note('s2', 0, startMs + BEAT * 4),
-    note('s3', 0, startMs + BEAT * 5),
+    note('s6', 0, startMs, RING),
+    note('s3', 0, startMs + BEAT, RING),
+    note('s2', 0, startMs + BEAT * 2, RING),
+    note('s1', 0, startMs + BEAT * 3, RING),
+    note('s2', 0, startMs + BEAT * 4, RING),
+    note('s3', 0, startMs + BEAT * 5, RING),
   ];
 }
 
 /** Picked answer over the low E — descending B-string line. */
 function introAnswer(startMs: number): GuitarSongEvent[] {
   return [
-    note('s6', 0, startMs),
+    note('s6', 0, startMs, RING),
     note('s2', 3, startMs + BEAT),
     note('s2', 1, startMs + BEAT * 2),
     note('s2', 0, startMs + BEAT * 3),
     note('s3', 2, startMs + BEAT * 4),
     note('s3', 0, startMs + BEAT * 5),
-    note('s6', 0, startMs + BAR),
+    note('s6', 0, startMs + BAR, RING),
     note('s3', 2, startMs + BAR + BEAT * 2),
     note('s2', 0, startMs + BAR + BEAT * 4),
   ];
@@ -102,6 +109,12 @@ export const NOTHING_ELSE_MATTERS_EVENTS: GuitarSongEvent[] = [
   ...introArpeggio(BAR * 12),
   note('s6', 0, BAR * 13),
 ];
+
+/** 6/8 — BEAT is the eighth, so the bar carries six. */
+export const NOTHING_ELSE_MATTERS_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 6,
+};
 
 /** Two intro arpeggio bars. */
 export const NOTHING_ELSE_MATTERS_PARTIAL_COUNT = 12;

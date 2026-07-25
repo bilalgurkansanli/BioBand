@@ -9,3 +9,9 @@ declare module 'react-native-audio-api/lib/module/core/OfflineAudioContext' {
 
   export default OfflineAudioContext;
 }
+
+declare module 'react-native-audio-api/lib/module/system/AudioManager' {
+  import { AudioManager } from 'react-native-audio-api';
+
+  export default AudioManager;
+}

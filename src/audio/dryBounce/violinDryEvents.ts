@@ -1,5 +1,5 @@
 import { loadSample } from '../sampleBank';
-import type { DrySampleEvent } from '../offlineBounce';
+import type { DryFilter, DrySampleEvent } from '../offlineBounce';
 import { getViolinNoteSampleConfig, VIOLIN_SAMPLE_FILES } from '../../instruments/violin/violinSamples';
 import { getMidi } from '../../instruments/violin/violinNotes';
 import { getPhraseById } from '../../instruments/violin/violinPhrases';
@@ -20,6 +20,12 @@ export async function resolveViolinDryEvents(
   const voiceId = isViolinVoiceId(violinVoiceId) ? violinVoiceId : 'classic';
   const voice = getViolinVoice(voiceId);
   const sampleEvents: DrySampleEvent[] = [];
+  const voiceFilter: DryFilter = {
+    type: voice.audio.filterType,
+    frequency: voice.audio.filterFrequency,
+    q: voice.audio.filterQ,
+    gainDb: voice.audio.filterGainDb,
+  };
 
   const pushNote = async (stringId: Parameters<typeof getMidi>[0], position: number, atMs: number) => {
     const midi = getMidi(stringId, position);
@@ -33,6 +39,10 @@ export async function resolveViolinDryEvents(
       playbackRate: rate,
       gain,
       offsetSeconds: config.offsetSeconds,
+      attackSeconds: 0.02,
+      holdSeconds: voice.audio.holdSeconds ?? 0.45,
+      releaseSeconds: voice.audio.releaseSeconds ?? 0.4,
+      filters: [voiceFilter],
     });
   };
 

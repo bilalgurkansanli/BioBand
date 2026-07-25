@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Barış Manço — "Gülpembe" (music: Ahmet Güvenç)
 // Source: gitaregitim.net PDF (Em, 4/4) + prior kolaynota intro cells.
@@ -10,7 +10,7 @@ const E = Q / 2;
 const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -218,7 +218,7 @@ function ending(startBar: number): Ev[] {
   ];
 }
 
-const GULPEMBE_EVENTS: Ev[] = [
+const GULPEMBE_MELODY: Ev[] = [
   ...intro(0),
   ...intro(5), // second pass of intro hook
   ...verseSenGulunce(10),
@@ -228,15 +228,57 @@ const GULPEMBE_EVENTS: Ev[] = [
   ...ending(27),
 ];
 
-const LAST_MS = GULPEMBE_EVENTS[GULPEMBE_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar. The intro riff is a Phrygian Fa-Mi-Re-Mi turn
+ * over a standing E — a moving bass under it would only fight the pedal, so it
+ * holds Em for all ten bars. The verses take the diatonic Em/Am/G, the two
+ * "sevinirdik" / "inanamadık" bars take D for the tune's F♮s, and the
+ * "Gülpembe" cadence falls G → Dm exactly where the melody drops B-A-G-F.
+ * Written on the keyboard, sounded an octave down under the tune.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Intro hook ×2 — Em pedal
+  ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'],
+  ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'],
+  // "Sen gülünce…" — Am | Em | Em | G→Dm
+  ['A4', 'A4'], ['E4', 'E4'], ['E4', 'E4'], ['G4', 'D4'],
+  // "Sen gelince…" — Am | Em | Em
+  ['A4', 'A4'], ['E4', 'E4'], ['E4', 'E4'],
+  // "sevinirdik…" — D | G→Dm | Em | Em | D | Em
+  ['D4', 'D4'], ['G4', 'D4'], ['E4', 'E4'], ['E4', 'E4'], ['D4', 'D4'],
+  ['E4', 'E4'],
+  // "bizim iller…" — Em
+  ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'], ['E4', 'E4'],
+  // Ending — G | Am | Em | D | G→Dm | Em
+  ['G4', 'G4'], ['A4', 'A4'], ['E4', 'E4'], ['D4', 'D4'], ['G4', 'D4'],
+  ['E4', 'E4'],
+];
+
+/** Root on beats 1 and 3 — a slow half-note pulse, not a busy figure. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * 2 * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const GULPEMBE_EVENTS: Ev[] = [...GULPEMBE_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = GULPEMBE_MELODY[GULPEMBE_MELODY.length - 1]?.atMs ?? 0;
 
 // Partial ≈ iconic intro (both passes) — recognizable Fa-Mi-Re-Mi hook
+// Counted over the tune — the bass runs underneath the whole excerpt.
 const PARTIAL_END_MS = 10 * BAR;
-const introNotes = GULPEMBE_EVENTS.filter((e) => e.atMs < PARTIAL_END_MS);
+const introNotes = GULPEMBE_MELODY.filter((e) => e.atMs < PARTIAL_END_MS);
 const partialNotes =
   introNotes.length >= 50
     ? introNotes.slice(0, 50)
-    : GULPEMBE_EVENTS.slice(0, 50);
+    : GULPEMBE_MELODY.slice(0, 50);
 
 export const gulpembeSong: SongDefinition = {
   id: 'gulpembe',
@@ -245,6 +287,7 @@ export const gulpembeSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.gulpembe.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: GULPEMBE_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

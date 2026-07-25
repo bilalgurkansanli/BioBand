@@ -1,23 +1,32 @@
-import { StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-
-import { colors } from '../theme/colors';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 type Props = {
   displayName: string;
-  color: string | null;
   size?: number;
+  photoUrl?: string | null;
 };
 
-export function ProfileAvatar({ displayName, color, size = 48 }: Props) {
+/** Fixed fallback background (guests / no Google photo yet) — not user-customizable. */
+const FALLBACK_COLOR = '#0984E3';
+
+export function ProfileAvatar({ displayName, size = 48, photoUrl }: Props) {
   const initial = displayName.trim().charAt(0).toUpperCase();
-  const backgroundColor = color ?? colors.accent;
+
+  if (photoUrl) {
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}
+      />
+    );
+  }
 
   return (
     <View
       style={[
         styles.circle,
-        { backgroundColor, width: size, height: size, borderRadius: size / 2 },
+        { backgroundColor: FALLBACK_COLOR, width: size, height: size, borderRadius: size / 2 },
       ]}
     >
       {initial ? (

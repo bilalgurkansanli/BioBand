@@ -180,22 +180,3 @@ export function getChordFretting(chord: ChordDefinition): ChordFretting {
   return fretting;
 }
 
-/** Chord fret for a string, or null if muted / unknown. */
-export function getChordFretForString(
-  chordId: ChordId,
-  stringId: GuitarStringId,
-): number | null {
-  const chord = getChordById(chordId);
-  if (!chord) {
-    return null;
-  }
-  const index = STRING_ORDER.indexOf(stringId);
-  if (index < 0) {
-    return null;
-  }
-  const midi = chord.notes[index];
-  if (midi === null) {
-    return null;
-  }
-  return midiToFret(stringId, midi);
-}

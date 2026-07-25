@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import {
   Alert,
   Animated,
@@ -14,7 +14,6 @@ import { useTranslation } from 'react-i18next';
 
 import type { LooperBars, LooperLayer, LooperPhase } from '../../hooks/usePadsLooper';
 import type { PadBankId } from '../../instruments/pads/padsBanks';
-import { colors } from '../../theme/colors';
 
 type LooperBarProps = {
   phase: LooperPhase;

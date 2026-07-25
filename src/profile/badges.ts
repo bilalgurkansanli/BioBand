@@ -52,6 +52,13 @@ export const BADGE_META: Record<
      * Omit to use the component's default.
      */
     imageSize?: number;
+    /**
+     * The medal isn't always centered in its square canvas — some have more
+     * margin below than above (or vice versa), so a symmetric center-crop
+     * leaves a sliver of flat background on one side. Shifts the rendered
+     * image up/down (positive = down) to rebalance the crop. Omit for none.
+     */
+    imageOffsetY?: number;
   }
 > = {
   'streak-3': {
@@ -75,6 +82,8 @@ export const BADGE_META: Record<
   'practice-10h': {
     image: require('../../assets/icons/practice-10h.jpeg'),
     titleKey: 'profile.badgePractice10h',
+    imageSize: 84,
+    imageOffsetY: 3,
   },
   'practice-50h': {
     image: require('../../assets/icons/practice-50h.jpeg'),

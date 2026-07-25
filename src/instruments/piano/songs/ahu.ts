@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Mabel Matiz — "Ahu"
 // Musa Çetiner / kolaynota.com — Am feel. Fa#→Gb, Sib→Bb, Lab→Ab.
@@ -7,10 +7,9 @@ import type { SongDefinition } from './types';
 // Quarter ≈ 500ms.
 const Q = 500;
 const E = Q / 2;
-const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -220,7 +219,7 @@ function colorBridge(startBar: number): Ev[] {
   ];
 }
 
-const EVENTS: Ev[] = [
+const MELODY: Ev[] = [
   ...verseOpen(0),
   ...ahuHook(3),
   ...ahuHook(6),
@@ -236,8 +235,51 @@ const EVENTS: Ev[] = [
   at(39, 0, 'C5'),
 ];
 
-const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;
-const partialNotes = EVENTS.slice(0, 50);
+/**
+ * Chord root per bar, in La minor. The verse and the «Ahu» hook sit on Am with
+ * the one Dm bar the tune spells with its Re-Fa; the mid climb walks the line
+ * down Am–G–F–G; «Çal beni» circles Do, so those bars take C; and the colour
+ * bridge follows its own chromatic descent G–F–C–C–G back to the tonic.
+ * Written on the keyboard and sounded an octave down, under a tune that runs
+ * from Do4 to Sol5.
+ */
+const BAR_ROOTS: NoteId[] = [
+  // «Yandı gönül» verse
+  'A4', 'A4', 'A4',
+  // «Ahu» hook ×2
+  'A4', 'D4', 'A4', 'A4', 'D4', 'A4',
+  // Mid climb — descending Am–G–F–G
+  'A4', 'G4', 'F4', 'G4',
+  // «Çal beni»
+  'C4', 'C4', 'G4', 'A4',
+  // «Al senin»
+  'A4', 'A4', 'A4', 'G4',
+  // D.S. recall (bar 22 is the tune's rest — the bass holds it)
+  'A4', 'A4', 'A4', 'A4',
+  // Colour bridge
+  'A4', 'G4', 'F4', 'C4', 'C4', 'G4',
+  // «Çal beni» / «Al senin» again, then the last Do
+  'C4', 'C4', 'G4', 'A4',
+  'A4', 'A4', 'A4', 'G4',
+  'A4',
+];
+
+/** Root on beats 1 and 3 — a half-note pulse under a busy eighth-note tune. */
+const BASS: Ev[] = BAR_ROOTS.flatMap((noteId, barIndex) =>
+  [0, 2].map((beat) => ({
+    noteId,
+    atMs: barIndex * BAR + beat * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const EVENTS: Ev[] = [...MELODY, ...BASS].sort((a, b) => a.atMs - b.atMs);
+
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const partialNotes = MELODY.slice(0, 50);
 
 export const ahuSong: SongDefinition = {
   id: 'ahu',
@@ -246,6 +288,7 @@ export const ahuSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.ahu.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

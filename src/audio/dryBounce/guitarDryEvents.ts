@@ -1,5 +1,5 @@
 import { loadSample } from '../sampleBank';
-import type { DrySampleEvent } from '../offlineBounce';
+import type { DryFilter, DrySampleEvent } from '../offlineBounce';
 import { getChordById, isChordId } from '../../instruments/guitar/guitarChords';
 import {
   buildChordPatternSteps,
@@ -10,6 +10,7 @@ import {
 import { getGuitarNoteSampleConfig, type GuitarSampleBankId } from '../../instruments/guitar/guitarSamples';
 import { fretToMidi, type GuitarStringId } from '../../instruments/guitar/guitarSounds';
 import {
+  clampGuitarVelocity,
   guitarGainScaleForVelocity,
 } from '../../instruments/guitar/guitarVelocity';
 import { guitarStringGainBalance } from '../../instruments/guitar/guitarBalance';
@@ -18,6 +19,12 @@ import type { InstrumentEvent } from '../../types/recording';
 
 /** Mirrors guitarEngine.ts's private STRING_GAIN constant. */
 const STRING_GAIN = 0.42;
+
+/** Mirrors guitarVelocity.ts's guitarAttackSecondsForVelocity (non-shortTail path). */
+function attackSecondsForVelocity(velocity: number): number {
+  const v = clampGuitarVelocity(velocity);
+  return 0.0045 - v * 0.0025;
+}
 
 function sampleBankForVoice(voiceId: GuitarVoiceId): GuitarSampleBankId {
   return voiceId === 'electric' ? 'electric' : 'acoustic';
@@ -32,6 +39,12 @@ export async function resolveGuitarDryEvents(
   const voice = getGuitarVoice(voiceId);
   const bank = sampleBankForVoice(voiceId);
   const sampleEvents: DrySampleEvent[] = [];
+  const voiceFilter: DryFilter = {
+    type: voice.audio.filterType,
+    frequency: voice.audio.filterFrequency,
+    q: voice.audio.filterQ,
+    gainDb: voice.audio.filterGainDb,
+  };
 
   const pushString = async (stringId: GuitarStringId, midi: number, velocity: number, atMs: number) => {
     const config = getGuitarNoteSampleConfig(midi, bank);
@@ -42,7 +55,16 @@ export async function resolveGuitarDryEvents(
       guitarGainScaleForVelocity(velocity) *
       guitarStringGainBalance(stringId) *
       voice.audio.gainScale;
-    sampleEvents.push({ atMs, buffer, playbackRate: rate, gain });
+    sampleEvents.push({
+      atMs,
+      buffer,
+      playbackRate: rate,
+      gain,
+      attackSeconds: attackSecondsForVelocity(velocity),
+      holdSeconds: voice.audio.holdSeconds ?? 3.2,
+      releaseSeconds: voice.audio.releaseSeconds ?? 2.2,
+      filters: [voiceFilter],
+    });
   };
 
   for (const event of events) {

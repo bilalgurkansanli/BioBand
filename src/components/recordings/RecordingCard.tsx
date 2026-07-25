@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -136,18 +136,6 @@ export function RecordingCard({
               variant="danger"
             />
           ) : null}
-          <ActionButton
-            disabled={actionsDisabled}
-            icon="download-outline"
-            label={t('recordings.download')}
-            onPress={onDownloadPress}
-          />
-          <ActionButton
-            disabled={actionsDisabled}
-            icon="share-outline"
-            label={t('recordings.share')}
-            onPress={onSharePress}
-          />
           <Pressable
             accessibilityLabel={playLabel}
             accessibilityRole="button"
@@ -172,6 +160,24 @@ export function RecordingCard({
             )}
           </Pressable>
         </View>
+      </View>
+
+      {/* Export sits on its own row with words on it. Two more icons up in the
+          action strip would have squeezed the title and the meta line into a
+          column too narrow to read. */}
+      <View style={styles.exportRow}>
+        <ExportButton
+          disabled={actionsDisabled}
+          icon="download-outline"
+          label={t('recordings.download')}
+          onPress={onDownloadPress}
+        />
+        <ExportButton
+          disabled={actionsDisabled}
+          icon="share-outline"
+          label={t('recordings.share')}
+          onPress={onSharePress}
+        />
       </View>
 
       {isPlaying && onSeek ? (
@@ -210,6 +216,34 @@ function ActionButton({ icon, label, onPress, disabled, variant = 'default' }: A
       ]}
     >
       <Ionicons color={isDanger ? '#FFFFFF' : colors.text} name={icon} size={18} />
+    </Pressable>
+  );
+}
+
+function ExportButton({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.exportButton,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <Ionicons color={colors.text} name={icon} size={16} />
+      <Text style={styles.exportLabel}>{label}</Text>
     </Pressable>
   );
 }
@@ -291,6 +325,28 @@ const styles = StyleSheet.create({
   actionButtonDanger: {
     backgroundColor: colors.error,
     borderColor: colors.error,
+  },
+  exportRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  exportButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 10,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 10,
+  },
+  exportLabel: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
   },
   playButton: {
     alignItems: 'center',

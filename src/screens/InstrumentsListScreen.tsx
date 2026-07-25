@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -144,15 +144,13 @@ export function InstrumentsListScreen({ navigation }: Props) {
       <ScreenHeader
         title={t('instruments.title')}
         right={
-          streakCount > 0 ? (
-            <View
-              accessibilityLabel={t('profile.streakCount', { count: streakCount })}
-              style={styles.streakBadge}
-            >
-              <Ionicons color={colors.accent} name="flame" size={20} />
-              <Text style={styles.streakBadgeText}>{streakCount}</Text>
-            </View>
-          ) : null
+          <View
+            accessibilityLabel={t('profile.streakCount', { count: streakCount })}
+            style={styles.streakBadge}
+          >
+            <Ionicons color={colors.accent} name="flame" size={20} />
+            <Text style={styles.streakBadgeText}>{streakCount}</Text>
+          </View>
         }
       />
       <Text style={styles.subtitle}>{t('instruments.subtitle')}</Text>

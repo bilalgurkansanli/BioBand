@@ -1,5 +1,5 @@
 import { getSharedAudioContext, loadSample } from '../sampleBank';
-import type { DrySampleEvent } from '../offlineBounce';
+import type { DryFilter, DrySampleEvent } from '../offlineBounce';
 import { getPadBank, getPadSlot, isPadBankId } from '../../instruments/pads/padsBanks';
 import { PAD_SYNTH_FILES } from '../../instruments/pads/padsSynth';
 import { TURKISH_PERC_FILES } from '../../instruments/pads/padsTurkish';
@@ -31,6 +31,13 @@ export async function resolvePadsDryEvents(
 ): Promise<{ sampleEvents: DrySampleEvent[]; oscillatorEvents: [] }> {
   const bankId = isPadBankId(padBankId) ? padBankId : 'drums';
   const bank = getPadBank(bankId);
+  const bankFilter: DryFilter = {
+    type: bank.audio.filterType,
+    frequency: bank.audio.filterFrequency,
+    q: bank.audio.filterQ,
+    gainDb:
+      bank.audio.filterType === 'lowshelf' ? 5 : bank.audio.filterType === 'peaking' ? 0 : undefined,
+  };
   const sampleEvents: DrySampleEvent[] = [];
 
   for (const event of events) {
@@ -65,7 +72,16 @@ export async function resolvePadsDryEvents(
 
     const rate = bank.audio.playbackRate * slot.envelope.rateScale * baseRate;
     const gain = slot.gain * velocityGainScale(event.velocity);
-    sampleEvents.push({ atMs: event.atMs, buffer, playbackRate: rate, gain });
+    sampleEvents.push({
+      atMs: event.atMs,
+      buffer,
+      playbackRate: rate,
+      gain,
+      attackSeconds: slot.envelope.attackSeconds,
+      holdSeconds: slot.envelope.holdSeconds,
+      releaseSeconds: slot.envelope.releaseSeconds,
+      filters: [bankFilter],
+    });
   }
 
   return { sampleEvents, oscillatorEvents: [] };

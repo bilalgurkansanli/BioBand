@@ -37,6 +37,9 @@ export async function initI18n(): Promise<void> {
   const stored = await getStoredLanguage();
   const language = stored ?? DEFAULT_LANGUAGE;
 
+  // `i18next` exports a bare `use` alongside the default instance, which trips
+  // the lint rule — but the instance method is what we want here.
+  // eslint-disable-next-line import/no-named-as-default-member
   await i18n.use(initReactI18next).init({
     resources,
     lng: language,

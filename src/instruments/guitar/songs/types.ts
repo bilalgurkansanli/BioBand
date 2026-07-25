@@ -1,8 +1,15 @@
-import type { SongBackingTrack } from '../../piano/songs/types';
+import type { SongBackingTrack, SongMeter } from '../../piano/songs/types';
+import type { SongRole } from '../../shared/songPerformance';
 
 export type GuitarSongEvent = {
   soundId: string;
   atMs: number;
+  /** Ring time. Omit and it is derived from the gap to the next event. */
+  durationMs?: number;
+  /** 0..1 pick strength. Omit for an accent derived from `meter`. */
+  velocity?: number;
+  /** Accompaniment is played but never highlighted or scored. */
+  role?: SongRole;
 };
 
 export type GuitarSongDifficulty = 'easy' | 'medium' | 'hard';
@@ -25,6 +32,8 @@ export type GuitarSongDefinition = {
   partialCount?: number;
   /** Optional backing track for Band Mode (reuses piano format). */
   backingTrack?: SongBackingTrack;
+  /** Enables metrical accents; charts without it still get phrase shaping. */
+  meter?: SongMeter;
 };
 
 export type ResolvedGuitarSession = {

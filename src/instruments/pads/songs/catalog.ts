@@ -18,6 +18,7 @@ import {
   FUNK_16_EVENTS,
   HALAY_EVENTS,
   HIPHOP_90_EVENTS,
+  AKSAK_9_8_METER,
   KASIK_9_8_EVENTS,
   REGGAETON_EVENTS,
   ROMAN_9_8_EVENTS,
@@ -89,6 +90,7 @@ export const PAD_SONGS: PadSongDefinition[] = [
     events: ROMAN_9_8_EVENTS,
     partialCount: 5,
     bankId: 'turkish',
+    meter: AKSAK_9_8_METER,
   },
   {
     id: 'pad-kasik-9-8',
@@ -97,6 +99,7 @@ export const PAD_SONGS: PadSongDefinition[] = [
     events: KASIK_9_8_EVENTS,
     partialCount: 8,
     bankId: 'turkish',
+    meter: AKSAK_9_8_METER,
   },
   // --- Modern groove'lar (drums bank) ---
   {

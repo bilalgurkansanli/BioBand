@@ -13,6 +13,8 @@ const DEFAULT_MICROSECONDS_PER_BEAT = 500_000;
 /**
  * General MIDI percussion note -> PadSoundId.
  * Same drum mapping as drums, but targeting pad01–pad08.
+ * Pads are addressed by identity, not by pitch — transposing an import would
+ * only send hits to the wrong pads, so no octave fitting happens here.
  */
 const GM_NOTE_TO_PAD: Record<number, PadSoundId> = {
   35: 'pad01', // kick
@@ -41,7 +43,11 @@ const GM_NOTE_TO_PAD: Record<number, PadSoundId> = {
 
 type RawHit = {
   tick: number;
+  /** Tick the note was released — null when the file never closes it. */
+  endTick: number | null;
   padId: PadSoundId;
+  /** 0..1, from the MIDI strike velocity. */
+  velocity: number;
 };
 
 function titleFromFileName(fileName: string): string {
@@ -74,6 +80,16 @@ export function midiBytesToPadSong(
 
   midi.tracks.forEach((track) => {
     let absTick = 0;
+    /** Hits sounding right now, so a note-off can give them their ring time. */
+    const open = new Map<number, RawHit>();
+
+    const close = (noteNumber: number, tick: number): void => {
+      const hit = open.get(noteNumber);
+      if (hit) {
+        hit.endTick = tick;
+        open.delete(noteNumber);
+      }
+    };
 
     for (const event of track) {
       absTick += event.deltaTime;
@@ -94,7 +110,21 @@ export function midiBytesToPadSong(
         if (!padId) {
           continue;
         }
-        hits.push({ tick: absTick, padId });
+        // A retrigger without an intervening note-off ends the previous one.
+        close(event.noteNumber, absTick);
+        const hit: RawHit = {
+          tick: absTick,
+          endTick: null,
+          padId,
+          velocity: Math.min(1, Math.max(0.05, event.velocity / 127)),
+        };
+        open.set(event.noteNumber, hit);
+        hits.push(hit);
+      } else if (
+        event.type === 'noteOff' ||
+        (event.type === 'noteOn' && event.velocity === 0)
+      ) {
+        close(event.noteNumber, absTick);
       }
     }
   });
@@ -128,10 +158,17 @@ export function midiBytesToPadSong(
     return Math.round(ms);
   }
 
-  let events: PadSongEvent[] = hits.map((h) => ({
-    padId: h.padId,
-    atMs: ticksToMs(h.tick),
-  }));
+  let events: PadSongEvent[] = hits.map((h) => {
+    const atMs = ticksToMs(h.tick);
+    const durationMs =
+      h.endTick !== null ? Math.max(1, ticksToMs(h.endTick) - atMs) : undefined;
+    return {
+      padId: h.padId,
+      atMs,
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      velocity: h.velocity,
+    };
+  });
 
   events.sort((a, b) => a.atMs - b.atMs || a.padId.localeCompare(b.padId));
 

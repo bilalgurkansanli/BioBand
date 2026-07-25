@@ -33,6 +33,7 @@ import {
   subscribeStudioOverdubSession,
   type StudioOverdubSession,
 } from '../studio/studioOverdubSession';
+import { notifyStudioTrackAdded } from '../studio/studioTrackAddedSignal';
 import type { InstrumentEvent, InstrumentId, RecordingMode, SavedRecording } from '../types/recording';
 import type { RootTabParamList } from '../types/navigation';
 
@@ -139,7 +140,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           await appendRecordedTrack(session.projectId, take);
           clearStudioOverdubSession();
           setStudioSession(null);
-          Alert.alert(t('studio.overdubSaved'));
+          notifyStudioTrackAdded();
           navigateBackToStudio(session.projectId);
         }
         return take;
@@ -166,7 +167,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           await appendRecordedTrack(session.projectId, take);
           clearStudioOverdubSession();
           setStudioSession(null);
-          Alert.alert(t('studio.overdubSaved'));
+          notifyStudioTrackAdded();
           navigateBackToStudio(session.projectId);
         }
         return take;
@@ -174,7 +175,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
 
       return null;
     },
-    [audioRecorder, instrument, navigateBackToStudio, t],
+    [audioRecorder, instrument, navigateBackToStudio],
   );
 
   const stopRecording = useCallback(async () => {
@@ -186,22 +187,37 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     clearCountdown();
 
     if (currentMode === 'microphone') {
-      await audioRecorder.stop();
+      try {
+        await audioRecorder.stop();
+      } catch {
+        // Already stopped/released — keep tearing the session down.
+      }
     }
 
-    if (currentMode) {
-      await finishSave(currentMode, durationMs);
+    try {
+      if (currentMode) {
+        await finishSave(currentMode, durationMs);
+      }
+    } catch {
+      // Saving can fail (e.g. device storage full). Tell the user instead of
+      // failing silently — and still reset below, or the recorder would stay
+      // stuck in "recording" with the audio mode left in capture state.
+      Alert.alert(t('recording.saveError'));
+    } finally {
+      setIsRecording(false);
+      setMode(null);
+      eventsRef.current = [];
+      try {
+        await restorePlaybackAudioMode();
+      } catch {
+        // Best-effort — the UI is already unlocked.
+      }
     }
-
-    await restorePlaybackAudioMode();
-    setIsRecording(false);
-    setMode(null);
-    eventsRef.current = [];
 
     if (wasStudio && !getStudioOverdubSession()) {
       // Already navigated in finishSave.
     }
-  }, [audioRecorder, clearCountdown, finishSave, mode, stopBeds]);
+  }, [audioRecorder, clearCountdown, finishSave, mode, stopBeds, t]);
 
   const beginStudioCapture = useCallback(async () => {
     const session = getStudioOverdubSession();

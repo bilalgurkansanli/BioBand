@@ -9,6 +9,7 @@ import {
 } from '../instruments/drums/drumsEngine';
 import type { DrumKitId } from '../instruments/drums/drumsKits';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
+import type { NotePerformance } from '../instruments/shared/songPerformance';
 
 export function useDrumsEngine(kitId: DrumKitId = 'acoustic') {
   const [ready, setReady] = useState(false);
@@ -51,9 +52,12 @@ export function useDrumsEngine(kitId: DrumKitId = 'acoustic') {
     }
   }, [kitId, ready]);
 
-  const playHit = useCallback((id: DrumSoundId, velocity?: number) => {
-    enginePlayHit(id, velocity);
-  }, []);
+  const playHit = useCallback(
+    (id: DrumSoundId, velocity?: number, performance?: NotePerformance) => {
+      enginePlayHit(id, velocity, 1, performance);
+    },
+    [],
+  );
 
   return { ready, error, playHit };
 }

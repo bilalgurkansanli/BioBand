@@ -269,12 +269,18 @@ export function getPianoEchoPlayback(): PianoEchoPlayback {
 }
 
 /**
- * Schedule quieter re-triggers after the dry note. `playRepeat(gainScale)`
- * should play the same note at `dryGain * gainScale` with a unique voice tag
- * so it does not steal the dry note.
+ * Schedule quieter re-triggers after the dry note. `playRepeat(gainScale,
+ * delayMs)` should play the same note at `dryGain * gainScale` with a unique
+ * voice tag so it does not steal the dry note.
+ *
+ * Pass `scheduledAhead` when the dry note itself was handed to the audio clock
+ * for a future moment: the repeats are then emitted straight away with their
+ * offsets, for the caller to place on the same clock. Timing a repeat off a JS
+ * timer would otherwise drift away from the note it belongs to.
  */
 export function schedulePianoEchoRepeats(
-  playRepeat: (gainScale: number) => void,
+  playRepeat: (gainScale: number, delayMs: number) => void,
+  scheduledAhead = false,
 ): void {
   const echo = getPianoEchoPlayback();
   if (!echo.enabled || echo.firstRepeatGain < 0.02) {
@@ -286,15 +292,22 @@ export function schedulePianoEchoRepeats(
 
   for (let i = 0; i < ECHO_MAX_REPEATS && level >= 0.025; i++) {
     const thisLevel = level;
-    const timer = setTimeout(() => {
-      echoTimers.delete(timer);
-      // Drop if user turned echo off before this repeat fires.
-      if (!currentSettings.echo.enabled) {
-        return;
-      }
-      playRepeat(thisLevel);
-    }, delay);
-    echoTimers.add(timer);
+    const thisDelay = delay;
+
+    if (scheduledAhead) {
+      playRepeat(thisLevel, thisDelay);
+    } else {
+      const timer = setTimeout(() => {
+        echoTimers.delete(timer);
+        // Drop if user turned echo off before this repeat fires.
+        if (!currentSettings.echo.enabled) {
+          return;
+        }
+        playRepeat(thisLevel, thisDelay);
+      }, delay);
+      echoTimers.add(timer);
+    }
+
     delay += echo.delayMs;
     level *= Math.max(0.12, echo.feedback);
   }
@@ -302,11 +315,16 @@ export function schedulePianoEchoRepeats(
 
 /**
  * Schedule dense early-reflection taps for a room-like wash without
- * ConvolverNode. `playTap(gainScale, tapIndex)` must use a unique tag and
- * preferably a short voice tail to protect polyphony.
+ * ConvolverNode. `playTap(gainScale, tapIndex, delayMs)` must use a unique tag
+ * and preferably a short voice tail to protect polyphony.
+ *
+ * `scheduledAhead` behaves as in schedulePianoEchoRepeats — taps are emitted
+ * immediately with their offsets so the caller can place them on the audio
+ * clock alongside the note that produced them.
  */
 export function schedulePianoReverbTaps(
-  playTap: (gainScale: number, tapIndex: number) => void,
+  playTap: (gainScale: number, tapIndex: number, delayMs: number) => void,
+  scheduledAhead = false,
 ): void {
   const { reverb } = currentSettings;
   if (!reverb.enabled) {
@@ -337,12 +355,18 @@ export function schedulePianoReverbTaps(
 
     const tapIndex = i;
     const thisLevel = level;
+
+    if (scheduledAhead) {
+      playTap(thisLevel, tapIndex, delayMs);
+      continue;
+    }
+
     const timer = setTimeout(() => {
       reverbTimers.delete(timer);
       if (!currentSettings.reverb.enabled) {
         return;
       }
-      playTap(thisLevel, tapIndex);
+      playTap(thisLevel, tapIndex, delayMs);
     }, delayMs);
     reverbTimers.add(timer);
   }

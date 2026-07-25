@@ -10,6 +10,7 @@ import {
 } from '../instruments/violin/violinEngine';
 import type { ViolinStringId } from '../instruments/violin/violinSounds';
 import type { ViolinVoiceId } from '../instruments/violin/violinVoices';
+import type { NotePerformance } from '../instruments/shared/songPerformance';
 
 export function useViolinEngine(voiceId: ViolinVoiceId = 'classic') {
   const [ready, setReady] = useState(false);
@@ -56,9 +57,13 @@ export function useViolinEngine(voiceId: ViolinVoiceId = 'classic') {
     enginePlayNote(stringId, position);
   }, []);
 
-  const playSoundId = useCallback((soundId: string) => {
-    playViolinSoundId(soundId);
-  }, []);
+  /** One-shot (tutorial / play-along demos). */
+  const playSoundId = useCallback(
+    (soundId: string, performance?: NotePerformance) => {
+      playViolinSoundId(soundId, 1, performance);
+    },
+    [],
+  );
 
   return { ready, error, playNote, playSoundId };
 }

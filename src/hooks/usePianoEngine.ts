@@ -13,6 +13,7 @@ import {
 } from '../instruments/piano/pianoEngine';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import type { PianoVoiceId } from '../instruments/piano/pianoVoices';
+import type { NotePerformance } from '../instruments/shared/songPerformance';
 
 export function usePianoEngine(
   toneOffsetSemitones = 0,
@@ -59,8 +60,8 @@ export function usePianoEngine(
 
   /** One-shot (tutorial / play-along demos). */
   const playNote = useCallback(
-    (noteId: NoteId) => {
-      enginePlayNote(noteId, toneOffsetSemitones, voiceId);
+    (noteId: NoteId, performance?: NotePerformance) => {
+      enginePlayNote(noteId, toneOffsetSemitones, voiceId, 1, performance);
     },
     [toneOffsetSemitones, voiceId],
   );

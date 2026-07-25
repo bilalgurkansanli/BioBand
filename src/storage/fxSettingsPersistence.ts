@@ -27,7 +27,7 @@ function parseFxSection<T extends Record<string, unknown>>(
       ? (raw as Record<string, unknown>)
       : {};
   const next = { ...defaults };
-  for (const key of Object.keys(defaults) as Array<keyof T>) {
+  for (const key of Object.keys(defaults) as (keyof T)[]) {
     const fallback = defaults[key];
     const candidate = source[key as string];
     if (typeof fallback === 'boolean') {

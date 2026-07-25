@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Sertab Erener — "Olsun" (Emre Kula / Can Bonomo)
 // Musa Çetiner / kolaynota.com — F#m (3 sharps). Do#→Db, Fa#→Gb, Sol#→Ab.
@@ -11,7 +11,7 @@ const S = Q / 4;
 const H = Q * 2;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -192,7 +192,7 @@ function page2Color(startBar: number): Ev[] {
   ];
 }
 
-const OLSUN_EVENTS: Ev[] = [
+const OLSUN_MELODY: Ev[] = [
   ...intro(0),
   ...benGiderim(8),
   ...benGiderim(10),
@@ -205,13 +205,56 @@ const OLSUN_EVENTS: Ev[] = [
   ...intro(24).slice(0, 36),
 ];
 
-const LAST_MS = OLSUN_EVENTS[OLSUN_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar, in Fa# minor (3 sharps). The riff alternates
+ * bars whose beats spell La-Do#-Fa# (F#m) with bars whose beats spell Mi-La-
+ * Do# (A) — that swing is the whole intro. The vocal sits on F#m and lifts to
+ * E only where the line hangs on Sol#-Si; the M8 and page-2 bars that fall
+ * Mi-Re take D.
+ * Written on the keyboard and sounded an octave down, out of the tune's way.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Intro M1–8
+  ['Gb4', 'Gb4'], ['A4', 'A4'], ['Gb4', 'Gb4'], ['A4', 'A4'],
+  ['Gb4', 'Gb4'], ['Gb4', 'Gb4'], ['Gb4', 'Gb4'], ['E4', 'D4'],
+  // «Ben giderim…» ×2
+  ['Gb4', 'E4'], ['Gb4', 'Gb4'], ['Gb4', 'E4'], ['Gb4', 'Gb4'],
+  // «Alırım başımı» / «silerim yaşımı» / «kestirir saçımı»
+  ['Gb4', 'Gb4'], ['Gb4', 'Gb4'],
+  ['Gb4', 'Gb4'], ['Gb4', 'Gb4'],
+  ['Gb4', 'Gb4'], ['D4', 'Gb4'],
+  // «Söyle artık olsun»
+  ['Gb4', 'Gb4'], ['Gb4', 'Gb4'],
+  // Page-2 colour
+  ['Gb4', 'D4'], ['Gb4', 'Gb4'], ['Gb4', 'D4'], ['Gb4', 'Gb4'],
+  // D.C. recall
+  ['Gb4', 'Gb4'], ['A4', 'A4'], ['Gb4', 'Gb4'], ['A4', 'A4'],
+  ['Gb4', 'Gb4'],
+];
 
-const introNotes = OLSUN_EVENTS.filter((e) => e.atMs < 8 * BAR);
+/** Root on beats 1 and 3 — a half-note pulse under the eighth-note riff. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * H,
+    durationMs: H,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const OLSUN_EVENTS: Ev[] = [...OLSUN_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = OLSUN_MELODY[OLSUN_MELODY.length - 1]?.atMs ?? 0;
+
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const introNotes = OLSUN_MELODY.filter((e) => e.atMs < 8 * BAR);
 const partialNotes =
   introNotes.length >= 50
     ? introNotes.slice(0, 50)
-    : OLSUN_EVENTS.slice(0, 50);
+    : OLSUN_MELODY.slice(0, 50);
 
 export const olsunSong: SongDefinition = {
   id: 'olsun',
@@ -220,6 +263,7 @@ export const olsunSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.olsun.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: OLSUN_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

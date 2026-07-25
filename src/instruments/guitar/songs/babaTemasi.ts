@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -57,6 +58,9 @@ export const BABA_TEMASI_EVENTS: GuitarSongEvent[] = [
   e('chord:Am', BAR * 13),
   note('s3', 2, BAR * 13 + BEAT),
 ];
+
+/** 3/4 waltz — BEAT is the quarter. */
+export const BABA_TEMASI_METER: SongMeter = { beatMs: BEAT, beatsPerBar: 3 };
 
 /** Chord + first full phrase. */
 export const BABA_TEMASI_PARTIAL_COUNT = 13;

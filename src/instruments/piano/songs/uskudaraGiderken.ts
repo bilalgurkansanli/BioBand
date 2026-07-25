@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Üsküdar'a Gideriken (Katibim) — Türk halk ezgisi
 // Musa Çetiner / kolaynota.com — Am (Sol#→Ab), 2/4.
@@ -8,10 +8,9 @@ import type { SongDefinition } from './types';
 const Q = 520;
 const E = Q / 2;
 const S = Q / 4;
-const H = Q * 2;
 const BAR = 2 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -175,7 +174,7 @@ function refrainToLa(startBar: number): Ev[] {
   ];
 }
 
-const EVENTS: Ev[] = [
+const MELODY: Ev[] = [
   ...themeToSi(0),
   ...themeToLa(7),
   ...verse(14),
@@ -184,13 +183,54 @@ const EVENTS: Ev[] = [
   ...refrainToLa(28),
 ];
 
-const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord per bar, from the tune's own La-minor scale with the Sol# leading tone.
+ * Am wherever the line circles La/Do/Mi; E wherever the Sol# shows up or the
+ * phrase hangs on Si (the half cadence in bars 4–6 and 25–27); Dm under the
+ * verse's Fa-Sol and its Re-Do-Re answer.
+ */
+const BAR_ROOTS: NoteId[] = [
+  // Theme → Si
+  'A4', 'A4', 'A4', 'A4', 'E4', 'E4', 'E4',
+  // Theme → La
+  'A4', 'A4', 'A4', 'A4', 'E4', 'E4', 'A4',
+  // «Üsküdara gideriken…» ×2
+  'A4', 'D4', 'D4', 'A4',
+  'A4', 'D4', 'D4', 'A4',
+  // «Katibimin setresi…» → Si
+  'A4', 'A4', 'A4', 'E4', 'E4', 'E4',
+  // Refrain → La
+  'A4', 'A4', 'A4', 'E4', 'E4', 'A4',
+];
 
-const introNotes = EVENTS.filter((e) => e.atMs < 14 * BAR);
+/** Fifth above each root — the second half of the 2/4 oom-pah. */
+const FIFTH_ABOVE: Record<string, NoteId> = { A4: 'E5', D4: 'A4', E4: 'B4' };
+
+/**
+ * Root on beat 1, fifth on beat 2 — the plain 2/4 accompaniment this tune is
+ * always played over. Written on the keyboard and sounded an octave down, out
+ * of the way of a melody that already reaches Sol5.
+ */
+const BASS: Ev[] = BAR_ROOTS.flatMap((root, barIndex) =>
+  [root, FIFTH_ABOVE[root]].map((noteId, beat) => ({
+    noteId,
+    atMs: barIndex * BAR + beat * Q,
+    durationMs: Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const EVENTS: Ev[] = [...MELODY, ...BASS].sort((a, b) => a.atMs - b.atMs);
+
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
+
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const introNotes = MELODY.filter((e) => e.atMs < 14 * BAR);
 const partialNotes =
   introNotes.length >= 50
     ? introNotes.slice(0, 50)
-    : EVENTS.slice(0, 50);
+    : MELODY.slice(0, 50);
 
 export const uskudaraGiderkenSong: SongDefinition = {
   id: 'uskudara-giderken',
@@ -199,6 +239,7 @@ export const uskudaraGiderkenSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.uskudaraGiderken.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 2 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

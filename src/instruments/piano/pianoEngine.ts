@@ -24,6 +24,10 @@ import {
 } from './pianoSamples';
 import { PIANO_NOTES, type NoteId } from './pianoNotes';
 import type { PianoVoiceId } from './pianoVoices';
+import {
+  velocityGain,
+  type NotePerformance,
+} from '../shared/songPerformance';
 
 const MAX_PLAYBACK_RATE = 2.5;
 
@@ -43,6 +47,21 @@ const fingerHeldNotes = new Map<NoteId, PianoVoiceId>();
 const pedalHeldNotes = new Map<NoteId, PianoVoiceId>();
 
 const HELD_SYNTH_SECONDS = 24;
+/** How fast the damper silences a note once its written length is over. */
+const PIANO_DAMPER_SECONDS = 0.22;
+
+/** Song playback places oscillator voices on the audio clock, same as samples. */
+type SynthScheduling = {
+  startAtSeconds?: number;
+  sustainSeconds?: number;
+};
+
+function startTimeFor(
+  context: ReturnType<typeof getSharedAudioContext>,
+  scheduling?: SynthScheduling,
+): number {
+  return Math.max(context.currentTime, scheduling?.startAtSeconds ?? 0);
+}
 
 // ---------------------------------------------------------------------------
 // Synth polyphony bus — automatic gain compensation.
@@ -95,11 +114,13 @@ function updateSynthBusGain(): void {
  * voice stealing may cause the counter to stay briefly high, which is safe
  * (results in slightly more ducking — never in clipping).
  */
-function registerSynthLifetime(durationSeconds: number): void {
+function registerSynthLifetime(durationSeconds: number, leadSeconds = 0): void {
   activeSynthCount++;
   updateSynthBusGain();
 
-  const ms = Math.max(50, durationSeconds * 1000);
+  // Voices placed ahead of the clock are still ringing for `leadSeconds`
+  // longer in wall time — decrementing early would under-duck the bus.
+  const ms = Math.max(50, (durationSeconds + Math.max(0, leadSeconds)) * 1000);
   const timer = setTimeout(() => {
     synthEndTimers.delete(timer);
     activeSynthCount = Math.max(0, activeSynthCount - 1);
@@ -120,10 +141,6 @@ function resetSynthBus(): void {
 
 export function setPianoToneOffset(semitones: number): void {
   toneOffsetSemitones = semitones;
-}
-
-export function getPianoToneOffset(): number {
-  return toneOffsetSemitones;
 }
 
 export function setPianoVoice(voice: PianoVoiceId): void {
@@ -257,6 +274,10 @@ function playSampleVoice(
     shortTail?: boolean;
     /** Finger/sustain held note — release via releaseVoiceByTag. */
     held?: boolean;
+    /** Absolute context time to sound at (song playback). */
+    startAtSeconds?: number;
+    /** Written note length — the envelope holds for this long. */
+    sustainSeconds?: number;
   },
 ): void {
   // Pick the anchor sample nearest to the target pitch so the playback rate
@@ -276,9 +297,19 @@ function playSampleVoice(
   const gainScale = options?.gainScale ?? 1;
   const tag = options?.tag ?? `piano:${noteId}`;
 
+  // A written note length damps the string the way lifting the key does, so
+  // fast passages stop smearing into each other and held notes actually hold.
+  const sustain = options?.sustainSeconds;
+  const shaped =
+    sustain !== undefined && !options?.held
+      ? { holdSeconds: sustain, releaseSeconds: PIANO_DAMPER_SECONDS }
+      : null;
+
   playSample(buffer, rate, gain * gainScale, destination, tag, {
     shortTail: options?.shortTail,
     held: options?.held,
+    startAtSeconds: options?.startAtSeconds,
+    ...(shaped ?? {}),
   });
 }
 
@@ -296,9 +327,10 @@ function playOrgan(
   gainScale = 1,
   held = false,
   shortTail = false,
+  scheduling?: SynthScheduling,
 ): void {
   const context = getSharedAudioContext();
-  const now = context.currentTime;
+  const now = startTimeFor(context, scheduling);
 
   // Thick/low notes carry more energy on small speakers — scale them down.
   const bassScale =
@@ -334,14 +366,20 @@ function playOrgan(
   });
 
   const peak = 0.8;
-  const releaseStart = now + (held ? HELD_SYNTH_SECONDS : shortTail ? 0.12 : 0.35);
+  const releaseStart =
+    now +
+    (held
+      ? HELD_SYNTH_SECONDS
+      : shortTail
+        ? 0.12
+        : (scheduling?.sustainSeconds ?? 0.35));
   const endsAt = releaseStart + (held ? 0.25 : shortTail ? 0.1 : 0.18);
   noteGain.gain.linearRampToValueAtTime(peak, now + 0.015);
   noteGain.gain.setValueAtTime(peak, releaseStart);
   noteGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
 
   const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration);
+  registerSynthLifetime(voiceDuration, now - context.currentTime);
 
   for (const osc of oscillators) {
     osc.stop(endsAt + 0.05);
@@ -358,6 +396,7 @@ function playOrgan(
     stealGain,
     endsAt + 0.05,
     tag,
+    now,
   );
 }
 
@@ -369,9 +408,10 @@ function playRhodes(
   gainScale = 1,
   held = false,
   shortTail = false,
+  scheduling?: SynthScheduling,
 ): void {
   const context = getSharedAudioContext();
-  const now = context.currentTime;
+  const now = startTimeFor(context, scheduling);
 
   // Bass notes carry more energy on small speakers — scale them down.
   const bassScale =
@@ -386,7 +426,13 @@ function playRhodes(
   // Route through synthBus, not directly to FX input.
   stealGain.connect(getSynthBus());
 
-  const endsAt = now + (held ? HELD_SYNTH_SECONDS : shortTail ? 0.3 : 1.0);
+  const endsAt =
+    now +
+    (held
+      ? HELD_SYNTH_SECONDS
+      : shortTail
+        ? 0.3
+        : (scheduling?.sustainSeconds ?? 1.0));
 
   const body = context.createOscillator();
   body.type = 'sine';
@@ -418,7 +464,7 @@ function playRhodes(
   bell.stop(endsAt + 0.05);
 
   const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration);
+  registerSynthLifetime(voiceDuration, now - context.currentTime);
 
   registerActiveVoice(
     {
@@ -430,6 +476,7 @@ function playRhodes(
     stealGain,
     endsAt + 0.05,
     tag,
+    now,
   );
 }
 
@@ -441,9 +488,10 @@ function playSynthLead(
   gainScale = 1,
   held = false,
   shortTail = false,
+  scheduling?: SynthScheduling,
 ): void {
   const context = getSharedAudioContext();
-  const now = context.currentTime;
+  const now = startTimeFor(context, scheduling);
 
   const bassScale =
     frequency < 180 ? 0.55 : frequency < 280 ? 0.7 : frequency < 400 ? 0.85 : 1;
@@ -457,7 +505,13 @@ function playSynthLead(
   filter.frequency.value = Math.min(frequency * 4, 6000);
   filter.Q.value = 1.1;
 
-  const endsAt = now + (held ? HELD_SYNTH_SECONDS : shortTail ? 0.25 : 0.8);
+  const endsAt =
+    now +
+    (held
+      ? HELD_SYNTH_SECONDS
+      : shortTail
+        ? 0.25
+        : (scheduling?.sustainSeconds ?? 0.8));
   const noteGain = context.createGain();
   noteGain.gain.setValueAtTime(0.0001, now);
   noteGain.gain.linearRampToValueAtTime(0.18 * bassScale * gainScale, now + 0.012);
@@ -475,9 +529,9 @@ function playSynthLead(
   osc.stop(endsAt + 0.05);
 
   const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration);
+  registerSynthLifetime(voiceDuration, now - context.currentTime);
 
-  registerActiveVoice(osc, stealGain, endsAt + 0.05, tag);
+  registerActiveVoice(osc, stealGain, endsAt + 0.05, tag, now);
 }
 
 function dryVoiceTag(voice: PianoVoiceId, noteId: NoteId): string {
@@ -495,8 +549,11 @@ function triggerVoice(
   tagSuffix: string,
   shortTail = false,
   held = false,
+  scheduling?: SynthScheduling,
 ): void {
   const tag = `${voice}:${noteId}${tagSuffix}`;
+  const startAtSeconds = scheduling?.startAtSeconds;
+  const sustainSeconds = scheduling?.sustainSeconds;
 
   switch (voice) {
     case 'acoustic':
@@ -505,6 +562,8 @@ function triggerVoice(
         shortTail,
         held,
         tag: `piano:${noteId}${tagSuffix}`,
+        startAtSeconds,
+        sustainSeconds,
       });
       break;
     case 'bright':
@@ -514,6 +573,8 @@ function triggerVoice(
         shortTail,
         held,
         tag: `piano:${noteId}${tagSuffix}`,
+        startAtSeconds,
+        sustainSeconds,
       });
       break;
     case 'musicBox':
@@ -523,16 +584,39 @@ function triggerVoice(
         shortTail,
         held,
         tag: `piano:${noteId}${tagSuffix}`,
+        startAtSeconds,
+        sustainSeconds,
       });
       break;
     case 'organ':
-      playOrgan(midiToFrequency(shiftedMidi), tag, gainScale, held, shortTail);
+      playOrgan(
+        midiToFrequency(shiftedMidi),
+        tag,
+        gainScale,
+        held,
+        shortTail,
+        scheduling,
+      );
       break;
     case 'rhodes':
-      playRhodes(midiToFrequency(shiftedMidi), tag, gainScale, held, shortTail);
+      playRhodes(
+        midiToFrequency(shiftedMidi),
+        tag,
+        gainScale,
+        held,
+        shortTail,
+        scheduling,
+      );
       break;
     case 'synth':
-      playSynthLead(midiToFrequency(shiftedMidi), tag, gainScale, held, shortTail);
+      playSynthLead(
+        midiToFrequency(shiftedMidi),
+        tag,
+        gainScale,
+        held,
+        shortTail,
+        scheduling,
+      );
       break;
   }
 }
@@ -541,12 +625,16 @@ function triggerVoice(
  * One-shot note (tutorial / play-along / FX taps). Auto-releases on its own.
  * @param gainScale Extra output multiplier — used by Studio mix playback to
  * apply a track's volume fader.
+ * @param performance Song playback supplies the moment the note must sound,
+ * how long it is held and how hard it is struck. Interactive taps omit it and
+ * keep the immediate, fixed-envelope behaviour.
  */
 export function playNote(
   noteId: NoteId,
   toneSemitones = toneOffsetSemitones,
   voice: PianoVoiceId = currentVoice,
   gainScale = 1,
+  performance?: NotePerformance,
 ): void {
   const midi = noteMidis.get(noteId);
   if (midi === undefined) {
@@ -559,20 +647,60 @@ export function playNote(
     void context.resume();
   }
 
-  const shiftedMidi = midi + toneSemitones;
+  // Repitching an anchor sample covers pitches below the keyboard fine, so an
+  // accompaniment can sit an octave under the tune it supports.
+  const shiftedMidi = midi + toneSemitones + (performance?.transposeSemitones ?? 0);
+  const scheduling: SynthScheduling | undefined = performance
+    ? {
+        startAtSeconds: performance.atTime,
+        sustainSeconds: performance.sustainSeconds,
+      }
+    : undefined;
+  const dynamics = gainScale * velocityGain(performance?.velocity);
+  const atTime = performance?.atTime;
+  const aheadOfClock = atTime !== undefined;
+
+  // Voice tags are built from the written note id, so an accompaniment sent an
+  // octave down would share a tag with the melody note of the same written
+  // pitch — and registering one would steal, i.e. silence, the other. Give
+  // transposed voices their own tag space. Untransposed notes keep the exact
+  // tag the interactive noteOn/noteOff path uses.
+  const transpose = performance?.transposeSemitones ?? 0;
+  const voiceTag = transpose === 0 ? '' : `:t${transpose}`;
 
   // 1) Dry piano immediately.
-  triggerVoice(noteId, shiftedMidi, voice, gainScale, '');
+  triggerVoice(noteId, shiftedMidi, voice, dynamics, voiceTag, false, false, scheduling);
+
+  const tapScheduling = (delayMs: number): SynthScheduling | undefined =>
+    atTime === undefined ? undefined : { startAtSeconds: atTime + delayMs / 1000 };
 
   // 2) Reverb: denser delayed reflections (no ConvolverNode — crackles on RN).
-  schedulePianoReverbTaps((tapScale, tapIndex) => {
-    triggerVoice(noteId, shiftedMidi, voice, gainScale * tapScale, `:reverb:${tapIndex}`, true);
-  });
+  schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
+    triggerVoice(
+      noteId,
+      shiftedMidi,
+      voice,
+      dynamics * tapScale,
+      `${voiceTag}:reverb:${tapIndex}`,
+      true,
+      false,
+      tapScheduling(delayMs),
+    );
+  }, aheadOfClock);
 
   // 3) Echo: quieter spaced repeats — leave echo path unchanged (full tail).
-  schedulePianoEchoRepeats((tapScale) => {
-    triggerVoice(noteId, shiftedMidi, voice, gainScale * tapScale, ':echo');
-  });
+  schedulePianoEchoRepeats((tapScale, delayMs) => {
+    triggerVoice(
+      noteId,
+      shiftedMidi,
+      voice,
+      dynamics * tapScale,
+      `${voiceTag}:echo`,
+      false,
+      false,
+      tapScheduling(delayMs),
+    );
+  }, aheadOfClock);
 }
 
 /**
@@ -648,10 +776,6 @@ export function setSustainPedal(on: boolean): void {
     }
   }
   pedalHeldNotes.clear();
-}
-
-export function getSustainPedal(): boolean {
-  return sustainPedalOn;
 }
 
 export function releasePianoEngine(): void {

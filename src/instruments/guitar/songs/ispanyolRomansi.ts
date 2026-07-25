@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -32,7 +33,9 @@ function romanceStatement(startMs: number): GuitarSongEvent[] {
     note('s1', 2, startMs + BAR * 5),
     note('s1', 0, startMs + BAR * 5 + BEAT),
     note('s2', 4, startMs + BAR * 5 + BEAT * 2),
-    note('s1', 0, startMs + BAR * 6),
+    // The statement lands on E and stays there for the rest of the phrase —
+    // written out, because a derived hold stops short of a note this long.
+    note('s1', 0, startMs + BAR * 6, BAR * 2),
   ];
 }
 
@@ -42,7 +45,7 @@ function romanceCadence(startMs: number): GuitarSongEvent[] {
     note('s1', 2, startMs + BEAT),
     note('s2', 4, startMs + BEAT * 2),
     note('s2', 0, startMs + BAR),
-    note('s1', 0, startMs + BAR + BEAT * 2),
+    note('s1', 0, startMs + BAR + BEAT * 2, BAR * 2),
   ];
 }
 
@@ -55,6 +58,12 @@ export const ISPANYOL_ROMANSI_EVENTS: GuitarSongEvent[] = [
   ...romanceCadence(BAR * 16),
   e('chord:Em', BAR * 18),
 ];
+
+/** 3/4 — BEAT is the quarter. */
+export const ISPANYOL_ROMANSI_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 3,
+};
 
 /** Chord + first four bars of the theme. */
 export const ISPANYOL_ROMANSI_PARTIAL_COUNT = 13;

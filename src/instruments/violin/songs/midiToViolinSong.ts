@@ -16,7 +16,11 @@ const VIOLIN_MIDI_MAX = Math.max(...VIOLIN_STRINGS.map((s) => s.openMidi)) + POS
 
 type RawNote = {
   tick: number;
+  /** Tick the note was released — null when the file never closes it. */
+  endTick: number | null;
   noteNumber: number;
+  /** 0..1, from the MIDI strike velocity. */
+  velocity: number;
   trackIndex: number;
 };
 
@@ -25,7 +29,54 @@ function titleFromFileName(fileName: string): string {
   return base.length > 0 ? base : 'Imported MIDI';
 }
 
-/** Wrap any pitch into the violin's playable range, then pick best string/position. */
+/**
+ * One octave shift for the whole piece — the one leaving the fewest notes
+ * outside the violin's compass, breaking ties toward the middle of it.
+ *
+ * Folding each note into range on its own is what makes an imported tune stop
+ * sounding like itself: a descending line suddenly leaps an octave up, and
+ * contour is the most recognisable thing a melody has. Moving the whole piece
+ * keeps every interval intact.
+ */
+export function chooseOctaveShift(midiNumbers: number[]): number {
+  if (midiNumbers.length === 0) {
+    return 0;
+  }
+
+  const centre = (VIOLIN_MIDI_MIN + VIOLIN_MIDI_MAX) / 2;
+  const mean = midiNumbers.reduce((sum, n) => sum + n, 0) / midiNumbers.length;
+
+  let bestShift = 0;
+  let bestOutside = Infinity;
+  let bestDistance = Infinity;
+
+  for (let shift = -72; shift <= 72; shift += 12) {
+    let outside = 0;
+    for (const n of midiNumbers) {
+      const shifted = n + shift;
+      if (shifted < VIOLIN_MIDI_MIN || shifted > VIOLIN_MIDI_MAX) {
+        outside += 1;
+      }
+    }
+    const distance = Math.abs(mean + shift - centre);
+
+    if (
+      outside < bestOutside ||
+      (outside === bestOutside && distance < bestDistance)
+    ) {
+      bestOutside = outside;
+      bestDistance = distance;
+      bestShift = shift;
+    }
+  }
+
+  return bestShift;
+}
+
+/**
+ * Land a pitch on the fingerboard, folding only what the whole-piece shift
+ * missed, then pick the best string/position for it.
+ */
 export function midiToViolinSoundId(midiNumber: number): string {
   let n = Math.round(midiNumber);
   while (n < VIOLIN_MIDI_MIN) {
@@ -63,6 +114,11 @@ function scoreTrack(notes: RawNote[]): number {
   return notes.length * 2 + avgPitch;
 }
 
+/**
+ * One bow, one note: simultaneous pitches collapse to the top line. An
+ * under-voice would only be reachable as a double stop on an adjacent string,
+ * which arbitrary imported intervals cannot promise.
+ */
 function thinChords(notes: RawNote[]): RawNote[] {
   if (notes.length === 0) {
     return [];
@@ -112,6 +168,18 @@ export function midiBytesToViolinSong(
 
   midi.tracks.forEach((track, trackIndex) => {
     let absTick = 0;
+    const list: RawNote[] = [];
+    /** Notes sounding right now, so a note-off can give them their bow length. */
+    const open = new Map<number, RawNote>();
+
+    const close = (noteNumber: number, tick: number): void => {
+      const note = open.get(noteNumber);
+      if (note) {
+        note.endTick = tick;
+        open.delete(noteNumber);
+      }
+    };
+
     for (const event of track) {
       absTick += event.deltaTime;
 
@@ -132,14 +200,27 @@ export function midiBytesToViolinSong(
         event.velocity > 0 &&
         !('channel' in event && event.channel === 9)
       ) {
-        const list = notesByTrack.get(trackIndex) ?? [];
-        list.push({
+        // A retrigger without an intervening note-off ends the previous one.
+        close(event.noteNumber, absTick);
+        const note: RawNote = {
           tick: absTick,
+          endTick: null,
           noteNumber: event.noteNumber,
+          velocity: Math.min(1, Math.max(0.05, event.velocity / 127)),
           trackIndex,
-        });
-        notesByTrack.set(trackIndex, list);
+        };
+        open.set(event.noteNumber, note);
+        list.push(note);
+      } else if (
+        event.type === 'noteOff' ||
+        (event.type === 'noteOn' && event.velocity === 0)
+      ) {
+        close(event.noteNumber, absTick);
       }
+    }
+
+    if (list.length > 0) {
+      notesByTrack.set(trackIndex, list);
     }
   });
 
@@ -157,6 +238,8 @@ export function midiBytesToViolinSong(
   if (rawNotes.length === 0) {
     throw new UserViolinSongParseError('emptySong');
   }
+
+  const octaveShift = chooseOctaveShift(rawNotes.map((note) => note.noteNumber));
 
   tempoMap.sort((a, b) => a.tick - b.tick);
 
@@ -183,10 +266,17 @@ export function midiBytesToViolinSong(
     return Math.round(ms);
   }
 
-  let events: ViolinSongEvent[] = rawNotes.map((note) => ({
-    soundId: midiToViolinSoundId(note.noteNumber),
-    atMs: ticksToMs(note.tick),
-  }));
+  let events: ViolinSongEvent[] = rawNotes.map((note) => {
+    const atMs = ticksToMs(note.tick);
+    const durationMs =
+      note.endTick !== null ? Math.max(1, ticksToMs(note.endTick) - atMs) : undefined;
+    return {
+      soundId: midiToViolinSoundId(note.noteNumber + octaveShift),
+      atMs,
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      velocity: note.velocity,
+    };
+  });
 
   events.sort((a, b) => a.atMs - b.atMs || a.soundId.localeCompare(b.soundId));
 

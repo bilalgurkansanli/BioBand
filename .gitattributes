@@ -1,0 +1,26 @@
+# Normalise line endings so a Windows checkout and a macOS/Linux one produce
+# identical blobs — otherwise every file looks "modified" across platforms.
+* text=auto eol=lf
+
+# Never touch binaries.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.mp3 binary
+*.wav binary
+*.m4a binary
+*.mp4 binary
+*.mid binary
+*.ttf binary
+*.otf binary
+*.keystore binary
+*.jks binary
+
+# Keep generated lockfiles out of diffs and language stats.
+package-lock.json linguist-generated=true -diff
+
+# Sample assets are content, not code — don't let them skew the language bar.
+assets/** linguist-vendored=true

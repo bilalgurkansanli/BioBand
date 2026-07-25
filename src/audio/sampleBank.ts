@@ -120,6 +120,12 @@ type ActiveVoice = {
   stealGain: GainNodeT;
   /** Context time at which this voice is guaranteed silent and stopped. */
   endsAt: number;
+  /**
+   * Context time the voice begins sounding. Song playback registers voices
+   * slightly ahead of the clock, so this is not always "now" — fading one out
+   * before it starts would stop it before its own start() and lose the note.
+   */
+  startsAt: number;
   /** Optional identity (e.g. "organ:C4") for same-note retrigger stealing. */
   tag?: string;
 };
@@ -136,22 +142,54 @@ function pruneFinishedVoices(now: number): void {
   }
 }
 
-function stealVoice(voice: ActiveVoice, now: number): void {
+function stealVoice(voice: ActiveVoice, at: number): void {
   try {
-    voice.stealGain.gain.setValueAtTime(1, now);
-    voice.stealGain.gain.linearRampToValueAtTime(0.0001, now + STEAL_FADE_SECONDS);
-    voice.node.stop(now + STEAL_FADE_SECONDS + 0.01);
+    if (voice.startsAt > at) {
+      // Scheduled but not sounding yet: there is nothing to fade, and a ramp
+      // placed before its own start would leave the node stopped before it
+      // plays. Ending it at its start time simply means it never sounds.
+      // Strictly greater — two triggers landing in the same clock tick must
+      // still cross-fade rather than silence the first outright.
+      voice.node.stop(voice.startsAt);
+      return;
+    }
+    voice.stealGain.gain.setValueAtTime(1, at);
+    voice.stealGain.gain.linearRampToValueAtTime(0.0001, at + STEAL_FADE_SECONDS);
+    voice.node.stop(at + STEAL_FADE_SECONDS + 0.01);
   } catch {
     // Voice already stopped on its own — nothing to fade.
   }
 }
 
 function stealOldestVoice(now: number): void {
-  // Prefer reverb taps under pressure so dry + echo notes stay intact.
-  const fxIndex = activeVoices.findIndex((voice) =>
-    voice.tag?.includes(':reverb'),
-  );
-  const index = fxIndex >= 0 ? fxIndex : 0;
+  const isReverb = (voice: ActiveVoice): boolean =>
+    voice.tag?.includes(':reverb') === true;
+  const isEcho = (voice: ActiveVoice): boolean =>
+    voice.tag?.includes(':echo') === true;
+  const sounding = (voice: ActiveVoice): boolean => voice.startsAt <= now;
+
+  // Give up the least valuable voice first: reverb wash, then echo repeats,
+  // then dry notes — and within each, one already heard before one still
+  // waiting on the clock, since stealing a pending note loses it entirely
+  // rather than shortening it. Without the echo tiers a dense passage culls
+  // dry notes to keep repeats of them alive, which is backwards.
+  const priorities: ((voice: ActiveVoice) => boolean)[] = [
+    (voice) => isReverb(voice) && sounding(voice),
+    isReverb,
+    (voice) => isEcho(voice) && sounding(voice),
+    isEcho,
+    sounding,
+  ];
+
+  let index = 0;
+  for (const matches of priorities) {
+    const found = activeVoices.findIndex(matches);
+    if (found >= 0) {
+      index = found;
+      break;
+    }
+  }
+
   const [voice] = activeVoices.splice(index, 1);
   if (voice) {
     stealVoice(voice, now);
@@ -164,21 +202,28 @@ function stealOldestVoice(now: number): void {
  * a context time at which the voice is silent and stopped. When `tag` is
  * given, any still-ringing voice with the same tag is faded out first —
  * retriggering a key replaces its old sound instead of stacking on it.
+ *
+ * `startsAt` is the context time the new voice begins sounding. For notes
+ * scheduled ahead of the clock (song playback), the same-tag fade must start
+ * just before *that* moment, not immediately — otherwise scheduling a repeat
+ * of a note cuts the currently ringing one short by the whole lookahead.
  */
 export function registerActiveVoice(
   node: StoppableNode,
   stealGain: GainNodeT,
   endsAt: number,
   tag?: string,
+  startsAt?: number,
 ): void {
   const now = getAudioContext().currentTime;
   pruneFinishedVoices(now);
 
   if (tag) {
+    const fadeAt = Math.max(now, (startsAt ?? now) - STEAL_FADE_SECONDS);
     for (let i = activeVoices.length - 1; i >= 0; i--) {
       if (activeVoices[i].tag === tag) {
         const [voice] = activeVoices.splice(i, 1);
-        stealVoice(voice, now);
+        stealVoice(voice, fadeAt);
       }
     }
   }
@@ -186,7 +231,7 @@ export function registerActiveVoice(
   while (activeVoices.length >= MAX_VOICES) {
     stealOldestVoice(now);
   }
-  activeVoices.push({ node, stealGain, endsAt, tag });
+  activeVoices.push({ node, stealGain, endsAt, startsAt: startsAt ?? now, tag });
 }
 
 /** Fade out and stop every active voice — used when leaving an instrument. */
@@ -215,10 +260,15 @@ function releaseMatchingVoices(
     }
     const [voice] = activeVoices.splice(i, 1);
     try {
-      voice.stealGain.gain.cancelScheduledValues(now);
-      voice.stealGain.gain.setValueAtTime(voice.stealGain.gain.value || 1, now);
-      voice.stealGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
-      voice.node.stop(now + fadeSeconds + 0.02);
+      if (voice.startsAt > now) {
+        // Not sounding yet — end it at its start rather than ramping in the past.
+        voice.node.stop(voice.startsAt);
+      } else {
+        voice.stealGain.gain.cancelScheduledValues(now);
+        voice.stealGain.gain.setValueAtTime(voice.stealGain.gain.value || 1, now);
+        voice.stealGain.gain.linearRampToValueAtTime(0.0001, now + fadeSeconds);
+        voice.node.stop(now + fadeSeconds + 0.02);
+      }
     } catch {
       // Already stopped.
     }
@@ -285,6 +335,14 @@ export type PlaySampleOptions = {
    * seconds are a slow swell (violin arco), skipping to the developed tone.
    */
   offsetSeconds?: number;
+  /**
+   * Absolute context time (seconds) at which the note should sound. Omit for
+   * "right now" — interactive playing must stay immediate. Song playback
+   * schedules a short lookahead ahead of the clock so note onsets land on the
+   * audio thread's own timeline instead of whenever the JS thread gets around
+   * to firing a timer.
+   */
+  startAtSeconds?: number;
 };
 
 export type PlayedSampleHandle = {
@@ -301,7 +359,9 @@ export function playSample(
   options?: PlaySampleOptions,
 ): PlayedSampleHandle {
   const context = getAudioContext();
-  const now = context.currentTime;
+  // Never schedule into the past — a stale lookahead target would make the
+  // envelope ramps run backwards and the note would click or drop out.
+  const now = Math.max(context.currentTime, options?.startAtSeconds ?? 0);
 
   const holdSeconds =
     options?.holdSeconds ??
@@ -352,7 +412,7 @@ export function playSample(
   }
   node.stop(stopAt);
 
-  registerActiveVoice(node, stealGain, stopAt, tag);
+  registerActiveVoice(node, stealGain, stopAt, tag, now);
 
   return {
     setPlaybackRate: (rate: number) => {

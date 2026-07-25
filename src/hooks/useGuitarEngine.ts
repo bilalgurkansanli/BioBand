@@ -21,6 +21,7 @@ import {
 } from '../instruments/guitar/guitarEngine';
 import type { GuitarStringId } from '../instruments/guitar/guitarSounds';
 import type { GuitarVoiceId } from '../instruments/guitar/guitarVoices';
+import type { NotePerformance } from '../instruments/shared/songPerformance';
 
 export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
   const [ready, setReady] = useState(false);
@@ -109,9 +110,13 @@ export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
     [],
   );
 
-  const playSoundId = useCallback((soundId: string) => {
-    playGuitarSoundId(soundId);
-  }, []);
+  /** One-shot (tutorial / play-along demos). */
+  const playSoundId = useCallback(
+    (soundId: string, performance?: NotePerformance) => {
+      playGuitarSoundId(soundId, undefined, 1, performance);
+    },
+    [],
+  );
 
   return {
     ready,

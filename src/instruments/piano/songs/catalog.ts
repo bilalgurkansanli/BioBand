@@ -22,7 +22,7 @@ import { tutamiyorumZamaniSong } from './tutamiyorumZamani';
 import { turkMarsiSong } from './turkMarsi';
 import { uskudaraGiderkenSong } from './uskudaraGiderken';
 import { yasanacaksaSong } from './yasanacaksa';
-import type { CatalogSong, SongDefinition, SongDifficulty } from './types';
+import type { CatalogSong, SongDefinition } from './types';
 
 // Song catalog: every song we plan to offer. Entries with `song: null` are
 // awaiting transcription and appear as "coming soon" in the UI.
@@ -208,8 +208,4 @@ export const PIANO_SONGS: SongDefinition[] = SONG_CATALOG.filter(
 
 export function getSongById(id: string): SongDefinition | undefined {
   return PIANO_SONGS.find((song) => song.id === id);
-}
-
-export function getCatalogDifficulty(songId: string): SongDifficulty | undefined {
-  return SONG_CATALOG.find((entry) => entry.id === songId)?.difficulty;
 }

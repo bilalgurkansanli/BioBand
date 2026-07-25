@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors } from '../theme/colors';
@@ -11,6 +11,7 @@ type Props = {
   cancelLabel: string;
   onCancel: () => void;
   onConfirm: () => void;
+  icon?: keyof typeof Ionicons.glyphMap;
 };
 
 export function ConfirmDeleteModal({
@@ -21,13 +22,14 @@ export function ConfirmDeleteModal({
   cancelLabel,
   onCancel,
   onConfirm,
+  icon = 'trash',
 }: Props) {
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
         <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.iconWrap}>
-            <Ionicons color="#FFFFFF" name="trash" size={24} />
+            <Ionicons color="#FFFFFF" name={icon} size={24} />
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
@@ -65,6 +67,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 16,
     borderWidth: 1,
+    maxWidth: 400,
     padding: 20,
     width: '100%',
   },

@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** 72 BPM — slightly brisker than sheet 60 for tutorial flow. */
@@ -70,25 +71,31 @@ function knockinRefrain(startMs: number): GuitarSongEvent[] {
  * Melody-first; sparse G/D/Am/C landmarks (not G5 walls).
  */
 export const KNOCKIN_ON_HEAVENS_DOOR_EVENTS: GuitarSongEvent[] = [
-  e('chord:G', 0),
+  bed('chord:G', 0),
   note('s3', 0, BEAT * 0.5),
   note('s2', 0, BEAT),
   note('s2', 1, BEAT * 1.5),
   note('s1', 3, BEAT * 2),
-  e('chord:D', BAR),
+  bed('chord:D', BAR),
   note('s1', 2, BAR + BEAT),
   note('s1', 0, BAR + BEAT * 2),
-  e('chord:Am', BAR * 2),
+  bed('chord:Am', BAR * 2),
   ...knockinVerseAm(BAR * 2),
-  e('chord:G', BAR * 6),
+  bed('chord:G', BAR * 6),
   ...knockinVerseC(BAR * 6),
-  e('chord:C', BAR * 10),
+  bed('chord:C', BAR * 10),
   ...knockinRefrain(BAR * 10),
-  e('chord:G', BAR * 14),
+  bed('chord:G', BAR * 14),
   ...knockinRefrain(BAR * 14),
   note('s2', 1, BAR * 18),
   note('s3', 0, BAR * 18 + BEAT * 2),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const KNOCKIN_ON_HEAVENS_DOOR_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+};
 
 /** Opening G–D gesture + start of Am verse. */
 export const KNOCKIN_ON_HEAVENS_DOOR_PARTIAL_COUNT = 12;

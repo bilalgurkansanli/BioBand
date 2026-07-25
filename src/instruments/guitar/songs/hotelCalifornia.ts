@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /**
@@ -100,20 +101,26 @@ function chorusLine2(startMs: number): GuitarSongEvent[] {
 }
 
 export const HOTEL_CALIFORNIA_EVENTS: GuitarSongEvent[] = [
-  e('chord:Bm', 0),
+  bed('chord:Bm', 0),
   ...verseFirstHalf(BEAT),
-  e('chord:G', BAR * 4),
+  bed('chord:G', BAR * 4),
   ...verseSecondHalf(BAR * 4 + BEAT),
-  e('chord:G', BAR * 9),
+  bed('chord:G', BAR * 9),
   ...chorusLine1(BAR * 9 + BEAT),
-  e('chord:Em', BAR * 11),
+  bed('chord:Em', BAR * 11),
   ...chorusLine2(BAR * 11 + BEAT),
-  e('chord:G', BAR * 13),
+  bed('chord:G', BAR * 13),
   ...chorusLine1(BAR * 13 + BEAT),
-  e('chord:Bm', BAR * 15),
+  bed('chord:Bm', BAR * 15),
   ...chorusLine2(BAR * 15 + BEAT),
   note('s5', 2, BAR * 17),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const HOTEL_CALIFORNIA_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 4,
+};
 
 /** Chord + first Bm/F# lines. */
 export const HOTEL_CALIFORNIA_PARTIAL_COUNT = 11;

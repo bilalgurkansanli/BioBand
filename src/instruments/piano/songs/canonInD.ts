@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Pachelbel — Canon in D (public domain). Built on the piece's famous
 // 8-chord ground bass (D-A-Bm-F#m-G-D-G-A), stated first as the bass line
@@ -9,7 +9,7 @@ import type { SongDefinition } from './types';
 const Q = 500;
 const E = Q / 2;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 // The ground bass, one note per chord, repeated throughout the piece.
 const GROUND: NoteId[] = ['D4', 'A4', 'B4', 'Gb4', 'G4', 'D4', 'G4', 'A4'];
@@ -60,7 +60,23 @@ function variationTwo(startMs: number): Ev[] {
 
 const GROUND_DURATION = GROUND.length * Q;
 
-const EVENTS: Ev[] = [
+/**
+ * The ground bass under every section. The canon *is* its bass — carrying only
+ * the upper line leaves the tune correct and the piece unrecognisable. Written
+ * on the keyboard and sounded an octave down, since the melody already uses
+ * both octaves the keys cover.
+ */
+function groundBass(startMs: number): Ev[] {
+  return GROUND.map((noteId, i) => ({
+    noteId,
+    atMs: startMs + i * Q,
+    durationMs: Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  }));
+}
+
+const MELODY: Ev[] = [
   ...groundStatement(0),
   ...groundStatement(GROUND_DURATION),
   ...variationOne(2 * GROUND_DURATION),
@@ -71,8 +87,18 @@ const EVENTS: Ev[] = [
   ...variationOne(7 * GROUND_DURATION),
 ];
 
-const LAST_MS = EVENTS[EVENTS.length - 1]?.atMs ?? 0;
-const partialNotes = EVENTS.slice(0, 50);
+const SECTION_COUNT = 8;
+
+const EVENTS: Ev[] = [
+  ...MELODY,
+  ...Array.from({ length: SECTION_COUNT }, (_, i) =>
+    groundBass(i * GROUND_DURATION),
+  ).flat(),
+].sort((a, b) => a.atMs - b.atMs);
+
+const LAST_MS = MELODY[MELODY.length - 1]?.atMs ?? 0;
+// The excerpt is measured over the tune — the bass runs under all of it.
+const partialNotes = MELODY.slice(0, 50);
 
 export const canonInDSong: SongDefinition = {
   id: 'canon-in-d',
@@ -81,6 +107,7 @@ export const canonInDSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.canonInD.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

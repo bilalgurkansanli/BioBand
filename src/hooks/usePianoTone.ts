@@ -13,21 +13,6 @@ export function tonePositionToSemitones(position: number): number {
   );
 }
 
-export function semitonesToTonePosition(semitones: number): number {
-  const clamped = Math.max(
-    PIANO_TONE_MIN_SEMITONES,
-    Math.min(PIANO_TONE_MAX_SEMITONES, semitones),
-  );
-  return (
-    (clamped - PIANO_TONE_MIN_SEMITONES) /
-    (PIANO_TONE_MAX_SEMITONES - PIANO_TONE_MIN_SEMITONES)
-  );
-}
-
-export function toneOffsetToPlaybackMultiplier(semitones: number): number {
-  return 2 ** (semitones / 12);
-}
-
 export function usePianoTone() {
   const [tonePosition, setTonePositionRaw] = useState(PIANO_TONE_CENTER_POSITION);
 

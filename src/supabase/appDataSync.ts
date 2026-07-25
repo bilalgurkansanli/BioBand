@@ -89,8 +89,8 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 export function startAppDataAutoSync(getCurrentUserId: () => string | null): void {
   unsubscribe?.();
   unsubscribe = onAppDataChanged(() => {
-    const userId = getCurrentUserId();
-    if (!userId) {
+    const scheduledUserId = getCurrentUserId();
+    if (!scheduledUserId) {
       return;
     }
     if (pushTimer) {
@@ -98,7 +98,16 @@ export function startAppDataAutoSync(getCurrentUserId: () => string | null): voi
     }
     pushTimer = setTimeout(() => {
       pushTimer = null;
-      void pushAppData(userId);
+      // Re-check the session at fire time, not just when the push was
+      // scheduled — if the user signed out or switched accounts in the
+      // debounce window, the data now on disk belongs to someone else;
+      // writing it under the originally-scheduled id would either push
+      // stale data to the wrong account or resurrect it after sign-out.
+      const currentUserId = getCurrentUserId();
+      if (currentUserId !== scheduledUserId) {
+        return;
+      }
+      void pushAppData(currentUserId);
     }, PUSH_DEBOUNCE_MS);
   });
 }

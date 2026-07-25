@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Tarkan — "Şımarık" (Sezen Aksu / Tarkan / Ozan Çolakoğlu)
 // Sheet: simarik.pdf (Am/Em feel, F# → Gb). Treble melody only.
@@ -10,7 +10,7 @@ const E = Q / 2;
 const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function at(bar: number, offset: number, noteId: NoteId): Ev {
   return { noteId, atMs: bar * BAR + offset };
@@ -177,32 +177,68 @@ function ocagina(startBar: number): Ev[] {
   ];
 }
 
-const SIMARIK_EVENTS: Ev[] = [
-  // Intro riff (PDF bars 1–4 full, bar 5–7, bar 8 shortened Em)
+const SIMARIK_MELODY: Ev[] = [
+  // Intro riff. Four bars — two statements of the two-bar ostinato, which is
+  // what the record plays before the vocal enters. Eight bars of it, as this
+  // chart used to have, is 125 notes of the same figure and thirteen seconds
+  // of nothing happening before the song starts.
   ...introBar(0),
   ...introBar(1),
   ...introBar(2),
-  ...introBar(3),
-  ...introBar(4),
-  ...introBar(5),
-  ...introBar(6),
-  ...introBar(7, 5),
+  ...introBar(3, 5),
   // Verse
-  ...verse(8),
+  ...verse(4),
   // Chorus "Seni gidi…"
-  ...seniGidi(12),
+  ...seniGidi(8),
   // "Ocağına düştüm…"
-  ...ocagina(16),
+  ...ocagina(12),
   // Chorus again (tag)
-  ...seniGidi(20),
-  ...ocagina(24),
+  ...seniGidi(16),
+  ...ocagina(20),
 ];
 
-const LAST_MS = SIMARIK_EVENTS[SIMARIK_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar — the Am ↔ Em swing the riff is built on.
+ * The intro alternates every two beats (its own ostinato spells Am then Em);
+ * the chorus sits on Am, drops to G where the tune leans on G/B, and answers
+ * on Em. Written on the keyboard and sounded an octave down, since the tune
+ * already occupies both octaves the keys cover.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Intro ostinato ×4 — Am | Em
+  ['A4', 'E4'], ['A4', 'E4'], ['A4', 'E4'], ['A4', 'E4'],
+  // Verse — Am throughout, third bar answers on Em with the tune's G
+  ['A4', 'A4'], ['A4', 'A4'], ['A4', 'E4'], ['A4', 'A4'],
+  // "Seni gidi…" — Am | G | Am | Em
+  ['A4', 'A4'], ['G4', 'G4'], ['A4', 'A4'], ['E4', 'E4'],
+  // "Ocağına…" — Am | Em | Am | Em
+  ['A4', 'A4'], ['E4', 'E4'], ['A4', 'A4'], ['E4', 'E4'],
+  // Chorus tag
+  ['A4', 'A4'], ['G4', 'G4'], ['A4', 'A4'], ['E4', 'E4'],
+  ['A4', 'A4'], ['E4', 'E4'], ['A4', 'A4'], ['E4', 'E4'],
+];
+
+/** Root on beats 1 and 3 — the steady two-feel under the 16th-note riff. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], barIndex) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: barIndex * BAR + half * 2 * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const SIMARIK_EVENTS: Ev[] = [...SIMARIK_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = SIMARIK_MELODY[SIMARIK_MELODY.length - 1]?.atMs ?? 0;
 
 // Partial ≈ first "Seni gidi…" chorus (~50 notes)
-const PARTIAL_START_MS = 12 * BAR;
-const chorusNotes = SIMARIK_EVENTS.filter((e) => e.atMs >= PARTIAL_START_MS);
+// Counted over the tune — the bass runs underneath the whole excerpt.
+const PARTIAL_START_MS = 8 * BAR;
+const chorusNotes = SIMARIK_MELODY.filter((e) => e.atMs >= PARTIAL_START_MS);
 const partialNotes = chorusNotes.slice(0, 50);
 
 export const simarikSong: SongDefinition = {
@@ -212,6 +248,7 @@ export const simarikSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.simarik.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: SIMARIK_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0]?.atMs ?? 0,
     endMs: partialNotes[partialNotes.length - 1]?.atMs ?? LAST_MS,

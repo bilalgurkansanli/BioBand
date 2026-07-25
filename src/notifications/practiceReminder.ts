@@ -18,7 +18,10 @@ function getNotificationsModule(): NotificationsModule | null {
     return cachedModule;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    // Deliberately lazy: a static import throws at module-evaluation time when
+    // the dev client was built without the native module, taking the whole app
+    // down instead of just disabling reminders.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cachedModule = require('expo-notifications') as NotificationsModule;
   } catch (error) {
     console.warn(

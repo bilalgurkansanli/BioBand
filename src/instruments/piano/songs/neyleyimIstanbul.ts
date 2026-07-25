@@ -1,5 +1,5 @@
 import type { NoteId } from '../pianoNotes';
-import type { SongDefinition } from './types';
+import type { SongDefinition, SongEvent } from './types';
 
 // Murat Dalkılıç — "Neyleyim İstanbul'u" (Oytun Karanacak)
 // Musa Çetiner / kolaynota.com — full melody (intro + verse + chorus).
@@ -9,7 +9,7 @@ const E = Q / 2;
 const S = Q / 4;
 const BAR = 4 * Q;
 
-type Ev = { noteId: NoteId; atMs: number };
+type Ev = SongEvent;
 
 function phrase(
   startMs: number,
@@ -36,7 +36,26 @@ function timed(startMs: number, notes: [NoteId, number][]): Ev[] {
   }));
 }
 
-const NEYLEYIM_EVENTS: Ev[] = [
+/**
+ * Snap every onset to the nearest sixteenth.
+ *
+ * `phrase()` spreads N notes evenly over a bar, so a nine-note line steps in
+ * 213ms — a grid that exists in no meter. Over half this chart used to land
+ * between the beats, which is not heard as syncopation but as the tune being
+ * slightly out of tune with itself. Pitches and order are untouched; each note
+ * moves to the nearest real subdivision, and notes written together stay
+ * together.
+ */
+function snapToGrid(): (event: Ev) => Ev {
+  let previous = -Infinity;
+  return (event) => {
+    const snapped = Math.max(previous, Math.round(event.atMs / S) * S);
+    previous = snapped;
+    return { ...event, atMs: snapped };
+  };
+}
+
+const NEYLEYIM_MELODY: Ev[] = [
   // ── Intro (bar 1 rest; melody bars 2–5) ──
   ...timed(BAR, [
     ['A4', 0],
@@ -275,13 +294,61 @@ const NEYLEYIM_EVENTS: Ev[] = [
   ...phrase(31 * BAR, ['G4', 'B4', 'B4', 'B4', 'C5'], 2 * Q),
   // Stable sort: a few dense intro figures interleave in time; play-along
   // modes step the array in order, so it must match the audible timeline.
-].sort((a, b) => a.atMs - b.atMs);
+]
+  .sort((a, b) => a.atMs - b.atMs)
+  .map(snapToGrid())
+  .sort((a, b) => a.atMs - b.atMs);
 
-const LAST_MS = NEYLEYIM_EVENTS[NEYLEYIM_EVENTS.length - 1]?.atMs ?? 0;
+/**
+ * Chord root for each half bar, read off the notes each half actually dwells
+ * on. The chart is written round Do, so the diatonic C/Dm/Em/F/G/Am cover
+ * everything except «Ama hiç yalnız bırakmaz anılar» — the one phrase built on
+ * Lab and Sib, which is the borrowed Fa minor and takes F.
+ * The first bar is a rest and is left silent; the bass enters with the tune.
+ * Written on the keyboard and sounded an octave down, under a melody that
+ * climbs to Si5.
+ */
+const HALF_BAR_ROOTS: [NoteId, NoteId][] = [
+  // Intro (bars 2–5)
+  ['A4', 'G4'], ['G4', 'F4'], ['G4', 'A4'], ['C4', 'C4'],
+  // "Son sözüm kalmadı…" / "Sadece birkaç küçük sitem"
+  ['C4', 'C4'], ['C4', 'C4'], ['F4', 'F4'], ['G4', 'F4'],
+  // "Belki onlarda eriyip gidecek" / "Mutlu olduğunu bilsem"
+  ['C4', 'C4'], ['A4', 'D4'], ['G4', 'C4'], ['C4', 'C4'],
+  // "Göz görmeyince…" / "Ondan biraz uzak olsam yeter"
+  ['C4', 'C4'], ['C4', 'A4'], ['F4', 'D4'], ['G4', 'G4'],
+  // "Ama hiç yalnız bırakmaz anılar" — the borrowed Fm bar
+  ['F4', 'F4'], ['C4', 'C4'],
+  // "Çünkü en çok mesafeyi severler" + scale into the bridge
+  ['D4', 'C4'], ['C4', 'G4'],
+  // Bridge
+  ['A4', 'A4'], ['F4', 'G4'], ['G4', 'D4'], ['C4', 'C4'],
+  ['A4', 'G4'], ['C4', 'A4'],
+  // Chorus — "Neyleyim İstanbul'u sonbaharda"
+  ['F4', 'G4'], ['C4', 'C4'], ['A4', 'G4'], ['C4', 'F4'], ['G4', 'C4'],
+];
+
+/** Root on beats 1 and 3, from bar 2 on — bar 1 is the chart's opening rest. */
+const BASS: Ev[] = HALF_BAR_ROOTS.flatMap(([first, second], i) =>
+  [first, second].map((noteId, half) => ({
+    noteId,
+    atMs: (i + 1) * BAR + half * 2 * Q,
+    durationMs: 2 * Q,
+    role: 'accompaniment' as const,
+    transpose: -12,
+  })),
+);
+
+const NEYLEYIM_EVENTS: Ev[] = [...NEYLEYIM_MELODY, ...BASS].sort(
+  (a, b) => a.atMs - b.atMs,
+);
+
+const LAST_MS = NEYLEYIM_MELODY[NEYLEYIM_MELODY.length - 1]?.atMs ?? 0;
 
 // Partial ≈ "Çünkü yoksun yanımda / Neyleyim İstanbul'u…" (~50 notes)
+// Counted over the tune — the bass runs underneath the whole excerpt.
 const PARTIAL_START_MS = 25 * BAR;
-const partialNotes = NEYLEYIM_EVENTS.filter((e) => e.atMs >= PARTIAL_START_MS);
+const partialNotes = NEYLEYIM_MELODY.filter((e) => e.atMs >= PARTIAL_START_MS);
 
 export const neyleyimIstanbulSong: SongDefinition = {
   id: 'neyleyim-istanbul',
@@ -290,6 +357,7 @@ export const neyleyimIstanbulSong: SongDefinition = {
   descriptionKey: 'tutorial.songs.neyleyimIstanbul.description',
   previewDurationMs: Math.min(12000, LAST_MS + Q),
   events: NEYLEYIM_EVENTS,
+  meter: { beatMs: Q, beatsPerBar: 4 },
   partialWindowMs: {
     startMs: partialNotes[0].atMs,
     endMs: partialNotes[partialNotes.length - 1].atMs,

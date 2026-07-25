@@ -1,4 +1,5 @@
-import { e, note } from './songHelpers';
+import type { SongMeter } from '../../piano/songs/types';
+import { bed, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
 /** ~80 BPM — playable tutorial pace. */
@@ -78,17 +79,20 @@ function zombieChorus(startMs: number): GuitarSongEvent[] {
 export const ZOMBIE_EVENTS: GuitarSongEvent[] = [
   ...zombieHook(0),
   ...zombieHook(BAR * 2),
-  e('chord:Em', BAR * 4),
+  bed('chord:Em', BAR * 4),
   ...zombieVerse(BAR * 4),
-  e('chord:C', BAR * 8),
+  bed('chord:C', BAR * 8),
   ...zombieVerse(BAR * 8),
-  e('chord:Em', BAR * 12),
+  bed('chord:Em', BAR * 12),
   ...zombieChorus(BAR * 12),
-  e('chord:G', BAR * 16),
+  bed('chord:G', BAR * 16),
   ...zombieHook(BAR * 16),
-  e('chord:Dfs', BAR * 18),
+  bed('chord:Dfs', BAR * 18),
   ...zombieHook(BAR * 18),
 ];
+
+/** 4/4 — BEAT is the quarter. */
+export const ZOMBIE_METER: SongMeter = { beatMs: BEAT, beatsPerBar: 4 };
 
 /** Two hook statements. */
 export const ZOMBIE_PARTIAL_COUNT = 20;

@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -86,6 +87,9 @@ export const GREENSLEEVES_EVENTS: GuitarSongEvent[] = [
   ...strainB(STRAIN_MS * 3 + BEAT, true),
   e('chord:Am', STRAIN_MS * 4),
 ];
+
+/** Four beats to the bar; a strain is exactly sixteen. */
+export const GREENSLEEVES_METER: SongMeter = { beatMs: BEAT, beatsPerBar: 4 };
 
 /** Chord + strain A's first phrase. */
 export const GREENSLEEVES_PARTIAL_COUNT = 11;

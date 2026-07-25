@@ -6,10 +6,8 @@ import {
   type DrumMachineTypeId,
 } from '../instruments/drumMachine/drumMachineBanks';
 import {
-  BPM_DEFAULT,
   BPM_MAX,
   BPM_MIN,
-  createEmptyGrid,
   isValidGrid,
   normalizeGrid,
   type DrumMachineGrid,
@@ -184,15 +182,4 @@ export async function importDrumMachinePattern(
     machineType: type,
     grid: normalizeGrid(candidate.grid),
   });
-}
-
-export function emptyPatternDraft(
-  machineType: DrumMachineTypeId = 'drums',
-  bpm: number = BPM_DEFAULT,
-): { bpm: number; machineType: DrumMachineTypeId; grid: DrumMachineGrid } {
-  return {
-    bpm: clampBpm(bpm),
-    machineType,
-    grid: createEmptyGrid(getDrumMachineBank(machineType).rows.length),
-  };
 }

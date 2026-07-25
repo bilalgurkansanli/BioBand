@@ -71,16 +71,3 @@ export function isPhraseId(value: string): value is PhraseId {
 export function getPhraseById(id: PhraseId): PhraseDefinition | undefined {
   return VIOLIN_PHRASES.find((phrase) => phrase.id === id);
 }
-
-/** Keep catalog order; ensure at least one phrase remains visible. */
-export function normalizeVisiblePhraseIds(ids: string[]): PhraseId[] {
-  const seen = new Set<PhraseId>();
-  const ordered: PhraseId[] = [];
-  for (const id of ALL_PHRASE_IDS) {
-    if (ids.includes(id) && !seen.has(id)) {
-      seen.add(id);
-      ordered.push(id);
-    }
-  }
-  return ordered.length > 0 ? ordered : [...ALL_PHRASE_IDS];
-}

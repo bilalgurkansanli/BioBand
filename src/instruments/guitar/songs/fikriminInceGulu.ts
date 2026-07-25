@@ -1,3 +1,4 @@
+import type { SongMeter } from '../../piano/songs/types';
 import { e, note } from './songHelpers';
 import type { GuitarSongEvent } from './types';
 
@@ -20,7 +21,8 @@ function phraseOpenHold(startMs: number): GuitarSongEvent[] {
   return [
     ...phraseOpen(startMs),
     note('s1', 0, startMs + BAR * 2),
-    note('s1', 0, startMs + BAR * 2 + BEAT * 2),
+    // The gesture ends on a hold that runs to the next phrase.
+    note('s1', 0, startMs + BAR * 2 + BEAT * 2, BAR * 2 - BEAT * 2),
   ];
 }
 
@@ -101,6 +103,12 @@ export const FIKRIMIN_INCE_GULU_EVENTS: GuitarSongEvent[] = [
   ...phraseDescent(BAR * 20),
   note('s1', 0, BAR * 22),
 ];
+
+/** 3/4 waltz — BEAT is the quarter. */
+export const FIKRIMIN_INCE_GULU_METER: SongMeter = {
+  beatMs: BEAT,
+  beatsPerBar: 3,
+};
 
 /** Opening waltz gestures (two open phrases). */
 export const FIKRIMIN_INCE_GULU_PARTIAL_COUNT = 12;
