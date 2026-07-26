@@ -13,6 +13,7 @@ import type { DrumPieceKind } from '../../instruments/drums/drumKitLayout';
 import type { DrumSoundId } from '../../instruments/drums/drumsSounds';
 import { getMetronomeBpm } from '../../instruments/piano/pianoMetronome';
 import { shade, tint } from '../../utils/colorMix';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 type DrumPieceProps = {
   kind: DrumPieceKind;
@@ -232,6 +233,7 @@ function CymbalPiece({
 
   return (
     <Pressable
+      {...SCREEN_READER_HIDDEN}
       delayLongPress={delayLongPress}
       onLongPress={onLongPress}
       onPressIn={onPressIn}
@@ -327,6 +329,7 @@ function DrumHeadPiece({
 
   return (
     <Pressable
+      {...SCREEN_READER_HIDDEN}
       delayLongPress={delayLongPress}
       onLongPress={onLongPress}
       onPressIn={onPressIn}
@@ -417,7 +420,11 @@ function KickPiece({
   const batter = shade(headColor, 0.82);
 
   return (
-    <Pressable onPressIn={onPressIn} style={{ width: size, height: size }}>
+    <Pressable
+      {...SCREEN_READER_HIDDEN}
+      onPressIn={onPressIn}
+      style={{ width: size, height: size }}
+    >
       <Animated.View
         style={[
           styles.center,

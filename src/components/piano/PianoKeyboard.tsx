@@ -219,6 +219,7 @@ export function PianoKeyboard({
               keyColors={theme.keys}
               labelMode={labelMode}
               letterLabel={note.label}
+              onAccessibilityTap={() => onNotePressIn(note.id)}
               noteId={note.id}
               solfegeLabel={note.solfegeLabel}
               width={whiteKeyWidth}
@@ -244,6 +245,7 @@ export function PianoKeyboard({
                 keyColors={theme.keys}
                 labelMode={labelMode}
                 letterLabel={note.label}
+                onAccessibilityTap={() => onNotePressIn(note.id)}
                 noteId={note.id}
                 solfegeLabel={note.solfegeLabel}
                 width={blackKeyWidth}

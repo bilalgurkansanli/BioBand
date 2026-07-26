@@ -16,9 +16,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { CrashLogModal } from '../components/CrashLogModal';
+import { OptionListModal } from '../components/studio/OptionListModal';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 import { ScreenContainer } from '../components/ScreenContainer';
 import i18n, { saveLanguage, type AppLanguage } from '../i18n';
+import { Toast } from '../components/Toast';
+import { loadCrashLog } from '../diagnostics/crashLog';
+import { useLibraryBackup } from '../hooks/useLibraryBackup';
 import { signInWithApple } from '../auth/appleAuth';
 import { signInWithGoogle } from '../auth/googleAuth';
 import { syncAfterSignIn, useAuthSession } from '../auth/useAuthSession';
@@ -32,6 +37,7 @@ import {
   DEFAULT_PROFILE_SETTINGS,
   loadProfileSettings,
   saveProfileSettings,
+  WEEKLY_GOAL_OPTIONS,
   type ProfileSettings,
 } from '../storage/profileSettingsStorage';
 import {
@@ -65,6 +71,17 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [signOutConfirmVisible, setSignOutConfirmVisible] = useState(false);
+  const [crashCount, setCrashCount] = useState(0);
+  const [crashLogVisible, setCrashLogVisible] = useState(false);
+  const {
+    job: backupJob,
+    feedback: backupFeedback,
+    dismissFeedback: dismissBackupFeedback,
+    backup,
+    exportAudio,
+    restore,
+  } = useLibraryBackup();
+  const [backupFormatVisible, setBackupFormatVisible] = useState(false);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const currentLang: AppLanguage =
     i18n.language === 'tr' ? 'tr' : i18n.language === 'de' ? 'de' : 'en';
@@ -104,6 +121,12 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     } finally {
       setSigningIn(false);
     }
+  }, []);
+
+  // Only the count is needed here — the records themselves are read when the
+  // sheet actually opens.
+  useEffect(() => {
+    void loadCrashLog().then((records) => setCrashCount(records.length));
   }, []);
 
   useEffect(() => {
@@ -377,6 +400,72 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           ) : null}
         </View>
 
+        <Text style={styles.sectionLabel}>{t('profile.weeklyGoalTitle')}</Text>
+        <View style={styles.card}>
+          <Text style={styles.hint}>{t('profile.weeklyGoalHint')}</Text>
+          <View style={styles.chipWrap}>
+            {WEEKLY_GOAL_OPTIONS.map((minutes) => (
+              <Chip
+                active={settings.weeklyGoalMinutes === minutes}
+                key={minutes}
+                label={
+                  minutes === 0
+                    ? t('profile.weeklyGoalOff')
+                    : t('profile.weeklyGoalOption', { minutes })
+                }
+                onPress={() => void persist({ ...settings, weeklyGoalMinutes: minutes })}
+              />
+            ))}
+          </View>
+        </View>
+
+        <Text style={styles.sectionLabel}>{t('backup.section')}</Text>
+        <View style={styles.card}>
+          <Text style={styles.hint}>{t('backup.hint')}</Text>
+          <Pressable
+            accessibilityRole="button"
+            disabled={backupJob !== null}
+            onPress={() => setBackupFormatVisible(true)}
+            style={({ pressed }) => [
+              styles.privacyRow,
+              styles.backupRow,
+              pressed && styles.pressed,
+              backupJob !== null && styles.disabled,
+            ]}
+          >
+            <Ionicons color={colors.textSecondary} name="save-outline" size={18} />
+            <Text style={styles.privacyRowText}>{t('backup.exportAction')}</Text>
+            {backupJob?.kind === 'export' || backupJob?.kind === 'audio' ? (
+              <Text style={styles.backupProgress}>
+                %{Math.round(backupJob.progress * 100)}
+              </Text>
+            ) : (
+              <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+            )}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={backupJob !== null}
+            onPress={() => void restore()}
+            style={({ pressed }) => [
+              styles.privacyRow,
+              styles.backupRow,
+              pressed && styles.pressed,
+              backupJob !== null && styles.disabled,
+            ]}
+          >
+            <Ionicons color={colors.textSecondary} name="download-outline" size={18} />
+            <Text style={styles.privacyRowText}>{t('backup.restoreAction')}</Text>
+            {backupJob?.kind === 'restore' ? (
+              <Text style={styles.backupProgress}>
+                %{Math.round(backupJob.progress * 100)}
+              </Text>
+            ) : (
+              <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+            )}
+          </Pressable>
+        </View>
+
         <Text style={styles.sectionLabel}>{t('common.about')}</Text>
         <View style={styles.card}>
           <Pressable
@@ -387,8 +476,59 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <Text style={styles.privacyRowText}>{t('common.privacyPolicy')}</Text>
             <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
           </Pressable>
+
+          {/* Hidden until something has actually gone wrong — a permanently
+              visible "error log" invites people to go looking for trouble. */}
+          {crashCount > 0 ? (
+            <Pressable
+              onPress={() => setCrashLogVisible(true)}
+              style={({ pressed }) => [
+                styles.privacyRow,
+                styles.diagnosticsRow,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons color={colors.textSecondary} name="bug-outline" size={18} />
+              <Text style={styles.privacyRowText}>{t('errors.diagnosticsTitle')}</Text>
+              <Text style={styles.diagnosticsCount}>{crashCount}</Text>
+              <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
+
+      <CrashLogModal
+        visible={crashLogVisible}
+        onClose={() => setCrashLogVisible(false)}
+        onCleared={() => setCrashCount(0)}
+      />
+
+      <OptionListModal
+        message={t('backup.formatMessage')}
+        options={[
+          { key: 'library', label: t('backup.formatLibrary'), icon: 'archive-outline' },
+          { key: 'audio', label: t('backup.formatAudio'), icon: 'musical-notes-outline' },
+        ]}
+        title={t('backup.formatTitle')}
+        visible={backupFormatVisible}
+        onClose={() => setBackupFormatVisible(false)}
+        onSelect={(key) => {
+          setBackupFormatVisible(false);
+          if (key === 'library') {
+            void backup();
+          } else {
+            void exportAudio();
+          }
+        }}
+      />
+
+      <Toast
+        detail={backupFeedback?.detail}
+        message={backupFeedback?.message ?? ''}
+        onHide={dismissBackupFeedback}
+        variant={backupFeedback?.variant}
+        visible={backupFeedback !== null}
+      />
 
       <ConfirmDeleteModal
         cancelLabel={t('common.cancel')}
@@ -559,6 +699,33 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: '600',
+  },
+  backupRow: {
+    marginTop: 14,
+  },
+  backupProgress: {
+    color: colors.accent,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  diagnosticsRow: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: 14,
+    paddingTop: 14,
+  },
+  diagnosticsCount: {
+    backgroundColor: colors.surfaceLight,
+    borderRadius: 9,
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    minWidth: 22,
+    overflow: 'hidden',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    textAlign: 'center',
   },
   pressed: {
     opacity: 0.8,

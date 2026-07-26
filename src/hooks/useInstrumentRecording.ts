@@ -36,6 +36,7 @@ import {
 import { notifyStudioTrackAdded } from '../studio/studioTrackAddedSignal';
 import type { InstrumentEvent, InstrumentId, RecordingMode, SavedRecording } from '../types/recording';
 import type { RootTabParamList } from '../types/navigation';
+import { recordFeatureUse } from '../storage/profileProgressStorage';
 
 const COUNTDOWN_SECONDS = 3;
 
@@ -135,6 +136,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           audioUri: audioRecorder.uri ?? undefined,
         };
         await saveRecording(take);
+        void recordFeatureUse('recordingSaved');
         void awardRecordingPractice(instrument, durationMs);
         if (session?.active && session.instrument === instrument) {
           await appendRecordedTrack(session.projectId, take);
@@ -162,6 +164,7 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           padBankId: instrument === 'pads' ? getCurrentPadBankId() : undefined,
         };
         await saveRecording(take);
+        void recordFeatureUse('recordingSaved');
         void awardRecordingPractice(instrument, durationMs);
         if (session?.active && session.instrument === instrument) {
           await appendRecordedTrack(session.projectId, take);

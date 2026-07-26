@@ -73,34 +73,59 @@ export async function pickDocument(
   }
 }
 
+/** The only extensions the Recordings importer will take. */
+const IMPORT_EXTENSIONS = ['mp3', 'mid', 'midi', 'json'] as const;
+
+export type ImportKind = 'audio' | 'midi' | 'json';
+
+export function importKindOf(fileName: string): ImportKind | null {
+  const ext = fileName.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() ?? '';
+  if (ext === 'mp3') {
+    return 'audio';
+  }
+  if (ext === 'mid' || ext === 'midi') {
+    return 'midi';
+  }
+  if (ext === 'json') {
+    return 'json';
+  }
+  return null;
+}
+
+/**
+ * Recordings importer — MP3, MIDI and JSON only.
+ *
+ * The list used to end in `*​/*`, which made the system browser offer every
+ * file on the device. A wildcard also cannot be narrowed afterwards, so the
+ * only feedback was an error after the user had already chosen.
+ *
+ * The MIME types differ per platform on purpose. Android matches the list
+ * literally against what the file provider reports, and plenty of providers
+ * label a `.mid` or a downloaded `.json` as a generic binary — without
+ * `application/octet-stream` those files show up greyed out and cannot be
+ * picked at all. iOS maps each type to a UTI, where the octet-stream
+ * equivalent (`public.data`) would let everything back in.
+ */
 export async function pickAudioDocument(): Promise<
   PickDocumentResult | { ok: false; code: 'unsupported' }
 > {
-  const picked = await pickDocument([
-    'audio/*',
-    'audio/mpeg',
-    'audio/mp4',
-    'audio/x-m4a',
-    'audio/wav',
-    'video/mp4',
-    '*/*',
-  ]);
+  const types = ['audio/mpeg', 'audio/mp3', 'audio/midi', 'audio/x-midi', 'application/json'];
+  const picked = await pickDocument(
+    Platform.OS === 'android' ? [...types, 'application/octet-stream'] : types,
+  );
   if (!picked.ok) {
     return picked;
   }
 
-  const name = picked.asset.name;
-  const ext = name.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() ?? '';
-  const mime = picked.asset.mimeType ?? '';
-  const okExt = ['mp3', 'm4a', 'wav', 'aac', 'caf', 'mp4'].includes(ext);
-  const okMime =
-    (mime.startsWith('audio/') || mime === 'video/mp4') &&
-    !mime.includes('midi');
-  if (!okExt && !okMime) {
+  // The picker is a hint, not a guarantee — a provider can still hand back
+  // something else, so the extension is checked before anything is read.
+  if (importKindOf(picked.asset.name) === null) {
     return { ok: false, code: 'unsupported' };
   }
   return picked;
 }
+
+export { IMPORT_EXTENSIONS };
 
 /**
  * Chart picker — MIDI and song JSON only.
@@ -118,6 +143,20 @@ export async function pickAudioDocument(): Promise<
  * properly and the octet-stream equivalent (`public.data`) would let
  * everything back in.
  */
+/**
+ * Library backup picker — JSON only.
+ *
+ * Same Android caveat as the chart picker: plenty of providers report a
+ * downloaded `.json` as a generic binary, and without `application/octet-stream`
+ * the file the user is looking for is greyed out.
+ */
+export async function pickBackupDocument(): Promise<PickDocumentResult> {
+  const types = ['application/json', 'text/json'];
+  return pickDocument(
+    Platform.OS === 'android' ? [...types, 'application/octet-stream'] : types,
+  );
+}
+
 export async function pickChartDocument(): Promise<PickDocumentResult> {
   const types = [
     'audio/midi',

@@ -1,7 +1,7 @@
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { initAudioMode } from './src/audio/initAudio';
@@ -12,7 +12,11 @@ import {
 import { onAuthReset } from './src/auth/authResetSignal';
 import { bootstrapAuthAndData } from './src/auth/bootstrap';
 import { useAuthSession } from './src/auth/useAuthSession';
-import i18n, { initI18n } from './src/i18n';
+import { AppErrorBoundary } from './src/components/AppErrorBoundary';
+import { CoachTour } from './src/components/CoachTour';
+import { LaunchScreen } from './src/components/LaunchScreen';
+import { installGlobalErrorHandlers } from './src/diagnostics/errorReporter';
+import { initI18n } from './src/i18n';
 import { lockPortraitOrientation } from './src/hooks/usePianoOrientation';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { configureNotificationHandler } from './src/notifications/practiceReminder';
@@ -20,6 +24,11 @@ import { AuthPromptScreen } from './src/screens/AuthPromptScreen';
 import { startAppDataAutoSync, stopAppDataAutoSync } from './src/supabase/appDataSync';
 import { configureSystemUi, startSystemUiSync } from './src/system/configureSystemUi';
 import { colors } from './src/theme/colors';
+
+// Installed at module scope, before the first component renders: a crash
+// during that first render would otherwise happen before any effect could
+// have set the handlers up.
+installGlobalErrorHandlers();
 
 const navigationTheme = {
   ...DarkTheme,
@@ -33,15 +42,26 @@ const navigationTheme = {
   },
 };
 
+/**
+ * Everything sits inside the error boundary, including the launch screen — a
+ * throw while the app is still starting up is exactly the case where a blank
+ * screen would be least explicable to the user.
+ */
 export default function App() {
+  return (
+    <AppErrorBoundary>
+      <AppRoot />
+    </AppErrorBoundary>
+  );
+}
+
+function AppRoot() {
   const [isReady, setIsReady] = useState(false);
   /** Instruments warmed so far — the launch screen shows this as a bar. */
   const [instrumentsLoaded, setInstrumentsLoaded] = useState(0);
   // The launch screen is drawn before initI18n() resolves, so its text waits
   // for the catalogue rather than flashing raw key names.
   const [textReady, setTextReady] = useState(false);
-  /** One quote per launch, chosen once so it does not shuffle mid-load. */
-  const [quoteSeed] = useState(() => Math.floor(Math.random() * 1000));
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   // Sign-out re-shows the auth prompt (language already chosen, so it jumps
   // straight to the sign-in/guest step) instead of silently dropping the
@@ -51,6 +71,10 @@ export default function App() {
   // navigation tree to unmount/remount — every screen re-reads its state
   // from storage instead of continuing to show the signed-out user's data.
   const [appResetKey, setAppResetKey] = useState(0);
+  // Shown on every launch, not just the first: the product decision is that
+  // the tour is a welcome rather than a one-off setup step. `markOnboardingSeen`
+  // is therefore no longer consulted.
+  const [showOnboarding, setShowOnboarding] = useState(true);
   const { getCurrentUserId } = useAuthSession();
 
   useEffect(() => {
@@ -101,55 +125,14 @@ export default function App() {
   }, [getCurrentUserId]);
 
   if (!isReady) {
-    const progress = Math.min(1, instrumentsLoaded / INSTRUMENT_PRELOAD_STEPS);
-    const quotes = textReady
-      ? (i18n.t('launch.quotes', { returnObjects: true }) as unknown)
-      : null;
-    const quote =
-      Array.isArray(quotes) && quotes.length > 0
-        ? (quotes[quoteSeed % quotes.length] as { text?: string; author?: string })
-        : null;
     return (
-      <View style={styles.loading}>
-        {/* Logo and greeting travel together as the top band. */}
-        <View style={styles.header}>
-          <Image
-            source={require('./assets/logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            // The launch screen is the first thing drawn; fading it in would
-            // read as a stutter rather than as polish.
-            fadeDuration={0}
-          />
-          {textReady ? (
-            <Text style={styles.welcome}>{i18n.t('launch.welcome')}</Text>
-          ) : null}
-        </View>
-
-        <View style={styles.loadingCentre}>
-          <ActivityIndicator color={colors.accent} size="large" />
-          <View style={styles.progressTrack}>
-            <View
-              style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]}
-            />
-          </View>
-          {textReady ? (
-            <Text style={styles.loadingLabel}>{i18n.t('launch.title')}</Text>
-          ) : null}
-        </View>
-
-        {quote?.text ? (
-          <View style={styles.quoteBlock}>
-            <Text style={styles.quote}>{quote.text}</Text>
-            {quote.author ? (
-              <Text style={styles.quoteAuthor}>— {quote.author}</Text>
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.quoteBlock} />
-        )}
+      <>
+        <LaunchScreen
+          progress={Math.min(1, instrumentsLoaded / INSTRUMENT_PRELOAD_STEPS)}
+          textReady={textReady}
+        />
         <StatusBar style="light" />
-      </View>
+      </>
     );
   }
 
@@ -171,6 +154,8 @@ export default function App() {
         <RootNavigator />
         <StatusBar style="light" />
       </NavigationContainer>
+      {/* Drawn over the live app so the highlights land on the real tabs. */}
+      {showOnboarding ? <CoachTour onDone={() => setShowOnboarding(false)} /> : null}
     </SafeAreaProvider>
   );
 }
@@ -179,74 +164,5 @@ const styles = StyleSheet.create({
   root: {
     backgroundColor: colors.background,
     flex: 1,
-  },
-  // Logo up top, the spinner and bar taking the middle, the quote resting at
-  // the bottom — three bands rather than one centred stack.
-  loading: {
-    alignItems: 'center',
-    backgroundColor: '#000000',
-    flex: 1,
-    justifyContent: 'space-between',
-    paddingBottom: 56,
-    // Trimmed again as the greeting joined the logo, so the three bands still
-    // fit a short screen.
-    paddingTop: 56,
-  },
-  header: {
-    alignItems: 'center',
-  },
-  logo: {
-    height: 290,
-    width: 290,
-  },
-  welcome: {
-    color: colors.text,
-    fontSize: 22,
-    fontWeight: '600',
-    marginTop: 14,
-    paddingHorizontal: 24,
-    textAlign: 'center',
-  },
-  loadingCentre: {
-    alignItems: 'center',
-    // Nudges the spinner and bar up off the centre line.
-    marginBottom: 40,
-  },
-  progressTrack: {
-    backgroundColor: colors.border,
-    borderRadius: 3,
-    height: 6,
-    marginTop: 26,
-    overflow: 'hidden',
-    width: 220,
-  },
-  progressFill: {
-    backgroundColor: colors.accent,
-    height: '100%',
-  },
-  loadingLabel: {
-    color: colors.text,
-    fontSize: 20,
-    letterSpacing: 0.5,
-    marginTop: 18,
-  },
-  quoteBlock: {
-    alignItems: 'center',
-    maxWidth: 340,
-    paddingHorizontal: 24,
-  },
-  quote: {
-    color: colors.text,
-    fontSize: 18,
-    fontStyle: 'italic',
-    lineHeight: 27,
-    textAlign: 'center',
-  },
-  quoteAuthor: {
-    color: colors.text,
-    fontSize: 15,
-    marginTop: 12,
-    opacity: 0.7,
-    textAlign: 'center',
   },
 });

@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   PanResponder,
@@ -18,7 +18,16 @@ import type { StudioTrack } from '../../../types/studio';
 import { getTrackStartMs } from '../../../types/studio';
 import { LANE_HEIGHT, withAlpha } from './timelineGeometry';
 
-const DRAG_THRESHOLD = 6;
+/**
+ * Hold this long to pick a clip up.
+ *
+ * Short enough to feel immediate, long enough that a tap meant for the clip
+ * menu never trips it — a deliberate tap is well under 200 ms.
+ */
+const LIFT_DELAY_MS = 250;
+
+/** Once lifted, the smallest movement should move the clip. */
+const DRAG_THRESHOLD = 2;
 
 type Props = {
   track: StudioTrack;
@@ -28,6 +37,13 @@ type Props = {
   color: string;
   onCommitStart: (startMs: number) => void;
   onPress: () => void;
+  /**
+   * Fires as soon as the clip is picked up, and again when it is put down.
+   * The timeline freezes its scroll views in between — otherwise the
+   * horizontal scroll and this drag both want the same finger movement, and
+   * the scroll usually wins.
+   */
+  onDragActiveChange: (active: boolean) => void;
 };
 
 function hashSeed(text: string): number {
@@ -73,16 +89,102 @@ function computeBars(track: StudioTrack, barCount: number): number[] {
   return out;
 }
 
-function StudioTimelineClipBase({ track, pxPerMs, snapMs, color, onCommitStart, onPress }: Props) {
+function StudioTimelineClipBase({
+  track,
+  pxPerMs,
+  snapMs,
+  color,
+  onCommitStart,
+  onPress,
+  onDragActiveChange,
+}: Props) {
   const { t } = useTranslation();
   const startMs = getTrackStartMs(track);
   const width = Math.max(24, track.durationMs * pxPerMs);
-  const left = startMs * pxPerMs;
 
-  const dragX = useRef(new Animated.Value(0)).current;
-  const [dragging, setDragging] = useState(false);
+  /**
+   * The clip's horizontal position, in pixels, and the *only* thing that
+   * decides where it sits.
+   *
+   * It used to be two things — a `left` style fed by the committed `startMs`,
+   * plus an animated drag offset. Those reach the native view through
+   * different pipelines (a React prop commit vs. the Animated system), and
+   * nothing guarantees they land in the same frame. Whenever the offset
+   * cleared first, the clip flicked back to its old spot for a frame before
+   * the new `left` arrived. One value cannot disagree with itself.
+   */
+  const posX = useRef(new Animated.Value(startMs * pxPerMs)).current;
+  const lift = useRef(new Animated.Value(0)).current;
+  const [lifted, setLifted] = useState(false);
+
+  // The pan handlers are created once and read these, so every value they
+  // need lives in a ref rather than in their closure.
+  const liftedRef = useRef(false);
+  // Set the moment the pan responder decides to take the gesture, which
+  // happens *before* the Pressable underneath is terminated. Without it the
+  // termination would read as "finger lifted" and drop the clip back home in
+  // the middle of the drag.
+  const draggingRef = useRef(false);
   const startMsRef = useRef(startMs);
+  const pxPerMsRef = useRef(pxPerMs);
+  const snapMsRef = useRef(snapMs);
+  const onCommitRef = useRef(onCommitStart);
+  const onDragActiveRef = useRef(onDragActiveChange);
   startMsRef.current = startMs;
+  pxPerMsRef.current = pxPerMs;
+  snapMsRef.current = snapMs;
+  onCommitRef.current = onCommitStart;
+  onDragActiveRef.current = onDragActiveChange;
+
+  const setLiftState = useCallback(
+    (next: boolean) => {
+      if (liftedRef.current === next) {
+        return;
+      }
+      liftedRef.current = next;
+      setLifted(next);
+      onDragActiveRef.current(next);
+      Animated.spring(lift, {
+        bounciness: next ? 10 : 0,
+        speed: 20,
+        toValue: next ? 1 : 0,
+        useNativeDriver: true,
+      }).start();
+    },
+    [lift],
+  );
+
+  const pickUp = useCallback(() => {
+    setLiftState(true);
+    if (Platform.OS !== 'web') {
+      Vibration.vibrate(12);
+    }
+  }, [setLiftState]);
+
+  /** Drops the clip without moving it — the offset is left to the caller. */
+  const putDown = useCallback(() => {
+    draggingRef.current = false;
+    setLiftState(false);
+  }, [setLiftState]);
+
+  /** Abandon the drag: back to where it was picked up. */
+  const cancelDrag = useCallback(() => {
+    posX.setValue(startMsRef.current * pxPerMsRef.current);
+    putDown();
+  }, [posX, putDown]);
+
+  // Follow the committed position whenever it (or the zoom) changes. Skipped
+  // mid-drag so a re-render cannot yank the clip out from under the finger.
+  //
+  // After a release this runs with the value the drag already wrote, so it is
+  // a no-op — which is the point. If the parent stored something else, this is
+  // what moves the clip to where it truly ended up.
+  useLayoutEffect(() => {
+    if (draggingRef.current) {
+      return;
+    }
+    posX.setValue(startMs * pxPerMs);
+  }, [posX, pxPerMs, startMs]);
 
   const barCount = Math.max(6, Math.min(200, Math.round(width / 5)));
   const bars = useMemo(
@@ -92,40 +194,45 @@ function StudioTimelineClipBase({ track, pxPerMs, snapMs, color, onCommitStart, 
     [track.id, track.mode, track.events, barCount],
   );
 
+  const claimDrag = useCallback((dx: number) => {
+    if (!liftedRef.current || Math.abs(dx) <= DRAG_THRESHOLD) {
+      return false;
+    }
+    draggingRef.current = true;
+    return true;
+  }, []);
+
   const panResponder = useMemo(
     () =>
       PanResponder.create({
+        // Never claim the touch itself — a plain press belongs to the clip
+        // menu, and a swipe that starts on a clip should still scroll the
+        // timeline. The drag only exists after the clip has been picked up.
         onStartShouldSetPanResponder: () => false,
         onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: (_evt, gesture) =>
-          Math.abs(gesture.dx) > DRAG_THRESHOLD &&
-          Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onMoveShouldSetPanResponderCapture: (_evt, gesture) =>
-          Math.abs(gesture.dx) > DRAG_THRESHOLD &&
-          Math.abs(gesture.dx) > Math.abs(gesture.dy),
-        onPanResponderGrant: () => {
-          setDragging(true);
-          if (Platform.OS !== 'web') {
-            Vibration.vibrate(8);
-          }
-        },
+        // Once lifted, take the gesture in the capture phase so the inner
+        // Pressable cannot swallow it, and accept movement in any direction —
+        // a finger dragging sideways always wanders a little vertically.
+        onMoveShouldSetPanResponder: (_evt, gesture) => claimDrag(gesture.dx),
+        onMoveShouldSetPanResponderCapture: (_evt, gesture) => claimDrag(gesture.dx),
         onPanResponderMove: (_evt, gesture) => {
-          dragX.setValue(gesture.dx);
+          posX.setValue(startMsRef.current * pxPerMsRef.current + gesture.dx);
         },
         onPanResponderRelease: (_evt, gesture) => {
-          const deltaMs = gesture.dx / pxPerMs;
-          const step = snapMs > 0 ? snapMs : 50;
+          const deltaMs = gesture.dx / pxPerMsRef.current;
+          const step = snapMsRef.current > 0 ? snapMsRef.current : 50;
           const next = Math.max(0, Math.round((startMsRef.current + deltaMs) / step) * step);
-          dragX.setValue(0);
-          setDragging(false);
-          onCommitStart(next);
+          // Settle onto the grid and stop. This is the final position — the
+          // commit below only writes it down; nothing further moves the clip.
+          posX.setValue(next * pxPerMsRef.current);
+          putDown();
+          onCommitRef.current(next);
         },
-        onPanResponderTerminate: () => {
-          dragX.setValue(0);
-          setDragging(false);
-        },
+        onPanResponderTerminate: cancelDrag,
+        // Nothing above us should be able to take a drag back mid-flight.
+        onPanResponderTerminationRequest: () => false,
       }),
-    [dragX, onCommitStart, pxPerMs, snapMs],
+    [cancelDrag, claimDrag, posX, putDown],
   );
 
   return (
@@ -134,21 +241,37 @@ function StudioTimelineClipBase({ track, pxPerMs, snapMs, color, onCommitStart, 
       style={[
         styles.clip,
         {
-          backgroundColor: withAlpha(color, 0.26),
-          borderColor: dragging ? '#FFFFFF' : withAlpha(color, 0.9),
-          left,
-          transform: [{ translateX: dragX }],
+          backgroundColor: withAlpha(color, lifted ? 0.4 : 0.26),
+          borderColor: lifted ? '#FFFFFF' : withAlpha(color, 0.9),
+          // No `left` here on purpose — see `posX`. The clip is pinned to the
+          // lane's origin and translated into place, so its position only ever
+          // has one owner.
+          transform: [
+            { translateX: posX },
+            { scale: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 1.04] }) },
+          ],
           width,
-          zIndex: dragging ? 5 : 1,
+          zIndex: lifted ? 5 : 1,
         },
-        dragging && styles.clipDragging,
+        lifted && styles.clipLifted,
         track.muted && styles.clipMuted,
       ]}
     >
       <View style={[styles.accentEdge, { backgroundColor: color }]} />
       <Pressable
+        accessibilityHint={t('studio.clipDragHint')}
         accessibilityLabel={t('studio.trackOptions')}
+        delayLongPress={LIFT_DELAY_MS}
+        onLongPress={pickUp}
         onPress={onPress}
+        // Fires on lift-off and when the drag steals the gesture. The drag
+        // puts the clip down itself, so only a release without a drag is
+        // handled here.
+        onPressOut={() => {
+          if (liftedRef.current && !draggingRef.current) {
+            cancelDrag();
+          }
+        }}
         style={styles.pressArea}
       >
         <View style={styles.bars} pointerEvents="none">
@@ -180,15 +303,19 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     height: LANE_HEIGHT,
+    // Pinned to the lane origin; `posX` translates it from here. Stated
+    // explicitly rather than left to `auto` so the origin can never drift.
+    left: 0,
     overflow: 'hidden',
     position: 'absolute',
     top: 0,
   },
-  clipDragging: {
+  clipLifted: {
+    borderWidth: 2,
     shadowColor: '#000000',
-    shadowOffset: { height: 4, width: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOffset: { height: 5, width: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
   clipMuted: {
     opacity: 0.55,

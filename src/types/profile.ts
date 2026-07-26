@@ -11,7 +11,35 @@ export type ProfileProgress = {
   completedChallengeIds: string[];
   /** Lifetime count of play-along finishes with 1+ star, independent of challenge rotation. */
   totalSongCompletions: number;
+  /**
+   * How many times each tracked feature has been reached, ever.
+   *
+   * Counters only — no timestamps, no sequence, nothing about *when* or in
+   * what order. The question this answers is "which features does nobody
+   * find", which is a product question, not a surveillance one. It rides along
+   * in the row the user already syncs and that only they can read.
+   *
+   * Optional because every profile saved before this existed has no counters.
+   */
+  featureUse?: Partial<Record<TrackedFeature, number>>;
 };
+
+/**
+ * The closed set of things worth counting.
+ *
+ * Deliberately a fixed union rather than free-form strings: an open map would
+ * drift into logging whatever anyone felt like, which is exactly the line this
+ * is meant not to cross.
+ */
+export type TrackedFeature =
+  | 'tutorialOpened'
+  | 'tutorialFinished'
+  | 'studioOpened'
+  | 'drumMachineOpened'
+  | 'recordingSaved'
+  | 'songImported'
+  | 'backupExported'
+  | 'backupRestored';
 
 export type DailyChallengeKind =
   | { type: 'practice-2min'; instrument: InstrumentId }
@@ -42,4 +70,5 @@ export const EMPTY_PROFILE_PROGRESS: ProfileProgress = {
   practiceByDay: {},
   completedChallengeIds: [],
   totalSongCompletions: 0,
+  featureUse: {},
 };

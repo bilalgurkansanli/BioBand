@@ -33,6 +33,17 @@ type PianoKeyProps = {
   badgeColorLow?: string;
   badgeColorHigh?: string;
   keyColors?: PianoKeyColors;
+  /**
+   * Plays the key when a screen-reader user double-taps it.
+   *
+   * The keyboard itself is a raw multi-touch surface so that glissandi and
+   * chords work, and TalkBack/VoiceOver swallow exactly those raw touches.
+   * Making each key its own accessibility element gives a blind player a way
+   * in: swipe along the keyboard to hear the note names, double-tap to sound
+   * one. Chords and glissandi stay out of reach with a reader running — that
+   * is a limit of the gesture system, not something a label can fix.
+   */
+  onAccessibilityTap?: () => void;
 };
 
 function getOctave(noteId: string): number {
@@ -81,6 +92,7 @@ export const PianoKey = memo(function PianoKey({
   badgeColorLow = '#8BC34A',
   badgeColorHigh = '#64B5F6',
   keyColors = DEFAULT_KEY_COLORS,
+  onAccessibilityTap,
 }: PianoKeyProps) {
   const octave = getOctave(noteId);
   const showScaleTint = isInScale && !isGuide && !isDemo && !isActive;
@@ -90,6 +102,13 @@ export const PianoKey = memo(function PianoKey({
 
   return (
     <View
+      accessible
+      // Both names, always — the on-screen labels are a user preference and
+      // can be switched off entirely, but the key still has to say what it is.
+      accessibilityLabel={`${solfegeLabel} ${letterLabel}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isActive }}
+      onAccessibilityTap={onAccessibilityTap}
       pointerEvents="none"
       style={[
         styles.key,

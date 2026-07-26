@@ -36,6 +36,7 @@ import {
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 const CHORD_ACCENT = '#81C784';
 const MODE_ACCENT = colors.accent;
@@ -195,7 +196,7 @@ export function GuitarSettingsModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable
-          accessibilityRole="button"
+          {...SCREEN_READER_HIDDEN}
           onPress={onClose}
           style={styles.backdrop}
         />

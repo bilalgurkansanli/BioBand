@@ -46,6 +46,7 @@ export function ProfileScreen() {
     longestStreak,
     totalPracticeMs,
     thisWeekMs,
+    calendarWeekMs,
     weekTrendRatio,
     todayTotalMs,
     todayByInstrument,
@@ -64,6 +65,11 @@ export function ProfileScreen() {
   // Busiest instrument first — makes the breakdown read like a mini ranking
   // instead of a fixed, mostly-empty list.
   const todayByInstrumentSorted = [...todayByInstrumentAll].sort((a, b) => b.ms - a.ms);
+
+  const weeklyGoalMs = profileSettings.weeklyGoalMinutes * 60_000;
+  const weeklyGoalProgress =
+    weeklyGoalMs > 0 ? Math.min(1, calendarWeekMs / weeklyGoalMs) : 0;
+  const weeklyGoalReached = weeklyGoalMs > 0 && calendarWeekMs >= weeklyGoalMs;
 
   useFocusEffect(
     useCallback(() => {
@@ -192,6 +198,36 @@ export function ProfileScreen() {
             <Text style={styles.muted}>{t('profile.todayEmpty')}</Text>
           )}
         </Pressable>
+
+        {weeklyGoalMs > 0 ? (
+          <View style={styles.card}>
+            <View style={styles.todayHeaderRow}>
+              <Text style={styles.cardTitle}>{t('profile.weeklyGoalTitle')}</Text>
+              {weeklyGoalReached ? (
+                <Ionicons color={colors.accent} name="checkmark-circle" size={20} />
+              ) : null}
+            </View>
+            <Text style={styles.todayTime}>
+              {formatPracticeDuration(calendarWeekMs, t)}
+            </Text>
+            <View style={styles.barTrack}>
+              <View
+                style={[
+                  styles.barFill,
+                  { width: `${Math.round(weeklyGoalProgress * 100)}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.muted}>
+              {weeklyGoalReached
+                ? t('profile.weeklyGoalReached')
+                : t('profile.weeklyGoalRemaining', {
+                    remaining: formatPracticeDuration(weeklyGoalMs - calendarWeekMs, t),
+                    goal: formatPracticeDuration(weeklyGoalMs, t),
+                  })}
+            </Text>
+          </View>
+        ) : null}
 
         <Text style={styles.sectionTitle}>{t('profile.challengesTitle')}</Text>
         {challenges.map((challenge) => (

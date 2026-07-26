@@ -12,7 +12,7 @@ import { AddTrackModal } from '../components/studio/AddTrackModal';
 import { OptionListModal } from '../components/studio/OptionListModal';
 import { PickTakeModal } from '../components/studio/PickTakeModal';
 import { StudioSettingsModal, type SnapDivision } from '../components/studio/StudioSettingsModal';
-import { StudioToast } from '../components/studio/StudioToast';
+import { Toast } from '../components/Toast';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
 import { TrackSettingsModal } from '../components/studio/TrackSettingsModal';
 import { StudioTimeline } from '../components/studio/timeline/StudioTimeline';
@@ -92,6 +92,8 @@ export function StudioProjectScreen({ navigation, route }: Props) {
   const {
     job: exportJob,
     cancel: cancelExport,
+    feedback: exportFeedback,
+    dismissFeedback: dismissExportFeedback,
     share: shareTrack,
     download: downloadTrack,
   } = useRecordingActions();
@@ -433,6 +435,9 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         </Text>
 
         <Pressable
+          accessibilityLabel={playingThis ? t('studio.stop') : t('studio.play')}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: playLoading || !hasTracks }}
           disabled={playLoading || !hasTracks}
           onPress={() => {
             if (playingThis) {
@@ -684,10 +689,20 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         onToggleSnap={setSnapEnabled}
       />
 
-      <StudioToast
+      <Toast
         message={t('studio.overdubSaved')}
         onHide={() => setToastVisible(false)}
         visible={toastVisible}
+      />
+
+      {/* Export results land here too — the same hook drives track export from
+          the clip menu. */}
+      <Toast
+        detail={exportFeedback?.detail}
+        message={exportFeedback?.message ?? ''}
+        onHide={dismissExportFeedback}
+        variant={exportFeedback?.variant}
+        visible={exportFeedback !== null && !toastVisible}
       />
     </ScreenContainer>
   );

@@ -37,6 +37,7 @@ import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
 import { HorizontalSlider } from './HorizontalSlider';
 import { ModalChromeHeader } from './ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 type DifficultyFilter = 'all' | SongDifficulty;
 
@@ -356,7 +357,7 @@ export function PlayAlongModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable
-          accessibilityRole="button"
+          {...SCREEN_READER_HIDDEN}
           onPress={onClose}
           style={StyleSheet.absoluteFillObject}
         />

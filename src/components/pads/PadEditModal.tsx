@@ -36,6 +36,7 @@ import {
 import { colors } from '../../theme/colors';
 import { HorizontalSlider } from '../piano/HorizontalSlider';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 const COLOR_PALETTE = [
   '#3D8BFF',
@@ -237,7 +238,11 @@ export function PadEditModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={handleCancel}>
       {/* Dismiss layer behind the card — never wrap the card in a Pressable. */}
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={handleCancel} />
+        <Pressable
+          {...SCREEN_READER_HIDDEN}
+          style={StyleSheet.absoluteFill}
+          onPress={handleCancel}
+        />
         <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('common.cancel')}
@@ -350,6 +355,9 @@ export function PadEditModal({
               {COLOR_PALETTE.map((color) => (
                 <Pressable
                   key={color}
+                  accessibilityLabel={t('pads.editor.colorOption', { color })}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: draft.color === color }}
                   onPress={() => updateDraft({ color })}
                   style={({ pressed }) => [
                     styles.colorDot,
