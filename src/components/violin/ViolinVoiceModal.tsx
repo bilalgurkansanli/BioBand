@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { VIOLIN_VOICES, type ViolinVoiceId } from '../../instruments/violin/violinVoices';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 type ViolinVoiceModalProps = {
   visible: boolean;
@@ -26,7 +27,7 @@ export function ViolinVoiceModal({
           Pressable ancestor can claim gestures meant for the content. */}
       <View style={styles.overlay}>
         <Pressable
-          accessibilityRole="button"
+          {...SCREEN_READER_HIDDEN}
           onPress={onClose}
           style={styles.backdrop}
         />

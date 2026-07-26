@@ -242,6 +242,8 @@ export function LooperBar({
 
             {hasEvents ? (
               <Pressable
+                accessibilityLabel={t('pads.looper.clear')}
+                accessibilityRole="button"
                 onPress={onClearLayers}
                 style={({ pressed }) => [styles.layerChip, pressed && styles.pressed]}
               >

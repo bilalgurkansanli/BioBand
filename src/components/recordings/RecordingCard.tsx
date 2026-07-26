@@ -235,6 +235,10 @@ function ExportButton({
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
+      // Restores the ~44pt tap target the shorter pill gives up. Vertical
+      // only: the buttons already sit edge to edge, so widening the slop
+      // would overlap the sibling.
+      hitSlop={{ bottom: 7, top: 7 }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.exportButton,
@@ -242,7 +246,7 @@ function ExportButton({
         disabled && styles.disabled,
       ]}
     >
-      <Ionicons color={colors.text} name={icon} size={16} />
+      <Ionicons color={colors.text} name={icon} size={15} />
       <Text style={styles.exportLabel}>{label}</Text>
     </Pressable>
   );
@@ -329,19 +333,22 @@ const styles = StyleSheet.create({
   exportRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 12,
+    marginTop: 10,
   },
   exportButton: {
     alignItems: 'center',
     backgroundColor: colors.surfaceLight,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 9,
     borderWidth: 1,
     flex: 1,
     flexDirection: 'row',
     gap: 6,
     justifyContent: 'center',
-    paddingVertical: 10,
+    // Slim on purpose — these repeat on every card, and the row was eating
+    // more height than the take's own details. The hitSlop below keeps the
+    // tappable area a comfortable size even though the pill is short.
+    paddingVertical: 6,
   },
   exportLabel: {
     color: colors.text,

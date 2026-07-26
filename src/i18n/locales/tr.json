@@ -26,7 +26,9 @@
     "localDataHint": "Kayıtların, Studio projelerin ve içe aktardığın şarkılar sadece bu cihazda saklanır — buluta yedeklenmez. Sadece ilerlemen, rozetlerin ve ayarların senkronize edilir.",
     "acceptPrivacyPrefix": "",
     "acceptPrivacyLink": "Gizlilik Politikası'nı",
-    "acceptPrivacySuffix": " okudum ve kabul ediyorum."
+    "acceptPrivacySuffix": " okudum ve kabul ediyorum.",
+    "acceptPrivacyA11y": "Gizlilik politikasını kabul ediyorum",
+    "signingIn": "Giriş yapılıyor…"
   },
   "common": {
     "back": "Geri",
@@ -105,7 +107,13 @@
     "reminderHint": "Sana uygun bir saatte pratik yapman için hatırlatma al.",
     "reminderNotifTitle": "Pratik zamanı!",
     "reminderNotifBody": "Serini sürdürmek için BioBand'i aç ve kısa bir pratik yap.",
-    "reminderPermissionDenied": "BioBand için bildirimler sistem ayarlarında kapalı. Önce oradan izin vermen gerekiyor."
+    "reminderPermissionDenied": "BioBand için bildirimler sistem ayarlarında kapalı. Önce oradan izin vermen gerekiyor.",
+    "weeklyGoalTitle": "Haftalık hedef",
+    "weeklyGoalHint": "Her pazartesi sıfırlanır. Hedefe ulaşmak zorunda değilsin — yakınında olmak bile düzenli çalıştığın anlamına gelir.",
+    "weeklyGoalOption": "{{minutes}} dk",
+    "weeklyGoalOff": "Kapalı",
+    "weeklyGoalReached": "Bu haftaki hedefini tamamladın.",
+    "weeklyGoalRemaining": "{{goal}} hedefine {{remaining}} kaldı"
   },
   "instruments": {
     "title": "Enstrümanlar",
@@ -170,16 +178,17 @@
     "shareTitle": "Kaydı paylaş",
     "shareUnavailable": "Bu cihazda paylaşım kullanılamıyor.",
     "shareError": "Kayıt paylaşılamadı.",
-    "downloadSuccessTitle": "Kaydedildi",
-    "downloadSuccessDocuments": "{{fileName}} BioBand Recordings klasörüne kaydedildi.",
-    "downloadSuccessFolder": "{{fileName}} seçtiğin klasöre kaydedildi.",
+    "downloadSavedToFolder": "Seçtiğin klasöre kaydedildi",
+    "downloadSavedToDocuments": "BioBand Recordings klasörüne kaydedildi",
     "downloadError": "Kayıt indirilemedi.",
     "import": {
-      "button": "Ses dosyası yükle",
+      "button": "Dosya yükle",
       "errors": {
         "pickerUnavailable": "Bu sürümde dosya seçici yok.",
-        "unsupported": "Desteklenmeyen dosya. MP3, MP4/M4A veya WAV yükle.",
-        "readFailed": "Bu ses dosyası okunamadı."
+        "unsupported": "Sadece MP3, MID ve JSON dosyaları yüklenebilir.",
+        "readFailed": "Bu ses dosyası okunamadı.",
+        "midiBelongsToTutorial": "MIDI dosyaları bir enstrümanın Öğretici Modu’ndan yüklenir — orada hangi enstrümanla çalınacağı bellidir.",
+        "unknownJson": "Bu JSON dosyası bir BioBand yedeği değil."
       }
     },
     "localDataHint": "Kayıtlar sadece bu cihazda saklanır — buluta yedeklenmez.",
@@ -228,11 +237,12 @@
     "cancelOverdub": "Overdub'ı iptal et",
     "pickTakeRecord": "Kayıt al",
     "timelineEmpty": "Timeline'ı düzenlemeye başlamak için bir track ekle.",
-    "clipHint": "Bir klibi zamanda kaydırmak için sağa veya sola sürükle.",
+    "clipHint": "Bir klibi zamanda kaydırmak için basılı tutun ve istediğiniz yönde sürükleyin.",
     "rotateHint": "Timeline'ı kullanmak için cihazını yatay çevir.",
     "zoomIn": "Yakınlaştır",
     "zoomOut": "Uzaklaştır",
     "trackOptions": "Track seçenekleri",
+    "clipDragHint": "Taşımak için basılı tut, sonra sürükle",
     "trackDuplicate": "Track'i çoğalt",
     "volumeUp": "Sesi artır",
     "volumeDown": "Sesi azalt",
@@ -1097,7 +1107,8 @@
       "exportOpen": "Studio'yu aç",
       "removeLayerTitle": "Katmanı sil",
       "removeLayerMessage": "{{index}}. katman silinsin mi? Vuruşları kaybolur.",
-      "removeLayer": "Sil"
+      "removeLayer": "Sil",
+      "clear": "Katmanları temizle"
     },
     "editor": {
       "title": "Pad {{index}}",
@@ -1122,7 +1133,8 @@
         "b": "Grup B"
       },
       "chokeHint": "Aynı gruptaki padler birbirini susturur - açık/kapalı hi-hat gibi.",
-      "editModeBanner": "Düzenleme modu: özelleştirmek için bir pada dokun"
+      "editModeBanner": "Düzenleme modu: özelleştirmek için bir pada dokun",
+      "colorOption": "Renk {{color}}"
     }
   },
   "piano": {
@@ -1454,6 +1466,10 @@
         "body": "Kayıtların, Studio projelerin, içe aktardığın şarkılar ve oluşturduğun veya içe aktardığın herhangi bir ses yalnızca cihazında kalır. Sesini yüklemeyiz, iletmeyiz, yedeklemeyiz veya hiçbir şekilde erişimimiz olmaz. Ayrıca analiz verisi, reklam kimlikleri toplamayız veya seni diğer uygulamalarda ya da web sitelerinde takip etmeyiz."
       },
       {
+        "title": "Özellik sayaçları",
+        "body": "Giriş yaparsan profil satırın küçük bir sayaç kümesi de taşır: Öğretici Modu’nu kaç kez açtığın, kaç kez bitirdiğin, Studio ve Bateri Makinesi’ni kaç kez açtığın, kaç kayıt aldığın, kaç dosya yüklediğin, kaç kez yedek aldığın. Bunlar yalnızca toplamdır — zaman damgası yok, hangi sırayla yaptığın yok, hangi şarkı veya dosya olduğu yok. Amaçları uygulamanın hangi bölümlerinin hiç keşfedilmediğini görmek. Kendi satırında, verinin geri kalanıyla aynı korumayla saklanır. Konuk modunda sayaçlar dahil hiçbir şey yüklenmez."
+      },
+      {
         "title": "Üçüncü taraf hizmetler",
         "body": "• Google Sign-In — yalnızca kimlik doğrulama için kullanılır. Google'ın hesap verilerini nasıl işlediğini görmek için Google'ın Gizlilik Politikasına (policies.google.com/privacy) bakabilirsin.\n• Bulut veritabanımız — yukarıda açıklanan küçük ilerleme/ayar verilerini saklamak için kullandığımız üçüncü taraf bir barındırma sağlayıcısı."
       },
@@ -1536,5 +1552,57 @@
         "author": "Maya Angelou"
       }
     ]
+  },
+  "errors": {
+    "crashTitle": "Bir şeyler ters gitti",
+    "crashMessage": "BioBand beklenmedik bir sorunla karşılaştı. Kayıtların ve ilerlemen güvende.",
+    "crashRetry": "Tekrar dene",
+    "crashDetails": "Ayrıntılar",
+    "crashHideDetails": "Ayrıntıları gizle",
+    "crashShare": "Raporu paylaş",
+    "diagnosticsTitle": "Hata kayıtları",
+    "diagnosticsSubtitle": "Uygulamada bir sorun oluştuğunda buraya kaydedilir. Paylaşırsan sorunun sebebini bulmamıza yardımcı olur.",
+    "diagnosticsShare": "Paylaş",
+    "diagnosticsClear": "Temizle"
+  },
+  "onboarding": {
+    "skip": "Atla",
+    "next": "Devam",
+    "start": "Hadi başlayalım",
+    "instruments": {
+      "body": "Buradan istediğin enstrümanı açıp çalabilirsin. Öğretici Modu bir şarkıyı sana adım adım çaldırır; kendi MIDI dosyanı da yükleyebilirsin."
+    },
+    "recordings": {
+      "body": "Çaldıklarını burada dinler, indirir veya paylaşırsın. Studio sekmesinde birden fazla kaydı üst üste bindirip kendi parçanı yapabilirsin."
+    },
+    "profile": {
+      "body": "Serini, toplam pratik süreni ve rozetlerini buradan görürsün. Ayarlar da burada: dil, hatırlatıcı, yedekleme."
+    },
+    "welcome": {
+      "title": "BioBand’e hoş geldiniz",
+      "body": "İyi ki buradasın. Şimdi bir enstrüman seç ve çalmaya başla."
+    }
+  },
+  "backup": {
+    "section": "Veri",
+    "hint": "Kayıtların buluta yedeklenmez. Tüm kütüphaneni tek dosya olarak dışa aktarıp başka bir cihazda geri yükleyebilirsin.",
+    "exportAction": "Kayıtları yedekle",
+    "restoreAction": "Yedekten geri yükle",
+    "shareTitle": "Kayıt yedeğini paylaş",
+    "exportDone": "{{count}} kayıt yedeklendi",
+    "exportFailed": "Yedek oluşturulamadı.",
+    "tooLarge": "Kütüphane çok büyük ({{size}} MB). Tek dosyaya sığmıyor.",
+    "restoreDone": "{{count}} kayıt geri yüklendi",
+    "restoreSkipped": "{{count}} kayıt zaten vardı, atlandı",
+    "restoreFailed": "Yedek geri yüklenemedi.",
+    "unreadable": "Bu dosya bir BioBand yedeği değil.",
+    "pickerUnavailable": "Bu sürümde dosya seçici yok.",
+    "formatTitle": "Nasıl yedeklensin?",
+    "formatMessage": "Yedek dosyası kayıtlarını başka bir cihaza taşır. Ses dosyaları her yerde dinlenir ama uygulamaya geri yüklenemez.",
+    "formatLibrary": "Yedek dosyası (geri yüklenebilir)",
+    "formatAudio": "Ses dosyaları (geri yüklenemez)",
+    "audioDone": "{{count}} kayıt klasöre aktarıldı",
+    "audioSkipped": "{{count}} kayıt aktarılamadı",
+    "audioFailed": "Ses dosyaları aktarılamadı."
   }
 }

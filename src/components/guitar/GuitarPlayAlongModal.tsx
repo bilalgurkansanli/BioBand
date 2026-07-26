@@ -37,6 +37,7 @@ import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
 import { HorizontalSlider } from '../piano/HorizontalSlider';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 type DifficultyFilter = 'all' | GuitarSongDifficulty;
 
@@ -237,7 +238,7 @@ export function GuitarPlayAlongModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable
-          accessibilityRole="button"
+          {...SCREEN_READER_HIDDEN}
           onPress={onClose}
           style={StyleSheet.absoluteFillObject}
         />

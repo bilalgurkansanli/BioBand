@@ -26,7 +26,9 @@
     "localDataHint": "Your recordings, Studio projects, and imported songs are stored only on this device — they aren't backed up to the cloud. Only your progress, badges, and settings sync.",
     "acceptPrivacyPrefix": "I accept the ",
     "acceptPrivacyLink": "Privacy Policy",
-    "acceptPrivacySuffix": "."
+    "acceptPrivacySuffix": ".",
+    "acceptPrivacyA11y": "I accept the privacy policy",
+    "signingIn": "Signing in…"
   },
   "common": {
     "back": "Back",
@@ -105,7 +107,13 @@
     "reminderHint": "Get a nudge to practice at a time that works for you.",
     "reminderNotifTitle": "Time to practice!",
     "reminderNotifBody": "Open BioBand for a quick session and keep your streak alive.",
-    "reminderPermissionDenied": "Notifications are turned off for BioBand in system settings. Enable them there first."
+    "reminderPermissionDenied": "Notifications are turned off for BioBand in system settings. Enable them there first.",
+    "weeklyGoalTitle": "Weekly goal",
+    "weeklyGoalHint": "Resets every Monday. You do not have to hit it — coming close already means you practised regularly.",
+    "weeklyGoalOption": "{{minutes}} min",
+    "weeklyGoalOff": "Off",
+    "weeklyGoalReached": "You reached this week’s goal.",
+    "weeklyGoalRemaining": "{{remaining}} to go towards {{goal}}"
   },
   "instruments": {
     "title": "Instruments",
@@ -170,16 +178,17 @@
     "shareTitle": "Share recording",
     "shareUnavailable": "Sharing is not available on this device.",
     "shareError": "Could not share this recording.",
-    "downloadSuccessTitle": "Saved",
-    "downloadSuccessDocuments": "Saved as {{fileName}} in BioBand Recordings.",
-    "downloadSuccessFolder": "{{fileName}} was saved to the folder you picked.",
+    "downloadSavedToFolder": "Saved to the folder you picked",
+    "downloadSavedToDocuments": "Saved to the BioBand Recordings folder",
     "downloadError": "Could not download this recording.",
     "import": {
-      "button": "Import audio",
+      "button": "Import file",
       "errors": {
         "pickerUnavailable": "No file picker available in this build.",
-        "unsupported": "Unsupported file. Import an MP3, MP4/M4A, or WAV file.",
-        "readFailed": "Could not read this audio file."
+        "unsupported": "Only MP3, MID and JSON files can be imported.",
+        "readFailed": "Could not read this audio file.",
+        "midiBelongsToTutorial": "MIDI files are imported from an instrument’s Tutorial Mode, where the instrument to play them on is known.",
+        "unknownJson": "That JSON file is not a BioBand backup."
       }
     },
     "localDataHint": "Recordings are stored only on this device — they aren't backed up to the cloud.",
@@ -228,11 +237,12 @@
     "cancelOverdub": "Cancel overdub",
     "pickTakeRecord": "Record a take",
     "timelineEmpty": "Add a track to start arranging your timeline.",
-    "clipHint": "Drag a clip left or right to move it in time.",
+    "clipHint": "Hold a clip and drag it in any direction to move it in time.",
     "rotateHint": "Rotate your device to use the timeline.",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "trackOptions": "Track options",
+    "clipDragHint": "Hold to pick up, then drag to move",
     "trackDuplicate": "Duplicate track",
     "volumeUp": "Increase volume",
     "volumeDown": "Decrease volume",
@@ -1097,7 +1107,8 @@
       "exportOpen": "Open Studio",
       "removeLayerTitle": "Delete layer",
       "removeLayerMessage": "Delete layer {{index}}? Its hits are lost.",
-      "removeLayer": "Delete"
+      "removeLayer": "Delete",
+      "clear": "Clear layers"
     },
     "editor": {
       "title": "Pad {{index}}",
@@ -1122,7 +1133,8 @@
         "b": "Group B"
       },
       "chokeHint": "Pads in the same group silence each other - like open/closed hi-hats.",
-      "editModeBanner": "Edit mode: tap a pad to customize it"
+      "editModeBanner": "Edit mode: tap a pad to customize it",
+      "colorOption": "Colour {{color}}"
     }
   },
   "piano": {
@@ -1454,6 +1466,10 @@
         "body": "Your recordings, Studio projects, imported songs, and any audio you create or import stay only on your device. We do not upload, transmit, back up, or have any access to your audio. We also do not collect analytics, advertising identifiers, or track your activity in other apps or on other websites."
       },
       {
+        "title": "Feature counters",
+        "body": "If you sign in, your profile row also carries a small set of counters: how many times you have opened Tutorial Mode, finished a tutorial, opened Studio or the Drum Machine, saved a recording, imported a file, or made a backup. These are running totals only — no timestamps, no order of actions, nothing about which song or file was involved. They exist so we can see which parts of the app nobody finds. They live in your own row under the same protection as the rest of your data. In guest mode nothing is uploaded, counters included."
+      },
+      {
         "title": "Third-party services",
         "body": "• Google Sign-In — used solely for authentication. See Google's Privacy Policy (policies.google.com/privacy) for how Google handles your account data.\n• Our cloud database — a third-party hosting provider we use only to store the small progress/settings data described above."
       },
@@ -1536,5 +1552,57 @@
         "author": "Maya Angelou"
       }
     ]
+  },
+  "errors": {
+    "crashTitle": "Something went wrong",
+    "crashMessage": "BioBand hit an unexpected problem. Your recordings and progress are safe.",
+    "crashRetry": "Try again",
+    "crashDetails": "Details",
+    "crashHideDetails": "Hide details",
+    "crashShare": "Share report",
+    "diagnosticsTitle": "Error log",
+    "diagnosticsSubtitle": "Problems the app ran into are recorded here. Sharing one helps us find the cause.",
+    "diagnosticsShare": "Share",
+    "diagnosticsClear": "Clear"
+  },
+  "onboarding": {
+    "skip": "Skip",
+    "next": "Next",
+    "start": "Let’s begin",
+    "instruments": {
+      "body": "Open any instrument from here and play. Tutorial Mode walks you through a song note by note, and you can import your own MIDI files."
+    },
+    "recordings": {
+      "body": "Listen back to what you played, download it or share it. In the Studio tab you can layer several takes into a track of your own."
+    },
+    "profile": {
+      "body": "Your streak, total practice time and badges live here. So do the settings: language, reminders, backups."
+    },
+    "welcome": {
+      "title": "Welcome to BioBand",
+      "body": "We’re glad you’re here. Pick an instrument and start playing."
+    }
+  },
+  "backup": {
+    "section": "Data",
+    "hint": "Your recordings are never backed up to the cloud. Export the whole library as one file and restore it on another device.",
+    "exportAction": "Back up recordings",
+    "restoreAction": "Restore from backup",
+    "shareTitle": "Share library backup",
+    "exportDone": "{{count}} recordings backed up",
+    "exportFailed": "Could not create the backup.",
+    "tooLarge": "Library is too large ({{size}} MB) to fit in one file.",
+    "restoreDone": "{{count}} recordings restored",
+    "restoreSkipped": "{{count}} already present, skipped",
+    "restoreFailed": "Could not restore the backup.",
+    "unreadable": "That file is not a BioBand backup.",
+    "pickerUnavailable": "No file picker in this build.",
+    "formatTitle": "How should it be backed up?",
+    "formatMessage": "A backup file moves your recordings to another device. Audio files play anywhere but cannot be restored into the app.",
+    "formatLibrary": "Backup file (restorable)",
+    "formatAudio": "Audio files (not restorable)",
+    "audioDone": "{{count}} recordings written to the folder",
+    "audioSkipped": "{{count}} could not be written",
+    "audioFailed": "Could not write the audio files."
   }
 }

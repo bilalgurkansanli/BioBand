@@ -29,6 +29,7 @@ type Props = {
 // playhead columns instead of all rows × steps.
 const StepCell = memo(function StepCell({
   rowIndex,
+  rowLabel,
   stepIndex,
   level,
   isPlayhead,
@@ -37,6 +38,7 @@ const StepCell = memo(function StepCell({
   onToggleCell,
 }: {
   rowIndex: number;
+  rowLabel: string;
   stepIndex: number;
   level: number;
   isPlayhead: boolean;
@@ -48,6 +50,11 @@ const StepCell = memo(function StepCell({
   const isAccent = level >= 2;
   return (
     <Pressable
+      // A bare grid of coloured squares is unreadable without this. Naming the
+      // instrument and the step turns it into "Kick, step 3, on".
+      accessibilityLabel={`${rowLabel}, ${stepIndex + 1}`}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
       onPress={() => onToggleCell(rowIndex, stepIndex)}
       style={[
         styles.cell,
@@ -98,6 +105,8 @@ const SequencerRow = memo(function SequencerRow({
     <View style={[styles.row, muted && styles.rowMuted]}>
       <Pressable
         accessibilityLabel={t(row.labelKey)}
+        accessibilityRole="button"
+        accessibilityState={{ selected: !muted }}
         onLongPress={() => onToggleMuteRow(rowIndex)}
         onPress={() => onPreviewRow(rowIndex)}
         style={[styles.iconBtn, { borderColor: headColor }]}
@@ -124,6 +133,7 @@ const SequencerRow = memo(function SequencerRow({
               offColor={groupParity ? theme.cellOffA : theme.cellOffB}
               onToggleCell={onToggleCell}
               rowIndex={rowIndex}
+              rowLabel={t(row.labelKey)}
               stepIndex={stepIndex}
             />
           );

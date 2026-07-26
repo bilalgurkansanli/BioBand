@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 export type DrumsAmbienceId = 'dry' | 'garage' | 'studio' | 'arena';
 
@@ -68,7 +69,11 @@ export function DrumsSettingsModal({
           gesture and block the ScrollView's drag. The dismiss area is an
           absolute-fill sibling behind the card instead. */}
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          {...SCREEN_READER_HIDDEN}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
         <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('drums.settings.close')}

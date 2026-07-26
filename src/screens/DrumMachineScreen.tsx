@@ -64,6 +64,7 @@ import {
   pickDrumMachinePatternFile,
   shareDrumMachinePattern,
 } from '../utils/patternShare';
+import { recordFeatureUse } from '../storage/profileProgressStorage';
 
 const DICE_ICON: keyof typeof Ionicons.glyphMap =
   'dice' in Ionicons.glyphMap ? 'dice' : 'shuffle';
@@ -71,6 +72,12 @@ const DICE_ICON: keyof typeof Ionicons.glyphMap =
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'DrumMachine'>;
 
 export function DrumMachineScreen({ navigation }: Props) {
+  // Counted once per visit — the question is whether people find this
+  // screen at all, not how long they stay.
+  useEffect(() => {
+    void recordFeatureUse('drumMachineOpened');
+  }, []);
+
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { isPortrait } = usePianoOrientation(navigation);

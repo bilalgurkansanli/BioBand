@@ -1,13 +1,22 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { syncAfterSignIn } from '../auth/useAuthSession';
 import { signInWithApple } from '../auth/appleAuth';
 import { signInWithGoogle } from '../auth/googleAuth';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
+import { LaunchScreen } from '../components/LaunchScreen';
 import { ScreenContainer } from '../components/ScreenContainer';
 import i18n, { saveLanguage, type AppLanguage } from '../i18n';
 import { markOnboardingPromptSeen } from '../storage/appDataKeys';
@@ -92,9 +101,11 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
     return (
       <ScreenContainer style={styles.container}>
         <View style={styles.body}>
-          <View style={styles.iconWrap}>
-            <Ionicons color={colors.accent} name="musical-notes" size={40} />
-          </View>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>Welcome to BioBand</Text>
           <Text style={styles.subtitle}>Choose your language · Dilini seç · Wähle deine Sprache</Text>
 
@@ -116,12 +127,23 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
     );
   }
 
+  // Signing in means a round trip to Google or Apple and then a Supabase sync,
+  // which on a slow connection is several seconds of nothing happening. The
+  // launch screen covers it with the app's own face instead of leaving the
+  // user staring at a spinner inside a button.
+  if (signingIn) {
+    return <LaunchScreen label={t('auth.signingIn')} />;
+  }
+
   return (
     <ScreenContainer style={styles.container}>
       <View style={styles.body}>
-        <View style={styles.iconWrap}>
-          <Ionicons color={colors.accent} name="musical-notes" size={40} />
-        </View>
+        <Image
+          source={require('../../assets/logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.welcome}>{t('launch.welcome')}</Text>
         <Text style={styles.title}>{t('auth.promptTitle')}</Text>
         <Text style={styles.subtitle}>{t('auth.promptSubtitle')}</Text>
 
@@ -129,6 +151,12 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
 
         <View style={styles.acceptRow}>
           <Pressable
+            // Without this the box is a silent, stateless target — and since
+            // sign-in is gated on it, a screen-reader user could not get past
+            // this screen at all.
+            accessibilityLabel={t('auth.acceptPrivacyA11y')}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: privacyAccepted }}
             hitSlop={6}
             onPress={() => setPrivacyAccepted((prev) => !prev)}
             style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}
@@ -211,19 +239,28 @@ const styles = StyleSheet.create({
   body: {
     alignItems: 'center',
     flex: 1,
-    justifyContent: 'center',
+    // Anchored to the top rather than vertically centred: centring left the
+    // logo floating in the middle of the screen with dead space above it.
+    justifyContent: 'flex-start',
     paddingHorizontal: 8,
+    paddingTop: 12,
   },
-  iconWrap: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceLight,
-    borderColor: colors.border,
-    borderRadius: 44,
-    borderWidth: 1,
-    height: 88,
-    justifyContent: 'center',
-    marginBottom: 24,
-    width: 88,
+  logo: {
+    // The artwork is drawn on pure black while this screen is #0D0D0D, so the
+    // image's square edge is faintly visible against it. Rounding turns an
+    // accidental hard corner into a deliberate tile instead.
+    borderRadius: 34,
+    height: 172,
+    // Tight to the greeting — the two read as one unit.
+    marginBottom: 6,
+    width: 172,
+  },
+  welcome: {
+    color: colors.text,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
   },
   title: {
     color: colors.text,

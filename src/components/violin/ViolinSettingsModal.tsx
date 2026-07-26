@@ -13,6 +13,7 @@ import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import type { ViolinNoteLabelMode } from '../../storage/violinSettingsStorage';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 const NOTE_LABEL_MODES: ViolinNoteLabelMode[] = ['off', 'note', 'finger'];
 
@@ -45,7 +46,7 @@ export function ViolinSettingsModal({
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable
-          accessibilityRole="button"
+          {...SCREEN_READER_HIDDEN}
           onPress={onClose}
           style={styles.backdrop}
         />

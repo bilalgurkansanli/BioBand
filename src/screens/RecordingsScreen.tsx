@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { ExportProgressModal } from '../components/recordings/ExportProgressModa
 import { RecordingCard } from '../components/recordings/RecordingCard';
 import { ScreenContainer } from '../components/ScreenContainer';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { Toast } from '../components/Toast';
 import { StudioProjectCard } from '../components/studio/StudioProjectCard';
 import { StudioSegmentedControl } from '../components/studio/StudioSegmentedControl';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
@@ -27,6 +28,7 @@ import type { SavedRecording } from '../types/recording';
 import type { StudioProject } from '../types/studio';
 import { importAudioRecording } from '../utils/recordingImport';
 import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
+import { recordFeatureUse } from '../storage/profileProgressStorage';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'RecordingsHome'>;
 type Segment = 'takes' | 'studio';
@@ -40,10 +42,24 @@ export function RecordingsScreen({ navigation }: Props) {
   const [importing, setImporting] = useState(false);
   const { recordings, loading: takesLoading, refresh: refreshTakes } = useRecordings();
   const { playingId, loadingId, positionMs, durationMs, play, seek } = useRecordingPlayback();
-  const { busyId, job, cancel, share, download, shareProjectMix, downloadProjectMix } =
-    useRecordingActions();
+  const {
+    busyId,
+    job,
+    cancel,
+    feedback,
+    dismissFeedback,
+    share,
+    download,
+    shareProjectMix,
+    downloadProjectMix,
+  } = useRecordingActions();
   const { projects, loading: studioLoading, create, remove } = useStudioProjects();
   const [deleteProjectTarget, setDeleteProjectTarget] = useState<StudioProject | null>(null);
+
+  const [importFeedback, setImportFeedback] = useState<{
+    variant: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   const handleImport = async () => {
     setImporting(true);
@@ -51,12 +67,23 @@ export function RecordingsScreen({ navigation }: Props) {
       const result = await importAudioRecording();
       if (result.ok) {
         await refreshTakes();
+        // A restored backup deserves a word — a silently longer list looks
+        // like nothing happened.
+        if (result.kind === 'backup') {
+          setImportFeedback({
+            variant: 'success',
+            message: t('backup.restoreDone', { count: result.restored }),
+          });
+        }
         return;
       }
       if (result.code === 'canceled') {
         return;
       }
-      Alert.alert(t(`recordings.import.errors.${result.code}`));
+      setImportFeedback({
+        variant: 'error',
+        message: t(`recordings.import.errors.${result.code}`),
+      });
     } finally {
       setImporting(false);
     }
@@ -185,7 +212,10 @@ export function RecordingsScreen({ navigation }: Props) {
                   onDownloadPress={() => void downloadProjectMix(item)}
                   onSharePress={() => void shareProjectMix(item)}
                   onPress={() =>
-                    navigation.navigate('StudioProject', { projectId: item.id })
+                    {
+                      void recordFeatureUse('studioOpened');
+                      navigation.navigate('StudioProject', { projectId: item.id });
+                    }
                   }
                   project={item}
                 />
@@ -261,6 +291,21 @@ export function RecordingsScreen({ navigation }: Props) {
       />
 
       <ExportProgressModal job={job} onCancel={cancel} />
+
+      <Toast
+        message={importFeedback?.message ?? ''}
+        onHide={() => setImportFeedback(null)}
+        variant={importFeedback?.variant}
+        visible={importFeedback !== null}
+      />
+
+      <Toast
+        detail={feedback?.detail}
+        message={feedback?.message ?? ''}
+        onHide={dismissFeedback}
+        variant={feedback?.variant}
+        visible={feedback !== null}
+      />
     </ScreenContainer>
   );
 }

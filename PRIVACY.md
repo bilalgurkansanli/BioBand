@@ -20,7 +20,9 @@ This data is tied to your account and is only ever read or written by you (enfor
 
 ## What we never collect or upload
 
-Your recordings, Studio projects, imported songs, and any audio you create or import **stay only on your device**. We do not upload, transmit, back up, or have any access to your audio. We also do not collect analytics, advertising identifiers, or track your activity in other apps or on other websites.
+Your recordings, Studio projects, imported songs, and any audio you create or import **stay only on your device**. We do not upload, transmit, back up, or have any access to your audio. We do not use advertising identifiers, and we do not track your activity in other apps or on other websites. We do not use any third-party analytics service.
+
+If you sign in, your profile row additionally carries a small set of **feature counters** — how many times you have opened Tutorial Mode, finished a tutorial, opened Studio or the Drum Machine, saved a recording, imported a file, or exported/restored a backup. These are running totals only: no timestamps, no order of actions, nothing about *which* song, recording or file was involved. They exist so we can tell which parts of the app people never find, and they are stored in your own row under the same Row Level Security as the rest of your data. In guest mode nothing is uploaded, counters included.
 
 ## Third-party services
 

@@ -12,6 +12,7 @@ import {
   getPracticeMsForDays,
   getTotalPracticeMs,
   hadPracticeOnDay,
+  currentWeekKeys,
   last7DayKeys,
   loadProfileProgress,
   markChallengeComplete,
@@ -78,6 +79,9 @@ export function useProfileProgress() {
   const totalPracticeMs = getTotalPracticeMs(progress);
   const badges = useMemo(() => buildBadges(progress, totalPracticeMs), [progress, totalPracticeMs]);
   const thisWeekMs = getPracticeMsForDays(progress, weekDays);
+  // The rolling window above drives the trend arrow; the goal needs the
+  // calendar week, which is the one that resets and gives the target its edge.
+  const calendarWeekMs = getPracticeMsForDays(progress, currentWeekKeys(day));
   const lastWeekMs = getPracticeMsForDays(progress, previousWeekDays);
   const weekTrendRatio = lastWeekMs > 0 ? (thisWeekMs - lastWeekMs) / lastWeekMs : null;
 
@@ -102,6 +106,7 @@ export function useProfileProgress() {
     longestStreak: progress.longestStreak,
     totalPracticeMs,
     thisWeekMs,
+    calendarWeekMs,
     lastWeekMs,
     weekTrendRatio,
     todayTotalMs,

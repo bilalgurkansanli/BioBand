@@ -44,6 +44,7 @@ import {
   mergeSongWithAudioBinding,
   saveSongAudioBinding,
 } from '../storage/songAudioBindingsStorage';
+import { recordFeatureUse } from '../storage/profileProgressStorage';
 
 export type { PlayMode, SongScope };
 export type SupportLevel = 'guided' | 'medium' | 'free';
@@ -146,6 +147,7 @@ export function usePianoPlayAlong(
   const durationsRef = useRef<number[]>([]);
   const velocitiesRef = useRef<number[]>([]);
   const schedulerRef = useRef<SongSchedulerHandle | null>(null);
+
   const playModeRef = useRef<PlayMode | null>(null);
   const songScopeRef = useRef<SongScope | null>(null);
   const levelRef = useRef<SupportLevel>('guided');
@@ -266,6 +268,8 @@ export function usePianoPlayAlong(
       stars,
       elapsedMs: Math.min(Math.max(0, getElapsedMs()), MAX_AWARD_ELAPSED_MS),
     });
+
+    void recordFeatureUse('tutorialFinished');
 
     const timer = setTimeout(() => {
       setPhase('results');
@@ -643,6 +647,7 @@ export function usePianoPlayAlong(
   const open = useCallback(() => {
     resetWizardSong();
     setPhase('pickSong');
+    void recordFeatureUse('tutorialOpened');
   }, [resetWizardSong]);
 
   const close = useCallback(() => {

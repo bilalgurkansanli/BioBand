@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { SavedRecording } from '../types/recording';
@@ -26,9 +25,26 @@ export type ExportJob = {
   progress: number;
 };
 
+/**
+ * The result of an export, for the screen to show as a toast.
+ *
+ * Deliberately not `Alert.alert`: the system dialog is drawn by the OS in its
+ * own light-grey chrome with a teal button, which lands in the middle of a
+ * dark purple app looking like it came from a different decade. Saving a file
+ * is also not a decision — it needs no OK button, just an acknowledgement that
+ * gets out of the way on its own.
+ */
+export type ExportFeedback = {
+  variant: 'success' | 'error';
+  message: string;
+  /** Second line — the file name on success. */
+  detail?: string;
+};
+
 export function useRecordingActions() {
   const { t } = useTranslation();
   const [job, setJob] = useState<ExportJob | null>(null);
+  const [feedback, setFeedback] = useState<ExportFeedback | null>(null);
   // Read from inside the encode loop, so it has to be a ref: a state update
   // would not reach the already-running promise.
   const canceledRef = useRef(false);
@@ -48,6 +64,7 @@ export function useRecordingActions() {
       }
       runningRef.current = true;
       canceledRef.current = false;
+      setFeedback(null);
       setJob({ id, kind, progress: 0 });
       try {
         const result = await task({
@@ -60,33 +77,35 @@ export function useRecordingActions() {
         });
 
         if (result && result.status === 'saved') {
-          Alert.alert(
-            t('recordings.downloadSuccessTitle'),
-            result.location === 'folder'
-              ? t('recordings.downloadSuccessFolder', { fileName: result.fileName })
-              : t('recordings.downloadSuccessDocuments', { fileName: result.fileName }),
-          );
+          setFeedback({
+            variant: 'success',
+            message:
+              result.location === 'folder'
+                ? t('recordings.downloadSavedToFolder')
+                : t('recordings.downloadSavedToDocuments'),
+            detail: result.fileName,
+          });
         }
       } catch (error) {
         if (error instanceof EncodeCanceledError) {
           return;
         }
+        const fail = (message: string) => setFeedback({ variant: 'error', message });
+
         if (error instanceof EmptyProjectError) {
-          Alert.alert(t('studio.exportEmpty'));
+          fail(t('studio.exportEmpty'));
           return;
         }
         if (error instanceof UnrenderableRecordingError) {
-          Alert.alert(t('recordings.exportEmpty'));
+          fail(t('recordings.exportEmpty'));
           return;
         }
         const code = error instanceof Error ? error.message : '';
         if (code === 'SHARING_UNAVAILABLE') {
-          Alert.alert(t('recordings.shareUnavailable'));
+          fail(t('recordings.shareUnavailable'));
           return;
         }
-        Alert.alert(
-          kind === 'share' ? t('recordings.shareError') : t('recordings.downloadError'),
-        );
+        fail(kind === 'share' ? t('recordings.shareError') : t('recordings.downloadError'));
       } finally {
         runningRef.current = false;
         setJob(null);
@@ -127,10 +146,14 @@ export function useRecordingActions() {
     canceledRef.current = true;
   }, []);
 
+  const dismissFeedback = useCallback(() => setFeedback(null), []);
+
   return {
     busyId: job?.id ?? null,
     job,
     cancel,
+    feedback,
+    dismissFeedback,
     share,
     download,
     shareProjectMix,

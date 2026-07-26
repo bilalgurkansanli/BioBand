@@ -1,11 +1,11 @@
 import { Directory, File, Paths } from 'expo-file-system';
-import { Platform, Share } from 'react-native';
 
 import { encodeMp3Pcm16Async } from '../audio/pcmEncode';
 import { renderRecordingPcm } from '../audio/recordingRender';
 import { renderProjectPcm } from '../audio/studioProjectRender';
 import type { SavedRecording } from '../types/recording';
 import type { StudioProject } from '../types/studio';
+import { shareFile, tryExpoSharing } from './shareFile';
 
 export type ExportOptions = {
   /** 0..1 while the take is being encoded. Skipped entirely for plain copies. */
@@ -47,36 +47,71 @@ function extensionFromUri(uri: string): string {
   return match?.[1]?.toLowerCase() ?? 'm4a';
 }
 
-function buildBaseName(recording: SavedRecording): string {
-  const date = new Date(recording.createdAt);
-  const stamp = [
+/**
+ * Letters the app's three languages actually produce, folded to ASCII.
+ *
+ * Stripping non-ASCII instead would gut Turkish and German titles — "Şımarık"
+ * becomes "-m-r-k" and "Grün" becomes "gr-n". Note that `ı` does not decompose
+ * under Unicode normalisation, so a table is the only way to fold it.
+ */
+const ASCII_FOLD: Record<string, string> = {
+  ç: 'c', Ç: 'c',
+  ğ: 'g', Ğ: 'g',
+  ı: 'i', İ: 'i',
+  ö: 'o', Ö: 'o',
+  ş: 's', Ş: 's',
+  ü: 'u', Ü: 'u',
+  ä: 'a', Ä: 'a',
+  ß: 'ss',
+  â: 'a', à: 'a', á: 'a',
+  ê: 'e', è: 'e', é: 'e',
+  î: 'i', ì: 'i', í: 'i',
+  ô: 'o', ò: 'o', ó: 'o',
+  û: 'u', ù: 'u', ú: 'u',
+  ñ: 'n', Ñ: 'n',
+};
+
+/** A user-typed name turned into a safe, readable file-name segment. */
+function slugifyTitle(title: string, maxLength = 40): string {
+  const folded = Array.from(title.trim())
+    .map((char) => ASCII_FOLD[char] ?? char)
+    .join('');
+  return folded
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, maxLength)
+    .replace(/-+$/g, '');
+}
+
+function datePart(date: Date): string {
+  return [
     date.getFullYear(),
     String(date.getMonth() + 1).padStart(2, '0'),
     String(date.getDate()).padStart(2, '0'),
-    '-',
+  ].join('');
+}
+
+function timePart(date: Date): string {
+  return [
     String(date.getHours()).padStart(2, '0'),
     String(date.getMinutes()).padStart(2, '0'),
   ].join('');
-  return `bioband-${recording.instrument}-${stamp}`;
+}
+
+function buildBaseName(recording: SavedRecording): string {
+  const date = new Date(recording.createdAt);
+  // The name the user gave the take is far more use than the minute it was
+  // recorded — they already know which one "keman1" is. Untitled takes keep
+  // the clock time, which is the only thing that tells them apart.
+  const title = slugifyTitle(recording.title ?? '');
+  return `bioband-${recording.instrument}-${datePart(date)}-${title || timePart(date)}`;
 }
 
 function buildProjectBaseName(project: StudioProject): string {
   const date = new Date();
-  const stamp = [
-    date.getFullYear(),
-    String(date.getMonth() + 1).padStart(2, '0'),
-    String(date.getDate()).padStart(2, '0'),
-    '-',
-    String(date.getHours()).padStart(2, '0'),
-    String(date.getMinutes()).padStart(2, '0'),
-  ].join('');
-  const safeTitle = project.title
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 32);
-  return `bioband-${safeTitle || 'project'}-${stamp}`;
+  const title = slugifyTitle(project.title, 32);
+  return `bioband-${title || 'project'}-${datePart(date)}-${timePart(date)}`;
 }
 
 function getExportDirectory(): Directory {
@@ -109,19 +144,6 @@ function mimeTypeForAudioExt(ext: string): string {
     return 'audio/aac';
   }
   return 'audio/mp4';
-}
-
-/** Optional — only works after a native rebuild that includes expo-sharing. */
-async function tryExpoSharing() {
-  try {
-    const Sharing = await import('expo-sharing');
-    if (await Sharing.isAvailableAsync()) {
-      return Sharing;
-    }
-  } catch {
-    // Native module missing in current dev client — use RN Share / file copy.
-  }
-  return null;
 }
 
 function freshExportFile(fileName: string): File {
@@ -200,22 +222,7 @@ async function shareWithSystemSheet(
   exported: RecordingExport,
   dialogTitle: string,
 ): Promise<void> {
-  const Sharing = await tryExpoSharing();
-  if (Sharing) {
-    await Sharing.shareAsync(exported.uri, {
-      dialogTitle,
-      mimeType: exported.mimeType,
-      UTI: 'public.audio',
-    });
-    return;
-  }
-
-  // Fallback without expo-sharing native module (older dev clients).
-  await Share.share({
-    title: dialogTitle,
-    message: Platform.OS === 'android' ? exported.uri : undefined,
-    url: exported.uri,
-  });
+  await shareFile(exported.uri, exported.mimeType, dialogTitle, 'public.audio');
 }
 
 function isPickerCancellation(error: unknown): boolean {

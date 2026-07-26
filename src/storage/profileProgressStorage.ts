@@ -6,6 +6,7 @@ import {
   EMPTY_PROFILE_PROGRESS,
   type DayKey,
   type ProfileProgress,
+  type TrackedFeature,
 } from '../types/profile';
 
 const STORAGE_KEY = '@bioband/profile-progress.v1';
@@ -230,6 +231,29 @@ export function addPracticeMs(
   });
 }
 
+/**
+ * Bumps a feature counter by one.
+ *
+ * Fire-and-forget on purpose: this is diagnostics riding along with real data,
+ * and a counter that fails to save must never interrupt what the user was
+ * actually doing.
+ */
+export async function recordFeatureUse(feature: TrackedFeature): Promise<void> {
+  try {
+    // Through the same lock as every other write: two counters bumped in the
+    // same moment would otherwise read the same snapshot and one would be lost.
+    await withProgressLock(async () => {
+      const progress = await loadProfileProgress();
+      const featureUse = { ...(progress.featureUse ?? {}) };
+      featureUse[feature] = (featureUse[feature] ?? 0) + 1;
+      await persist({ ...progress, featureUse });
+      return progress;
+    });
+  } catch (error) {
+    console.warn('[profileProgress] could not record feature use', error);
+  }
+}
+
 export function markChallengeComplete(challengeId: string): Promise<ProfileProgress> {
   return withProgressLock(async () => {
     const progress = await loadProfileProgressUnlocked();
@@ -297,6 +321,24 @@ export function last7DayKeys(today: DayKey = todayKey()): DayKey[] {
 /** The 7 day keys immediately before the current 7-day window (oldest → newest). */
 export function previous7DayKeys(today: DayKey = todayKey()): DayKey[] {
   return Array.from({ length: 7 }, (_, index) => addDays(today, index - 13));
+}
+
+/**
+ * Day keys for the calendar week containing `today`, Monday first.
+ *
+ * A calendar week rather than a rolling seven days on purpose: "this week"
+ * means something specific to the person setting the goal, and the Monday
+ * reset is what makes a weekly target feel like a target rather than a
+ * running average. Monday-first because that is the week the app's languages
+ * use.
+ */
+export function currentWeekKeys(today: DayKey = todayKey()): DayKey[] {
+  const [year, month, day] = today.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  // getDay(): 0 is Sunday, so Sunday sits at the end of the week, not the start.
+  const offsetToMonday = (date.getDay() + 6) % 7;
+  const monday = addDays(today, -offsetToMonday);
+  return Array.from({ length: 7 }, (_, index) => addDays(monday, index));
 }
 
 export function hadPracticeOnDay(progress: ProfileProgress, day: DayKey): boolean {

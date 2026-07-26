@@ -22,6 +22,7 @@ import {
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 const NOTE_REPEAT_RATES: NoteRepeatRate[] = ['eighth', 'sixteenth'];
 const VELOCITY_MODES: PadVelocityMode[] = ['position', 'fixed'];
@@ -143,7 +144,11 @@ export function PadsSettingsModal({
           gesture and block the ScrollView's drag. The dismiss area is an
           absolute-fill sibling behind the card instead. */}
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          {...SCREEN_READER_HIDDEN}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
         <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('pads.settings.close')}

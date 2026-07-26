@@ -63,6 +63,11 @@ export function StudioTimeline({
   const [bodyHeight, setBodyHeight] = useState(0);
   const laneViewportHeight = Math.max(0, bodyHeight - RULER_HEIGHT);
 
+  // A lifted clip and the scroll views want the same finger movement, and the
+  // scroll view wins that fight roughly every other time — which is what made
+  // dragging a clip feel unreliable. While a clip is held, scrolling is off.
+  const [clipHeld, setClipHeld] = useState(false);
+
   const onHScroll = useMemo(
     () =>
       Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
@@ -144,6 +149,7 @@ export function StudioTimeline({
         <Animated.ScrollView
           horizontal
           onScroll={onHScroll}
+          scrollEnabled={!clipHeld}
           scrollEventThrottle={16}
           showsHorizontalScrollIndicator={false}
           style={styles.hScroll}
@@ -162,6 +168,7 @@ export function StudioTimeline({
                 onScrollBeginDrag={() => {
                   scrollOwner.current = 'lane';
                 }}
+                scrollEnabled={!clipHeld}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={tracks.length > 4}
                 style={{ height: laneViewportHeight }}
@@ -195,6 +202,7 @@ export function StudioTimeline({
                       <StudioTimelineClip
                         color={INSTRUMENT_COLORS[track.instrument]}
                         onCommitStart={(startMs) => onClipCommitStart(track.id, startMs)}
+                        onDragActiveChange={setClipHeld}
                         onPress={() => onClipPress(track)}
                         pxPerMs={pxPerMs}
                         snapMs={snapMs}

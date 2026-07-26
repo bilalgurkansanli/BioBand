@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getSelectableBankDefinitions, type PadBankId } from '../../instruments/pads/padsBanks';
 import { colors } from '../../theme/colors';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 type PadsKitModalProps = {
   visible: boolean;
@@ -25,7 +26,11 @@ export function PadsKitModal({
       {/* Dismiss area is an absolute-fill sibling behind the card — a
           Pressable ancestor would claim child gestures (see drums modals). */}
       <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable
+          {...SCREEN_READER_HIDDEN}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
         <View style={styles.card}>
           <ModalChromeHeader
             closeLabel={t('pads.banks.close')}

@@ -26,7 +26,9 @@
     "localDataHint": "Deine Aufnahmen, Studio-Projekte und importierten Lieder werden nur auf diesem Gerät gespeichert — sie werden nicht in der Cloud gesichert. Nur dein Fortschritt, deine Abzeichen und Einstellungen werden synchronisiert.",
     "acceptPrivacyPrefix": "Ich akzeptiere die ",
     "acceptPrivacyLink": "Datenschutzrichtlinie",
-    "acceptPrivacySuffix": "."
+    "acceptPrivacySuffix": ".",
+    "acceptPrivacyA11y": "Ich akzeptiere die Datenschutzerklärung",
+    "signingIn": "Anmeldung läuft…"
   },
   "common": {
     "back": "Zurück",
@@ -105,7 +107,13 @@
     "reminderHint": "Erhalte einen Hinweis, zu einer passenden Zeit zu üben.",
     "reminderNotifTitle": "Zeit zu üben!",
     "reminderNotifBody": "Öffne BioBand für eine kurze Session und halte deine Serie am Leben.",
-    "reminderPermissionDenied": "Benachrichtigungen sind für BioBand in den Systemeinstellungen deaktiviert. Aktiviere sie dort zuerst."
+    "reminderPermissionDenied": "Benachrichtigungen sind für BioBand in den Systemeinstellungen deaktiviert. Aktiviere sie dort zuerst.",
+    "weeklyGoalTitle": "Wochenziel",
+    "weeklyGoalHint": "Wird jeden Montag zurückgesetzt. Du musst es nicht erreichen — schon nah dranzukommen heißt, dass du regelmäßig geübt hast.",
+    "weeklyGoalOption": "{{minutes}} Min.",
+    "weeklyGoalOff": "Aus",
+    "weeklyGoalReached": "Du hast dein Wochenziel erreicht.",
+    "weeklyGoalRemaining": "Noch {{remaining}} bis {{goal}}"
   },
   "instruments": {
     "title": "Instrumente",
@@ -170,16 +178,17 @@
     "shareTitle": "Aufnahme teilen",
     "shareUnavailable": "Teilen ist auf diesem Gerät nicht verfügbar.",
     "shareError": "Diese Aufnahme konnte nicht geteilt werden.",
-    "downloadSuccessTitle": "Gespeichert",
-    "downloadSuccessDocuments": "Als {{fileName}} in BioBand Recordings gespeichert.",
-    "downloadSuccessFolder": "{{fileName}} wurde im gewählten Ordner gespeichert.",
+    "downloadSavedToFolder": "Im gewählten Ordner gespeichert",
+    "downloadSavedToDocuments": "Im Ordner „BioBand Recordings“ gespeichert",
     "downloadError": "Diese Aufnahme konnte nicht heruntergeladen werden.",
     "import": {
-      "button": "Audio importieren",
+      "button": "Datei importieren",
       "errors": {
         "pickerUnavailable": "In diesem Build ist keine Dateiauswahl verfügbar.",
-        "unsupported": "Nicht unterstützte Datei. Importiere eine MP3-, MP4/M4A- oder WAV-Datei.",
-        "readFailed": "Diese Audiodatei konnte nicht gelesen werden."
+        "unsupported": "Es können nur MP3-, MID- und JSON-Dateien importiert werden.",
+        "readFailed": "Diese Audiodatei konnte nicht gelesen werden.",
+        "midiBelongsToTutorial": "MIDI-Dateien werden im Lernmodus eines Instruments importiert, wo feststeht, womit sie gespielt werden.",
+        "unknownJson": "Diese JSON-Datei ist keine BioBand-Sicherung."
       }
     },
     "localDataHint": "Aufnahmen werden nur auf diesem Gerät gespeichert — sie werden nicht in der Cloud gesichert.",
@@ -228,11 +237,12 @@
     "cancelOverdub": "Overdub abbrechen",
     "pickTakeRecord": "Aufnahme machen",
     "timelineEmpty": "Füge eine Spur hinzu, um deine Timeline zu arrangieren.",
-    "clipHint": "Ziehe einen Clip nach links oder rechts, um ihn zeitlich zu verschieben.",
+    "clipHint": "Halte einen Clip gedrückt und ziehe ihn in eine beliebige Richtung, um ihn zeitlich zu verschieben.",
     "rotateHint": "Drehe dein Gerät, um die Timeline zu nutzen.",
     "zoomIn": "Vergrößern",
     "zoomOut": "Verkleinern",
     "trackOptions": "Spuroptionen",
+    "clipDragHint": "Zum Verschieben gedrückt halten, dann ziehen",
     "trackDuplicate": "Spur duplizieren",
     "volumeUp": "Lautstärke erhöhen",
     "volumeDown": "Lautstärke verringern",
@@ -1097,7 +1107,8 @@
       "exportOpen": "Studio öffnen",
       "removeLayerTitle": "Ebene löschen",
       "removeLayerMessage": "Ebene {{index}} löschen? Ihre Schläge gehen verloren.",
-      "removeLayer": "Löschen"
+      "removeLayer": "Löschen",
+      "clear": "Ebenen löschen"
     },
     "editor": {
       "title": "Pad {{index}}",
@@ -1122,7 +1133,8 @@
         "b": "Gruppe B"
       },
       "chokeHint": "Pads in derselben Gruppe stummen sich gegenseitig — wie offene/geschlossene Hi-Hats.",
-      "editModeBanner": "Bearbeitungsmodus: Tippe ein Pad an, um es anzupassen"
+      "editModeBanner": "Bearbeitungsmodus: Tippe ein Pad an, um es anzupassen",
+      "colorOption": "Farbe {{color}}"
     }
   },
   "piano": {
@@ -1454,6 +1466,10 @@
         "body": "Deine Aufnahmen, Studio-Projekte, importierten Songs und jegliches von dir erstelltes oder importiertes Audio bleiben ausschließlich auf deinem Gerät. Wir laden dein Audio nicht hoch, übertragen, sichern es nicht und haben keinerlei Zugriff darauf. Wir sammeln außerdem keine Analysedaten, Werbekennungen und verfolgen deine Aktivität nicht in anderen Apps oder auf anderen Websites."
       },
       {
+        "title": "Funktionszähler",
+        "body": "Wenn du dich anmeldest, enthält deine Profilzeile zusätzlich einige Zähler: wie oft du den Lernmodus geöffnet, einen Kurs beendet, Studio oder die Drum Machine geöffnet, eine Aufnahme gespeichert, eine Datei importiert oder eine Sicherung erstellt hast. Das sind reine Gesamtzahlen — keine Zeitstempel, keine Reihenfolge, nichts darüber, welches Lied oder welche Datei betroffen war. Sie zeigen uns, welche Teile der App niemand findet. Sie liegen in deiner eigenen Zeile unter demselben Schutz wie deine übrigen Daten. Im Gastmodus wird nichts hochgeladen, auch keine Zähler."
+      },
+      {
         "title": "Drittanbieterdienste",
         "body": "• Google Sign-In — wird ausschließlich zur Authentifizierung verwendet. Siehe die Datenschutzrichtlinie von Google (policies.google.com/privacy) für den Umgang mit deinen Kontodaten.\n• Unsere Cloud-Datenbank — ein externer Hosting-Anbieter, den wir nur zur Speicherung der oben beschriebenen kleinen Fortschritts-/Einstellungsdaten verwenden."
       },
@@ -1536,5 +1552,57 @@
         "author": "Maya Angelou"
       }
     ]
+  },
+  "errors": {
+    "crashTitle": "Etwas ist schiefgelaufen",
+    "crashMessage": "BioBand ist auf ein unerwartetes Problem gestoßen. Deine Aufnahmen und Fortschritte sind sicher.",
+    "crashRetry": "Erneut versuchen",
+    "crashDetails": "Details",
+    "crashHideDetails": "Details ausblenden",
+    "crashShare": "Bericht teilen",
+    "diagnosticsTitle": "Fehlerprotokoll",
+    "diagnosticsSubtitle": "Aufgetretene Probleme werden hier festgehalten. Wenn du eines teilst, hilft das bei der Ursachensuche.",
+    "diagnosticsShare": "Teilen",
+    "diagnosticsClear": "Löschen"
+  },
+  "onboarding": {
+    "skip": "Überspringen",
+    "next": "Weiter",
+    "start": "Los geht’s",
+    "instruments": {
+      "body": "Hier öffnest du jedes Instrument und spielst los. Der Lernmodus führt dich Note für Note durch ein Lied, und du kannst eigene MIDI-Dateien laden."
+    },
+    "recordings": {
+      "body": "Hör dir an, was du gespielt hast, lade es herunter oder teile es. Im Studio-Tab legst du mehrere Aufnahmen zu einem eigenen Stück übereinander."
+    },
+    "profile": {
+      "body": "Deine Serie, deine gesamte Übungszeit und deine Abzeichen findest du hier. Ebenso die Einstellungen: Sprache, Erinnerungen, Sicherungen."
+    },
+    "welcome": {
+      "title": "Willkommen bei BioBand",
+      "body": "Schön, dass du da bist. Wähle ein Instrument und leg los."
+    }
+  },
+  "backup": {
+    "section": "Daten",
+    "hint": "Deine Aufnahmen werden nicht in der Cloud gesichert. Exportiere die ganze Bibliothek als eine Datei und stelle sie auf einem anderen Gerät wieder her.",
+    "exportAction": "Aufnahmen sichern",
+    "restoreAction": "Aus Sicherung wiederherstellen",
+    "shareTitle": "Bibliothekssicherung teilen",
+    "exportDone": "{{count}} Aufnahmen gesichert",
+    "exportFailed": "Sicherung konnte nicht erstellt werden.",
+    "tooLarge": "Bibliothek ist zu groß ({{size}} MB) für eine einzelne Datei.",
+    "restoreDone": "{{count}} Aufnahmen wiederhergestellt",
+    "restoreSkipped": "{{count}} bereits vorhanden, übersprungen",
+    "restoreFailed": "Sicherung konnte nicht wiederhergestellt werden.",
+    "unreadable": "Diese Datei ist keine BioBand-Sicherung.",
+    "pickerUnavailable": "In diesem Build gibt es keine Dateiauswahl.",
+    "formatTitle": "Wie soll gesichert werden?",
+    "formatMessage": "Eine Sicherungsdatei überträgt deine Aufnahmen auf ein anderes Gerät. Audiodateien lassen sich überall abspielen, aber nicht in die App zurückholen.",
+    "formatLibrary": "Sicherungsdatei (wiederherstellbar)",
+    "formatAudio": "Audiodateien (nicht wiederherstellbar)",
+    "audioDone": "{{count}} Aufnahmen in den Ordner geschrieben",
+    "audioSkipped": "{{count}} konnten nicht geschrieben werden",
+    "audioFailed": "Audiodateien konnten nicht geschrieben werden."
   }
 }

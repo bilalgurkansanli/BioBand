@@ -36,6 +36,7 @@ import { colors } from '../../theme/colors';
 import { isDocumentPickerAvailable } from '../../utils/documentPicker';
 import { HorizontalSlider } from '../piano/HorizontalSlider';
 import { ModalChromeHeader } from '../piano/ModalChromeHeader';
+import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
 
 type DifficultyFilter = 'all' | PadSongDifficulty;
 
@@ -251,7 +252,7 @@ export function PadsPlayAlongModal({
     >
       <View style={styles.overlay}>
         <Pressable
-          accessibilityRole="button"
+          {...SCREEN_READER_HIDDEN}
           onPress={onClose}
           style={StyleSheet.absoluteFillObject}
         />
