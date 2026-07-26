@@ -22,6 +22,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { configureNotificationHandler } from './src/notifications/practiceReminder';
 import { AuthPromptScreen } from './src/screens/AuthPromptScreen';
 import { hasSeenOnboarding, markOnboardingSeen } from './src/storage/onboardingStorage';
+import { migrateRecordingAudioToDocuments } from './src/storage/recordingsStorage';
 import { startAppDataAutoSync, stopAppDataAutoSync } from './src/supabase/appDataSync';
 import { configureSystemUi, startSystemUiSync } from './src/system/configureSystemUi';
 import { colors } from './src/theme/colors';
@@ -98,9 +99,14 @@ function AppRoot() {
       // each other, and overlapping them keeps the launch screen short.
       .then(() =>
         Promise.all([
-          bootstrapAuthAndData().then((result) =>
-            setShowAuthPrompt(result.showAuthPrompt),
-          ),
+          bootstrapAuthAndData().then((result) => {
+            setShowAuthPrompt(result.showAuthPrompt);
+            // Takes recorded before mic audio was copied into Documents still
+            // point at the OS cache. Runs after the bootstrap (which may pull
+            // cloud data over local storage) and while the launch screen is
+            // up, so nothing else is writing the takes list.
+            return migrateRecordingAudioToDocuments();
+          }),
           hasSeenOnboarding().then((seen) => setShowOnboarding(!seen)),
           preloadInstruments((progress) => setInstrumentsLoaded(progress.loaded)),
         ]),

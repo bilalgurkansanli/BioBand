@@ -35,8 +35,13 @@ type Props = {
   /** Grid quantize step (ms) applied when a drag is released. */
   snapMs: number;
   color: string;
-  onCommitStart: (startMs: number) => void;
-  onPress: () => void;
+  /**
+   * Both take the clip's own track back rather than being closed over it, so
+   * the lane can hand every clip the same two handlers — a per-clip arrow
+   * changes identity on every parent render and defeats the memo below.
+   */
+  onCommitStart: (trackId: string, startMs: number) => void;
+  onPress: (track: StudioTrack) => void;
   /**
    * Fires as soon as the clip is picked up, and again when it is put down.
    * The timeline freezes its scroll views in between — otherwise the
@@ -125,11 +130,13 @@ function StudioTimelineClipBase({
   // termination would read as "finger lifted" and drop the clip back home in
   // the middle of the drag.
   const draggingRef = useRef(false);
+  const trackIdRef = useRef(track.id);
   const startMsRef = useRef(startMs);
   const pxPerMsRef = useRef(pxPerMs);
   const snapMsRef = useRef(snapMs);
   const onCommitRef = useRef(onCommitStart);
   const onDragActiveRef = useRef(onDragActiveChange);
+  trackIdRef.current = track.id;
   startMsRef.current = startMs;
   pxPerMsRef.current = pxPerMs;
   snapMsRef.current = snapMs;
@@ -194,6 +201,8 @@ function StudioTimelineClipBase({
     [track.id, track.mode, track.events, barCount],
   );
 
+  const handlePress = useCallback(() => onPress(track), [onPress, track]);
+
   const claimDrag = useCallback((dx: number) => {
     if (!liftedRef.current || Math.abs(dx) <= DRAG_THRESHOLD) {
       return false;
@@ -226,7 +235,7 @@ function StudioTimelineClipBase({
           // commit below only writes it down; nothing further moves the clip.
           posX.setValue(next * pxPerMsRef.current);
           putDown();
-          onCommitRef.current(next);
+          onCommitRef.current(trackIdRef.current, next);
         },
         onPanResponderTerminate: cancelDrag,
         // Nothing above us should be able to take a drag back mid-flight.
@@ -263,7 +272,7 @@ function StudioTimelineClipBase({
         accessibilityLabel={t('studio.trackOptions')}
         delayLongPress={LIFT_DELAY_MS}
         onLongPress={pickUp}
-        onPress={onPress}
+        onPress={handlePress}
         // Fires on lift-off and when the drag steals the gesture. The drag
         // puts the clip down itself, so only a release without a drag is
         // handled here.

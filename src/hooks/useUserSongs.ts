@@ -20,7 +20,7 @@ import {
   type UserSongSource,
 } from '../storage/userSongsStorage';
 import {
-  pickAudioDocument,
+  pickBackingAudioDocument,
   pickChartDocument,
 } from '../utils/documentPicker';
 
@@ -188,7 +188,10 @@ export function useUserSongs() {
 
       setImporting(true);
       try {
-        const picked = await pickAudioDocument();
+        // Audio only: this replaces the song's backing track, and a MIDI or
+        // JSON pick would overwrite a working track with something the player
+        // cannot decode.
+        const picked = await pickBackingAudioDocument();
         if (!picked.ok) {
           return { ok: false, code: picked.code };
         }

@@ -94,7 +94,9 @@ export function TrackSettingsModal({
               >
               <View style={styles.volumeHeader}>
                 <Text style={styles.sectionLabel}>{t('studio.volume')}</Text>
-                <Text style={styles.volumeValue}>{Math.round(liveVolume * 100)}%</Text>
+                <Text style={styles.volumeValue}>
+                  {t('common.percent', { percent: Math.round(liveVolume * 100) })}
+                </Text>
               </View>
 
               <View style={styles.volumeRow}>

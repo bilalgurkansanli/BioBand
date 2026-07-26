@@ -1,6 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { SavedRecording } from '../types/recording';
+import {
+  deleteRecordingAudio,
+  migrateCachedRecordingAudio,
+} from './recordingAudioStorage';
 
 const STORAGE_KEY = '@bioband/recordings';
 
@@ -50,10 +54,28 @@ export async function loadRecordings(): Promise<SavedRecording[]> {
 
 export async function deleteRecording(recordingId: string): Promise<void> {
   const existing = await loadRecordings();
+  const removed = existing.find((entry) => entry.id === recordingId);
+  if (removed?.audioUri) {
+    // Each take owns its copied audio file (Studio tracks get their own copy),
+    // so dropping the entry without this would leak the file forever.
+    deleteRecordingAudio(removed.audioUri);
+  }
   await AsyncStorage.setItem(
     STORAGE_KEY,
     JSON.stringify(existing.filter((entry) => entry.id !== recordingId)),
   );
+}
+
+/**
+ * One-shot rescue at startup for takes recorded before mic audio was copied
+ * into Documents. Must not run while the takes list is being edited — the
+ * read-modify-write below would clobber a concurrent delete.
+ */
+export async function migrateRecordingAudioToDocuments(): Promise<void> {
+  const migrated = migrateCachedRecordingAudio(await loadRecordings());
+  if (migrated) {
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+  }
 }
 
 export async function renameRecording(

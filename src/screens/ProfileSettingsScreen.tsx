@@ -17,6 +17,8 @@ import { useTranslation } from 'react-i18next';
 
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { CrashLogModal } from '../components/CrashLogModal';
+import { DeleteAccountModal } from '../components/DeleteAccountModal';
+import { TimePickerModal } from '../components/TimePickerModal';
 import { OptionListModal } from '../components/studio/OptionListModal';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -25,6 +27,12 @@ import { Toast } from '../components/Toast';
 import { loadCrashLog } from '../diagnostics/crashLog';
 import { useLibraryBackup } from '../hooks/useLibraryBackup';
 import { signInWithApple } from '../auth/appleAuth';
+import { deleteAccount } from '../auth/deleteAccount';
+import {
+  DEFAULT_RECORDING_UI_SETTINGS,
+  loadRecordingSettings,
+  saveRecordingSettings,
+} from '../storage/recordingSettingsStorage';
 import { signInWithGoogle } from '../auth/googleAuth';
 import { syncAfterSignIn, useAuthSession } from '../auth/useAuthSession';
 import { ProfileAvatar } from '../components/ProfileAvatar';
@@ -54,10 +62,10 @@ import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
 type Props = NativeStackScreenProps<ProfileStackParamList, 'ProfileSettings'>;
 
 const INSTRUMENTS: InstrumentId[] = ['piano', 'drums', 'guitar', 'violin', 'pads'];
-const REMINDER_HOURS = [7, 8, 12, 17, 19, 20, 21, 22];
 
-function formatHourLabel(hour: number): string {
-  return `${hour < 10 ? `0${hour}` : hour}:00`;
+function formatTimeLabel(hour: number, minute: number): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${pad(hour)}:${pad(minute)}`;
 }
 
 export function ProfileSettingsScreen({ navigation }: Props) {
@@ -71,6 +79,9 @@ export function ProfileSettingsScreen({ navigation }: Props) {
   const [reminderPermissionDenied, setReminderPermissionDenied] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
   const [signOutConfirmVisible, setSignOutConfirmVisible] = useState(false);
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountErrorKey, setDeleteAccountErrorKey] = useState<string | null>(null);
   const [crashCount, setCrashCount] = useState(0);
   const [crashLogVisible, setCrashLogVisible] = useState(false);
   const {
@@ -82,6 +93,22 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     restore,
   } = useLibraryBackup();
   const [backupFormatVisible, setBackupFormatVisible] = useState(false);
+  const [timePickerVisible, setTimePickerVisible] = useState(false);
+  const [countInEnabled, setCountInEnabled] = useState(
+    DEFAULT_RECORDING_UI_SETTINGS.countInEnabled,
+  );
+
+  useEffect(() => {
+    let active = true;
+    void loadRecordingSettings().then((settings) => {
+      if (active) {
+        setCountInEnabled(settings.countInEnabled);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [privacyVisible, setPrivacyVisible] = useState(false);
   const currentLang: AppLanguage =
     i18n.language === 'tr' ? 'tr' : i18n.language === 'de' ? 'de' : 'en';
@@ -122,6 +149,24 @@ export function ProfileSettingsScreen({ navigation }: Props) {
       setSigningIn(false);
     }
   }, []);
+
+  const handleDeleteAccount = useCallback(async () => {
+    setDeleteAccountErrorKey(null);
+    setDeletingAccount(true);
+    try {
+      const result = await deleteAccount(signOut);
+      if (result.ok) {
+        // The sign-out inside deleteAccount remounts the navigation tree, so
+        // there is no screen left to close — just leave the sheet shut in case
+        // this one is still mounted when the remount lands.
+        setDeleteAccountVisible(false);
+        return;
+      }
+      setDeleteAccountErrorKey(`auth.deleteAccountErrors.${result.code}`);
+    } finally {
+      setDeletingAccount(false);
+    }
+  }, [signOut]);
 
   // Only the count is needed here — the records themselves are read when the
   // sheet actually opens.
@@ -184,8 +229,8 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     await cancelDailyPracticeReminder();
   };
 
-  const onSelectReminderHour = async (hour: number) => {
-    const next = { ...reminder, hour, minute: 0 };
+  const onSelectReminderTime = async (hour: number, minute: number) => {
+    const next = { ...reminder, hour, minute };
     await persistReminder(next);
     if (next.enabled) {
       await scheduleDailyPracticeReminder(
@@ -260,6 +305,20 @@ export function ProfileSettingsScreen({ navigation }: Props) {
                 </View>
                 <Text style={styles.signOutBtnText}>{t('auth.signOut')}</Text>
                 <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+              </Pressable>
+              {/* Deliberately plainer than the sign-out button above: store
+                  policy requires this path to exist and be findable, not to
+                  compete with the action almost everyone actually wants. */}
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setDeleteAccountErrorKey(null);
+                  setDeleteAccountVisible(true);
+                }}
+                style={({ pressed }) => [styles.deleteAccountRow, pressed && styles.pressed]}
+              >
+                <Ionicons color={colors.error} name="trash-outline" size={15} />
+                <Text style={styles.deleteAccountText}>{t('auth.deleteAccount')}</Text>
               </Pressable>
             </>
           ) : (
@@ -367,6 +426,25 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <Text style={styles.sectionLabel}>{t('profile.recordingTitle')}</Text>
+        <View style={styles.card}>
+          <View style={styles.reminderToggleRow}>
+            <View style={styles.flex}>
+              <Text style={styles.fieldLabel}>{t('profile.countInEnable')}</Text>
+              <Text style={styles.hint}>{t('profile.countInHint')}</Text>
+            </View>
+            <Switch
+              onValueChange={(value) => {
+                setCountInEnabled(value);
+                void saveRecordingSettings({ countInEnabled: value });
+              }}
+              thumbColor="#FFFFFF"
+              trackColor={{ false: colors.surfaceLight, true: colors.accent }}
+              value={countInEnabled}
+            />
+          </View>
+        </View>
+
         <Text style={styles.sectionLabel}>{t('profile.reminderTitle')}</Text>
         <View style={styles.card}>
           <View style={styles.reminderToggleRow}>
@@ -382,16 +460,19 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             />
           </View>
           {reminder.enabled ? (
-            <View style={styles.chipWrap}>
-              {REMINDER_HOURS.map((hour) => (
-                <Chip
-                  active={reminder.hour === hour}
-                  key={hour}
-                  label={formatHourLabel(hour)}
-                  onPress={() => void onSelectReminderHour(hour)}
-                />
-              ))}
-            </View>
+            <Pressable
+              accessibilityLabel={t('profile.reminderTimeTitle')}
+              accessibilityRole="button"
+              onPress={() => setTimePickerVisible(true)}
+              style={({ pressed }) => [styles.reminderTimeRow, pressed && styles.pressed]}
+            >
+              <Ionicons color={colors.textSecondary} name="time-outline" size={18} />
+              <Text style={styles.reminderTimeLabel}>{t('profile.reminderTimeLabel')}</Text>
+              <Text style={styles.reminderTimeValue}>
+                {formatTimeLabel(reminder.hour, reminder.minute)}
+              </Text>
+              <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+            </Pressable>
           ) : null}
           {reminderPermissionDenied ? (
             <Text style={styles.reminderWarning}>
@@ -437,7 +518,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <Text style={styles.privacyRowText}>{t('backup.exportAction')}</Text>
             {backupJob?.kind === 'export' || backupJob?.kind === 'audio' ? (
               <Text style={styles.backupProgress}>
-                %{Math.round(backupJob.progress * 100)}
+                {t('common.percent', { percent: Math.round(backupJob.progress * 100) })}
               </Text>
             ) : (
               <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
@@ -458,7 +539,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <Text style={styles.privacyRowText}>{t('backup.restoreAction')}</Text>
             {backupJob?.kind === 'restore' ? (
               <Text style={styles.backupProgress}>
-                %{Math.round(backupJob.progress * 100)}
+                {t('common.percent', { percent: Math.round(backupJob.progress * 100) })}
               </Text>
             ) : (
               <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
@@ -496,6 +577,17 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           ) : null}
         </View>
       </ScrollView>
+
+      <TimePickerModal
+        hour={reminder.hour}
+        minute={reminder.minute}
+        visible={timePickerVisible}
+        onCancel={() => setTimePickerVisible(false)}
+        onConfirm={(hour, minute) => {
+          setTimePickerVisible(false);
+          void onSelectReminderTime(hour, minute);
+        }}
+      />
 
       <CrashLogModal
         visible={crashLogVisible}
@@ -542,6 +634,14 @@ export function ProfileSettingsScreen({ navigation }: Props) {
           setSignOutConfirmVisible(false);
           void signOut();
         }}
+      />
+
+      <DeleteAccountModal
+        busy={deletingAccount}
+        errorMessage={deleteAccountErrorKey ? t(deleteAccountErrorKey) : null}
+        visible={deleteAccountVisible}
+        onCancel={() => setDeleteAccountVisible(false)}
+        onConfirm={() => void handleDeleteAccount()}
       />
 
       <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
@@ -689,6 +789,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  deleteAccountRow: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 4,
+  },
+  deleteAccountText: {
+    color: colors.error,
+    fontSize: 13,
+    fontWeight: '600',
+  },
   privacyRow: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -824,6 +937,30 @@ const styles = StyleSheet.create({
   },
   avatarPreviewInput: {
     flex: 1,
+  },
+  reminderTimeRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  reminderTimeLabel: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reminderTimeValue: {
+    color: colors.accent,
+    fontSize: 17,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
   },
   chipWrap: {
     flexDirection: 'row',

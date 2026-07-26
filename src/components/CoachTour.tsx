@@ -19,7 +19,7 @@ type Props = {
 /** Tab index each step points at; the last step points at nothing. */
 const STEPS = [
   { key: 'instruments', tabIndex: 0, icon: 'musical-notes' },
-  { key: 'recordings', tabIndex: 1, icon: 'recording' },
+  { key: 'recordings', tabIndex: 1, icon: 'albums' },
   { key: 'profile', tabIndex: 2, icon: 'person-circle' },
   { key: 'welcome', tabIndex: null, icon: null },
 ] as const;

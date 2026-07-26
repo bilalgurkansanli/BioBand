@@ -1,6 +1,7 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import type { NoteId } from '../../instruments/piano/pianoNotes';
 import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
 import type { PianoLabelMode } from '../../storage/pianoSettingsStorage';
 import { colors } from '../../theme/colors';
@@ -17,7 +18,7 @@ const DEFAULT_KEY_COLORS: PianoKeyColors = {
 };
 
 type PianoKeyProps = {
-  noteId: string;
+  noteId: NoteId;
   letterLabel: string;
   solfegeLabel: string;
   isBlackKey: boolean;
@@ -42,11 +43,15 @@ type PianoKeyProps = {
    * in: swipe along the keyboard to hear the note names, double-tap to sound
    * one. Chords and glissandi stay out of reach with a reader running — that
    * is a limit of the gesture system, not something a label can fix.
+   *
+   * Takes the note back rather than closing over it, so the keyboard can hand
+   * every key the same handler instead of a fresh arrow per render — an
+   * unstable callback here defeats the memo below for all 24 keys.
    */
-  onAccessibilityTap?: () => void;
+  onAccessibilityTap?: (noteId: NoteId) => void;
 };
 
-function getOctave(noteId: string): number {
+function getOctave(noteId: NoteId): number {
   const match = noteId.match(/(\d+)$/);
   return match ? Number(match[1]) : 4;
 }
@@ -73,9 +78,10 @@ function getLabelBadgeStyle(
 
 /**
  * Memoised: the screen re-renders on every progress tick, tone nudge and
- * settings change, and without this all 24 keys were rebuilt each time. The key
- * takes no callbacks and `pointerEvents` is off — touches are handled by the
- * keyboard — so a key only needs redrawing when its own state or size changes.
+ * settings change, and without this all 24 keys were rebuilt each time. Its
+ * only callback is the accessibility tap, which is shared by every key, and
+ * `pointerEvents` is off — touches are handled by the keyboard — so a key only
+ * needs redrawing when its own state or size changes.
  */
 export const PianoKey = memo(function PianoKey({
   noteId,
@@ -94,6 +100,10 @@ export const PianoKey = memo(function PianoKey({
   keyColors = DEFAULT_KEY_COLORS,
   onAccessibilityTap,
 }: PianoKeyProps) {
+  const handleAccessibilityTap = useCallback(() => {
+    onAccessibilityTap?.(noteId);
+  }, [noteId, onAccessibilityTap]);
+
   const octave = getOctave(noteId);
   const showScaleTint = isInScale && !isGuide && !isDemo && !isActive;
   const showSolfege = labelMode === 'both' || labelMode === 'solfege';
@@ -108,7 +118,7 @@ export const PianoKey = memo(function PianoKey({
       accessibilityLabel={`${solfegeLabel} ${letterLabel}`}
       accessibilityRole="button"
       accessibilityState={{ selected: isActive }}
-      onAccessibilityTap={onAccessibilityTap}
+      onAccessibilityTap={handleAccessibilityTap}
       pointerEvents="none"
       style={[
         styles.key,

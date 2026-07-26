@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -114,6 +115,16 @@ export function DrumsScreen({ navigation }: Props) {
 
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [metronomeModalVisible, setMetronomeModalVisible] = useState(false);
+
+  // Blur releases the engine, which stops the metronome — reset the toolbar
+  // state on the way back in, or the button is left reading "on" while nothing
+  // is ticking.
+  useFocusEffect(
+    useCallback(() => {
+      setMetronomeOn(false);
+      setMetronomeModalVisible(false);
+    }, []),
+  );
   const [metronomeBpm, setMetronomeBpmState] = useState(
     () => getMetronomeBpm() || METRONOME_BPM_DEFAULT,
   );
@@ -146,8 +157,10 @@ export function DrumsScreen({ navigation }: Props) {
     studioArmed,
     studioProjectTitle,
     countdown,
+    countInBeat,
     cancelStudioOverdub,
     recordModePicker,
+    recordSavedToast,
   } = useInstrumentRecording('drums');
   const { isPortrait } = usePianoOrientation(navigation);
 
@@ -366,10 +379,15 @@ export function DrumsScreen({ navigation }: Props) {
           onCancel={cancelStudioOverdub}
         />
       ) : (
-        <RecordingBanner isRecording={isRecording} mode={mode} />
+        <RecordingBanner
+          countInBeat={countInBeat}
+          isRecording={isRecording}
+          mode={mode}
+        />
       )}
 
       {recordModePicker}
+      {recordSavedToast}
 
       <DrumsPlayAlongHud
         countdownValue={playAlong.countdownValue}

@@ -1,12 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
+import { acquireEngine, releaseEngine } from '../audio/engineRegistry';
 import {
-  initPianoEngine,
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
   playNote as enginePlayNote,
-  releasePianoEngine,
   setPianoToneOffset,
   setPianoVoice,
   setSustainPedal as engineSetSustainPedal,
@@ -36,7 +35,7 @@ export function usePianoEngine(
       setReady(false);
       setError(null);
 
-      initPianoEngine()
+      acquireEngine('piano')
         .then(() => {
           if (active) {
             setReady(true);
@@ -52,7 +51,7 @@ export function usePianoEngine(
 
       return () => {
         active = false;
-        releasePianoEngine();
+        releaseEngine('piano');
         setReady(false);
       };
     }, []),

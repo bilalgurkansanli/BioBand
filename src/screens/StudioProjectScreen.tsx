@@ -311,7 +311,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
 
   if (loading) {
     return (
-      <ScreenContainer style={styles.container}>
+      <ScreenContainer style={styles.container} wide>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
@@ -321,7 +321,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
 
   if (!project) {
     return (
-      <ScreenContainer style={styles.container}>
+      <ScreenContainer style={styles.container} wide>
         <View style={styles.topBar}>
           <Pressable
             accessibilityLabel={t('common.back')}

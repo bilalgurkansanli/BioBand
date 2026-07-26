@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -6,6 +7,7 @@ import { InstrumentArtBackground } from '../instrument/InstrumentArtBackground';
 import { colors } from '../../theme/colors';
 import type { StudioProject } from '../../types/studio';
 import { getProjectDurationMs } from '../../types/studio';
+import { formatDateTime } from '../../utils/formatDateTime';
 import { formatDuration } from '../../utils/formatDuration';
 
 type Props = {
@@ -26,15 +28,9 @@ export function StudioProjectCard({
   isBusy = false,
 }: Props) {
   const { t, i18n } = useTranslation();
-  const dateLabel = new Date(project.updatedAt).toLocaleString(
-    i18n.language.startsWith('tr') ? 'tr-TR' : 'en-US',
-    {
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    },
+  const dateLabel = useMemo(
+    () => formatDateTime(project.updatedAt, i18n.language),
+    [i18n.language, project.updatedAt],
   );
 
   return (

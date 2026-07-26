@@ -45,6 +45,7 @@ type BiquadFilterNode = ReturnType<
 const buffers = new Map<ViolinSampleId, AudioBuffer>();
 const phraseTimers = new Set<ReturnType<typeof setTimeout>>();
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 let currentVoiceId: ViolinVoiceId = 'classic';
 /** Per-hit tag serial — same-tag voices steal each other in sampleBank. */
 let hitSerial = 0;
@@ -87,7 +88,17 @@ export async function initViolinEngine(): Promise<void> {
   if (initialized) {
     return;
   }
+  // `initialized` only flips after the decode, so callers arriving during it
+  // would each run the whole load — share the one in flight instead.
+  if (!initPromise) {
+    initPromise = loadViolinEngine().finally(() => {
+      initPromise = null;
+    });
+  }
+  await initPromise;
+}
 
+async function loadViolinEngine(): Promise<void> {
   await prepareSamplePlayback();
   ensureVoiceBus();
 

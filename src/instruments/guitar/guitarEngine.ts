@@ -62,6 +62,7 @@ const heldBendHandles = new Map<
   { handle: PlayedSampleHandle; baseRate: number }
 >();
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 let currentVoiceId: GuitarVoiceId = 'nylon';
 let pluckSerial = 0;
 /** Settings "strum feel" / "sustain" scales — apply to live play and replay. */
@@ -136,7 +137,17 @@ export async function initGuitarEngine(): Promise<void> {
   if (initialized) {
     return;
   }
+  // `initialized` only flips after the decode, so callers arriving during it
+  // would each run the whole load — share the one in flight instead.
+  if (!initPromise) {
+    initPromise = loadGuitarEngine().finally(() => {
+      initPromise = null;
+    });
+  }
+  await initPromise;
+}
 
+async function loadGuitarEngine(): Promise<void> {
   await prepareSamplePlayback();
   getPianoFxInput();
   ensureVoiceBus();

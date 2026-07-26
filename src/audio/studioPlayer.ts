@@ -1,41 +1,26 @@
 import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
+import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
 import { stopAllVoices } from './sampleBank';
-import {
-  initDrumsEngine,
-  playHit,
-  releaseDrumsEngine,
-  setDrumKit,
-} from '../instruments/drums/drumsEngine';
+import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
+import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
 import { isDrumKitId } from '../instruments/drums/drumsKits';
 import type { DrumSoundId } from '../instruments/drums/drumsSounds';
-import {
-  initGuitarEngine,
-  playGuitarSoundId,
-  releaseGuitarEngine,
-  setGuitarVoice,
-} from '../instruments/guitar/guitarEngine';
+import { playGuitarSoundId, setGuitarVoice } from '../instruments/guitar/guitarEngine';
 import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
-import {
-  initPadsEngine,
-  releasePadsEngine,
-  triggerPadForBank,
-} from '../instruments/pads/padsEngine';
+import { triggerPadForBank } from '../instruments/pads/padsEngine';
 import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
 import type { PadSoundId } from '../instruments/pads/padsSounds';
 import {
-  initPianoEngine,
   playNote as playPianoNote,
-  releasePianoEngine,
   setPianoVoice,
 } from '../instruments/piano/pianoEngine';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import { PIANO_VOICES, type PianoVoiceId } from '../instruments/piano/pianoVoices';
+import type { NotePerformance } from '../instruments/shared/songPerformance';
 import {
-  initViolinEngine,
   playViolinSoundId,
-  releaseViolinEngine,
   setViolinVoice,
   stopViolinPhrases,
 } from '../instruments/violin/violinEngine';
@@ -69,78 +54,50 @@ export type StudioPlayOptions = {
   rate?: number;
 };
 
-const loadedEngines = new Set<InstrumentId>();
+/** Registry references this module holds, so its own release stays balanced. */
+const heldEngines = new Set<InstrumentId>();
 let activeCancel: (() => void) | null = null;
 let activeMicPlayers: AudioPlayer[] = [];
 
-async function ensureEngine(instrument: InstrumentId): Promise<void> {
-  if (loadedEngines.has(instrument)) {
+async function holdEngine(instrument: InstrumentId): Promise<void> {
+  if (heldEngines.has(instrument)) {
     return;
   }
-  switch (instrument) {
-    case 'piano':
-      await initPianoEngine();
-      break;
-    case 'drums':
-      await initDrumsEngine();
-      break;
-    case 'guitar':
-      await initGuitarEngine();
-      break;
-    case 'violin':
-      await initViolinEngine();
-      break;
-    case 'pads':
-      await initPadsEngine();
-      break;
-  }
-  loadedEngines.add(instrument);
-}
-
-function releaseEngine(instrument: InstrumentId): void {
-  switch (instrument) {
-    case 'piano':
-      releasePianoEngine();
-      break;
-    case 'drums':
-      releaseDrumsEngine();
-      break;
-    case 'guitar':
-      releaseGuitarEngine();
-      break;
-    case 'violin':
-      releaseViolinEngine();
-      break;
-    case 'pads':
-      releasePadsEngine();
-      break;
-  }
-  loadedEngines.delete(instrument);
+  // Recorded before awaiting: acquireEngine takes its reference synchronously,
+  // so a teardown landing mid-load still sees one to give back.
+  heldEngines.add(instrument);
+  await acquireEngine(instrument);
 }
 
 function playInstrumentEvent(
   instrument: InstrumentId,
   soundId: string,
-  velocity?: number,
-  padBankId: PadBankId = 'drums',
-  gainScale = 1,
+  velocity: number | undefined,
+  padBankId: PadBankId,
+  gainScale: number,
+  atContextTime: number,
 ): void {
+  // Absolute audio-context onset, straight through to the engine. In a mix this
+  // matters more than anywhere else: every track is timed off the same clock,
+  // so a late JS timer would not just drag one note, it would pull that track
+  // out of alignment with the others.
+  const performance: NotePerformance = { atTime: atContextTime };
   switch (instrument) {
     case 'piano':
-      playPianoNote(soundId as NoteId, undefined, undefined, gainScale);
+      playPianoNote(soundId as NoteId, undefined, undefined, gainScale, performance);
       return;
     case 'drums':
-      playHit(soundId as DrumSoundId, velocity, gainScale);
+      playHit(soundId as DrumSoundId, velocity, gainScale, performance);
       return;
     case 'pads':
       // Per-track bank — looper exports layer tracks from different banks.
-      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale);
+      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale, performance);
       return;
     case 'guitar':
-      playGuitarSoundId(soundId, velocity, gainScale);
+      playGuitarSoundId(soundId, velocity, gainScale, performance);
       return;
     case 'violin':
-      playViolinSoundId(soundId, gainScale);
+      playViolinSoundId(soundId, gainScale, performance);
       return;
   }
 }
@@ -174,9 +131,10 @@ export function stopStudioPlayback(): void {
 
 export function releaseStudioPlaybackResources(): void {
   stopActivePlayback();
-  for (const instrument of [...loadedEngines]) {
+  for (const instrument of heldEngines) {
     releaseEngine(instrument);
   }
+  heldEngines.clear();
 }
 
 function audibleTracks(project: StudioProject, excludeTrackIds?: string[]): StudioTrack[] {
@@ -213,7 +171,7 @@ export async function playStudioProject(
   }
 
   const instruments = new Set(tracks.map((track) => track.instrument));
-  await Promise.all([...instruments].map((instrument) => ensureEngine(instrument)));
+  await Promise.all([...instruments].map((instrument) => holdEngine(instrument)));
 
   // The drums bus is global, so one kit per play: use the first drums track's
   // recorded kit (older tracks without one fall back to acoustic).
@@ -245,15 +203,35 @@ export async function playStudioProject(
     setPianoVoice((voice?.id ?? 'acoustic') as PianoVoiceId);
   }
 
-  let timers: ReturnType<typeof setTimeout>[] = [];
+  /**
+   * One note from any track, rebased onto the playhead. Every track's events
+   * are merged into a single list so the whole mix rides one clock — tracks
+   * cannot drift apart from each other.
+   */
+  type ScheduledNote = {
+    atMs: number;
+    instrument: InstrumentId;
+    soundId: string;
+    velocity?: number;
+    padBankId: PadBankId;
+    gainScale: number;
+  };
+
+  // Clip entry points for microphone tracks. These stay on wall-clock timers:
+  // one per clip rather than one per note, and they hand off to a file player
+  // that owns its own timing from there.
+  let micTimers: ReturnType<typeof setTimeout>[] = [];
+  let scheduler: SongSchedulerHandle | null = null;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let finished = false;
 
   const clearScheduled = () => {
-    for (const timer of timers) {
+    for (const timer of micTimers) {
       clearTimeout(timer);
     }
-    timers = [];
+    micTimers = [];
+    scheduler?.stop();
+    scheduler = null;
     if (progressInterval) {
       clearInterval(progressInterval);
       progressInterval = null;
@@ -290,7 +268,7 @@ export async function playStudioProject(
     stopMicPlayers();
     finished = false;
     const clampedStart = Math.max(0, Math.min(startAtMs, durationMs));
-    const wallClockStart = Date.now();
+    const notes: ScheduledNote[] = [];
 
     for (const track of tracks) {
       const trackStart = getTrackStartMs(track);
@@ -328,7 +306,7 @@ export async function playStudioProject(
         };
         if (clampedStart <= trackStart) {
           // Clip starts later on the timeline — delay it into place.
-          timers.push(setTimeout(() => startPlayer(0), (trackStart - clampedStart) / rate));
+          micTimers.push(setTimeout(() => startPlayer(0), (trackStart - clampedStart) / rate));
         } else {
           // Playhead is already inside the clip — jump into it.
           startPlayer(clampedStart - trackStart);
@@ -348,35 +326,51 @@ export async function playStudioProject(
           if (absAtMs < clampedStart) {
             continue;
           }
-          timers.push(
-            setTimeout(() => {
-              if (finished) {
-                return;
-              }
-              playInstrumentEvent(
-                track.instrument,
-                event.soundId,
-                event.velocity,
-                trackPadBank,
-                track.volume,
-              );
-            }, (absAtMs - clampedStart) / rate),
-          );
+          notes.push({
+            atMs: absAtMs - clampedStart,
+            gainScale: track.volume,
+            instrument: track.instrument,
+            padBankId: trackPadBank,
+            soundId: event.soundId,
+            velocity: event.velocity,
+          });
         }
       }
     }
 
-    timers.push(setTimeout(finish, Math.max(durationMs - clampedStart, 0) / rate + 50));
+    const remainingMs = Math.max(durationMs - clampedStart, 0);
+    const lastAtMs = notes.reduce((latest, note) => Math.max(latest, note.atMs), 0);
+
+    const handle = startSongScheduler({
+      events: notes,
+      onEvent: (note, _index, atContextTime) => {
+        if (finished) {
+          return;
+        }
+        playInstrumentEvent(
+          note.instrument,
+          note.soundId,
+          note.velocity,
+          note.padBankId,
+          note.gainScale,
+          atContextTime,
+        );
+      },
+      onDone: finish,
+      rate,
+      // The mix runs to the project's length, not to its last note — a track
+      // that ends early must not cut the ones still playing behind it.
+      tailMs: Math.max(remainingMs - lastAtMs, 0) + 50,
+    });
+    scheduler = handle;
 
     if (onProgress) {
       onProgress(clampedStart, durationMs);
       progressInterval = setInterval(() => {
-        // Wall-clock elapsed converts back to material time via the rate, so
-        // the playhead still spans the whole timeline — just faster/slower.
-        const elapsed = Math.min(
-          clampedStart + (Date.now() - wallClockStart) * rate,
-          durationMs,
-        );
+        // The scheduler's clock is already in material time, so the playhead
+        // still spans the whole timeline at any rate — and it is the same clock
+        // the notes sound on, so the two cannot drift apart.
+        const elapsed = Math.min(clampedStart + handle.getElapsedMs(), durationMs);
         onProgress(elapsed, durationMs);
       }, 100);
     }

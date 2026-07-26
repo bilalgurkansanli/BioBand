@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -308,6 +309,18 @@ export function PianoScreen({ navigation }: Props) {
     };
   }, []);
 
+  // Leaving the tab releases the engine, which stops the metronome and drops
+  // the sustain pedal — but this screen stays mounted, so its toolbar kept
+  // showing both as ON over an engine that had turned them off. Coming back
+  // re-reads reality instead of trusting the surviving state.
+  useFocusEffect(
+    useCallback(() => {
+      setMetronomeOn(false);
+      setMetronomeModalVisible(false);
+      setSustainOn(false);
+    }, []),
+  );
+
   const handleOpenFx = useCallback(() => {
     applyFxNow(fxSettingsRef.current);
     setFxModalVisible(true);
@@ -365,8 +378,10 @@ export function PianoScreen({ navigation }: Props) {
     studioArmed,
     studioProjectTitle,
     countdown,
+    countInBeat,
     cancelStudioOverdub,
     recordModePicker,
+    recordSavedToast,
   } = useInstrumentRecording('piano');
 
   const { isPortrait } = usePianoOrientation(navigation);
@@ -575,10 +590,15 @@ export function PianoScreen({ navigation }: Props) {
           onCancel={cancelStudioOverdub}
         />
       ) : (
-        <RecordingBanner isRecording={isRecording} mode={mode} />
+        <RecordingBanner
+          countInBeat={countInBeat}
+          isRecording={isRecording}
+          mode={mode}
+        />
       )}
 
       {recordModePicker}
+      {recordSavedToast}
 
       <PlayAlongHud
         countdownValue={playAlong.countdownValue}

@@ -1,9 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
+import { acquireEngine, releaseEngine } from '../audio/engineRegistry';
 import {
-  initPadsEngine,
-  releasePadsEngine,
   setPadBank as engineSetPadBank,
   triggerPad as engineTriggerPad,
 } from '../instruments/pads/padsEngine';
@@ -21,7 +20,7 @@ export function usePadsEngine(bankId: PadBankId = 'drums') {
       setReady(false);
       setError(null);
 
-      initPadsEngine()
+      acquireEngine('pads')
         .then(() => {
           if (active) {
             engineSetPadBank(bankId);
@@ -38,7 +37,7 @@ export function usePadsEngine(bankId: PadBankId = 'drums') {
 
       return () => {
         active = false;
-        releasePadsEngine();
+        releaseEngine('pads');
         setReady(false);
       };
       // bankId applied in a separate effect while focused — do not re-init samples.

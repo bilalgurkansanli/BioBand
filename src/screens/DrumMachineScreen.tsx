@@ -23,6 +23,7 @@ import {
   prepareOverdubRecordingAudioMode,
   restorePlaybackAudioMode,
 } from '../audio/initAudio';
+import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { DrumMachineSettingsModal } from '../components/drumMachine/DrumMachineSettingsModal';
 import { LoadPatternModal } from '../components/drumMachine/LoadPatternModal';
 import { MachineTypeModal } from '../components/drumMachine/MachineTypeModal';
@@ -41,8 +42,10 @@ import {
   DRUM_MACHINE_PRESETS,
   type DrumMachinePreset,
 } from '../instruments/drumMachine/drumMachinePresets';
+import type { DrumMachineGrid } from '../instruments/drumMachine/drumMachineRows';
 import { machineTypeToInstrument } from '../instruments/drumMachine/patternToRecording';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
+import { persistRecordingAudio } from '../storage/recordingAudioStorage';
 import { saveRecording } from '../storage/recordingsStorage';
 import {
   deleteDrumMachineTake,
@@ -134,6 +137,9 @@ export function DrumMachineScreen({ navigation }: Props) {
   const [naming, setNaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [recordModeOpen, setRecordModeOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'clear' | 'randomize' | null>(
+    null,
+  );
 
   // Microphone take of the running loop — saved into Kayıtlarım on stop.
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -167,13 +173,17 @@ export function DrumMachineScreen({ navigation }: Props) {
       await audioRecorder.stop();
       await restorePlaybackAudioMode();
       const instrument = machineTypeToInstrument(machineType);
+      const recordingId = `${Date.now()}`;
+      const sourceUri = audioRecorder.uri;
       await saveRecording({
-        id: `${Date.now()}`,
+        id: recordingId,
         createdAt: Date.now(),
         instrument,
         mode: 'microphone',
         durationMs,
-        audioUri: audioRecorder.uri ?? undefined,
+        // The recorder writes into the OS cache, which gets purged — keep the
+        // take in Documents instead.
+        audioUri: sourceUri ? persistRecordingAudio(recordingId, sourceUri) : undefined,
         title: t('drumMachine.micTakeTitle'),
       });
       void awardRecordingPractice(instrument, durationMs);
@@ -226,6 +236,75 @@ export function DrumMachineScreen({ navigation }: Props) {
     stop();
     navigation.goBack();
   };
+
+  const gridHasHits = useMemo(
+    () => grid.some((row) => row.some((cell) => cell > 0)),
+    [grid],
+  );
+
+  // Identity of the grid the dice last produced. Anything else on screen was
+  // built, loaded or edited by hand and is worth a question before it goes.
+  const rolledGridRef = useRef<DrumMachineGrid | null>(null);
+  const pendingRollRef = useRef(false);
+
+  useEffect(() => {
+    if (pendingRollRef.current) {
+      pendingRollRef.current = false;
+      rolledGridRef.current = grid;
+    }
+  }, [grid]);
+
+  const rollRandomGrid = () => {
+    pendingRollRef.current = true;
+    randomizeGrid();
+  };
+
+  const handleRandomize = () => {
+    // Re-rolling stays a single tap: the dice is an audition tool, and a modal
+    // between every roll would kill the only way to use it.
+    if (!gridHasHits || grid === rolledGridRef.current) {
+      rollRandomGrid();
+      return;
+    }
+    setConfirmAction('randomize');
+  };
+
+  const handleClear = () => {
+    // An already-empty grid has nothing to lose — Clear still resets the row
+    // mutes, so it runs, it just does not ask.
+    if (!gridHasHits) {
+      clearGrid();
+      return;
+    }
+    setConfirmAction('clear');
+  };
+
+  const runConfirmedAction = () => {
+    const action = confirmAction;
+    setConfirmAction(null);
+    if (action === 'randomize') {
+      rollRandomGrid();
+      return;
+    }
+    if (action === 'clear') {
+      clearGrid();
+    }
+  };
+
+  const confirmCopy =
+    confirmAction === 'randomize'
+      ? {
+          confirmLabel: t('drumMachine.random'),
+          icon: DICE_ICON,
+          message: t('drumMachine.randomConfirmBody'),
+          title: t('drumMachine.randomConfirmTitle'),
+        }
+      : {
+          confirmLabel: t('drumMachine.clear'),
+          icon: 'trash-outline' as const,
+          message: t('drumMachine.clearConfirmBody'),
+          title: t('drumMachine.clearConfirmTitle'),
+        };
 
   const handleSave = () => {
     stop();
@@ -484,7 +563,7 @@ export function DrumMachineScreen({ navigation }: Props) {
           accent={accent}
           icon={DICE_ICON}
           label={t('drumMachine.random')}
-          onPress={() => randomizeGrid()}
+          onPress={handleRandomize}
           disabled={!engineReady}
         />
         <IconBtn
@@ -576,7 +655,7 @@ export function DrumMachineScreen({ navigation }: Props) {
           accent={accent}
           icon="trash-outline"
           label={t('drumMachine.clear')}
-          onPress={clearGrid}
+          onPress={handleClear}
           variant="plain"
         />
         <View style={[styles.bpmWrap, { borderColor: accent }]}>
@@ -699,6 +778,17 @@ export function DrumMachineScreen({ navigation }: Props) {
         onSetHapticsOn={setHapticsOn}
         onSetDrumKitId={setDrumKitId}
         onResetDefaults={resetSettings}
+      />
+
+      <ConfirmDeleteModal
+        visible={confirmAction !== null}
+        title={confirmCopy.title}
+        message={confirmCopy.message}
+        confirmLabel={confirmCopy.confirmLabel}
+        cancelLabel={t('common.cancel')}
+        icon={confirmCopy.icon}
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={runConfirmedAction}
       />
 
       <OptionListModal

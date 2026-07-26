@@ -1,10 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
+import { acquireEngine, releaseEngine } from '../audio/engineRegistry';
 import {
-  initDrumsEngine,
   playHit as enginePlayHit,
-  releaseDrumsEngine,
   setDrumKit as engineSetDrumKit,
 } from '../instruments/drums/drumsEngine';
 import type { DrumKitId } from '../instruments/drums/drumsKits';
@@ -21,7 +20,7 @@ export function useDrumsEngine(kitId: DrumKitId = 'acoustic') {
       setReady(false);
       setError(null);
 
-      initDrumsEngine()
+      acquireEngine('drums')
         .then(() => {
           if (active) {
             engineSetDrumKit(kitId);
@@ -38,7 +37,7 @@ export function useDrumsEngine(kitId: DrumKitId = 'acoustic') {
 
       return () => {
         active = false;
-        releaseDrumsEngine();
+        releaseEngine('drums');
         setReady(false);
       };
       // kitId applied in a separate effect while focused — do not re-init samples.

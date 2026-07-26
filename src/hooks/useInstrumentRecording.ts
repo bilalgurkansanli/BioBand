@@ -14,7 +14,14 @@ import {
   prepareRecordingAudioMode,
   restorePlaybackAudioMode,
 } from '../audio/initAudio';
+import { getSharedAudioContext } from '../audio/sampleBank';
+import {
+  getMetronomeBpm,
+  scheduleCountInClickAt,
+} from '../instruments/piano/pianoMetronome';
+import { loadRecordingSettings } from '../storage/recordingSettingsStorage';
 import { OptionListModal } from '../components/studio/OptionListModal';
+import { Toast } from '../components/Toast';
 import {
   playStudioProject,
   stopStudioPlayback,
@@ -25,6 +32,7 @@ import { getCurrentGuitarVoiceId } from '../instruments/guitar/guitarEngine';
 import { getCurrentPadBankId } from '../instruments/pads/padsEngine';
 import { getCurrentViolinVoiceId } from '../instruments/violin/violinEngine';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
+import { persistRecordingAudio } from '../storage/recordingAudioStorage';
 import { saveRecording } from '../storage/recordingsStorage';
 import { appendRecordedTrack, getStudioProject } from '../storage/studioProjectsStorage';
 import {
@@ -39,6 +47,10 @@ import type { RootTabParamList } from '../types/navigation';
 import { recordFeatureUse } from '../storage/profileProgressStorage';
 
 const COUNTDOWN_SECONDS = 3;
+/** One bar of 4/4 — the count every musician already knows. */
+const COUNT_IN_BEATS = 4;
+/** Small lead so the first click is scheduled on the audio clock, never late. */
+const COUNT_IN_LEAD_SECONDS = 0.12;
 
 export function useInstrumentRecording(instrument: InstrumentId) {
   const { t } = useTranslation();
@@ -50,12 +62,34 @@ export function useInstrumentRecording(instrument: InstrumentId) {
   const [studioSession, setStudioSession] = useState<StudioOverdubSession | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [showModePicker, setShowModePicker] = useState(false);
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  const [countInBeat, setCountInBeat] = useState<number | null>(null);
 
   const startTimeRef = useRef(0);
   const eventsRef = useRef<InstrumentEvent[]>([]);
   const bedsHandleRef = useRef<StudioPlaybackHandle | null>(null);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countInCancelsRef = useRef<(() => void)[]>([]);
+  const countInTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  /**
+   * A mic count-in has already claimed the recording audio session by the time
+   * the clicks run. Aborting has to hand it back, or playback stays muted.
+   */
+  const countInHoldsMicSessionRef = useRef(false);
+  const countInEnabledRef = useRef(true);
   const studioArmed = studioSession?.active && studioSession.instrument === instrument;
+
+  useEffect(() => {
+    let active = true;
+    void loadRecordingSettings().then((settings) => {
+      if (active) {
+        countInEnabledRef.current = settings.countInEnabled;
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     return subscribeStudioOverdubSession((session) => {
@@ -74,6 +108,66 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     }
     setCountdown(null);
   }, []);
+
+  const clearCountIn = useCallback(() => {
+    // Clicks are already sitting on the audio clock — clearing the JS timers
+    // alone would still let them sound after the user backed out.
+    for (const cancel of countInCancelsRef.current) {
+      cancel();
+    }
+    countInCancelsRef.current = [];
+    for (const timer of countInTimersRef.current) {
+      clearTimeout(timer);
+    }
+    countInTimersRef.current = [];
+    setCountInBeat(null);
+    if (countInHoldsMicSessionRef.current) {
+      countInHoldsMicSessionRef.current = false;
+      void restorePlaybackAudioMode();
+    }
+  }, []);
+
+  /**
+   * Click a bar in, then start. Onsets ride the audio clock (same mechanism as
+   * the metronome) so the beat is steady even while the screen is busy; the
+   * visible number is driven off the same anchor.
+   */
+  const runCountIn = useCallback(
+    (begin: () => void, holdsMicSession = false) => {
+      // Set *after* the reset: clearCountIn hands the mic session back, so
+      // flagging it beforehand would release the one we just prepared.
+      clearCountIn();
+      countInHoldsMicSessionRef.current = holdsMicSession;
+      const context = getSharedAudioContext();
+      const now = context.currentTime;
+      const beatSeconds = 60 / getMetronomeBpm();
+
+      for (let beat = 0; beat < COUNT_IN_BEATS; beat += 1) {
+        const offsetSeconds = COUNT_IN_LEAD_SECONDS + beat * beatSeconds;
+        countInCancelsRef.current.push(
+          // Accent the downbeat so four clicks read as a bar, not a queue.
+          scheduleCountInClickAt(now + offsetSeconds, beat === 0),
+        );
+        countInTimersRef.current.push(
+          setTimeout(() => setCountInBeat(COUNT_IN_BEATS - beat), offsetSeconds * 1000),
+        );
+      }
+
+      // Recording opens on the beat *after* the last click, so the first note
+      // the user plays is the downbeat rather than a pickup.
+      countInTimersRef.current.push(
+        setTimeout(
+          () => {
+            countInHoldsMicSessionRef.current = false;
+            clearCountIn();
+            begin();
+          },
+          (COUNT_IN_LEAD_SECONDS + COUNT_IN_BEATS * beatSeconds) * 1000,
+        ),
+      );
+    },
+    [clearCountIn],
+  );
 
   const stopBeds = useCallback(() => {
     bedsHandleRef.current?.stop();
@@ -98,7 +192,12 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     setIsRecording(true);
   }, []);
 
-  const startMicRecording = useCallback(
+  /**
+   * Permission prompt, audio session and recorder setup — everything that takes
+   * an unpredictable amount of time. Kept separate from the actual start so a
+   * count-in can run in between and still hand over on the beat.
+   */
+  const prepareMicRecording = useCallback(
     async (overdub: boolean) => {
       const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) {
@@ -112,13 +211,28 @@ export function useInstrumentRecording(instrument: InstrumentId) {
         await prepareRecordingAudioMode();
       }
       await audioRecorder.prepareToRecordAsync();
-      audioRecorder.record();
-      startTimeRef.current = Date.now();
-      setMode('microphone');
-      setIsRecording(true);
       return true;
     },
     [audioRecorder, t],
+  );
+
+  const beginMicRecording = useCallback(() => {
+    audioRecorder.record();
+    startTimeRef.current = Date.now();
+    setMode('microphone');
+    setIsRecording(true);
+  }, [audioRecorder]);
+
+  const startMicRecording = useCallback(
+    async (overdub: boolean) => {
+      const ok = await prepareMicRecording(overdub);
+      if (!ok) {
+        return false;
+      }
+      beginMicRecording();
+      return true;
+    },
+    [beginMicRecording, prepareMicRecording],
   );
 
   const finishSave = useCallback(
@@ -127,13 +241,14 @@ export function useInstrumentRecording(instrument: InstrumentId) {
       const recordingId = `${Date.now()}`;
 
       if (currentMode === 'microphone') {
+        const sourceUri = audioRecorder.uri;
         const take: SavedRecording = {
           id: recordingId,
           createdAt: Date.now(),
           instrument,
           mode: 'microphone',
           durationMs,
-          audioUri: audioRecorder.uri ?? undefined,
+          audioUri: sourceUri ? persistRecordingAudio(recordingId, sourceUri) : undefined,
         };
         await saveRecording(take);
         void recordFeatureUse('recordingSaved');
@@ -199,7 +314,13 @@ export function useInstrumentRecording(instrument: InstrumentId) {
 
     try {
       if (currentMode) {
-        await finishSave(currentMode, durationMs);
+        const take = await finishSave(currentMode, durationMs);
+        // Stopping used to leave nothing behind but the banner disappearing.
+        // The studio path is exempt: it navigates to the project, so the take
+        // lands somewhere the user can already see.
+        if (take && !wasStudio) {
+          setShowSavedToast(true);
+        }
       }
     } catch {
       // Saving can fail (e.g. device storage full). Tell the user instead of
@@ -215,10 +336,6 @@ export function useInstrumentRecording(instrument: InstrumentId) {
       } catch {
         // Best-effort — the UI is already unlocked.
       }
-    }
-
-    if (wasStudio && !getStudioOverdubSession()) {
-      // Already navigated in finishSave.
     }
   }, [audioRecorder, clearCountdown, finishSave, mode, stopBeds, t]);
 
@@ -289,6 +406,13 @@ export function useInstrumentRecording(instrument: InstrumentId) {
       return;
     }
 
+    // Second tap during the count-in backs out — otherwise a mistaken start
+    // means sitting through a bar you no longer want.
+    if (countInBeat !== null) {
+      clearCountIn();
+      return;
+    }
+
     if (countdown !== null) {
       return;
     }
@@ -299,20 +423,50 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     }
 
     setShowModePicker(true);
-  }, [countdown, isRecording, startStudioOverdub, stopRecording, studioArmed, studioSession]);
+  }, [
+    clearCountIn,
+    countInBeat,
+    countdown,
+    isRecording,
+    startStudioOverdub,
+    stopRecording,
+    studioArmed,
+    studioSession,
+  ]);
 
   const closeModePicker = useCallback(() => setShowModePicker(false), []);
+
+  const hideSavedToast = useCallback(() => setShowSavedToast(false), []);
 
   const selectRecordingMode = useCallback(
     (key: string) => {
       setShowModePicker(false);
+
       if (key === 'instrument') {
-        startInstrumentRecording();
-      } else {
-        void startMicRecording(false);
+        if (countInEnabledRef.current) {
+          runCountIn(startInstrumentRecording);
+        } else {
+          startInstrumentRecording();
+        }
+        return;
       }
+
+      void (async () => {
+        // Prepared before the clicks, not after: the permission dialog and the
+        // audio-session switch take an unknown amount of time, and doing them
+        // last would drop an audible hole between the count-in and the take.
+        const ok = await prepareMicRecording(false);
+        if (!ok) {
+          return;
+        }
+        if (!countInEnabledRef.current) {
+          beginMicRecording();
+          return;
+        }
+        runCountIn(beginMicRecording, true);
+      })();
     },
-    [startInstrumentRecording, startMicRecording],
+    [beginMicRecording, prepareMicRecording, runCountIn, startInstrumentRecording],
   );
 
   const recordModePicker = createElement(OptionListModal, {
@@ -327,12 +481,22 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     onClose: closeModePicker,
   });
 
+  // Built here rather than in each screen so every instrument confirms a stop
+  // the same way — the screens only decide where it sits in their tree.
+  const recordSavedToast = createElement(Toast, {
+    visible: showSavedToast,
+    message: t('recording.savedTitle'),
+    detail: t('recording.savedDetail'),
+    onHide: hideSavedToast,
+  });
+
   useEffect(() => {
     return () => {
       clearCountdown();
+      clearCountIn();
       stopBeds();
     };
-  }, [clearCountdown, stopBeds]);
+  }, [clearCountdown, clearCountIn, stopBeds]);
 
   return {
     isRecording,
@@ -342,7 +506,9 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     studioArmed: !!studioArmed,
     studioProjectTitle: studioSession?.projectTitle ?? null,
     countdown,
+    countInBeat,
     cancelStudioOverdub,
     recordModePicker,
+    recordSavedToast,
   };
 }

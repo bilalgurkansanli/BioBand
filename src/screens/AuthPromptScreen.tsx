@@ -243,7 +243,9 @@ const styles = StyleSheet.create({
     // logo floating in the middle of the screen with dead space above it.
     justifyContent: 'flex-start',
     paddingHorizontal: 8,
-    paddingTop: 12,
+    // Enough to lift the block off the status bar without pushing it into the
+    // middle again — the screen is short on content, not on room.
+    paddingTop: 44,
   },
   logo: {
     // The artwork is drawn on pure black while this screen is #0D0D0D, so the

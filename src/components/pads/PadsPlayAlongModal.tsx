@@ -234,10 +234,12 @@ export function PadsPlayAlongModal({
     if (!isDocumentPickerAvailable()) {
       return;
     }
-    // Re-use the same document picker for audio files
-    const { pickAudioDocument } = await import('../../utils/documentPicker');
-    const picked = await pickAudioDocument();
+    const { pickBackingAudioDocument } = await import('../../utils/documentPicker');
+    const picked = await pickBackingAudioDocument();
     if (!picked.ok) {
+      if (picked.code === 'unsupported') {
+        Alert.alert(t('pads.game.pickAudio'), t('pads.game.pickAudioUnsupported'));
+      }
       return;
     }
     await onPickBackingAudio(picked.asset.uri, picked.asset.name);

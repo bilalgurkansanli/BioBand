@@ -93,8 +93,10 @@ export function ViolinScreen({ navigation }: Props) {
     studioArmed,
     studioProjectTitle,
     countdown,
+    countInBeat,
     cancelStudioOverdub,
     recordModePicker,
+    recordSavedToast,
   } = useInstrumentRecording('violin');
   const { isPortrait } = usePianoOrientation(navigation);
   const userSongs = useUserViolinSongs();
@@ -305,10 +307,15 @@ export function ViolinScreen({ navigation }: Props) {
           onCancel={cancelStudioOverdub}
         />
       ) : (
-        <RecordingBanner isRecording={isRecording} mode={mode} />
+        <RecordingBanner
+          countInBeat={countInBeat}
+          isRecording={isRecording}
+          mode={mode}
+        />
       )}
 
       {recordModePicker}
+      {recordSavedToast}
 
       <ViolinPlayAlongHud
         countdownValue={playAlong.countdownValue}

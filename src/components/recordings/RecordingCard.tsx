@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { memo, useCallback, useMemo } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -9,6 +10,7 @@ import {
 import { PlaybackScrubber } from './PlaybackScrubber';
 import { colors } from '../../theme/colors';
 import type { SavedRecording } from '../../types/recording';
+import { formatDateTime, formatDecimal } from '../../utils/formatDateTime';
 import { formatDuration } from '../../utils/formatDuration';
 import { INSTRUMENT_TITLE_KEYS } from '../../utils/recordingLabels';
 
@@ -19,21 +21,37 @@ type RecordingCardProps = {
   isBusy?: boolean;
   positionMs?: number;
   durationMs?: number;
-  onPlayPress: () => void;
-  onSharePress: () => void;
-  onDownloadPress: () => void;
-  onDeletePress?: () => void;
-  onTitlePress?: () => void;
+  /**
+   * The take-specific actions take the recording back rather than being closed
+   * over it, so the list can hand every card the same handlers — a per-card
+   * arrow changes identity on every list render and defeats the memo below.
+   */
+  onPlayPress: (recording: SavedRecording) => void;
+  onSharePress: (recording: SavedRecording) => void;
+  onDownloadPress: (recording: SavedRecording) => void;
+  onDeletePress?: (recording: SavedRecording) => void;
+  onTitlePress?: (recording: SavedRecording) => void;
   onSeek?: (positionMs: number) => void;
+  /** Current playback speed; only meaningful while this take is playing. */
+  rate?: number;
+  /** Step to the next speed. Omitted when the card is not the one playing. */
+  onCycleRate?: () => void;
+  /** Whether looping is armed; only meaningful while this take is playing. */
+  loop?: boolean;
+  onToggleLoop?: () => void;
 };
 
-export function RecordingCard({
+function RecordingCardBase({
   recording,
   isPlaying = false,
   isLoading = false,
   isBusy = false,
   positionMs = 0,
   durationMs,
+  rate = 1,
+  onCycleRate,
+  loop = false,
+  onToggleLoop,
   onPlayPress,
   onSharePress,
   onDownloadPress,
@@ -43,16 +61,30 @@ export function RecordingCard({
 }: RecordingCardProps) {
   const { t, i18n } = useTranslation();
 
-  const dateLabel = new Date(recording.createdAt).toLocaleString(
-    i18n.language.startsWith('tr') ? 'tr-TR' : 'en-US',
-    {
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    },
+  // `Intl` is the most expensive thing on this card, and the take it describes
+  // never changes date — so it is worth not paying for it on every scrub tick.
+  const dateLabel = useMemo(
+    () => formatDateTime(recording.createdAt, i18n.language),
+    [i18n.language, recording.createdAt],
   );
+
+  // Locale-aware: the separator in "0,5" vs "0.5" is not cosmetic.
+  const speedLabel = useMemo(
+    () => `${formatDecimal(rate, i18n.language)}×`,
+    [i18n.language, rate],
+  );
+
+  const handlePlayPress = useCallback(() => onPlayPress(recording), [onPlayPress, recording]);
+  const handleSharePress = useCallback(() => onSharePress(recording), [onSharePress, recording]);
+  const handleDownloadPress = useCallback(
+    () => onDownloadPress(recording),
+    [onDownloadPress, recording],
+  );
+  const handleDeletePress = useCallback(
+    () => onDeletePress?.(recording),
+    [onDeletePress, recording],
+  );
+  const handleTitlePress = useCallback(() => onTitlePress?.(recording), [onTitlePress, recording]);
 
   const isDrumMachine = recording.source === 'drumMachine';
   const isImported = recording.source === 'imported';
@@ -100,7 +132,7 @@ export function RecordingCard({
               accessibilityLabel={t('recordings.rename')}
               accessibilityRole="button"
               hitSlop={6}
-              onPress={onTitlePress}
+              onPress={handleTitlePress}
               style={({ pressed }) => [styles.titleRow, pressed && styles.pressed]}
             >
               <Text numberOfLines={1} style={styles.title}>
@@ -132,7 +164,7 @@ export function RecordingCard({
               disabled={actionsDisabled}
               icon="trash-outline"
               label={t('recordings.delete')}
-              onPress={onDeletePress}
+              onPress={handleDeletePress}
               variant="danger"
             />
           ) : null}
@@ -141,7 +173,7 @@ export function RecordingCard({
             accessibilityRole="button"
             disabled={actionsDisabled && !isPlaying}
             hitSlop={6}
-            onPress={onPlayPress}
+            onPress={handlePlayPress}
             style={({ pressed }) => [
               styles.playButton,
               isPlaying && styles.playButtonActive,
@@ -170,13 +202,13 @@ export function RecordingCard({
           disabled={actionsDisabled}
           icon="download-outline"
           label={t('recordings.download')}
-          onPress={onDownloadPress}
+          onPress={handleDownloadPress}
         />
         <ExportButton
           disabled={actionsDisabled}
           icon="share-outline"
           label={t('recordings.share')}
-          onPress={onSharePress}
+          onPress={handleSharePress}
         />
       </View>
 
@@ -187,9 +219,62 @@ export function RecordingCard({
           positionMs={positionMs}
         />
       ) : null}
+
+      {isPlaying && (onCycleRate || onToggleLoop) ? (
+        <View style={styles.speedRow}>
+          {onToggleLoop ? (
+            <Pressable
+              accessibilityLabel={t('recordings.loop')}
+              accessibilityRole="button"
+              accessibilityState={{ selected: loop }}
+              hitSlop={8}
+              onPress={onToggleLoop}
+              style={({ pressed }) => [
+                styles.speedPill,
+                loop && styles.speedPillActive,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons color={loop ? '#FFFFFF' : colors.textSecondary} name="repeat" size={14} />
+              <Text style={[styles.speedText, loop && styles.speedTextActive]}>
+                {t('recordings.loop')}
+              </Text>
+            </Pressable>
+          ) : null}
+          {onCycleRate ? (
+            <Pressable
+            accessibilityLabel={t('recordings.playbackSpeed')}
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={onCycleRate}
+            style={({ pressed }) => [
+              styles.speedPill,
+              rate !== 1 && styles.speedPillActive,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              color={rate !== 1 ? '#FFFFFF' : colors.textSecondary}
+              name="speedometer-outline"
+              size={13}
+            />
+              <Text style={[styles.speedText, rate !== 1 && styles.speedTextActive]}>
+                {speedLabel}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
 }
+
+/**
+ * Memoised: a playing take pushes a new position ten times a second, and the
+ * whole list re-renders with it. Only the card being played is handed that
+ * position, so every other card sees the props it already had and stays put.
+ */
+export const RecordingCard = memo(RecordingCardBase);
 
 type ActionButtonProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -369,6 +454,39 @@ const styles = StyleSheet.create({
   playButtonActive: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
+  },
+  speedRow: {
+    flexDirection: 'row',
+    gap: 8,
+    // Right-aligned so the two controls sit under the scrubber's end rather
+    // than competing with the export buttons on the left.
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    width: '100%',
+  },
+  speedPill: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  speedPillActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  speedText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '700',
+  },
+  speedTextActive: {
+    color: '#FFFFFF',
   },
   pressed: {
     opacity: 0.75,
