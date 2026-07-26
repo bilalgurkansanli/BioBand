@@ -1,11 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
+import { acquireEngine, releaseEngine } from '../audio/engineRegistry';
 import {
-  initViolinEngine,
   playNote as enginePlayNote,
   playViolinSoundId,
-  releaseViolinEngine,
   setViolinVoice as engineSetViolinVoice,
 } from '../instruments/violin/violinEngine';
 import type { ViolinStringId } from '../instruments/violin/violinSounds';
@@ -22,7 +21,7 @@ export function useViolinEngine(voiceId: ViolinVoiceId = 'classic') {
       setReady(false);
       setError(null);
 
-      initViolinEngine()
+      acquireEngine('violin')
         .then(() => {
           if (active) {
             engineSetViolinVoice(voiceId);
@@ -39,7 +38,7 @@ export function useViolinEngine(voiceId: ViolinVoiceId = 'classic') {
 
       return () => {
         active = false;
-        releaseViolinEngine();
+        releaseEngine('violin');
         setReady(false);
       };
       // voiceId applied in a separate effect while focused — do not re-init samples.

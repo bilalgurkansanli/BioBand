@@ -39,7 +39,7 @@ export function ExportProgressModal({ job, onCancel }: Props) {
           <View style={styles.track}>
             <View style={[styles.fill, { width: `${percent}%` }]} />
           </View>
-          <Text style={styles.percent}>%{percent}</Text>
+          <Text style={styles.percent}>{t('common.percent', { percent })}</Text>
 
           <Pressable
             onPress={onCancel}

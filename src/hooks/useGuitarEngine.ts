@@ -1,6 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useState } from 'react';
 
+import { acquireEngine, releaseEngine } from '../audio/engineRegistry';
 import type { ChordId } from '../instruments/guitar/guitarChords';
 import type {
   GuitarChordGesture,
@@ -8,13 +9,11 @@ import type {
 } from '../instruments/guitar/guitarChordPatterns';
 import {
   bendHeldNote as engineBendHeldNote,
-  initGuitarEngine,
   noteOff as engineNoteOff,
   noteOn as engineNoteOn,
   playChord as enginePlayChord,
   playGuitarSoundId,
   pluckString as enginePluckString,
-  releaseGuitarEngine,
   setGuitarVoice as engineSetGuitarVoice,
   strumChord as engineStrumChord,
   type GuitarStrumDirection,
@@ -33,7 +32,7 @@ export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
       setReady(false);
       setError(null);
 
-      initGuitarEngine()
+      acquireEngine('guitar')
         .then(() => {
           if (active) {
             engineSetGuitarVoice(voiceId);
@@ -50,7 +49,7 @@ export function useGuitarEngine(voiceId: GuitarVoiceId = 'nylon') {
 
       return () => {
         active = false;
-        releaseGuitarEngine();
+        releaseEngine('guitar');
         setReady(false);
       };
       // voiceId applied in a separate effect while focused — do not re-init samples.

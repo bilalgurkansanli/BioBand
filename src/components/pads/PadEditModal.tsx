@@ -392,7 +392,7 @@ export function PadEditModal({
             <View style={styles.sliderHeader}>
               <Text style={styles.sectionTitle}>{t('pads.editor.gainSection')}</Text>
               <Text style={[styles.sliderValue, { color: accent }]}>
-                {Math.round(draft.gain * 100)}%
+                {t('common.percent', { percent: Math.round(draft.gain * 100) })}
               </Text>
             </View>
             <HorizontalSlider

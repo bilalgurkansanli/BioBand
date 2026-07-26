@@ -127,6 +127,52 @@ export async function pickAudioDocument(): Promise<
 
 export { IMPORT_EXTENSIONS };
 
+/** The only extensions the Band Mode backing player can decode. */
+const BACKING_AUDIO_EXTENSIONS = ['mp3', 'm4a', 'mp4', 'wav', 'aac', 'caf'] as const;
+
+function isBackingAudioName(fileName: string): boolean {
+  const ext = fileName.match(/\.([a-zA-Z0-9]+)$/)?.[1]?.toLowerCase() ?? '';
+  return (BACKING_AUDIO_EXTENSIONS as readonly string[]).includes(ext);
+}
+
+/**
+ * Band Mode backing-track picker — audio only.
+ *
+ * Deliberately narrower than `pickAudioDocument`, which also takes MIDI and
+ * JSON because the Recordings importer does something useful with both. Here
+ * the file becomes the song's backing track: a chart handed to the audio
+ * player is silence, and picking one used to overwrite the working track with
+ * it under an `.mp3` name. Rejecting on the way in means the track already
+ * attached to the song is never touched.
+ */
+export async function pickBackingAudioDocument(): Promise<
+  PickDocumentResult | { ok: false; code: 'unsupported' }
+> {
+  const types = [
+    'audio/mpeg',
+    'audio/mp3',
+    'audio/mp4',
+    'audio/x-m4a',
+    'audio/aac',
+    'audio/wav',
+    'audio/x-wav',
+  ];
+  const picked = await pickDocument(
+    // Same Android caveat as the other pickers: providers label plenty of
+    // media as a generic binary, and the extension check below catches what
+    // that lets through.
+    Platform.OS === 'android' ? [...types, 'application/octet-stream'] : types,
+  );
+  if (!picked.ok) {
+    return picked;
+  }
+
+  if (!isBackingAudioName(picked.asset.name)) {
+    return { ok: false, code: 'unsupported' };
+  }
+  return picked;
+}
+
 /**
  * Chart picker — MIDI and song JSON only.
  *

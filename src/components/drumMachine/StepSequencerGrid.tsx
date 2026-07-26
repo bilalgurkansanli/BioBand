@@ -114,7 +114,10 @@ const SequencerRow = memo(function SequencerRow({
         {muted ? (
           <Ionicons color={headColor} name="volume-mute-outline" size={16} />
         ) : row.shortLabel ? (
-          <Text style={[styles.iconLabel, { color: headColor }]}>
+          <Text
+            maxFontSizeMultiplier={1.3}
+            style={[styles.iconLabel, { color: headColor }]}
+          >
             {row.shortLabel}
           </Text>
         ) : (

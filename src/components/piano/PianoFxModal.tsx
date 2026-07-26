@@ -197,7 +197,8 @@ export function PianoFxModal({
     onClose();
   }, [flushCommit, onClose]);
 
-  const percent = (value: number) => `${Math.round(value * 100)}%`;
+  const percent = (value: number) =>
+    t('common.percent', { percent: Math.round(value * 100) });
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={handleClose}>

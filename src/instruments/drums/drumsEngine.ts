@@ -30,6 +30,7 @@ const buffers = new Map<DrumSoundId, AudioBuffer>();
 /** Per-kit replacement buffers (e.g. the electronic kit's 808 one-shots). */
 const kitBuffers = new Map<DrumKitId, Map<DrumSoundId, AudioBuffer>>();
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 let currentKitId: DrumKitId = 'acoustic';
 
 let kitGain: GainNode | null = null;
@@ -109,7 +110,17 @@ export async function initDrumsEngine(): Promise<void> {
   if (initialized) {
     return;
   }
+  // `initialized` only flips after the decode, so callers arriving during it
+  // would each run the whole load — share the one in flight instead.
+  if (!initPromise) {
+    initPromise = loadDrumsEngine().finally(() => {
+      initPromise = null;
+    });
+  }
+  await initPromise;
+}
 
+async function loadDrumsEngine(): Promise<void> {
   await prepareSamplePlayback();
   getPianoFxInput();
   ensureKitBus();

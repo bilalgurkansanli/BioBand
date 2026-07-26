@@ -21,6 +21,8 @@ import { lockPortraitOrientation } from './src/hooks/usePianoOrientation';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { configureNotificationHandler } from './src/notifications/practiceReminder';
 import { AuthPromptScreen } from './src/screens/AuthPromptScreen';
+import { hasSeenOnboarding, markOnboardingSeen } from './src/storage/onboardingStorage';
+import { migrateRecordingAudioToDocuments } from './src/storage/recordingsStorage';
 import { startAppDataAutoSync, stopAppDataAutoSync } from './src/supabase/appDataSync';
 import { configureSystemUi, startSystemUiSync } from './src/system/configureSystemUi';
 import { colors } from './src/theme/colors';
@@ -71,10 +73,10 @@ function AppRoot() {
   // navigation tree to unmount/remount — every screen re-reads its state
   // from storage instead of continuing to show the signed-out user's data.
   const [appResetKey, setAppResetKey] = useState(0);
-  // Shown on every launch, not just the first: the product decision is that
-  // the tour is a welcome rather than a one-off setup step. `markOnboardingSeen`
-  // is therefore no longer consulted.
-  const [showOnboarding, setShowOnboarding] = useState(true);
+  // First run only — it is a first-use guide, not a recurring welcome. Null
+  // until storage has been consulted, so someone who has already taken the
+  // tour never sees it flash on the way in.
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const { getCurrentUserId } = useAuthSession();
 
   useEffect(() => {
@@ -97,9 +99,15 @@ function AppRoot() {
       // each other, and overlapping them keeps the launch screen short.
       .then(() =>
         Promise.all([
-          bootstrapAuthAndData().then((result) =>
-            setShowAuthPrompt(result.showAuthPrompt),
-          ),
+          bootstrapAuthAndData().then((result) => {
+            setShowAuthPrompt(result.showAuthPrompt);
+            // Takes recorded before mic audio was copied into Documents still
+            // point at the OS cache. Runs after the bootstrap (which may pull
+            // cloud data over local storage) and while the launch screen is
+            // up, so nothing else is writing the takes list.
+            return migrateRecordingAudioToDocuments();
+          }),
+          hasSeenOnboarding().then((seen) => setShowOnboarding(!seen)),
           preloadInstruments((progress) => setInstrumentsLoaded(progress.loaded)),
         ]),
       )
@@ -155,7 +163,14 @@ function AppRoot() {
         <StatusBar style="light" />
       </NavigationContainer>
       {/* Drawn over the live app so the highlights land on the real tabs. */}
-      {showOnboarding ? <CoachTour onDone={() => setShowOnboarding(false)} /> : null}
+      {showOnboarding ? (
+        <CoachTour
+          onDone={() => {
+            setShowOnboarding(false);
+            void markOnboardingSeen();
+          }}
+        />
+      ) : null}
     </SafeAreaProvider>
   );
 }

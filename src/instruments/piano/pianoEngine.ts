@@ -36,6 +36,7 @@ const noteMidis = new Map<NoteId, number>();
 let toneOffsetSemitones = 0;
 let currentVoice: PianoVoiceId = 'acoustic';
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 let sustainPedalOn = false;
 // Both maps remember the voice each note was struck with, so a note is always
 // released with the tag it was created with — even if the user switches voice
@@ -155,7 +156,17 @@ export async function initPianoEngine(): Promise<void> {
   if (initialized) {
     return;
   }
+  // `initialized` only flips after the decode, so callers arriving during it
+  // would each run the whole load — share the one in flight instead.
+  if (!initPromise) {
+    initPromise = loadPianoEngine().finally(() => {
+      initPromise = null;
+    });
+  }
+  await initPromise;
+}
 
+async function loadPianoEngine(): Promise<void> {
   await prepareSamplePlayback();
 
   await Promise.all(

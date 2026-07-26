@@ -244,6 +244,10 @@ opening a public issue.
 BioBand keeps your recordings and progress on your device. Nothing is uploaded
 unless you sign in. Full policy: [PRIVACY.md](PRIVACY.md).
 
+Signed in and want out? Profile → Settings → Delete account removes everything
+immediately; [`docs/account-deletion.md`](docs/account-deletion.md) covers what
+is deleted and how to request it without installing the app.
+
 ## Credits
 
 Public-domain sheet music for the classical tutorials comes from the

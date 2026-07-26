@@ -1,5 +1,15 @@
-import { useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  type ListRenderItemInfo,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +34,7 @@ import {
 import { deleteRecording, renameRecording } from '../storage/recordingsStorage';
 import { colors } from '../theme/colors';
 import type { RecordingsStackParamList } from '../types/navigation';
-import type { SavedRecording } from '../types/recording';
+import type { InstrumentId, SavedRecording } from '../types/recording';
 import type { StudioProject } from '../types/studio';
 import { importAudioRecording } from '../utils/recordingImport';
 import { INSTRUMENT_TITLE_KEYS } from '../utils/recordingLabels';
@@ -32,16 +42,26 @@ import { recordFeatureUse } from '../storage/profileProgressStorage';
 
 type Props = NativeStackScreenProps<RecordingsStackParamList, 'RecordingsHome'>;
 type Segment = 'takes' | 'studio';
+type InstrumentFilter = InstrumentId | 'all';
+
+/**
+ * Below this many takes the list is already scannable, and a search box plus a
+ * chip row would be more furniture than help.
+ */
+const FILTER_UI_THRESHOLD = 5;
 
 export function RecordingsScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [segment, setSegment] = useState<Segment>('takes');
+  const [search, setSearch] = useState('');
+  const [instrumentFilter, setInstrumentFilter] = useState<InstrumentFilter>('all');
   const [createVisible, setCreateVisible] = useState(false);
   const [renameTarget, setRenameTarget] = useState<SavedRecording | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SavedRecording | null>(null);
   const [importing, setImporting] = useState(false);
   const { recordings, loading: takesLoading, refresh: refreshTakes } = useRecordings();
-  const { playingId, loadingId, positionMs, durationMs, play, seek } = useRecordingPlayback();
+  const { playingId, loadingId, positionMs, durationMs, rate, cycleRate, loop, toggleLoop, play, seek } =
+    useRecordingPlayback();
   const {
     busyId,
     job,
@@ -107,9 +127,113 @@ export function RecordingsScreen({ navigation }: Props) {
     await refreshTakes();
   };
 
-  const confirmDeleteTake = (recording: SavedRecording) => {
+  // One handler per action, shared by every card. Playback repaints this screen
+  // ten times a second; a fresh arrow per card would change every card's props
+  // on every tick and there would be nothing left for `RecordingCard`'s memo to
+  // skip.
+  // Which instruments the library actually contains — offering a "Violin" chip
+  // to someone who has never recorded one is a dead end.
+  const availableInstruments = useMemo(() => {
+    const seen: InstrumentId[] = [];
+    for (const take of recordings) {
+      if (!seen.includes(take.instrument)) {
+        seen.push(take.instrument);
+      }
+    }
+    return seen;
+  }, [recordings]);
+
+  const visibleRecordings = useMemo(() => {
+    // Turkish lowercasing is not the ASCII one: "İ" folds to "i" only with the
+    // locale applied, so a search for "keman" must be lowered the same way the
+    // titles are.
+    const needle = search.trim().toLocaleLowerCase(i18n.language);
+    if (!needle && instrumentFilter === 'all') {
+      return recordings;
+    }
+    return recordings.filter((take) => {
+      if (instrumentFilter !== 'all' && take.instrument !== instrumentFilter) {
+        return false;
+      }
+      if (!needle) {
+        return true;
+      }
+      // Untitled takes are listed under their instrument name, so that is what
+      // the user sees and what they will type.
+      const label = take.title?.trim()
+        ? take.title
+        : t(INSTRUMENT_TITLE_KEYS[take.instrument]);
+      return label.toLocaleLowerCase(i18n.language).includes(needle);
+    });
+  }, [i18n.language, instrumentFilter, recordings, search, t]);
+
+  const isFiltering = search.trim().length > 0 || instrumentFilter !== 'all';
+  const showFilterBar = recordings.length >= FILTER_UI_THRESHOLD;
+
+  const confirmDeleteTake = useCallback((recording: SavedRecording) => {
     setDeleteTarget(recording);
-  };
+  }, []);
+  const handleTitlePress = useCallback((recording: SavedRecording) => {
+    setRenameTarget(recording);
+  }, []);
+  const handlePlayPress = useCallback(
+    (recording: SavedRecording) => void play(recording),
+    [play],
+  );
+  const handleSharePress = useCallback(
+    (recording: SavedRecording) => void share(recording),
+    [share],
+  );
+  const handleDownloadPress = useCallback(
+    (recording: SavedRecording) => void download(recording),
+    [download],
+  );
+
+  const renderTake = useCallback(
+    ({ item }: ListRenderItemInfo<SavedRecording>) => {
+      // Only the take being played hears about the position — the rest keep the
+      // props they already had, so they never re-render mid-playback.
+      const isActive = playingId === item.id;
+
+      return (
+        <RecordingCard
+          durationMs={isActive ? durationMs : undefined}
+          isBusy={busyId === item.id}
+          isLoading={loadingId === item.id}
+          isPlaying={isActive}
+          positionMs={isActive ? positionMs : 0}
+          rate={isActive ? rate : 1}
+          onCycleRate={isActive ? cycleRate : undefined}
+          loop={isActive ? loop : false}
+          onToggleLoop={isActive ? toggleLoop : undefined}
+          onDeletePress={confirmDeleteTake}
+          onDownloadPress={handleDownloadPress}
+          onPlayPress={handlePlayPress}
+          onSeek={seek}
+          onSharePress={handleSharePress}
+          onTitlePress={handleTitlePress}
+          recording={item}
+        />
+      );
+    },
+    [
+      busyId,
+      confirmDeleteTake,
+      cycleRate,
+      durationMs,
+      handleDownloadPress,
+      handlePlayPress,
+      handleSharePress,
+      handleTitlePress,
+      loadingId,
+      loop,
+      playingId,
+      positionMs,
+      rate,
+      seek,
+      toggleLoop,
+    ],
+  );
 
   return (
     <ScreenContainer style={styles.container}>
@@ -127,7 +251,12 @@ export function RecordingsScreen({ navigation }: Props) {
         <>
           <View style={styles.studioHeader}>
             <Text style={styles.subtitle}>
-              {t('recordings.count', { count: recordings.length })}
+              {isFiltering
+                ? t('recordings.countFiltered', {
+                    count: visibleRecordings.length,
+                    total: recordings.length,
+                  })
+                : t('recordings.count', { count: recordings.length })}
             </Text>
             <Pressable
               disabled={importing}
@@ -144,6 +273,56 @@ export function RecordingsScreen({ navigation }: Props) {
           </View>
           <Text style={styles.localDataHint}>{t('recordings.localDataHint')}</Text>
 
+          {showFilterBar ? (
+            <>
+              <View style={styles.searchRow}>
+                <Ionicons color={colors.textSecondary} name="search" size={16} />
+                <TextInput
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  clearButtonMode="while-editing"
+                  onChangeText={setSearch}
+                  placeholder={t('recordings.searchPlaceholder')}
+                  placeholderTextColor={colors.textSecondary}
+                  returnKeyType="search"
+                  style={styles.searchInput}
+                  value={search}
+                />
+                {search.length > 0 ? (
+                  <Pressable
+                    accessibilityLabel={t('common.close')}
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setSearch('')}
+                  >
+                    <Ionicons color={colors.textSecondary} name="close-circle" size={16} />
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <ScrollView
+                contentContainerStyle={styles.chipRow}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipScroll}
+              >
+                <FilterChip
+                  active={instrumentFilter === 'all'}
+                  label={t('recordings.filterAll')}
+                  onPress={() => setInstrumentFilter('all')}
+                />
+                {availableInstruments.map((instrument) => (
+                  <FilterChip
+                    active={instrumentFilter === instrument}
+                    key={instrument}
+                    label={t(INSTRUMENT_TITLE_KEYS[instrument])}
+                    onPress={() => setInstrumentFilter(instrument)}
+                  />
+                ))}
+              </ScrollView>
+            </>
+          ) : null}
+
           {takesLoading ? (
             <View style={styles.centered}>
               <ActivityIndicator color={colors.accent} size="large" />
@@ -151,30 +330,23 @@ export function RecordingsScreen({ navigation }: Props) {
           ) : recordings.length === 0 ? (
             <EmptyState
               description={t('recordings.emptyDescription')}
-              icon="recording"
+              icon="albums-outline"
               title={t('recordings.emptyTitle')}
+            />
+          ) : visibleRecordings.length === 0 ? (
+            // Distinct from an empty library: nothing is missing, the filter is
+            // just too narrow — and the way out has to be offered.
+            <EmptyState
+              description={t('recordings.noResultsDescription')}
+              icon="search"
+              title={t('recordings.noResultsTitle')}
             />
           ) : (
             <FlatList
               contentContainerStyle={styles.listContent}
-              data={recordings}
+              data={visibleRecordings}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <RecordingCard
-                  durationMs={playingId === item.id ? durationMs : undefined}
-                  isBusy={busyId === item.id}
-                  isLoading={loadingId === item.id}
-                  isPlaying={playingId === item.id}
-                  positionMs={playingId === item.id ? positionMs : 0}
-                  onDeletePress={() => confirmDeleteTake(item)}
-                  onDownloadPress={() => void download(item)}
-                  onPlayPress={() => void play(item)}
-                  onSeek={seek}
-                  onSharePress={() => void share(item)}
-                  onTitlePress={() => setRenameTarget(item)}
-                  recording={item}
-                />
-              )}
+              renderItem={renderTake}
               showsVerticalScrollIndicator={false}
             />
           )}
@@ -310,6 +482,31 @@ export function RecordingsScreen({ navigation }: Props) {
   );
 }
 
+function FilterChip({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        active && styles.chipActive,
+        pressed && styles.chipPressed,
+      ]}
+    >
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 function EmptyState({
   icon,
   title,
@@ -331,6 +528,57 @@ function EmptyState({
 }
 
 const styles = StyleSheet.create({
+  searchRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 2,
+  },
+  searchInput: {
+    color: colors.text,
+    flex: 1,
+    fontSize: 14,
+    // Explicit rather than inherited: on Android the default input height is
+    // taller than this row and pushes the list down.
+    paddingVertical: 8,
+  },
+  chipScroll: {
+    flexGrow: 0,
+    marginTop: 8,
+  },
+  chipRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  chip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipActive: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+  },
+  chipPressed: {
+    opacity: 0.8,
+  },
+  chipText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
   container: {
     padding: 20,
   },

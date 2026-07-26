@@ -28,7 +28,23 @@
     "acceptPrivacyLink": "Gizlilik Politikası'nı",
     "acceptPrivacySuffix": " okudum ve kabul ediyorum.",
     "acceptPrivacyA11y": "Gizlilik politikasını kabul ediyorum",
-    "signingIn": "Giriş yapılıyor…"
+    "signingIn": "Giriş yapılıyor…",
+    "deleteAccount": "Hesabı sil",
+    "deleteAccountConfirmTitle": "Hesabın kalıcı olarak silinsin mi?",
+    "deleteAccountConfirmMessage": "Bu işlem geri alınamaz. Hesabın ve ona bağlı her şey kalıcı olarak silinir.",
+    "deleteAccountLossAccount": "BioBand hesabın ve giriş bilgilerin",
+    "deleteAccountLossCloud": "Buluttaki ilerlemen, rozetlerin ve ayarların",
+    "deleteAccountLossDevice": "Bu cihazdaki kayıtların, Studio projelerin ve içe aktardığın şarkılar",
+    "deleteAccountAcknowledge": "Anladım, bu işlem geri alınamaz.",
+    "deleteAccountAcknowledgeA11y": "Silmenin kalıcı olduğunu kabul ediyorum",
+    "deleteAccountConfirm": "Kalıcı olarak sil",
+    "deleteAccountErrors": {
+      "unconfigured": "Bu sürümde hesap silme henüz ayarlanmamış.",
+      "sessionExpired": "Oturumun sona ermiş. Çıkış yapıp tekrar giriş yap, sonra yeniden dene.",
+      "offline": "Bağlantı yok. Hesabın silinmedi — bağlanıp tekrar dene.",
+      "rpcMissing": "Hesap silme sunucuda henüz kullanıma açık değil. Hiçbir şey silinmedi.",
+      "error": "Hesabın silinemedi. Hiçbir şey silinmedi — tekrar dene."
+    }
   },
   "common": {
     "back": "Geri",
@@ -39,6 +55,7 @@
     "close": "Kapat",
     "minutesShort": "{{count}} dk",
     "hoursShort": "{{count}} saat",
+    "percent": "%{{percent}}",
     "about": "Hakkında",
     "privacyPolicy": "Gizlilik Politikası"
   },
@@ -113,7 +130,12 @@
     "weeklyGoalOption": "{{minutes}} dk",
     "weeklyGoalOff": "Kapalı",
     "weeklyGoalReached": "Bu haftaki hedefini tamamladın.",
-    "weeklyGoalRemaining": "{{goal}} hedefine {{remaining}} kaldı"
+    "weeklyGoalRemaining": "{{goal}} hedefine {{remaining}} kaldı",
+    "reminderTimeTitle": "Hatırlatma saati",
+    "reminderTimeLabel": "Saat",
+    "recordingTitle": "Kayıt",
+    "countInEnable": "Kayıttan önce geri sayım",
+    "countInHint": "Kayıt başlamadan önce metronom temposunda bir ölçü sayar, böylece ilk notan doğru yere düşer."
   },
   "instruments": {
     "title": "Enstrümanlar",
@@ -194,7 +216,14 @@
     "localDataHint": "Kayıtlar sadece bu cihazda saklanır — buluta yedeklenmez.",
     "exportEmpty": "Bu kayıtta dışa aktarılacak ses yok.",
     "exportingTitle": "Dışa aktarılıyor",
-    "exportingMessage": "Kaydın ses dosyası hazırlanıyor. Bu işlem uzun kayıtlarda biraz sürebilir."
+    "exportingMessage": "Kaydın ses dosyası hazırlanıyor. Bu işlem uzun kayıtlarda biraz sürebilir.",
+    "searchPlaceholder": "Kayıtlarda ara",
+    "filterAll": "Tümü",
+    "countFiltered": "{{total}} kayıttan {{count}} tanesi",
+    "noResultsTitle": "Eşleşen kayıt yok",
+    "noResultsDescription": "Aramayı değiştir ya da filtreyi Tümü'ne al.",
+    "playbackSpeed": "Oynatma hızı",
+    "loop": "Döngü"
   },
   "studio": {
     "title": "Studio",
@@ -386,7 +415,11 @@
       "hihatClosed": "HH",
       "hihatOpen": "OH",
       "crash": "Crash"
-    }
+    },
+    "clearConfirmTitle": "Grid sıfırlansın mı?",
+    "clearConfirmBody": "Tüm adımlar silinecek ve bu geri alınamaz. Önce kaydetmek ister misin?",
+    "randomConfirmTitle": "Rastgele pattern oluşturulsun mu?",
+    "randomConfirmBody": "Şu anki pattern'in üzerine yazılacak. Kaydetmediysen geri getiremezsin."
   },
   "recording": {
     "button": "Kayıt",
@@ -400,7 +433,10 @@
       "instrument": "Kayıt devam ediyor — çaldıkların kaydediliyor.",
       "microphone": "Kayıt devam ediyor — mikrofon açık."
     },
-    "saveError": "Bu kayıt kaydedilemedi. Cihazının depolama alanı dolmuş olabilir — yer açıp tekrar dene."
+    "saveError": "Bu kayıt kaydedilemedi. Cihazının depolama alanı dolmuş olabilir — yer açıp tekrar dene.",
+    "savedTitle": "Kayıt kaydedildi",
+    "savedDetail": "Kayıtlarım'da bulabilirsin.",
+    "countIn": "Hazır ol…"
   },
   "drums": {
     "pads": {
@@ -469,6 +505,7 @@
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Davulla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
+      "pickAudioUnsupported": "MP3, M4A, MP4 veya WAV dosyası seç.",
       "calibrate": "Davulu parçayla senkronize et",
       "calibrateHint": "İlk vuruşlar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
       "calibrateOffset": "Kayma: {{ms}} ms",
@@ -603,6 +640,7 @@
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Kemanla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
+      "pickAudioUnsupported": "MP3, M4A, MP4 veya WAV dosyası seç.",
       "calibrate": "Kemanı parçayla senkronize et",
       "calibrateHint": "İlk notalar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
       "calibrateOffset": "Kayma: {{ms}} ms",
@@ -638,7 +676,7 @@
       },
       "results": {
         "title": "Parça bitti!",
-        "accuracy": "İsabet: {{percent}}%",
+        "accuracy": "İsabet: %{{percent}}",
         "hits": "Çaldığın: {{count}}",
         "misses": "Kaçırılan: {{count}}",
         "wrong": "Yanlış nota: {{count}}",
@@ -791,6 +829,7 @@
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Gitarla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
+      "pickAudioUnsupported": "MP3, M4A, MP4 veya WAV dosyası seç.",
       "calibrate": "Gitarı parçayla senkronize et",
       "calibrateHint": "İlk notalar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
       "calibrateOffset": "Kayma: {{ms}} ms",
@@ -1025,6 +1064,7 @@
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Padlerle üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
+      "pickAudioUnsupported": "MP3, M4A, MP4 veya WAV dosyası seç.",
       "calibrate": "Padleri parçayla senkronize et",
       "calibrateHint": "İlk vuruşlar kayıtla hizalanana kadar sürükle. Önizleme kısa bir kesit çalar.",
       "calibrateOffset": "Kayma: {{ms}} ms",
@@ -1049,7 +1089,7 @@
       },
       "results": {
         "title": "Şarkı bitti!",
-        "accuracy": "İsabet: {{percent}}%",
+        "accuracy": "İsabet: %{{percent}}",
         "hits": "Çaldığın: {{count}}",
         "misses": "Kaçan: {{count}}",
         "wrong": "Yanlış pad: {{count}}",
@@ -1448,7 +1488,7 @@
   },
   "privacy": {
     "screenTitle": "Gizlilik Politikası",
-    "lastUpdated": "Son güncelleme: 23 Temmuz 2026",
+    "lastUpdated": "Son güncelleme: 26 Temmuz 2026",
     "contactLabel": "Bu politika veya verilerinle ilgili sorunuz mu var? E-posta:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "Tam metni GitHub'da görüntüle",
@@ -1458,8 +1498,8 @@
         "body": "Giriş yapmazsan BioBand tamamen cihazında çalışır. Yaptığın hiçbir şey — kayıtlar, pratik ilerlemesi, ayarlar — hiçbir yere gönderilmez ve uygulama açılışları arasında saklanmaz: uygulamayı kapatıp yeniden açtığında her şey sıfırlanır."
       },
       {
-        "title": "Google ile giriş yapma",
-        "body": "Google ile giriş yapmayı seçersen, Google Sign-In'i yalnızca kimliğini doğrulamak ve profilini Google hesabındaki ad ve fotoğrafla kişiselleştirmek için kullanırız. Giriş yaptığında aşağıdaki küçük veriler bulut veritabanımıza senkronize edilir, böylece cihazlar arasında seni takip eder:\n\n• Görünen adın, favori enstrümanın ve profil fotoğrafı URL'in\n• Pratik ilerlemesi: seri (streak) günler, toplam pratik süresi, tamamlanan görevler, kazanılan rozetler\n• Pratik hatırlatma saati tercihin\n\nBu veriler hesabına bağlıdır ve yalnızca senin tarafından okunup yazılabilir (bu sunucu tarafında da uygulanır, sadece uygulama içinde değil)."
+        "title": "Google veya Apple ile giriş yapma",
+        "body": "Google ile veya Apple ile giriş yapmayı seçebilirsin. İkisi de yalnızca kimliğini doğrulamak ve profiline bir başlangıç adı vermek için kullanılır. Giriş yaptığında aşağıdaki küçük veriler bulut veritabanımıza senkronize edilir, böylece cihazlar arasında seni takip eder:\n\n• Görünen adın, favori enstrümanın ve profil fotoğrafı URL'in\n• Pratik ilerlemesi: seri (streak) günler, toplam pratik süresi, tamamlanan görevler, kazanılan rozetler\n• Pratik hatırlatma saati tercihin\n\nSağlayıcıdan bize tam olarak ne geldiği:\n\n• Google — adın, e-posta adresin ve profil fotoğrafının URL'i.\n• Apple — adın ve e-posta adresin. Apple adını yalnızca BioBand'e ilk yetki verdiğinde gönderir, bir daha göndermez; onu görünen adını doldurmak için kullanırız ve istediğin zaman değiştirebilirsin. Apple bize fotoğraf vermez. \"E-postamı Gizle\"yi seçersen Apple gerçek adresin yerine bir yönlendirme adresi (…@privaterelay.appleid.com) verir ve gördüğümüz tek adres o olur.\n\nBu veriler hesabına bağlıdır ve yalnızca senin tarafından okunup yazılabilir (bu sunucu tarafında da uygulanır, sadece uygulama içinde değil)."
       },
       {
         "title": "Asla toplamadığımız veya yüklemediğimiz veriler",
@@ -1471,7 +1511,7 @@
       },
       {
         "title": "Üçüncü taraf hizmetler",
-        "body": "• Google Sign-In — yalnızca kimlik doğrulama için kullanılır. Google'ın hesap verilerini nasıl işlediğini görmek için Google'ın Gizlilik Politikasına (policies.google.com/privacy) bakabilirsin.\n• Bulut veritabanımız — yukarıda açıklanan küçük ilerleme/ayar verilerini saklamak için kullandığımız üçüncü taraf bir barındırma sağlayıcısı."
+        "body": "• Google Sign-In — yalnızca kimlik doğrulama için kullanılır. Google'ın hesap verilerini nasıl işlediğini görmek için Google'ın Gizlilik Politikasına (policies.google.com/privacy) bakabilirsin.\n• Apple ile Giriş Yap — yalnızca kimlik doğrulama için kullanılır. Apple bize adını (bir kez) ve bir e-posta adresi bildirir; gerçek adresini gizlemeyi seçtiysen bu bir yönlendirme adresi olabilir. Apple'ın hesap verilerini nasıl işlediğini görmek için Apple'ın Gizlilik Politikasına (apple.com/legal/privacy) bakabilirsin.\n• Bulut veritabanımız — yukarıda açıklanan küçük ilerleme/ayar verilerini saklamak için kullandığımız üçüncü taraf bir barındırma sağlayıcısı."
       },
       {
         "title": "Haklarınız (KVKK / GDPR)",
@@ -1479,7 +1519,7 @@
       },
       {
         "title": "Seçeneklerin",
-        "body": "• Profil → Ayarlar kısmından istediğin zaman çıkış yapabilirsin. Bu, o cihazda saklanan tüm verileri anında temizler ve uygulamayı yeni bir konuk durumuna döndürür.\n• Bulut verilerini silme: Aşağıdaki e-postadan bize ulaş, hesabın altında saklanan ilerleme/ayar verilerini sileriz."
+        "body": "• Profil → Ayarlar kısmından istediğin zaman çıkış yapabilirsin. Bu, o cihazda saklanan tüm verileri anında temizler ve uygulamayı yeni bir konuk durumuna döndürür.\n• Hesabını kalıcı olarak silmek için: Profil → Ayarlar → Hesabı sil. Bu, hesabını ve buluttaki tüm ilerleme/ayar verilerini kalıcı olarak siler, ardından bu cihazdaki verileri temizler. Geri alınamaz.\n• Uygulamayı kurmadan silme talebinde bulunmak istersen aşağıdaki e-postadan bize ulaşabilirsin."
       },
       {
         "title": "Bu politikadaki değişiklikler",

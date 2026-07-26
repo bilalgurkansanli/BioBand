@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -13,12 +13,19 @@ const SOLO_COLOR = '#F5A623';
 type Props = {
   track: StudioTrack;
   color: string;
-  onToggleMute: () => void;
-  onToggleSolo: () => void;
+  /**
+   * Both take the track's id back rather than being closed over it, so the
+   * timeline can hand every header the same two handlers — a per-header arrow
+   * changes identity on every parent render and defeats the memo below.
+   */
+  onToggleMute: (trackId: string) => void;
+  onToggleSolo: (trackId: string) => void;
 };
 
 function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Props) {
   const { t } = useTranslation();
+  const handleToggleMute = useCallback(() => onToggleMute(track.id), [onToggleMute, track.id]);
+  const handleToggleSolo = useCallback(() => onToggleSolo(track.id), [onToggleSolo, track.id]);
 
   return (
     <View style={[styles.header, track.muted && styles.headerMuted]}>
@@ -34,7 +41,7 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
         <Pressable
           accessibilityLabel={t('studio.trackMute')}
           hitSlop={4}
-          onPress={onToggleMute}
+          onPress={handleToggleMute}
           style={[styles.toggle, track.muted && { backgroundColor: colors.error, borderColor: colors.error }]}
         >
           <Ionicons
@@ -46,7 +53,7 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
         <Pressable
           accessibilityLabel={t('studio.trackSolo')}
           hitSlop={4}
-          onPress={onToggleSolo}
+          onPress={handleToggleSolo}
           style={[styles.toggle, track.solo && { backgroundColor: SOLO_COLOR, borderColor: SOLO_COLOR }]}
         >
           <Ionicons

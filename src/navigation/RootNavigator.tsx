@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { StyleSheet, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +13,22 @@ import { colors } from '../theme/colors';
 import type { RootTabParamList } from '../types/navigation';
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+
+/**
+ * The bar is a fixed 56pt tall, so an unbounded system text size pushes the
+ * label straight out of it. Capping the multiplier lets the label grow with the
+ * user's setting up to the point where it still fits, instead of clipping — the
+ * navigator's own `tabBarAllowFontScaling` only offers all-or-nothing.
+ */
+const MAX_TAB_LABEL_SCALE = 1.4;
+
+function TabLabel({ color, label }: { color: string; label: string }) {
+  return (
+    <Text maxFontSizeMultiplier={MAX_TAB_LABEL_SCALE} numberOfLines={1} style={[styles.tabLabel, { color }]}>
+      {label}
+    </Text>
+  );
+}
 
 export function RootNavigator() {
   const { t } = useTranslation();
@@ -28,17 +45,16 @@ export function RootNavigator() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle,
-        tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '500',
-        },
+
       }}
     >
       <Tab.Screen
         name="Instruments"
         component={InstrumentsStack}
         options={{
-          tabBarLabel: t('tabs.instruments'),
+          tabBarLabel: ({ color }: { color: string }) => (
+            <TabLabel color={color} label={t('tabs.instruments')} />
+          ),
           tabBarIcon: ({ color, size }) => (
             <Ionicons color={color} name="musical-notes" size={size} />
           ),
@@ -48,9 +64,11 @@ export function RootNavigator() {
         name="Recordings"
         component={RecordingsStack}
         options={{
-          tabBarLabel: t('tabs.recordings'),
+          tabBarLabel: ({ color }: { color: string }) => (
+            <TabLabel color={color} label={t('tabs.recordings')} />
+          ),
           tabBarIcon: ({ color, size }) => (
-            <Ionicons color={color} name="recording" size={size} />
+            <Ionicons color={color} name="albums" size={size} />
           ),
         }}
       />
@@ -58,7 +76,9 @@ export function RootNavigator() {
         name="Profile"
         component={ProfileStack}
         options={{
-          tabBarLabel: t('tabs.profile'),
+          tabBarLabel: ({ color }: { color: string }) => (
+            <TabLabel color={color} label={t('tabs.profile')} />
+          ),
           tabBarIcon: ({ color, size }) => (
             <Ionicons color={color} name="person-circle" size={size} />
           ),
@@ -67,3 +87,10 @@ export function RootNavigator() {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+});

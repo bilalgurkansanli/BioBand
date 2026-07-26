@@ -28,7 +28,23 @@
     "acceptPrivacyLink": "Privacy Policy",
     "acceptPrivacySuffix": ".",
     "acceptPrivacyA11y": "I accept the privacy policy",
-    "signingIn": "Signing in…"
+    "signingIn": "Signing in…",
+    "deleteAccount": "Delete account",
+    "deleteAccountConfirmTitle": "Permanently delete your account?",
+    "deleteAccountConfirmMessage": "This can't be undone. Your account and everything tied to it is removed for good.",
+    "deleteAccountLossAccount": "Your BioBand account and its sign-in",
+    "deleteAccountLossCloud": "Your synced progress, badges, and settings",
+    "deleteAccountLossDevice": "Recordings, Studio projects, and imported songs on this device",
+    "deleteAccountAcknowledge": "I understand this can't be undone.",
+    "deleteAccountAcknowledgeA11y": "I understand deletion is permanent",
+    "deleteAccountConfirm": "Delete permanently",
+    "deleteAccountErrors": {
+      "unconfigured": "Account deletion isn't set up for this build yet.",
+      "sessionExpired": "Your session has expired. Sign out, sign in again, then retry.",
+      "offline": "No connection. Your account was not deleted — reconnect and try again.",
+      "rpcMissing": "Account deletion isn't available on the server yet. Nothing was deleted.",
+      "error": "Couldn't delete your account. Nothing was deleted — try again."
+    }
   },
   "common": {
     "back": "Back",
@@ -39,6 +55,7 @@
     "close": "Close",
     "minutesShort": "{{count}} min",
     "hoursShort": "{{count}} hr",
+    "percent": "{{percent}}%",
     "about": "About",
     "privacyPolicy": "Privacy Policy"
   },
@@ -113,7 +130,12 @@
     "weeklyGoalOption": "{{minutes}} min",
     "weeklyGoalOff": "Off",
     "weeklyGoalReached": "You reached this week’s goal.",
-    "weeklyGoalRemaining": "{{remaining}} to go towards {{goal}}"
+    "weeklyGoalRemaining": "{{remaining}} to go towards {{goal}}",
+    "reminderTimeTitle": "Reminder time",
+    "reminderTimeLabel": "Time",
+    "recordingTitle": "Recording",
+    "countInEnable": "Count in before recording",
+    "countInHint": "Clicks one bar at the metronome tempo before the take starts, so your first note lands on the beat."
   },
   "instruments": {
     "title": "Instruments",
@@ -194,7 +216,14 @@
     "localDataHint": "Recordings are stored only on this device — they aren't backed up to the cloud.",
     "exportEmpty": "This take has no audio to export.",
     "exportingTitle": "Exporting",
-    "exportingMessage": "Preparing the audio file. Long takes can take a moment."
+    "exportingMessage": "Preparing the audio file. Long takes can take a moment.",
+    "searchPlaceholder": "Search recordings",
+    "filterAll": "All",
+    "countFiltered": "{{count}} of {{total}} recordings",
+    "noResultsTitle": "No matching takes",
+    "noResultsDescription": "Try a different search, or set the filter back to All.",
+    "playbackSpeed": "Playback speed",
+    "loop": "Loop"
   },
   "studio": {
     "title": "Studio",
@@ -386,7 +415,11 @@
       "hihatClosed": "HH",
       "hihatOpen": "OH",
       "crash": "Crash"
-    }
+    },
+    "clearConfirmTitle": "Clear the grid?",
+    "clearConfirmBody": "Every step will be erased and this cannot be undone. Save it first?",
+    "randomConfirmTitle": "Roll a random pattern?",
+    "randomConfirmBody": "This overwrites the pattern you have now. If you haven't saved it, it's gone."
   },
   "recording": {
     "button": "Record",
@@ -400,7 +433,10 @@
       "instrument": "Recording — your playing is being captured.",
       "microphone": "Recording — microphone is active."
     },
-    "saveError": "Could not save this recording. Your device may be out of storage — free up some space and try again."
+    "saveError": "Could not save this recording. Your device may be out of storage — free up some space and try again.",
+    "savedTitle": "Take saved",
+    "savedDetail": "Find it in My Recordings.",
+    "countIn": "Get ready…"
   },
   "drums": {
     "pads": {
@@ -469,6 +505,7 @@
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play drums over it.",
       "pickAudioButton": "Choose audio file",
+      "pickAudioUnsupported": "Pick an MP3, M4A, MP4 or WAV file.",
       "calibrate": "Sync drums with the track",
       "calibrateHint": "Drag until the first hits line up with the recording. Preview plays a short clip.",
       "calibrateOffset": "Offset: {{ms}} ms",
@@ -603,6 +640,7 @@
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play violin over it.",
       "pickAudioButton": "Choose audio file",
+      "pickAudioUnsupported": "Pick an MP3, M4A, MP4 or WAV file.",
       "calibrate": "Sync violin with the track",
       "calibrateHint": "Drag until the first notes line up with the recording. Preview plays a short clip.",
       "calibrateOffset": "Offset: {{ms}} ms",
@@ -791,6 +829,7 @@
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play guitar over it.",
       "pickAudioButton": "Choose audio file",
+      "pickAudioUnsupported": "Pick an MP3, M4A, MP4 or WAV file.",
       "calibrate": "Sync guitar with the track",
       "calibrateHint": "Drag until the first notes line up with the recording. Preview plays a short clip.",
       "calibrateOffset": "Offset: {{ms}} ms",
@@ -1025,6 +1064,7 @@
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play pads over it.",
       "pickAudioButton": "Choose audio file",
+      "pickAudioUnsupported": "Pick an MP3, M4A, MP4 or WAV file.",
       "calibrate": "Sync pads with the track",
       "calibrateHint": "Drag until the first hits line up with the recording. Preview plays a short clip.",
       "calibrateOffset": "Offset: {{ms}} ms",
@@ -1448,7 +1488,7 @@
   },
   "privacy": {
     "screenTitle": "Privacy Policy",
-    "lastUpdated": "Last updated: July 23, 2026",
+    "lastUpdated": "Last updated: July 26, 2026",
     "contactLabel": "Questions about this policy or your data? Email:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "View full policy on GitHub",
@@ -1458,8 +1498,8 @@
         "body": "If you don't sign in, BioBand works entirely on your device. Nothing you do — recordings, practice progress, settings — is sent anywhere, and none of it is kept between app launches: closing and reopening the app resets it to a fresh state."
       },
       {
-        "title": "Signing in with Google",
-        "body": "If you choose to sign in with Google, we use Google Sign-In only to authenticate you and to personalize your profile with the name and photo from your Google account. Signing in lets the following small pieces of data sync to our cloud database, so they follow you across devices:\n\n• Your display name, favorite instrument, and profile photo URL\n• Practice progress: streaks, total practice time, completed challenges, earned badges\n• Your practice-reminder time preference\n\nThis data is tied to your account and is only ever read or written by you (enforced server-side, not just in the app)."
+        "title": "Signing in with Google or Apple",
+        "body": "You can sign in with Google or with Sign in with Apple. Either one is used only to authenticate you and to give your profile a name to start from. Signing in lets the following small pieces of data sync to our cloud database, so they follow you across devices:\n\n• Your display name, favorite instrument, and profile photo URL\n• Practice progress: streaks, total practice time, completed challenges, earned badges\n• Your practice-reminder time preference\n\nExactly what each provider gives us:\n\n• Google — your name, your e-mail address, and the URL of your profile photo.\n• Apple — your name and your e-mail address. Apple sends the name only the very first time you authorize BioBand and never again; we use it to prefill your display name, which you can change at any time. Apple does not give us a photo. If you choose Hide My Email, Apple gives us a private relay address (…@privaterelay.appleid.com) instead of your real one, and that relay address is the only address we ever see.\n\nThis data is tied to your account and is only ever read or written by you (enforced server-side, not just in the app)."
       },
       {
         "title": "What we never collect or upload",
@@ -1471,7 +1511,7 @@
       },
       {
         "title": "Third-party services",
-        "body": "• Google Sign-In — used solely for authentication. See Google's Privacy Policy (policies.google.com/privacy) for how Google handles your account data.\n• Our cloud database — a third-party hosting provider we use only to store the small progress/settings data described above."
+        "body": "• Google Sign-In — used solely for authentication. See Google's Privacy Policy (policies.google.com/privacy) for how Google handles your account data.\n• Sign in with Apple — used solely for authentication. Apple tells us your name (once) and an e-mail address, which may be a private relay address if you asked Apple to hide your real one. See Apple's Privacy Policy (apple.com/legal/privacy) for how Apple handles your account data.\n• Our cloud database — a third-party hosting provider we use only to store the small progress/settings data described above."
       },
       {
         "title": "Your rights (KVKK / GDPR)",
@@ -1479,7 +1519,7 @@
       },
       {
         "title": "Your choices",
-        "body": "• Sign out at any time from Profile → Settings. This immediately clears all data stored on that device and returns the app to a fresh guest state.\n• Delete your cloud data: contact us at the email below and we will delete the progress/settings data stored under your account."
+        "body": "• Sign out at any time from Profile → Settings. This immediately clears all data stored on that device and returns the app to a fresh guest state.\n• Delete your account permanently: Profile → Settings → Delete account. This permanently removes your account and all progress/settings data in the cloud, then clears the data on this device. It cannot be undone.\n• If you would rather request deletion without installing the app, contact us at the e-mail below."
       },
       {
         "title": "Changes to this policy",

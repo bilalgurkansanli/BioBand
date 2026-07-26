@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  type LayoutChangeEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   ScrollView,
@@ -8,21 +9,13 @@ import {
   View,
 } from 'react-native';
 
-import { colors } from '../../../theme/colors';
 import { INSTRUMENT_COLORS } from '../../../utils/recordingLabels';
 import type { StudioTrack } from '../../../types/studio';
 import { StudioPlayhead } from './StudioPlayhead';
-import { StudioTimelineClip } from './StudioTimelineClip';
+import { StudioTimelineLanes } from './StudioTimelineLanes';
 import { StudioTimelineRuler } from './StudioTimelineRuler';
 import { StudioTrackHeader } from './StudioTrackHeader';
-import {
-  HEADER_WIDTH,
-  LANE_GAP,
-  LANE_HEIGHT,
-  RULER_HEIGHT,
-  laneOffsetY,
-  lanesHeight,
-} from './timelineGeometry';
+import { HEADER_WIDTH, LANE_GAP, RULER_HEIGHT } from './timelineGeometry';
 
 type Props = {
   tracks: StudioTrack[];
@@ -63,6 +56,41 @@ export function StudioTimeline({
   const [bodyHeight, setBodyHeight] = useState(0);
   const laneViewportHeight = Math.max(0, bodyHeight - RULER_HEIGHT);
 
+  /**
+   * The screen owns the playhead position, so it re-renders this timeline ten
+   * times a second and rebuilds every one of these handlers as it goes. Kept
+   * behind a ref and handed out as fixed identities, they stop a progress tick
+   * from looking like a change to the memoised headers, ruler and lanes — those
+   * are the expensive halves of the tree, and none of them care where the
+   * playhead is.
+   */
+  const handlersRef = useRef({
+    onSeek,
+    onClipCommitStart,
+    onClipPress,
+    onToggleMute,
+    onToggleSolo,
+  });
+  handlersRef.current = { onSeek, onClipCommitStart, onClipPress, onToggleMute, onToggleSolo };
+
+  const handleSeek = useCallback((ms: number) => handlersRef.current.onSeek(ms), []);
+  const handleClipCommitStart = useCallback(
+    (trackId: string, startMs: number) => handlersRef.current.onClipCommitStart(trackId, startMs),
+    [],
+  );
+  const handleClipPress = useCallback(
+    (track: StudioTrack) => handlersRef.current.onClipPress(track),
+    [],
+  );
+  const handleToggleMute = useCallback(
+    (trackId: string) => handlersRef.current.onToggleMute(trackId),
+    [],
+  );
+  const handleToggleSolo = useCallback(
+    (trackId: string) => handlersRef.current.onToggleSolo(trackId),
+    [],
+  );
+
   // A lifted clip and the scroll views want the same finger movement, and the
   // scroll view wins that fight roughly every other time — which is what made
   // dragging a clip feel unreliable. While a clip is held, scrolling is off.
@@ -83,37 +111,28 @@ export function StudioTimeline({
   const laneScrollRef = useRef<ScrollView>(null);
   const scrollOwner = useRef<'header' | 'lane' | null>(null);
 
-  const onHeaderScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const onHeaderScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (scrollOwner.current === 'lane') {
       return;
     }
     laneScrollRef.current?.scrollTo({ y: event.nativeEvent.contentOffset.y, animated: false });
-  };
-  const onLaneScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  }, []);
+  const onLaneScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (scrollOwner.current === 'header') {
       return;
     }
     headerScrollRef.current?.scrollTo({ y: event.nativeEvent.contentOffset.y, animated: false });
-  };
+  }, []);
+  const onHeaderScrollBeginDrag = useCallback(() => {
+    scrollOwner.current = 'header';
+  }, []);
+  const onLaneScrollBeginDrag = useCallback(() => {
+    scrollOwner.current = 'lane';
+  }, []);
 
-  const contentHeight = lanesHeight(tracks.length) + 16;
-
-  // Beat grid driven by BPM (hidden when the grid setting is off).
-  const beatMs = 60000 / bpm;
-  const gridLines = useMemo(() => {
-    if (!showGrid) {
-      return [];
-    }
-    const beatPx = beatMs * pxPerMs;
-    if (beatPx < 6) {
-      return [];
-    }
-    const out: { x: number; bar: boolean }[] = [];
-    for (let i = 1; i * beatPx <= timelineWidth && out.length < 400; i += 1) {
-      out.push({ x: i * beatPx, bar: i % 4 === 0 });
-    }
-    return out;
-  }, [beatMs, pxPerMs, showGrid, timelineWidth]);
+  const handleBodyLayout = useCallback((event: LayoutChangeEvent) => {
+    setBodyHeight(event.nativeEvent.layout.height);
+  }, []);
 
   return (
     <View style={styles.root}>
@@ -123,9 +142,7 @@ export function StudioTimeline({
         <ScrollView
           ref={headerScrollRef}
           onScroll={onHeaderScroll}
-          onScrollBeginDrag={() => {
-            scrollOwner.current = 'header';
-          }}
+          onScrollBeginDrag={onHeaderScrollBeginDrag}
           scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
           style={styles.headerClip}
@@ -135,8 +152,8 @@ export function StudioTimeline({
               <StudioTrackHeader
                 key={track.id}
                 color={INSTRUMENT_COLORS[track.instrument]}
-                onToggleMute={() => onToggleMute(track.id)}
-                onToggleSolo={() => onToggleSolo(track.id)}
+                onToggleMute={handleToggleMute}
+                onToggleSolo={handleToggleSolo}
                 track={track}
               />
             ))}
@@ -145,7 +162,7 @@ export function StudioTimeline({
       </View>
 
       {/* Scrollable timeline region */}
-      <View onLayout={(event) => setBodyHeight(event.nativeEvent.layout.height)} style={styles.body}>
+      <View onLayout={handleBodyLayout} style={styles.body}>
         <Animated.ScrollView
           horizontal
           onScroll={onHScroll}
@@ -156,7 +173,7 @@ export function StudioTimeline({
         >
           <View style={{ height: bodyHeight, width: timelineWidth }}>
             <StudioTimelineRuler
-              onSeek={onSeek}
+              onSeek={handleSeek}
               pixelsPerSecond={pixelsPerSecond}
               pxPerMs={pxPerMs}
               timelineWidth={timelineWidth}
@@ -165,52 +182,23 @@ export function StudioTimeline({
               <ScrollView
                 ref={laneScrollRef}
                 onScroll={onLaneScroll}
-                onScrollBeginDrag={() => {
-                  scrollOwner.current = 'lane';
-                }}
+                onScrollBeginDrag={onLaneScrollBeginDrag}
                 scrollEnabled={!clipHeld}
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={tracks.length > 4}
                 style={{ height: laneViewportHeight }}
               >
-                <View style={{ height: contentHeight, width: timelineWidth }}>
-                  {/* Background layer: lane stripes + beat grid (under clips). */}
-                  {tracks.map((track, index) => (
-                    <View
-                      key={`bg-${track.id}`}
-                      style={[styles.laneBg, { top: laneOffsetY(index), width: timelineWidth }]}
-                    />
-                  ))}
-                  {gridLines.map((line, index) => (
-                    <View
-                      key={`grid-${index}`}
-                      style={[
-                        styles.gridLine,
-                        line.bar ? styles.gridLineBar : styles.gridLineBeat,
-                        { left: line.x, height: contentHeight },
-                      ]}
-                    />
-                  ))}
-
-                  {/* Clip layer (drawn on top of the grid). */}
-                  {tracks.map((track, index) => (
-                    <View
-                      key={track.id}
-                      pointerEvents="box-none"
-                      style={[styles.laneClip, { top: laneOffsetY(index), width: timelineWidth }]}
-                    >
-                      <StudioTimelineClip
-                        color={INSTRUMENT_COLORS[track.instrument]}
-                        onCommitStart={(startMs) => onClipCommitStart(track.id, startMs)}
-                        onDragActiveChange={setClipHeld}
-                        onPress={() => onClipPress(track)}
-                        pxPerMs={pxPerMs}
-                        snapMs={snapMs}
-                        track={track}
-                      />
-                    </View>
-                  ))}
-                </View>
+                <StudioTimelineLanes
+                  bpm={bpm}
+                  onClipCommitStart={handleClipCommitStart}
+                  onClipPress={handleClipPress}
+                  onDragActiveChange={setClipHeld}
+                  pxPerMs={pxPerMs}
+                  showGrid={showGrid}
+                  snapMs={snapMs}
+                  timelineWidth={timelineWidth}
+                  tracks={tracks}
+                />
               </ScrollView>
             ) : null}
           </View>
@@ -219,7 +207,7 @@ export function StudioTimeline({
         <StudioPlayhead
           durationMs={durationMs}
           isPlaying={isPlaying}
-          onSeek={onSeek}
+          onSeek={handleSeek}
           positionMs={positionMs}
           pxPerMs={pxPerMs}
           scrollX={scrollX}
@@ -255,29 +243,5 @@ const styles = StyleSheet.create({
   },
   hScroll: {
     flex: 1,
-  },
-  laneBg: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 10,
-    height: LANE_HEIGHT,
-    position: 'absolute',
-  },
-  laneClip: {
-    height: LANE_HEIGHT,
-    position: 'absolute',
-  },
-  gridLine: {
-    position: 'absolute',
-    top: 0,
-    width: 1,
-  },
-  gridLineBeat: {
-    backgroundColor: colors.border,
-    opacity: 0.5,
-  },
-  gridLineBar: {
-    backgroundColor: colors.textSecondary,
-    opacity: 0.55,
-    width: 1.5,
   },
 });

@@ -1,30 +1,14 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { acquireEngine, releaseEngine } from '../audio/engineRegistry';
 import type { DrumMachineTypeId } from '../instruments/drumMachine/drumMachineBanks';
-import {
-  initDrumsEngine,
-  releaseDrumsEngine,
-  setDrumKit,
-} from '../instruments/drums/drumsEngine';
+import { setDrumKit } from '../instruments/drums/drumsEngine';
 import type { DrumKitId } from '../instruments/drums/drumsKits';
-import {
-  initGuitarEngine,
-  releaseGuitarEngine,
-} from '../instruments/guitar/guitarEngine';
-import {
-  initPadsEngine,
-  releasePadsEngine,
-  setPadBank,
-} from '../instruments/pads/padsEngine';
-import { initPianoEngine, releasePianoEngine } from '../instruments/piano/pianoEngine';
+import { setPadBank } from '../instruments/pads/padsEngine';
 import { applyPianoFxSettings, PIANO_FX_DEFAULTS } from '../instruments/piano/pianoFx';
-import {
-  initViolinEngine,
-  releaseViolinEngine,
-} from '../instruments/violin/violinEngine';
 
-async function initForType(
+async function acquireForType(
   typeId: DrumMachineTypeId,
   drumKitId: DrumKitId,
 ): Promise<void> {
@@ -33,49 +17,18 @@ async function initForType(
   // saved FX on focus, so resetting here is safe.
   applyPianoFxSettings(PIANO_FX_DEFAULTS);
 
-  switch (typeId) {
-    case 'drums':
-      await initDrumsEngine();
-      // The machine's own kit setting — saved takes stamp the same kit id,
-      // so live sound and playback keep matching.
-      setDrumKit(drumKitId);
-      return;
-    case 'piano':
-      await initPianoEngine();
-      return;
-    case 'guitar':
-      await initGuitarEngine();
-      return;
-    case 'violin':
-      await initViolinEngine();
-      return;
-    case 'pads':
-      await initPadsEngine();
-      // 'drums' bank on purpose: triggerPad plays whatever bank the Pads
-      // screen last left active, while saved patterns play back on 'drums' —
-      // pin it so live sound and playback match.
-      setPadBank('drums');
-      return;
-  }
-}
+  await acquireEngine(typeId);
 
-function releaseForType(typeId: DrumMachineTypeId): void {
-  switch (typeId) {
-    case 'drums':
-      releaseDrumsEngine();
-      return;
-    case 'piano':
-      releasePianoEngine();
-      return;
-    case 'guitar':
-      releaseGuitarEngine();
-      return;
-    case 'violin':
-      releaseViolinEngine();
-      return;
-    case 'pads':
-      releasePadsEngine();
-      return;
+  if (typeId === 'drums') {
+    // The machine's own kit setting — saved takes stamp the same kit id,
+    // so live sound and playback keep matching.
+    setDrumKit(drumKitId);
+  }
+  if (typeId === 'pads') {
+    // 'drums' bank on purpose: triggerPad plays whatever bank the Pads
+    // screen last left active, while saved patterns play back on 'drums' —
+    // pin it so live sound and playback match.
+    setPadBank('drums');
   }
 }
 
@@ -96,16 +49,11 @@ export function useDrumMachineEngine(
       setReady(false);
       setError(null);
 
-      initForType(typeId, kitRef.current)
+      acquireForType(typeId, kitRef.current)
         .then(() => {
-          if (!active) {
-            // Blur or type switch already released this engine while samples
-            // were still loading — undo the late init so it doesn't linger
-            // half-initialized behind the next engine.
-            releaseForType(typeId);
-            return;
+          if (active) {
+            setReady(true);
           }
-          setReady(true);
         })
         .catch((err: unknown) => {
           console.error('Drum machine engine init failed:', err);
@@ -117,7 +65,7 @@ export function useDrumMachineEngine(
 
       return () => {
         active = false;
-        releaseForType(typeId);
+        releaseEngine(typeId);
         setReady(false);
       };
     }, [typeId]),

@@ -16,6 +16,10 @@ import { Directory, Paths } from 'expo-file-system';
  * `storage/*.ts` module with its own STORAGE_KEY.
  */
 export const ALL_APP_DATA_KEYS: string[] = [
+  // Wiped along with the data it refers to: a pending-push marker outliving
+  // the local changes it stands for would push the freshly-emptied state over
+  // the cloud row on the next sign-in (see appDataSyncStateStorage).
+  '@bioband/app-data-push-pending.v1',
   '@bioband/drum-machine-patterns.v1',
   '@bioband/drum-machine-settings.v1',
   '@bioband/drum-machine-song.v1',
@@ -28,6 +32,7 @@ export const ALL_APP_DATA_KEYS: string[] = [
   '@bioband/practice-reminder.v1',
   '@bioband/profile-progress.v1',
   '@bioband/profile-settings.v1',
+  '@bioband/recording-settings.v1',
   '@bioband/recordings',
   '@bioband/song-audio-bindings.v1',
   '@bioband/studio-projects.v1',

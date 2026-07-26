@@ -195,6 +195,17 @@ export function PianoKeyboard({
     [syncTouches],
   );
 
+  // One handler for all 24 keys, so their `onAccessibilityTap` prop keeps the
+  // same identity between renders. A per-key arrow made every key look changed
+  // to `PianoKey`'s memo on every progress tick, which is the busiest thread in
+  // the app while a song plays.
+  const handleAccessibilityTap = useCallback(
+    (noteId: NoteId) => {
+      onNotePressIn(noteId);
+    },
+    [onNotePressIn],
+  );
+
   return (
     <View style={[styles.wrapper, { width, height, backgroundColor: theme.background }]}>
       <View
@@ -219,7 +230,7 @@ export function PianoKeyboard({
               keyColors={theme.keys}
               labelMode={labelMode}
               letterLabel={note.label}
-              onAccessibilityTap={() => onNotePressIn(note.id)}
+              onAccessibilityTap={handleAccessibilityTap}
               noteId={note.id}
               solfegeLabel={note.solfegeLabel}
               width={whiteKeyWidth}
@@ -245,7 +256,7 @@ export function PianoKeyboard({
                 keyColors={theme.keys}
                 labelMode={labelMode}
                 letterLabel={note.label}
-                onAccessibilityTap={() => onNotePressIn(note.id)}
+                onAccessibilityTap={handleAccessibilityTap}
                 noteId={note.id}
                 solfegeLabel={note.solfegeLabel}
                 width={blackKeyWidth}

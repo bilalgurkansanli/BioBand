@@ -64,7 +64,9 @@ export function PianoVolumeModal({
               }
               size={26}
             />
-            <Text style={styles.valueText}>{Math.round(ratio * 100)}%</Text>
+            <Text style={styles.valueText}>
+              {t('common.percent', { percent: Math.round(ratio * 100) })}
+            </Text>
           </View>
 
           <View style={styles.sliderRow}>
@@ -94,7 +96,7 @@ export function PianoVolumeModal({
                   <Text
                     style={[styles.presetText, isCurrent && styles.presetTextActive]}
                   >
-                    {Math.round(preset * 100)}%
+                    {t('common.percent', { percent: Math.round(preset * 100) })}
                   </Text>
                 </Pressable>
               );

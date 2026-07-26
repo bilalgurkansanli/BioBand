@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 
+import i18n from '../i18n';
+import { loadPracticeReminderSettings } from '../storage/practiceReminderStorage';
+
 const REMINDER_IDENTIFIER = 'bioband-practice-reminder';
 const ANDROID_CHANNEL_ID = 'practice-reminders';
 
@@ -113,3 +116,55 @@ export async function cancelDailyPracticeReminder(): Promise<void> {
   }
   await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER).catch(() => {});
 }
+
+const LANGUAGE_SYNC_FLAG = Symbol.for('bioband.practiceReminder.languageSync');
+
+// Kept on globalThis rather than in a module-local flag: Fast Refresh (and a
+// duplicated module registry) can evaluate this file again against the same
+// i18n instance, which would leave two listeners rescheduling in parallel.
+const globalFlags = globalThis as unknown as Record<symbol, true | undefined>;
+
+/**
+ * The OS keeps whatever title/body it was handed when the notification was
+ * scheduled, so a reminder scheduled in Turkish keeps firing in Turkish for
+ * months after the user switches language. Handing it the new copy is the only
+ * way to fix that.
+ */
+async function rescheduleWithCurrentLanguage(): Promise<void> {
+  const reminder = await loadPracticeReminderSettings();
+  // A disabled reminder has nothing scheduled — re-scheduling here would
+  // resurrect one the user deliberately turned off.
+  if (!reminder.enabled) {
+    return;
+  }
+  await scheduleDailyPracticeReminder(
+    reminder.hour,
+    reminder.minute,
+    i18n.t('profile.reminderNotifTitle'),
+    i18n.t('profile.reminderNotifBody'),
+  );
+}
+
+function watchLanguageChanges(): void {
+  if (globalFlags[LANGUAGE_SYNC_FLAG]) {
+    return;
+  }
+  globalFlags[LANGUAGE_SYNC_FLAG] = true;
+  i18n.on('languageChanged', () => {
+    // `init()` resolves the stored language through `changeLanguage()`, so it
+    // emits this event too — before `isInitialized` flips. That is startup
+    // rather than a user switch, and the OS already holds text in that
+    // language.
+    if (!i18n.isInitialized) {
+      return;
+    }
+    rescheduleWithCurrentLanguage().catch((error) => {
+      console.warn('Practice reminder language refresh failed:', error);
+    });
+  });
+}
+
+// App.tsx imports this module during startup, so the listener is live before
+// the first-run language screen — the language can be switched there, long
+// before the settings screen exists.
+watchLanguageChanges();

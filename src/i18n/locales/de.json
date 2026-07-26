@@ -28,7 +28,23 @@
     "acceptPrivacyLink": "Datenschutzrichtlinie",
     "acceptPrivacySuffix": ".",
     "acceptPrivacyA11y": "Ich akzeptiere die Datenschutzerklärung",
-    "signingIn": "Anmeldung läuft…"
+    "signingIn": "Anmeldung läuft…",
+    "deleteAccount": "Konto löschen",
+    "deleteAccountConfirmTitle": "Konto endgültig löschen?",
+    "deleteAccountConfirmMessage": "Das lässt sich nicht rückgängig machen. Dein Konto und alles, was daran hängt, wird dauerhaft entfernt.",
+    "deleteAccountLossAccount": "Dein BioBand-Konto und die Anmeldung",
+    "deleteAccountLossCloud": "Dein synchronisierter Fortschritt, deine Abzeichen und Einstellungen",
+    "deleteAccountLossDevice": "Aufnahmen, Studio-Projekte und importierte Lieder auf diesem Gerät",
+    "deleteAccountAcknowledge": "Ich verstehe, dass sich das nicht rückgängig machen lässt.",
+    "deleteAccountAcknowledgeA11y": "Ich verstehe, dass die Löschung dauerhaft ist",
+    "deleteAccountConfirm": "Endgültig löschen",
+    "deleteAccountErrors": {
+      "unconfigured": "Die Kontolöschung ist für diesen Build noch nicht eingerichtet.",
+      "sessionExpired": "Deine Sitzung ist abgelaufen. Melde dich ab, wieder an und versuch es erneut.",
+      "offline": "Keine Verbindung. Dein Konto wurde nicht gelöscht — verbinde dich und versuch es erneut.",
+      "rpcMissing": "Die Kontolöschung ist auf dem Server noch nicht verfügbar. Es wurde nichts gelöscht.",
+      "error": "Dein Konto konnte nicht gelöscht werden. Es wurde nichts gelöscht — versuch es erneut."
+    }
   },
   "common": {
     "back": "Zurück",
@@ -39,6 +55,7 @@
     "close": "Schließen",
     "minutesShort": "{{count}} Min.",
     "hoursShort": "{{count}} Std.",
+    "percent": "{{percent}}%",
     "about": "Über",
     "privacyPolicy": "Datenschutzrichtlinie"
   },
@@ -113,7 +130,12 @@
     "weeklyGoalOption": "{{minutes}} Min.",
     "weeklyGoalOff": "Aus",
     "weeklyGoalReached": "Du hast dein Wochenziel erreicht.",
-    "weeklyGoalRemaining": "Noch {{remaining}} bis {{goal}}"
+    "weeklyGoalRemaining": "Noch {{remaining}} bis {{goal}}",
+    "reminderTimeTitle": "Erinnerungszeit",
+    "reminderTimeLabel": "Uhrzeit",
+    "recordingTitle": "Aufnahme",
+    "countInEnable": "Einzähler vor der Aufnahme",
+    "countInHint": "Zählt vor dem Start einen Takt im Metronom-Tempo, damit deine erste Note auf der Zählzeit sitzt."
   },
   "instruments": {
     "title": "Instrumente",
@@ -194,7 +216,14 @@
     "localDataHint": "Aufnahmen werden nur auf diesem Gerät gespeichert — sie werden nicht in der Cloud gesichert.",
     "exportEmpty": "Diese Aufnahme enthält kein Audio zum Exportieren.",
     "exportingTitle": "Wird exportiert",
-    "exportingMessage": "Die Audiodatei wird vorbereitet. Bei langen Aufnahmen dauert das einen Moment."
+    "exportingMessage": "Die Audiodatei wird vorbereitet. Bei langen Aufnahmen dauert das einen Moment.",
+    "searchPlaceholder": "Aufnahmen durchsuchen",
+    "filterAll": "Alle",
+    "countFiltered": "{{count}} von {{total}} Aufnahmen",
+    "noResultsTitle": "Keine Treffer",
+    "noResultsDescription": "Ändere die Suche oder setze den Filter auf „Alle“.",
+    "playbackSpeed": "Wiedergabegeschwindigkeit",
+    "loop": "Schleife"
   },
   "studio": {
     "title": "Studio",
@@ -386,7 +415,11 @@
       "hihatClosed": "HH",
       "hihatOpen": "OH",
       "crash": "Crash"
-    }
+    },
+    "clearConfirmTitle": "Grid leeren?",
+    "clearConfirmBody": "Alle Steps werden gelöscht, das lässt sich nicht rückgängig machen. Vorher speichern?",
+    "randomConfirmTitle": "Zufälliges Pattern würfeln?",
+    "randomConfirmBody": "Das aktuelle Pattern wird überschrieben. Ungespeichert ist es weg."
   },
   "recording": {
     "button": "Aufnehmen",
@@ -400,7 +433,10 @@
       "instrument": "Aufnahme läuft — dein Spiel wird aufgezeichnet.",
       "microphone": "Aufnahme läuft — Mikrofon ist aktiv."
     },
-    "saveError": "Diese Aufnahme konnte nicht gespeichert werden. Möglicherweise ist der Speicher deines Geräts voll — schaffe Platz und versuche es erneut."
+    "saveError": "Diese Aufnahme konnte nicht gespeichert werden. Möglicherweise ist der Speicher deines Geräts voll — schaffe Platz und versuche es erneut.",
+    "savedTitle": "Aufnahme gespeichert",
+    "savedDetail": "Du findest sie unter „Meine Aufnahmen“.",
+    "countIn": "Gleich geht's los…"
   },
   "drums": {
     "pads": {
@@ -469,6 +505,7 @@
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Schlagzeug dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
+      "pickAudioUnsupported": "Wähle eine MP3-, M4A-, MP4- oder WAV-Datei.",
       "calibrate": "Schlagzeug mit dem Track synchronisieren",
       "calibrateHint": "Ziehe, bis die ersten Schläge mit der Aufnahme übereinstimmen. Die Vorschau spielt einen kurzen Clip.",
       "calibrateOffset": "Versatz: {{ms}} ms",
@@ -603,6 +640,7 @@
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Geige dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
+      "pickAudioUnsupported": "Wähle eine MP3-, M4A-, MP4- oder WAV-Datei.",
       "calibrate": "Geige mit dem Track synchronisieren",
       "calibrateHint": "Ziehe, bis die ersten Noten mit der Aufnahme übereinstimmen. Die Vorschau spielt einen kurzen Clip.",
       "calibrateOffset": "Versatz: {{ms}} ms",
@@ -791,6 +829,7 @@
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Gitarre dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
+      "pickAudioUnsupported": "Wähle eine MP3-, M4A-, MP4- oder WAV-Datei.",
       "calibrate": "Gitarre mit dem Track synchronisieren",
       "calibrateHint": "Ziehe, bis die ersten Noten mit der Aufnahme übereinstimmen. Die Vorschau spielt einen kurzen Clip.",
       "calibrateOffset": "Versatz: {{ms}} ms",
@@ -1025,6 +1064,7 @@
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Pads dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
+      "pickAudioUnsupported": "Wähle eine MP3-, M4A-, MP4- oder WAV-Datei.",
       "calibrate": "Pads mit dem Track synchronisieren",
       "calibrateHint": "Ziehe, bis die ersten Schläge mit der Aufnahme übereinstimmen. Die Vorschau spielt einen kurzen Clip.",
       "calibrateOffset": "Versatz: {{ms}} ms",
@@ -1448,7 +1488,7 @@
   },
   "privacy": {
     "screenTitle": "Datenschutzrichtlinie",
-    "lastUpdated": "Zuletzt aktualisiert: 23. Juli 2026",
+    "lastUpdated": "Zuletzt aktualisiert: 26. Juli 2026",
     "contactLabel": "Fragen zu dieser Richtlinie oder deinen Daten? E-Mail:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "Vollständige Richtlinie auf GitHub ansehen",
@@ -1458,8 +1498,8 @@
         "body": "Wenn du dich nicht anmeldest, funktioniert BioBand vollständig auf deinem Gerät. Nichts, was du tust — Aufnahmen, Übungsfortschritt, Einstellungen — wird irgendwohin gesendet, und nichts davon bleibt zwischen App-Starts erhalten: Beim Schließen und erneuten Öffnen der App wird alles zurückgesetzt."
       },
       {
-        "title": "Anmeldung mit Google",
-        "body": "Wenn du dich mit Google anmeldest, verwenden wir Google Sign-In nur zur Authentifizierung und um dein Profil mit Name und Foto aus deinem Google-Konto zu personalisieren. Durch die Anmeldung werden folgende kleine Daten mit unserer Cloud-Datenbank synchronisiert, damit sie dich geräteübergreifend begleiten:\n\n• Dein Anzeigename, Lieblingsinstrument und die URL deines Profilfotos\n• Übungsfortschritt: Serien (Streaks), gesamte Übungszeit, abgeschlossene Herausforderungen, erhaltene Abzeichen\n• Deine bevorzugte Erinnerungszeit für das Üben\n\nDiese Daten sind an dein Konto gebunden und werden ausschließlich von dir gelesen oder geschrieben (serverseitig durchgesetzt, nicht nur in der App)."
+        "title": "Anmeldung mit Google oder Apple",
+        "body": "Du kannst dich mit Google oder mit „Anmelden mit Apple“ anmelden. Beides dient ausschließlich der Authentifizierung und dazu, deinem Profil einen Startnamen zu geben. Durch die Anmeldung werden folgende kleine Daten mit unserer Cloud-Datenbank synchronisiert, damit sie dich geräteübergreifend begleiten:\n\n• Dein Anzeigename, Lieblingsinstrument und die URL deines Profilfotos\n• Übungsfortschritt: Serien (Streaks), gesamte Übungszeit, abgeschlossene Herausforderungen, erhaltene Abzeichen\n• Deine bevorzugte Erinnerungszeit für das Üben\n\nWas genau uns der jeweilige Anbieter übermittelt:\n\n• Google — deinen Namen, deine E-Mail-Adresse und die URL deines Profilfotos.\n• Apple — deinen Namen und deine E-Mail-Adresse. Den Namen sendet Apple nur beim allerersten Autorisieren von BioBand und danach nie wieder; wir verwenden ihn, um deinen Anzeigenamen vorauszufüllen, den du jederzeit ändern kannst. Ein Foto gibt Apple uns nicht. Wenn du „E-Mail-Adresse verbergen“ wählst, erhalten wir statt deiner echten Adresse eine Weiterleitungsadresse (…@privaterelay.appleid.com) — und nur diese sehen wir jemals.\n\nDiese Daten sind an dein Konto gebunden und werden ausschließlich von dir gelesen oder geschrieben (serverseitig durchgesetzt, nicht nur in der App)."
       },
       {
         "title": "Was wir niemals sammeln oder hochladen",
@@ -1471,7 +1511,7 @@
       },
       {
         "title": "Drittanbieterdienste",
-        "body": "• Google Sign-In — wird ausschließlich zur Authentifizierung verwendet. Siehe die Datenschutzrichtlinie von Google (policies.google.com/privacy) für den Umgang mit deinen Kontodaten.\n• Unsere Cloud-Datenbank — ein externer Hosting-Anbieter, den wir nur zur Speicherung der oben beschriebenen kleinen Fortschritts-/Einstellungsdaten verwenden."
+        "body": "• Google Sign-In — wird ausschließlich zur Authentifizierung verwendet. Siehe die Datenschutzrichtlinie von Google (policies.google.com/privacy) für den Umgang mit deinen Kontodaten.\n• Anmelden mit Apple — wird ausschließlich zur Authentifizierung verwendet. Apple übermittelt uns deinen Namen (einmalig) und eine E-Mail-Adresse, die eine Weiterleitungsadresse sein kann, wenn du deine echte verbergen lässt. Siehe die Datenschutzrichtlinie von Apple (apple.com/legal/privacy) für den Umgang mit deinen Kontodaten.\n• Unsere Cloud-Datenbank — ein externer Hosting-Anbieter, den wir nur zur Speicherung der oben beschriebenen kleinen Fortschritts-/Einstellungsdaten verwenden."
       },
       {
         "title": "Deine Rechte (KVKK / DSGVO)",
@@ -1479,7 +1519,7 @@
       },
       {
         "title": "Deine Wahlmöglichkeiten",
-        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten und setzt die App in einen neuen Gast-Zustand zurück.\n• Löschen deiner Cloud-Daten: Kontaktiere uns unter der unten stehenden E-Mail-Adresse, und wir löschen die unter deinem Konto gespeicherten Fortschritts-/Einstellungsdaten."
+        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten und setzt die App in einen neuen Gast-Zustand zurück.\n• Konto endgültig löschen: Profil → Einstellungen → Konto löschen. Damit werden dein Konto und alle Fortschritts-/Einstellungsdaten in der Cloud dauerhaft entfernt, anschließend werden die Daten auf diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.\n• Wenn du die Löschung lieber ohne Installation der App beantragen möchtest, kontaktiere uns unter der unten stehenden E-Mail-Adresse."
       },
       {
         "title": "Änderungen an dieser Richtlinie",

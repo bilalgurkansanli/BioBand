@@ -330,9 +330,15 @@ export function PlayAlongModal({
     if (!isDocumentPickerAvailable()) {
       return;
     }
-    const { pickAudioDocument } = await import('../../utils/documentPicker');
-    const picked = await pickAudioDocument();
+    const { pickBackingAudioDocument } = await import('../../utils/documentPicker');
+    const picked = await pickBackingAudioDocument();
     if (!picked.ok) {
+      if (picked.code === 'unsupported') {
+        Alert.alert(
+          t('piano.game.pickAudio.title'),
+          t('piano.game.pickAudio.errors.unsupported'),
+        );
+      }
       return;
     }
     await onPickBackingAudio(picked.asset.uri, picked.asset.name);

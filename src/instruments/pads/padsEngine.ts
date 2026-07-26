@@ -39,6 +39,7 @@ const fileBuffers = new Map<number, AudioBuffer>();
 const pianoBuffers = new Map<number, AudioBuffer>();
 const userBuffers = new Map<string, AudioBuffer>();
 let initialized = false;
+let initPromise: Promise<void> | null = null;
 let currentBankId: PadBankId = 'drums';
 
 let bankGain: GainNode | null = null;
@@ -258,7 +259,17 @@ export async function initPadsEngine(): Promise<void> {
   if (initialized) {
     return;
   }
+  // `initialized` only flips after the decode, so callers arriving during it
+  // would each run the whole load — share the one in flight instead.
+  if (!initPromise) {
+    initPromise = loadPadsEngine().finally(() => {
+      initPromise = null;
+    });
+  }
+  await initPromise;
+}
 
+async function loadPadsEngine(): Promise<void> {
   await prepareSamplePlayback();
   await ensureCustomSlotsHydrated();
   getPianoFxInput();

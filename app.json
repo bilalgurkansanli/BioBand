@@ -9,7 +9,13 @@
     "ios": {
       "bundleIdentifier": "com.bioband.app",
       "supportsTablet": true,
+      "requireFullScreen": true,
       "infoPlist": {
+        "CFBundleLocalizations": [
+          "en",
+          "tr",
+          "de"
+        ],
         "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances."
       }
     },
@@ -19,6 +25,13 @@
         "RECORD_AUDIO",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "blockedPermissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#0D0D0D",
@@ -40,6 +53,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "locales": {
+      "en": "./locales/en.json",
+      "tr": "./locales/tr.json",
+      "de": "./locales/de.json"
+    },
     "plugins": [
       [
         "expo-splash-screen",
@@ -52,7 +70,13 @@
       ],
       "expo-localization",
       "expo-audio",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#6C5CE7"
+        }
+      ],
       "expo-system-ui",
       [
         "expo-screen-orientation",
@@ -60,7 +84,14 @@
           "initialOrientation": "PORTRAIT_UP"
         }
       ],
-      "react-native-audio-api",
+      [
+        "react-native-audio-api",
+        {
+          "iosBackgroundMode": false,
+          "androidForegroundService": false,
+          "androidPermissions": []
+        }
+      ],
       "expo-asset",
       "expo-font",
       "expo-document-picker",

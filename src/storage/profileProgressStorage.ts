@@ -21,8 +21,33 @@ const STORAGE_KEY = '@bioband/profile-progress.v1';
  */
 let writeQueue: Promise<unknown> = Promise.resolve();
 
+/**
+ * True while a locked operation is running.
+ *
+ * The queue is not re-entrant: taking the lock from inside a locked body waits
+ * on a promise that cannot settle until that same body finishes, which hangs
+ * silently and poisons the queue for every later read and write. Callers must
+ * use the `…Unlocked` helpers internally; this catches the mistake in
+ * development instead of letting it ship as a frozen Profile tab.
+ */
+let lockHeld = false;
+
 function withProgressLock<T>(operation: () => Promise<T>): Promise<T> {
-  const run = writeQueue.then(operation, operation);
+  if (__DEV__ && lockHeld) {
+    console.error(
+      '[profileProgress] withProgressLock re-entered — use loadProfileProgressUnlocked ' +
+        'inside a locked body. This deadlocks in production.',
+    );
+  }
+  const guarded = async () => {
+    lockHeld = true;
+    try {
+      return await operation();
+    } finally {
+      lockHeld = false;
+    }
+  };
+  const run = writeQueue.then(guarded, guarded);
   writeQueue = run.then(
     () => undefined,
     () => undefined,
@@ -242,8 +267,11 @@ export async function recordFeatureUse(feature: TrackedFeature): Promise<void> {
   try {
     // Through the same lock as every other write: two counters bumped in the
     // same moment would otherwise read the same snapshot and one would be lost.
+    // The *unlocked* loader is mandatory here — `loadProfileProgress` takes the
+    // same lock, and taking it from inside is a circular wait that never
+    // settles, poisoning the queue for every later read and write.
     await withProgressLock(async () => {
-      const progress = await loadProfileProgress();
+      const progress = await loadProfileProgressUnlocked();
       const featureUse = { ...(progress.featureUse ?? {}) };
       featureUse[feature] = (featureUse[feature] ?? 0) + 1;
       await persist({ ...progress, featureUse });
