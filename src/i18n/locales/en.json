@@ -59,6 +59,14 @@
     "about": "About",
     "privacyPolicy": "Privacy Policy"
   },
+  "credits": {
+    "screenTitle": "Credits & licences",
+    "intro": "BioBand is built on work other people shared. Everything below is used under the licence shown next to it — tap an entry to read that licence.",
+    "instruments": "Instrument sounds",
+    "songs": "Tutorial songs",
+    "software": "Software",
+    "footer": "BioBand itself is open source under the MIT licence. The full per-file breakdown, including which recording each note comes from, lives with the samples in the repository."
+  },
   "profile": {
     "title": "Profile",
     "subtitle": "Build a streak with short daily practice and weekly song challenges.",

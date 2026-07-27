@@ -59,6 +59,14 @@
     "about": "Über",
     "privacyPolicy": "Datenschutzrichtlinie"
   },
+  "credits": {
+    "screenTitle": "Danksagungen & Lizenzen",
+    "intro": "BioBand baut auf der Arbeit anderer auf. Alles Folgende wird unter der daneben genannten Lizenz verwendet — tippe auf einen Eintrag, um sie zu lesen.",
+    "instruments": "Instrumentenklänge",
+    "songs": "Lern-Songs",
+    "software": "Software",
+    "footer": "BioBand selbst ist Open Source unter der MIT-Lizenz. Die vollständige Aufschlüsselung pro Datei, einschließlich der Aufnahme hinter jeder Note, liegt im Repository bei den Samples."
+  },
   "profile": {
     "title": "Profil",
     "subtitle": "Baue mit kurzem täglichem Üben und wöchentlichen Song-Herausforderungen eine Serie auf.",

@@ -45,11 +45,11 @@ yarn-error.*
 # string, which has no business in a public repository.
 supabase/.temp/
 
+# Python bytecode from scripts/
+__pycache__/
+*.pyc
+
 # Generated store images — rebuild with scripts/store_screenshots.py
 docs/screenshots/store/
 docs/screenshots/store-tr/
 docs/screenshots/store-de/
-
-# Python bytecode from scripts/
-__pycache__/
-*.pyc

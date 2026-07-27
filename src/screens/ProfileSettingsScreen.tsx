@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 import { AppleSignInButton } from '../components/AppleSignInButton';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import { CreditsModal } from '../components/CreditsModal';
 import { CrashLogModal } from '../components/CrashLogModal';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
 import { TimePickerModal } from '../components/TimePickerModal';
@@ -109,6 +110,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     };
   }, []);
   const [privacyVisible, setPrivacyVisible] = useState(false);
+  const [creditsVisible, setCreditsVisible] = useState(false);
   const currentLang: AppLanguage =
     i18n.language === 'tr' ? 'tr' : i18n.language === 'de' ? 'de' : 'en';
   const { user, isSignedIn, signOut } = useAuthSession();
@@ -550,6 +552,18 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
           </Pressable>
 
+          {/* Not optional politeness: the piano samples are CC BY, which
+              requires the credit to ship with the app, not just sit in the
+              repository. See CreditsModal. */}
+          <Pressable
+            onPress={() => setCreditsVisible(true)}
+            style={({ pressed }) => [styles.privacyRow, pressed && styles.pressed]}
+          >
+            <Ionicons color={colors.textSecondary} name="heart-outline" size={18} />
+            <Text style={styles.privacyRowText}>{t('credits.screenTitle')}</Text>
+            <Ionicons color={colors.textSecondary} name="chevron-forward" size={16} />
+          </Pressable>
+
           {/* Hidden until something has actually gone wrong — a permanently
               visible "error log" invites people to go looking for trouble. */}
           {crashCount > 0 ? (
@@ -637,6 +651,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
       />
 
       <PrivacyPolicyModal visible={privacyVisible} onClose={() => setPrivacyVisible(false)} />
+      <CreditsModal visible={creditsVisible} onClose={() => setCreditsVisible(false)} />
     </ScreenContainer>
   );
 }
