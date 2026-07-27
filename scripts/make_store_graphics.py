@@ -7,9 +7,10 @@ Writes, per language:
     feature-1024.png   1024x500, the banner above the listing
 
 The icon is the same artwork the app ships, resized — Play wants its own copy
-rather than reading it out of the bundle. The feature graphic is composed here
-from the transparent adaptive-icon layer over the same purple gradient the
-screenshots use, so the listing reads as one piece.
+rather than reading it out of the bundle. The feature graphic composes the
+transparent adaptive-icon layer over a near-black field, matching the app,
+with the colour arriving as bloom off the logo rather than as a painted
+background.
 """
 
 import argparse
@@ -20,9 +21,18 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 FONT_DIR = pathlib.Path('C:/Windows/Fonts')
 BOLD, REGULAR = 'segoeuib.ttf', 'segoeui.ttf'
 
-# Same pair the first screenshot uses, so the banner and the strip below it
-# look like they were made together.
-GRADIENT = ((62, 46, 130), (16, 14, 28))
+# Near-black, like the app itself. The artwork is a glow drawn on black, and a
+# strongly coloured field behind it fights that — the colour should look like it
+# is coming off the logo, not painted underneath it. So the field stays almost
+# neutral and the purple arrives as bloom around the artwork.
+GRADIENT = ((17, 14, 27), (8, 7, 12))
+
+# Two blooms rather than one: purple close in, a smaller warmer one offset, which
+# is what keeps the black from reading as flat.
+BLOOMS = (
+    {'colour': (140, 110, 255), 'strength': 54, 'scale': 1.00, 'offset': (0.0, 0.0)},
+    {'colour': (236, 120, 210), 'strength': 30, 'scale': 0.58, 'offset': (0.24, -0.28)},
+)
 
 TAGLINES = {
     'en': ('BioBand', 'Piano · Drums · Guitar · Violin · Pads'),
@@ -75,14 +85,19 @@ def make_feature(out_dir, lang):
     art = art.resize((art_w, art_h), Image.LANCZOS)
     ax, ay = int(W * 0.11), (H - art_h) // 2
 
-    # A pool of light under the logo so it belongs to the gradient rather than
-    # sitting on top of it.
-    glow = Image.new('L', (W, H), 0)
-    ImageDraw.Draw(glow).ellipse(
-        [ax - art_w * 0.3, ay - art_h * 0.3,
-         ax + art_w * 1.3, ay + art_h * 1.3], fill=64)
-    canvas.paste(Image.new('RGB', (W, H), (150, 120, 255)), (0, 0),
-                 glow.filter(ImageFilter.GaussianBlur(art_w * 0.22)))
+    # Light pooling off the artwork, so the colour in the frame reads as the
+    # logo's own glow rather than as a background someone chose.
+    cx, cy = ax + art_w / 2, ay + art_h / 2
+    for bloom in BLOOMS:
+        r = art_w * bloom['scale']
+        bx = cx + art_w * bloom['offset'][0]
+        by = cy + art_h * bloom['offset'][1]
+        layer = Image.new('L', (W, H), 0)
+        ImageDraw.Draw(layer).ellipse(
+            [bx - r, by - r, bx + r, by + r], fill=bloom['strength'])
+        canvas.paste(Image.new('RGB', (W, H), bloom['colour']), (0, 0),
+                     layer.filter(ImageFilter.GaussianBlur(r * 0.45)))
+
     canvas.paste(art, (ax, ay), art)
 
     d = ImageDraw.Draw(canvas)
