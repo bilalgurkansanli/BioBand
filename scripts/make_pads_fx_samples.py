@@ -347,11 +347,90 @@ def make_boom():
     return fade_edges(buf, 0.001, 0.1)
 
 
+def make_clap():
+    """Replaces the clap that arrived with no documented source.
+
+    A clap is not one hit: it is a short scatter of hands not quite together,
+    then the room. Four band-passed noise bursts a few milliseconds apart give
+    the scatter, and a longer, lower-passed tail gives the room. Measured
+    against the file it replaces — 0.48 s, mono, noise-dominated.
+    """
+    dur = 0.48
+    buf = silence(dur)
+    # The transients are held well below 1.0 on purpose. They set the peak, and
+    # peak-normalising a sample whose peak is four 10 ms spikes leaves
+    # everything else — including the tail that carries the body — far too low.
+    for i, (offset, amp) in enumerate(((0.0, 0.62), (0.011, 0.52), (0.023, 0.44), (0.036, 0.34))):
+        add_noise_svf(
+            buf,
+            lambda t, a=amp: a * math.exp(-t / 0.011),
+            lambda t, k=i: 1650.0 + 190.0 * k,
+            q=1.5,
+            mode='band',
+            t0=offset,
+        )
+    # The room behind them: darker, and much slower to leave. Carrying real
+    # level rather than a hint of one — with only the four transients the whole
+    # sample measured well under every other pad in the bank and would have
+    # come out limp next to them, peak-normalising alone cannot fix that.
+    add_noise_svf(
+        buf,
+        lambda t: 0.62 * math.exp(-t / 0.125),
+        lambda t: 1250.0 - 420.0 * min(t / 0.30, 1.0),
+        q=0.7,
+        mode='band',
+        t0=0.040,
+    )
+    return fade_edges(buf, 0.0004, 0.06)
+
+
+def make_impact():
+    """Replaces the impact that arrived with no documented source.
+
+    Trailer-style hit: a sub that drops away under a bright noise crack, then a
+    long decay. 1.0 s, matching the file it replaces.
+    """
+    dur = 1.0
+    buf = silence(dur)
+    add_sine(
+        buf,
+        lambda t: 38.0 + 120.0 * math.exp(-t / 0.05),
+        lambda t: math.exp(-t / 0.34),
+        drive=1.3,
+    )
+    add_sine(
+        buf,
+        lambda t: 74.0 + 60.0 * math.exp(-t / 0.04),
+        lambda t: 0.34 * math.exp(-t / 0.16),
+    )
+    # The crack on top — brief, and well above the sub so the two stay legible.
+    add_noise_svf(
+        buf,
+        lambda t: 0.62 * math.exp(-t / 0.018),
+        lambda t: 2400.0,
+        q=0.9,
+        mode='high',
+    )
+    # Tail: noise sinking through the mids, which is what makes it read as a
+    # room rather than a click.
+    add_noise_svf(
+        buf,
+        lambda t: 0.20 * math.exp(-t / 0.30),
+        lambda t: 900.0 - 620.0 * min(t / 0.7, 1.0),
+        q=0.8,
+        mode='band',
+        t0=0.02,
+    )
+    return fade_edges(buf, 0.0004, 0.10)
+
+
 def main():
     if len(sys.argv) != 2:
         print(__doc__, file=sys.stderr)
         sys.exit(1)
     out = sys.argv[1]
+    write_wav(f"{out}/clap.wav", make_clap())
+    write_wav(f"{out}/impact.wav", make_impact(), peak=0.92)
     write_wav(f"{out}/synth_808.wav", make_808())
     write_wav(f"{out}/synth_riser.wav", make_riser())
     write_wav(f"{out}/synth_whoosh.wav", make_whoosh())
