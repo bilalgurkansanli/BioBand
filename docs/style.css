@@ -75,6 +75,23 @@ header nav a:first-child {
   margin-left: 0;
 }
 
+.langs {
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 32px;
+  padding-bottom: 14px;
+}
+
+.langs a {
+  text-decoration: none;
+}
+
+.langs span[aria-current] {
+  color: var(--text);
+  font-weight: 600;
+}
+
 h1 {
   font-size: 32px;
   letter-spacing: -0.02em;
