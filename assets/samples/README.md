@@ -12,8 +12,9 @@ a licence review should start from.
 | [`drums/`](drums/) | Kit one-shots + 808 kit | Freesound (CC0/CC BY), JavaScript30, `teropa/drumkit`, plus synthesised layers | Mixed — see the per-file table |
 | [`pads/`](pads/) | FX and Turkish percussion | Synthesised by `scripts/*.py` in this repo | This repository's licence |
 
-Two files — `pads/clap.wav` and `pads/impact.wav` — have no recorded source.
-See [`pads/README.md`](pads/README.md) before shipping or relicensing.
+`pads/clap.wav` and `pads/impact.wav` once had no recorded source; both were
+re-synthesised by this repo's own generator before the first store release, so
+every file in the tree now has a licence that can be pointed at.
 
 ## How samples are used
 

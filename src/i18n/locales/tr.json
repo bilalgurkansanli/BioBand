@@ -59,6 +59,14 @@
     "about": "Hakkında",
     "privacyPolicy": "Gizlilik Politikası"
   },
+  "credits": {
+    "screenTitle": "Krediler ve lisanslar",
+    "intro": "BioBand, başkalarının paylaştığı çalışmaların üzerine kurulu. Aşağıdakilerin hepsi yanında yazan lisansla kullanılıyor — lisansı okumak için satıra dokun.",
+    "instruments": "Enstrüman sesleri",
+    "songs": "Eğitici şarkılar",
+    "software": "Yazılım",
+    "footer": "BioBand'in kendisi MIT lisansıyla açık kaynaktır. Hangi notanın hangi kayıttan geldiği dahil dosya bazlı tam döküm, depodaki ses örneklerinin yanında duruyor."
+  },
   "profile": {
     "title": "Profil",
     "subtitle": "Kısa günlük pratik ve haftalık şarkı challenge'larıyla streak biriktir.",
