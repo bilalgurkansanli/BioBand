@@ -40,3 +40,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Supabase CLI local state — holds the linked project's pooler connection
+# string, which has no business in a public repository.
+supabase/.temp/
