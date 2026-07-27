@@ -22,7 +22,7 @@ import argparse
 import pathlib
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 # App Store 6.5" — the only sizes Apple accepts for that slot.
 PORTRAIT = (1242, 2688)
@@ -295,8 +295,10 @@ def frame_in_phone(shot, size, caption, backdrop=None):
         top += len(lines) * line_h + int(H * 0.04)
 
     # Phone body, scaled to whatever room is left.
-    room_h = H - top - int(H * 0.06)
-    room_w = int(W * (0.96 if sideways else 0.68))
+    # int(): the caption block leaves `top` fractional, and Pillow's resize
+    # rejects a float size.
+    room_h = int(H - top - int(H * 0.06))
+    room_w = int(W * (0.96 if sideways else 0.80))
     body_r = shot.width / shot.height
     bw, bh = room_w, int(room_w / body_r)
     if bh > room_h:
@@ -311,6 +313,9 @@ def frame_in_phone(shot, size, caption, backdrop=None):
     # under the headline makes the space above and below symmetrical, which
     # reads as deliberate instead of as a picture that fell to the top.
     py_ = (H - bh) // 2 if sideways else int(top)
+
+    glow_behind(out, (px_, py_, px_ + bw, py_ + bh))
+    d = ImageDraw.Draw(out)
 
     # A soft outer edge so the body reads as an object, not a pasted rectangle.
     d.rounded_rectangle(
@@ -327,6 +332,41 @@ def frame_in_phone(shot, size, caption, backdrop=None):
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, bw - 1, bh - 1], radius=radius, fill=255)
     out.paste(inner, (px_, py_), mask)
     return out
+
+
+def glow_behind(canvas, box, colour=(150, 120, 255), strength=70):
+    """A soft pool of light under the phone, so it sits on the backdrop instead
+    of being pasted onto it."""
+    x0, y0, x1, y1 = box
+    pad = int((x1 - x0) * 0.10)
+    layer = Image.new('L', canvas.size, 0)
+    ImageDraw.Draw(layer).rounded_rectangle(
+        [x0 - pad, y0 - pad, x1 + pad, y1 + pad],
+        radius=pad, fill=strength,
+    )
+    layer = layer.filter(ImageFilter.GaussianBlur(pad * 0.9))
+    canvas.paste(Image.new('RGB', canvas.size, colour), (0, 0), layer)
+
+
+def soften_seam(half, side, depth=0.05, strength=90):
+    """Shades the edge where a panorama is cut in two.
+
+    The two halves are separate files with a gap between them, so the join can
+    never actually blend. Darkening each inner edge gives the phone the look of
+    curving away at that point — the break then reads as shading rather than as
+    a picture sliced down the middle, and each half still stands on its own.
+    """
+    w, h = half.size
+    span = max(1, int(w * depth))
+    shade = Image.new('L', (span, 1))
+    px = shade.load()
+    for x in range(span):
+        t = x / max(1, span - 1)
+        px[x, 0] = int(strength * (t if side == 'left' else 1 - t) ** 2)
+    mask = shade.resize((span, h))
+    x0 = w - span if side == 'left' else 0
+    half.paste(Image.new('RGB', (span, h), (0, 0, 0)), (x0, 0), mask)
+    return half
 
 
 def panorama_pair(shot, caption, colours):
@@ -362,26 +402,31 @@ def panorama_pair(shot, caption, colours):
                 d.text((centre, top + i * fsize * 1.2), line, font=f,
                        fill=(255, 255, 255), anchor='ma')
 
-    bw = int(W * 2 * 0.90)
+    bw = int(W * 2 * 0.93)
     bh = int(bw / (shot.width / shot.height))
     bezel = max(8, int(min(bw, bh) * 0.020))
     radius = int(min(bw, bh) * 0.070)
-    px_, py_ = (W * 2 - bw) // 2, (H - bh) // 2 + int(H * 0.03)
+    px_, py_ = (W * 2 - bw) // 2, (H - bh) // 2 + int(H * 0.04)
 
+    glow_behind(canvas, (px_, py_, px_ + bw, py_ + bh))
+    d = ImageDraw.Draw(canvas)
     d.rounded_rectangle(
         [px_ - bezel, py_ - bezel, px_ + bw + bezel, py_ + bh + bezel],
         radius=radius + bezel, fill=(8, 8, 10),
     )
     d.rounded_rectangle(
         [px_ - bezel, py_ - bezel, px_ + bw + bezel, py_ + bh + bezel],
-        radius=radius + bezel, outline=(96, 88, 130), width=max(2, bezel // 3),
+        radius=radius + bezel, outline=(112, 100, 155), width=max(2, bezel // 3),
     )
     inner = shot.convert('RGB').resize((bw, bh), Image.LANCZOS)
     mask = Image.new('L', (bw, bh), 0)
     ImageDraw.Draw(mask).rounded_rectangle([0, 0, bw - 1, bh - 1], radius=radius, fill=255)
     canvas.paste(inner, (px_, py_), mask)
 
-    return canvas.crop((0, 0, W, H)), canvas.crop((W, 0, W * 2, H))
+    return (
+        soften_seam(canvas.crop((0, 0, W, H)), 'left'),
+        soften_seam(canvas.crop((W, 0, W * 2, H)), 'right'),
+    )
 
 
 def wrap(text, f, max_w, d):
