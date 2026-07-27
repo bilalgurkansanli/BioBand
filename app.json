@@ -16,7 +16,8 @@
           "tr",
           "de"
         ],
-        "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances."
+        "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
