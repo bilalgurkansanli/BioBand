@@ -6,8 +6,9 @@
   },
   "auth": {
     "promptTitle": "İlerlemeni koru",
-    "promptSubtitle": "Kayıtlarını, serilerini ve ayarlarını her açılışta korumak için Google ile giriş yap. Konuk olarak devam edersen her açılışta her şey sıfırlanır.",
+    "promptSubtitle": "Kayıtlarını, serilerini ve ayarlarını her açılışta korumak için Google ya da Apple ile giriş yap. Konuk olarak devam edersen her açılışta her şey sıfırlanır.",
     "signInWithGoogle": "Google ile giriş yap",
+    "signInWithApple": "Apple ile giriş yap",
     "continueAsGuest": "Konuk olarak devam et",
     "guestHint": "Daha sonra Profil ayarlarından giriş yapabilirsin.",
     "signOut": "Çıkış yap",
@@ -18,7 +19,6 @@
       "noIdToken": "Google bir giriş jetonu döndürmedi. Tekrar dene.",
       "unconfigured": "Bu sürümde giriş henüz ayarlanmamış.",
       "error": "Giriş başarısız oldu. Tekrar dene.",
-      "notAvailable": "Apple ile giriş bu cihazda kullanılamıyor.",
       "noIdentityToken": "Apple bir giriş jetonu döndürmedi. Tekrar dene."
     },
     "signOutConfirmTitle": "Çıkış yapılsın mı?",

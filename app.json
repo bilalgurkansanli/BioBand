@@ -3,6 +3,7 @@
     "name": "BioBand",
     "slug": "BioBand",
     "version": "1.0.0",
+    "scheme": "bioband",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -101,7 +102,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.533523915249-p8vdfao9dq69qt7j81fdibnpbihnb44g"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

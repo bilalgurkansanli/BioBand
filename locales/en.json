@@ -1,3 +1,5 @@
 {
-  "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances."
+  "ios": {
+    "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances."
+  }
 }

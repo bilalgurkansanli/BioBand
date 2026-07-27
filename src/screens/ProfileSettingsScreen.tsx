@@ -1,8 +1,6 @@
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +13,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 
+import { AppleSignInButton } from '../components/AppleSignInButton';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
 import { CrashLogModal } from '../components/CrashLogModal';
 import { DeleteAccountModal } from '../components/DeleteAccountModal';
@@ -340,19 +339,12 @@ export function ProfileSettingsScreen({ navigation }: Props) {
                 )}
                 <Text style={styles.googleSignInBtnText}>{t('auth.signInWithGoogle')}</Text>
               </Pressable>
-              {Platform.OS === 'ios' ? (
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-                  cornerRadius={10}
-                  style={[styles.appleSignInBtn, signingIn && styles.disabled]}
-                  onPress={() => {
-                    if (!signingIn) {
-                      void handleAppleSignIn();
-                    }
-                  }}
-                />
-              ) : null}
+              <AppleSignInButton
+                cornerRadius={10}
+                disabled={signingIn}
+                onPress={() => void handleAppleSignIn()}
+                style={styles.appleSignInBtn}
+              />
             </>
           )}
           <Text style={styles.localDataHint}>{t('auth.localDataHint')}</Text>

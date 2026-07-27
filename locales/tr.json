@@ -1,3 +1,5 @@
 {
-  "NSMicrophoneUsageDescription": "Çaldıklarını kaydedebilmek için BioBand'in mikrofona erişmesi gerekiyor."
+  "ios": {
+    "NSMicrophoneUsageDescription": "Çaldıklarını kaydedebilmek için BioBand'in mikrofona erişmesi gerekiyor."
+  }
 }

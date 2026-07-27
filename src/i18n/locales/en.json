@@ -6,8 +6,9 @@
   },
   "auth": {
     "promptTitle": "Keep your progress",
-    "promptSubtitle": "Sign in with Google to keep your recordings, streaks, and settings across launches. As a guest, everything resets each time you open the app.",
+    "promptSubtitle": "Sign in with Google or Apple to keep your recordings, streaks, and settings across launches. As a guest, everything resets each time you open the app.",
     "signInWithGoogle": "Sign in with Google",
+    "signInWithApple": "Sign in with Apple",
     "continueAsGuest": "Continue as guest",
     "guestHint": "You can sign in later from Profile settings.",
     "signOut": "Sign out",
@@ -18,7 +19,6 @@
       "noIdToken": "Google didn't return a sign-in token. Try again.",
       "unconfigured": "Sign-in isn't set up for this build yet.",
       "error": "Sign-in failed. Try again.",
-      "notAvailable": "Sign in with Apple isn't available on this device.",
       "noIdentityToken": "Apple didn't return a sign-in token. Try again."
     },
     "signOutConfirmTitle": "Sign out?",
