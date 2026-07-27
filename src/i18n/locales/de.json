@@ -6,8 +6,9 @@
   },
   "auth": {
     "promptTitle": "Fortschritt sichern",
-    "promptSubtitle": "Melde dich mit Google an, um deine Aufnahmen, Serien und Einstellungen geräteübergreifend zu behalten. Als Gast wird beim Öffnen der App alles zurückgesetzt.",
+    "promptSubtitle": "Melde dich mit Google oder Apple an, um deine Aufnahmen, Serien und Einstellungen geräteübergreifend zu behalten. Als Gast wird beim Öffnen der App alles zurückgesetzt.",
     "signInWithGoogle": "Mit Google anmelden",
+    "signInWithApple": "Mit Apple anmelden",
     "continueAsGuest": "Als Gast fortfahren",
     "guestHint": "Du kannst dich später in den Profileinstellungen anmelden.",
     "signOut": "Abmelden",
@@ -18,7 +19,6 @@
       "noIdToken": "Google hat kein Anmeldetoken zurückgegeben. Versuch es erneut.",
       "unconfigured": "Die Anmeldung ist für diesen Build noch nicht eingerichtet.",
       "error": "Anmeldung fehlgeschlagen. Versuch es erneut.",
-      "notAvailable": "Anmelden mit Apple ist auf diesem Gerät nicht verfügbar.",
       "noIdentityToken": "Apple hat kein Anmeldetoken zurückgegeben. Versuch es erneut."
     },
     "signOutConfirmTitle": "Abmelden?",

@@ -1,10 +1,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +13,7 @@ import { useTranslation } from 'react-i18next';
 import { syncAfterSignIn } from '../auth/useAuthSession';
 import { signInWithApple } from '../auth/appleAuth';
 import { signInWithGoogle } from '../auth/googleAuth';
+import { AppleSignInButton } from '../components/AppleSignInButton';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 import { LaunchScreen } from '../components/LaunchScreen';
 import { ScreenContainer } from '../components/ScreenContainer';
@@ -191,19 +190,12 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
           <Text style={styles.googleButtonText}>{t('auth.signInWithGoogle')}</Text>
         </Pressable>
 
-        {Platform.OS === 'ios' ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-            cornerRadius={14}
-            style={[styles.appleButton, (signingIn || !privacyAccepted) && styles.disabled]}
-            onPress={() => {
-              if (!signingIn && privacyAccepted) {
-                void handleAppleSignIn();
-              }
-            }}
-          />
-        ) : null}
+        <AppleSignInButton
+          cornerRadius={14}
+          disabled={signingIn || !isSupabaseConfigured || !privacyAccepted}
+          onPress={() => void handleAppleSignIn()}
+          style={styles.appleButton}
+        />
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
