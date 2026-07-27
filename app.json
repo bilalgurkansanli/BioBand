@@ -9,8 +9,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.bioband.app",
-      "supportsTablet": true,
-      "requireFullScreen": true,
+      "supportsTablet": false,
       "infoPlist": {
         "CFBundleLocalizations": [
           "en",
