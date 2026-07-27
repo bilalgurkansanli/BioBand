@@ -246,6 +246,17 @@ def draw_clean_status_bar(img):
 # Variant C — inside a phone, with a headline
 
 
+# Backdrops cycle through the set. A listing is read as a strip, and one
+# gradient repeated ten times reads as a single flat wall — alternating which
+# end is dark gives the strip a rhythm without leaving the app's palette.
+BACKDROPS = [
+    ((62, 46, 130), (16, 14, 28)),
+    ((16, 14, 28), (62, 46, 130)),
+    ((44, 36, 112), (20, 16, 36)),
+    ((20, 16, 36), (86, 58, 140)),
+]
+
+
 def gradient(size, top, bottom):
     """Vertical gradient. Drawn a row at a time — the images are small enough
     that the loop costs nothing, and it avoids pulling in numpy."""
@@ -262,7 +273,7 @@ def frame_in_phone(shot, size, caption, backdrop=None):
     """The screenshot in a phone body, headline above, on a coloured backdrop."""
     # The app's own accent, darkened — the listing should read as the same
     # product as the icon sitting next to it in search results.
-    out = backdrop.copy() if backdrop else gradient(size, (58, 44, 122), (18, 16, 32))
+    out = backdrop.copy() if backdrop else gradient(size, *BACKDROPS[0])
     d = ImageDraw.Draw(out)
     W, H = size
 
@@ -318,6 +329,61 @@ def frame_in_phone(shot, size, caption, backdrop=None):
     return out
 
 
+def panorama_pair(shot, caption, colours):
+    """One landscape screen spread across two store slots.
+
+    A landscape screen in a single portrait slot comes out about a third of the
+    canvas width tall, because width is the binding constraint. Given two slots
+    side by side it gets twice the width, so twice the height — the difference
+    between reading the app's controls and guessing at them. The App Store
+    shows the set as a strip, so the two halves sit next to each other and the
+    phone appears whole.
+
+    The cost is two of the ten slots for one screen, so this is worth spending
+    only on the screens that carry the app.
+    """
+    W, H = PORTRAIT
+    canvas = gradient((W * 2, H), *colours)
+    d = ImageDraw.Draw(canvas)
+
+    # Text is written inside one half or the other, never across the seam.
+    # The store also shows these images one at a time, and a headline cut down
+    # the middle leaves each slot holding half a sentence. Use `left // right`
+    # to put a line on each side.
+    top = int(H * 0.085)
+    if caption:
+        left_text, _, right_text = caption.partition('//')
+        fsize = int(W * 0.062)
+        f = font(FONT_BOLD, fsize)
+        for centre, text in ((W * 0.5, left_text.strip()), (W * 1.5, right_text.strip())):
+            if not text:
+                continue
+            for i, line in enumerate(wrap(text, f, int(W * 0.82), d)):
+                d.text((centre, top + i * fsize * 1.2), line, font=f,
+                       fill=(255, 255, 255), anchor='ma')
+
+    bw = int(W * 2 * 0.90)
+    bh = int(bw / (shot.width / shot.height))
+    bezel = max(8, int(min(bw, bh) * 0.020))
+    radius = int(min(bw, bh) * 0.070)
+    px_, py_ = (W * 2 - bw) // 2, (H - bh) // 2 + int(H * 0.03)
+
+    d.rounded_rectangle(
+        [px_ - bezel, py_ - bezel, px_ + bw + bezel, py_ + bh + bezel],
+        radius=radius + bezel, fill=(8, 8, 10),
+    )
+    d.rounded_rectangle(
+        [px_ - bezel, py_ - bezel, px_ + bw + bezel, py_ + bh + bezel],
+        radius=radius + bezel, outline=(96, 88, 130), width=max(2, bezel // 3),
+    )
+    inner = shot.convert('RGB').resize((bw, bh), Image.LANCZOS)
+    mask = Image.new('L', (bw, bh), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, bw - 1, bh - 1], radius=radius, fill=255)
+    canvas.paste(inner, (px_, py_), mask)
+
+    return canvas.crop((0, 0, W, H)), canvas.crop((W, 0, W * 2, H))
+
+
 def wrap(text, f, max_w, d):
     words, lines, cur = text.split(), [], ''
     for word in words:
@@ -358,7 +424,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--input', required=True)
     ap.add_argument('--output', required=True)
-    ap.add_argument('--captions', default='', help='Headlines for variant C, | separated')
+    ap.add_argument('--captions', default='', help='Headlines, | separated, one per input')
+    ap.add_argument('--panorama', action='store_true',
+                    help='Spread each landscape capture across two slots')
     args = ap.parse_args()
 
     src = pathlib.Path(args.input)
@@ -370,6 +438,7 @@ def main():
     out = pathlib.Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
 
+    slot = 0
     for i, path in enumerate(files):
         raw = Image.open(path)
         bar, nav = status_bar_height(raw), system_nav_size(raw)
@@ -378,16 +447,30 @@ def main():
         # visibly another platform's.
         shot = trim_system_nav(paint_over_status_bar(raw))
         caption = captions[i] if i < len(captions) else ''
+        colours = BACKDROPS[i % len(BACKDROPS)]
 
-        # Always portrait — see frame_in_phone.
-        result = frame_in_phone(shot, PORTRAIT, caption)
-        result.save(out / f'{i + 1:02d}-{path.stem}.png', optimize=True)
+        if args.panorama and shot.width > shot.height:
+            left, right = panorama_pair(shot, caption, colours)
+            for half in (left, right):
+                slot += 1
+                half.save(out / f'{slot:02d}-{path.stem}.png', optimize=True)
+            note = 'panorama, 2 slot'
+        else:
+            slot += 1
+            # Always portrait — see frame_in_phone.
+            frame_in_phone(shot, PORTRAIT, caption,
+                           backdrop=gradient(PORTRAIT, *colours)).save(
+                out / f'{slot:02d}-{path.stem}.png', optimize=True)
+            note = 'tek slot'
+
         print(
             f'{path.name:<22} {raw.size} durum={bar}px gezinme={nav}px '
-            f'-> {result.size}  "{caption}"'
+            f'-> {note:<16} "{caption}"'
         )
 
-    print(f'\nyazildi: {out}')
+    if slot > 10:
+        print(f'\nUYARI: {slot} gorsel uretildi, magazalar en fazla 10 kabul ediyor.')
+    print(f'\nyazildi: {out}  ({slot} gorsel)')
 
 
 if __name__ == '__main__':
