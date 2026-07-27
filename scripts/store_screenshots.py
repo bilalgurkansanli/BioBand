@@ -93,6 +93,66 @@ def status_bar_height(img, max_fraction=0.12, quiet_run=6):
     return 0
 
 
+def system_nav_size(img, max_fraction=0.12, quiet_run=8):
+    """Depth of the system navigation bar at the far edge, or 0 if there is none.
+
+    Android puts it at the bottom in portrait and along one side in landscape,
+    and it has to go: a store listing showing another platform's back and home
+    buttons is both wrong and a plausible reason for a reviewer to bounce it.
+
+    Its shape from the edge inwards is margin, glyphs, margin, then the app.
+    Reading it as "everything up to where the app starts" does not survive
+    contact with this app: several screens are dark right up to the bar, so the
+    search runs past it and eats real content.
+
+    What holds is that the system centres its glyphs in the bar. So the margin
+    behind the glyph band equals the margin in front of it, and the bar's depth
+    is simply the glyph band's far edge plus the near margin — measured, with
+    nothing beyond the glyphs needing to be classified at all.
+    """
+    grey = img.convert('L')
+    w, h = grey.size
+    px = grey.load()
+    landscape = w > h
+    depth = int((w if landscape else h) * max_fraction)
+
+    edge_bg = px[w - 3, h // 2] if landscape else px[w // 2, h - 3]
+
+    def busy(i):
+        if landscape:
+            x = w - 1 - i
+            return max(abs(px[x, y] - edge_bg) for y in range(0, h, 2)) > 45
+        y = h - 1 - i
+        return max(abs(px[x, y] - edge_bg) for x in range(0, w, 2)) > 45
+
+    start = next((i for i in range(depth) if busy(i)), None)
+    if start is None:
+        return 0
+
+    end = start
+    quiet = 0
+    for i in range(start, depth):
+        if busy(i):
+            end = i
+            quiet = 0
+        else:
+            quiet += 1
+            if quiet >= quiet_run:
+                break
+
+    bar = end + start + 1
+    # A band that reaches the cap is app content, not a navigation bar.
+    return 0 if bar >= depth else bar
+
+
+def trim_system_nav(img):
+    n = system_nav_size(img)
+    if n == 0:
+        return img
+    w, h = img.size
+    return img.crop((0, 0, w - n, h)) if w > h else img.crop((0, 0, w, h - n))
+
+
 def background_below(img, y):
     """The app's background colour just under the status bar, sampled from the
     edges where content is least likely to reach."""
@@ -205,23 +265,27 @@ def frame_in_phone(shot, size, caption, backdrop=None):
     out = backdrop.copy() if backdrop else gradient(size, (58, 44, 122), (18, 16, 32))
     d = ImageDraw.Draw(out)
     W, H = size
-    landscape = W > H
 
-    # Headline first: whatever it needs, the phone gets the rest.
-    top = int(H * (0.09 if not landscape else 0.11))
+    # The canvas is always portrait, whichever way the screen was captured: the
+    # App Store lays the set out in one strip, and a landscape frame among
+    # portrait ones shrinks to a fraction of their height. A sideways phone in
+    # a portrait frame keeps every image the same size in that strip.
+    sideways = shot.width > shot.height
+
+    top = int(H * 0.075)
     if caption:
-        fsize = int(W * (0.062 if not landscape else 0.036))
+        fsize = int(W * 0.062)
         f = font(FONT_BOLD, fsize)
         lines = wrap(caption, f, int(W * 0.84), d)
         line_h = fsize * 1.22
         for i, line in enumerate(lines):
             d.text((W / 2, top + i * line_h), line, font=f,
                    fill=(255, 255, 255), anchor='ma')
-        top += len(lines) * line_h + int(H * 0.035)
+        top += len(lines) * line_h + int(H * 0.04)
 
     # Phone body, scaled to whatever room is left.
-    room_h = H - top - int(H * 0.05)
-    room_w = int(W * (0.66 if not landscape else 0.80))
+    room_h = H - top - int(H * 0.06)
+    room_w = int(W * (0.96 if sideways else 0.68))
     body_r = shot.width / shot.height
     bw, bh = room_w, int(room_w / body_r)
     if bh > room_h:
@@ -229,7 +293,13 @@ def frame_in_phone(shot, size, caption, backdrop=None):
 
     bezel = max(6, int(min(bw, bh) * 0.022))
     radius = int(min(bw, bh) * 0.075)
-    px_, py_ = (W - bw) // 2, int(top)
+    px_ = (W - bw) // 2
+    # A landscape screen is roughly 2.5:1 inside a canvas nearer 1:2.2, so it
+    # can never fill the frame — width is the binding constraint and the height
+    # follows. Centring it on the whole canvas rather than on the leftover strip
+    # under the headline makes the space above and below symmetrical, which
+    # reads as deliberate instead of as a picture that fell to the top.
+    py_ = (H - bh) // 2 if sideways else int(top)
 
     # A soft outer edge so the body reads as an object, not a pasted rectangle.
     d.rounded_rectangle(
@@ -298,23 +368,24 @@ def main():
 
     captions = [c.strip() for c in args.captions.split('|')] if args.captions else []
     out = pathlib.Path(args.output)
-    for name in ('a-painted', 'b-cleanbar', 'c-framed'):
-        (out / name).mkdir(parents=True, exist_ok=True)
+    out.mkdir(parents=True, exist_ok=True)
 
     for i, path in enumerate(files):
-        img = Image.open(path)
-        size = LANDSCAPE if img.width > img.height else PORTRAIT
+        raw = Image.open(path)
+        bar, nav = status_bar_height(raw), system_nav_size(raw)
+        # The device's own furniture goes first: the status bar because it
+        # carries a stranger's battery level, the navigation bar because it is
+        # visibly another platform's.
+        shot = trim_system_nav(paint_over_status_bar(raw))
         caption = captions[i] if i < len(captions) else ''
 
-        variants = {
-            'a-painted': fit_exact(paint_over_status_bar(img), size),
-            'b-cleanbar': fit_exact(draw_clean_status_bar(img), size),
-            'c-framed': frame_in_phone(paint_over_status_bar(img), size, caption),
-        }
-        for folder, result in variants.items():
-            dest = out / folder / f'{i + 1:02d}-{path.stem}.png'
-            result.save(dest, optimize=True)
-        print(f'{path.name}  {img.size} -> {size}  bar={status_bar_height(img)}px  "{caption}"')
+        # Always portrait — see frame_in_phone.
+        result = frame_in_phone(shot, PORTRAIT, caption)
+        result.save(out / f'{i + 1:02d}-{path.stem}.png', optimize=True)
+        print(
+            f'{path.name:<22} {raw.size} durum={bar}px gezinme={nav}px '
+            f'-> {result.size}  "{caption}"'
+        )
 
     print(f'\nyazildi: {out}')
 
