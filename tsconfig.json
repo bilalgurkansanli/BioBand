@@ -2,5 +2,11 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true
-  }
+  },
+  "exclude": [
+    // Deno, not React Native: these run on Supabase's Edge runtime, with its
+    // own globals and jsr: imports. Type-checking them against the app's
+    // config only produces noise about a platform they never run on.
+    "supabase/functions"
+  ]
 }

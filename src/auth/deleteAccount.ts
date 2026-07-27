@@ -5,6 +5,13 @@ import { isSupabaseConfigured, supabase } from '../supabase/client';
 /** The SECURITY DEFINER function created by supabase/delete_account.sql. */
 const DELETE_ACCOUNT_RPC = 'delete_account';
 
+/**
+ * The Edge Function that revokes the user's Apple tokens before calling that
+ * same RPC. Preferred over calling the RPC directly because Apple requires the
+ * revoke; see supabase/functions/delete-account.
+ */
+const DELETE_ACCOUNT_FUNCTION = 'delete-account';
+
 export type DeleteAccountResult =
   | { ok: true }
   | {
@@ -42,6 +49,39 @@ function classifyRpcFailure(error: PostgrestError, status: number): DeleteAccoun
 }
 
 /**
+ * `notDeployed` is its own outcome rather than a failure: a project that has
+ * not had the Edge Function pushed yet still has the RPC, and the user must
+ * still be able to delete their account. Everything else is a real result.
+ */
+type EdgeOutcome = DeleteAccountResult | 'notDeployed';
+
+async function deleteViaEdgeFunction(): Promise<EdgeOutcome> {
+  const { error } = await supabase.functions.invoke(DELETE_ACCOUNT_FUNCTION);
+  if (!error) {
+    return { ok: true };
+  }
+
+  // Duck-typed rather than matched with `instanceof`: supabase-js does not
+  // re-export the Functions error classes, and the shape is what matters.
+  const context: unknown = (error as { context?: unknown }).context;
+  const status =
+    context && typeof context === 'object' && 'status' in context
+      ? (context as { status?: unknown }).status
+      : undefined;
+
+  if (status === 404) {
+    return 'notDeployed';
+  }
+  if (status === 401) {
+    return { ok: false, code: 'sessionExpired' };
+  }
+  if (error.name === 'FunctionsFetchError') {
+    return { ok: false, code: 'offline' };
+  }
+  return { ok: false, code: 'error' };
+}
+
+/**
  * Permanently deletes the signed-in user: their server-side rows and the auth
  * user first, then the copy on this device.
  *
@@ -70,12 +110,21 @@ export async function deleteAccount(
       return { ok: false, code: 'sessionExpired' };
     }
 
-    const { error, status } = await supabase.rpc(DELETE_ACCOUNT_RPC);
-    if (error) {
+    const viaFunction = await deleteViaEdgeFunction();
+    if (viaFunction !== 'notDeployed' && !viaFunction.ok) {
       // The session and the local data are left completely untouched: the
       // account still exists, and wiping the credentials for it would strand
       // the user with data they can no longer reach or delete.
-      return classifyRpcFailure(error, status);
+      return viaFunction;
+    }
+
+    if (viaFunction === 'notDeployed') {
+      // No Edge Function in this project, so nothing revokes the Apple token —
+      // but the account itself must still go.
+      const { error, status } = await supabase.rpc(DELETE_ACCOUNT_RPC);
+      if (error) {
+        return classifyRpcFailure(error, status);
+      }
     }
   } catch {
     return { ok: false, code: 'error' };
