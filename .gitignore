@@ -51,3 +51,5 @@ __pycache__/
 
 # Generated store images — rebuild with scripts/store_screenshots.py
 docs/screenshots/store/
+docs/screenshots/store-tr/
+docs/screenshots/store-de/
