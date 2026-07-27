@@ -1,3 +1,5 @@
+<a name="english"></a>
+
 <div align="center">
 
 <img src="assets/logo.png" alt="BioBand" width="150">
@@ -15,6 +17,10 @@ Works fully offline.
 [![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6D4AD6.svg)](LICENSE)
+
+**English** ·
+[![Türkçe](https://img.shields.io/badge/-T%C3%BCrk%C3%A7e-E30A17?style=flat-square)](#türkçe) ·
+[![Deutsch](https://img.shields.io/badge/-Deutsch-DD0000?style=flat-square)](#deutsch)
 
 </div>
 
@@ -258,3 +264,302 @@ bundled with the app; per-instrument notes live alongside them in
 ## License
 
 [MIT](LICENSE) © Bilal Gürkan Şanlı
+
+---
+
+<a name="türkçe"></a><a name="turkce"></a>
+
+## Türkçe
+
+<sub>🇹🇷 · [⬆ English](#english) · [Deutsch](#deutsch)</sub>
+
+**Cebinde beş enstrüman — ve hepsini bir araya getirecek bir stüdyo.**
+
+Piyano, davul, gitar, keman ve pad'ler; hepsi gerçek kayıtlardan alınmış seslerle.
+Adım adım programlanan bir davul makinesi, rehberli dersler, çok kanallı kayıt ve
+ilerleme takibi. Tamamen çevrimdışı çalışır.
+
+### Özellikler
+
+**Enstrümanlar** — Piyano (24 tuş, C4–B5), Davul, Gitar, Keman ve Pad'ler. Her
+birinin birden fazla sesi veya kiti, kendine ait ton ayarları ve örnek
+hassasiyetinde çalma motoru var. Ayrıca desen kaydedip yükleyebildiğin bir Davul
+Makinesi.
+
+**Eğitici Mod** — her enstrümanda rehberli çalma. Notalar müzikle birlikte
+yanıyor; kendi hızında çalabilir ya da kendi kendine çalmasını izleyebilirsin.
+Şarkılar zamanlanmış olaylar olarak saklandığı için nota süreleri ve ifade
+gerçek — tekdüze bir metronom ızgarası değil.
+
+**Kendi şarkılarını getir** — bir `.mid` dosyası ya da JSON nota çizelgesi
+aktarırsın, çalınabilir bir derse dönüşür. Aktarıcı tempo haritasını ve ölçü
+sayısını okur, bası akorlardan ayırır, insan çalışındaki sapmaları düzeltir ve
+parçayı klavyeye sığdırmak için bütün hâlinde transpoze eder — tek tek notaları
+yanlış oktava katlamak yerine.
+
+**Studio** — çok kanallı zaman çizelgesi: kanal başına ses seviyesi, sustur/yalnız
+çal, klip sürükleme, ızgaraya yapışma, tempo ve metronom. Herhangi bir
+enstrümandan doğrudan yeni bir kayıt üstüne ekleyip mix'i tek dosyaya
+indirebilirsin.
+
+**Kayıtlarım** — bütün kayıtların tek yerde: sürgüyle oynat, yeniden adlandır,
+seçtiğin bir klasöre indir ya da sistemin paylaşım menüsüyle gönder.
+
+**İlerleme** — çalışma serileri, toplam çalışma süresi, rozetler ve isteğe bağlı
+çalışma hatırlatmaları.
+
+**Önce çevrimdışı** — bütün sesler ve şarkılar uygulamanın içinde geliyor.
+Çalışma sırasında hiçbir şey indirilmiyor, konuk modunda hiçbir şey cihazdan
+çıkmıyor. Google veya Apple ile giriş yaparsan ilerlemen ve ayarların ayrıca
+Supabase üzerinden senkronlanır; Postgres Row Level Security ile korunur.
+
+**Çok dilli** — İngilizce, Türkçe, Almanca.
+
+### Nasıl çalışıyor
+
+Kod tabanını şekillendiren birkaç karar. Tamamı
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) içinde.
+
+**Notalar `setTimeout` ile değil, ses saatiyle planlanıyor.** JavaScript
+zamanlayıcıları kayar ve arayüz çizimi arkasında takılır; onlarla planlanmış bir
+şarkı başta iyi duyulur, yük altında dağılır. Bunun yerine 25 ms'lik bir tik
+120 ms ileriye bakıyor ve her notayı ses motoruna **mutlak** bir başlangıç
+zamanıyla veriyor — yani zamanlamaya ses donanımının saati karar veriyor.
+→ [`src/audio/songScheduler.ts`](src/audio/songScheduler.ts)
+
+**Ses örnekleri asla fazla esnetilmiyor.** Her enstrüman birkaç yarım ses arayla
+çapa kayıtları tutuyor ve en yakınına göre perde kaydırıyor; böylece hiçbir nota
+iki yarım sesten fazla esnetilmiyor. Bunun ötesinde örneklenmiş bir piyano
+synthesizer gibi duyulmaya başlıyor.
+→ [`src/instruments/piano/pianoSamples.ts`](src/instruments/piano/pianoSamples.ts)
+
+**Dışa aktarma gerçek zamanlı değil, çevrimdışı işleniyor.** Enstrüman kaydı nota
+olayları olarak saklandığı için, dışa aktarırken performans bir
+`OfflineAudioContext` üzerinden gerçek zamandan çok daha hızlı yeniden
+üretiliyor. Kodlayıcı bloklar arasında dilimlenip bekletiliyor — çünkü arayüzü
+çizen iş parçacığında çalışıyor ve uzun bir kaydı tek seferde kodlamak uygulamayı
+dondurur.
+→ [`src/audio/offlineBounce.ts`](src/audio/offlineBounce.ts)
+
+**Şarkılar bütün hâlinde transpoze ediliyor, katlanmıyor.** Piyanoda 24 tuş var.
+Dışına taşan bir şarkı bütün olarak kaydırılıyor ki şekli bozulmasın; notaları
+tek tek aralığa geri katlamak her perdeyi "doğru" tutarken melodinin çizgisini
+yok eder.
+→ [`src/instruments/piano/songs/midiToSong.ts`](src/instruments/piano/songs/midiToSong.ts)
+
+**Enstrümanlar uygulama açılmadan ısınıyor.** İlk ekran enstrüman listesi olduğu
+için, bir enstrümana dokunulduğunda anında ses çıkması gerekiyor. Her motor
+örneklerini ilk odaklanmada değil, açılış ekranının arkasında çözüyor.
+→ [`src/audio/preloadInstruments.ts`](src/audio/preloadInstruments.ts)
+
+### Başlarken
+
+**Gerekenler:** Node.js 20+, hedeflediğin platform için Android Studio veya
+Xcode. BioBand yerel ses modülleri kullanıyor, bu yüzden **dev client build**
+gerekiyor — Expo Go'da çalışmaz. Supabase projesi isteğe bağlı; sadece giriş ve
+bulut senkronu için.
+
+```bash
+git clone https://github.com/bilalgurkansanli/BioBand.git
+cd BioBand
+npm install
+npm run android          # veya: npm run ios
+```
+
+`.env` olmadan uygulama tamamen konuk modunda çalışır: her enstrüman, şarkı,
+kayıt ve Studio özelliği çalışır — sadece giriş ve bulut senkronu kapalıdır.
+
+Bulut senkronu için: bir Supabase projesi açıp
+[`supabase/schema.sql`](supabase/schema.sql) dosyasını SQL Editor'de bir kez
+çalıştır, `cp .env.example .env` yapıp kendi değerlerini gir, ve
+[`app.json`](app.json) içindeki OAuth istemci kimliğiyle `owner` /
+`extra.eas.projectId` alanlarını kendininkilerle değiştir.
+
+> OAuth istemci kimlikleri ve Supabase anon anahtarı tasarım gereği istemci
+> tarafında açık değerlerdir — her uygulama paketinin içinde zaten bulunurlar.
+> Erişimi gizlilikleri değil, Row Level Security korur. Bu projeye asla bir
+> `service_role` anahtarı koyma.
+
+### Bilinen ödünler
+
+- **Açılışta çok fazla ses çözülüyor.** Beş motor da uygulama açılmadan ısınıyor
+  — 116 dosyada yaklaşık 7 dakikalık ses, bellekte kabaca 79 MB.
+- **Enstrüman kayıtları MP3 olarak dışa aktarılıyor, MP4 değil.** Mikrofon
+  kayıtları zaten AAC-in-MP4 ve olduğu gibi aktarılıyor; JavaScript'te AAC
+  kodlayıcı olmadığı için işlenmiş enstrüman kaydı MP3'e çevriliyor.
+- **Henüz otomatik test paketi yok.** Ses davranışı ölçümle doğrulandı —
+  Node'da nota çizelgelerini PCM'e işleyip zamanlama, çizgi ve aralık
+  sınanarak — ama depoya işlenmiş bir paket hâlinde değil.
+- **Uzun MIDI aktarımları** sabit bir nota sınırında, kullanıcıya söylenmeden
+  kesiliyor.
+
+### Gizlilik
+
+BioBand kayıtlarını ve ilerlemeni cihazında tutar. Giriş yapmadıkça hiçbir şey
+yüklenmez. Tam metin: [PRIVACY.md](PRIVACY.md).
+
+Giriş yaptın ve çıkmak mı istiyorsun? Profil → Ayarlar → Hesabı sil her şeyi
+anında kaldırır;
+[`docs/account-deletion.md`](docs/account-deletion.md) neyin silindiğini ve
+uygulamayı kurmadan nasıl talep edeceğini anlatır.
+
+### Katkı ve lisans
+
+Konu bildirimleri ve pull request'ler açığa hoş geldiniz —
+[CONTRIBUTING.md](CONTRIBUTING.md) kurulumu, CI'ın neyi kontrol ettiğini ve bir
+değişikliği incelemesi kolay kılan şeyleri anlatıyor. Katılarak
+[Davranış Kuralları](CODE_OF_CONDUCT.md)'nı kabul etmiş olursun. Güvenlik açığı
+bulduysan herkese açık bir konu açmak yerine [SECURITY.md](SECURITY.md)'yi
+izle.
+
+Lisans: [MIT](LICENSE) © Bilal Gürkan Şanlı
+
+---
+
+<a name="deutsch"></a>
+
+## Deutsch
+
+<sub>🇩🇪 · [⬆ English](#english) · [Türkçe](#türkçe)</sub>
+
+**Fünf Instrumente in deiner Tasche — und ein Studio, um sie zusammenzubringen.**
+
+Klavier, Schlagzeug, Gitarre, Geige und Pads, alle mit echten gesampelten
+Klängen. Dazu ein Step-Sequencer-Drumcomputer, geführte Lektionen,
+Mehrspuraufnahme und Fortschrittsverfolgung. Funktioniert vollständig offline.
+
+### Funktionen
+
+**Instrumente** — Klavier (24 Tasten, C4–B5), Schlagzeug, Gitarre, Geige und
+Pads, jeweils mit mehreren Klangfarben oder Kits, eigener Klangformung und
+sample-genauer Wiedergabe. Dazu ein Drumcomputer mit Step-Sequencer und
+Speichern/Laden von Patterns.
+
+**Lernmodus** — geführtes Mitspielen auf jedem Instrument. Die Noten leuchten im
+Takt der Musik auf; spiele in deinem eigenen Tempo oder sieh zu, wie das Stück
+sich selbst spielt. Songs werden als zeitgesteuerte Ereignisse gespeichert,
+Notenlängen und Phrasierung sind also echt statt eines gleichförmigen
+Metronomrasters.
+
+**Eigene Songs mitbringen** — importiere eine `.mid`-Datei oder ein
+JSON-Notenblatt, und daraus wird eine spielbare Lektion. Der Import liest
+Tempokurve und Taktart, trennt Bass von Akkorden, glättet menschliche
+Timing-Schwankungen und transponiert das Stück als Ganzes auf die Tastatur,
+statt einzelne Noten in die falsche Oktave zu falten.
+
+**Studio** — Mehrspur-Timeline mit Lautstärke pro Spur, Stumm/Solo, Verschieben
+von Clips, Raster-Einrasten, Tempo und Metronom. Nimm direkt aus jedem
+Instrument eine weitere Spur auf und exportiere den Mix als eine Datei.
+
+**Aufnahmen** — alle Takes an einem Ort: mit Scrubber abspielen, umbenennen, in
+einen selbst gewählten Ordner herunterladen oder über das System-Teilen-Menü
+verschicken.
+
+**Fortschritt** — Übungsserien, gesamte Übungszeit, Abzeichen und optionale
+Übungserinnerungen.
+
+**Offline zuerst** — alle Samples und Songs sind in der App enthalten. Zur
+Laufzeit wird nichts nachgeladen, und im Gastmodus verlässt nichts das Gerät.
+Wer sich mit Google oder Apple anmeldet, synchronisiert zusätzlich Fortschritt
+und Einstellungen über Supabase, abgesichert durch Postgres Row Level Security.
+
+**Lokalisiert** — Englisch, Türkisch, Deutsch.
+
+### Wie es funktioniert
+
+Einige Entscheidungen, die den Code geprägt haben. Die ausführliche Fassung
+steht in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+**Noten werden auf der Audio-Uhr geplant, nicht mit `setTimeout`.**
+JavaScript-Timer driften und bleiben hinter dem Rendering hängen; ein damit
+geplanter Song klingt anfangs gut und zerfällt unter Last. Stattdessen blickt ein
+25-ms-Tick 120 ms voraus und übergibt jede Note mit einer absoluten Startzeit an
+die Audio-Engine — über das Timing entscheidet also die Uhr der Audio-Hardware.
+→ [`src/audio/songScheduler.ts`](src/audio/songScheduler.ts)
+
+**Samples werden nie weit gedehnt.** Jedes Instrument hält Ankeraufnahmen im
+Abstand weniger Halbtöne und stimmt auf die nächstgelegene um, sodass keine Note
+mehr als etwa zwei Halbtöne gedehnt wird. Darüber hinaus beginnt ein gesampeltes
+Klavier wie ein Synthesizer zu klingen.
+→ [`src/instruments/piano/pianoSamples.ts`](src/instruments/piano/pianoSamples.ts)
+
+**Der Export rendert offline, nicht in Echtzeit.** Eine Instrumentenaufnahme
+liegt als Notenereignisse vor, beim Export wird die Darbietung daher über einen
+`OfflineAudioContext` deutlich schneller als in Echtzeit neu gerendert. Der
+Encoder wird zwischen Blöcken zerteilt und abgewartet — er läuft auf demselben
+Thread, der die Oberfläche zeichnet, und ein Encode-Durchlauf am Stück würde die
+App einfrieren.
+→ [`src/audio/offlineBounce.ts`](src/audio/offlineBounce.ts)
+
+**Songs werden als Ganzes transponiert, nie gefaltet.** Das Klavier zeigt 24
+Tasten. Ein Song, der darüber hinausgeht, wird als Ganzes verschoben, damit seine
+Gestalt erhalten bleibt; einzelne Noten zurück in den Bereich zu falten hält zwar
+jede Tonhöhe "korrekt", zerstört aber die Kontur der Melodie.
+→ [`src/instruments/piano/songs/midiToSong.ts`](src/instruments/piano/songs/midiToSong.ts)
+
+**Instrumente wärmen auf, bevor die App öffnet.** Der erste Bildschirm ist die
+Instrumentenliste, ein Tippen muss also sofort klingen. Jede Engine dekodiert
+ihre Samples hinter dem Startbildschirm statt beim ersten Fokus.
+→ [`src/audio/preloadInstruments.ts`](src/audio/preloadInstruments.ts)
+
+### Erste Schritte
+
+**Voraussetzungen:** Node.js 20+, Android Studio oder Xcode für die Zielplattform.
+BioBand nutzt native Audio-Module und braucht daher einen **Dev-Client-Build** —
+in Expo Go läuft es nicht. Ein [Supabase](https://supabase.com)-Projekt ist
+optional und nur für Anmeldung und Cloud-Sync nötig.
+
+```bash
+git clone https://github.com/bilalgurkansanli/BioBand.git
+cd BioBand
+npm install
+npm run android          # oder: npm run ios
+```
+
+Ohne `.env` läuft die App vollständig im Gastmodus: jedes Instrument, jeder Song,
+jede Aufnahme und jede Studio-Funktion arbeitet — nur Anmeldung und Cloud-Sync
+sind deaktiviert.
+
+Für den Cloud-Sync: ein Supabase-Projekt anlegen,
+[`supabase/schema.sql`](supabase/schema.sql) einmal im SQL Editor ausführen,
+`cp .env.example .env` und die eigenen Werte eintragen, und in
+[`app.json`](app.json) die OAuth-Client-ID sowie `owner` und
+`extra.eas.projectId` durch die eigenen ersetzen.
+
+> OAuth-Client-IDs und der Supabase-Anon-Key sind bewusst öffentliche
+> Client-Werte — sie stecken ohnehin in jedem App-Binary. Der Zugriff wird durch
+> Row Level Security geschützt, nicht durch Geheimhaltung. Lege niemals einen
+> `service_role`-Key in dieses Projekt.
+
+### Bekannte Kompromisse
+
+- **Der Start dekodiert viel Audio.** Alle fünf Engines wärmen vor dem Öffnen der
+  App auf — rund 7 Minuten Audio in 116 Dateien, etwa 79 MB im Speicher.
+- **Instrumenten-Exporte sind MP3, nicht MP4.** Mikrofonaufnahmen liegen bereits
+  als AAC-in-MP4 vor und werden unverändert exportiert; für eine gerenderte
+  Instrumentenaufnahme gibt es in JavaScript keinen AAC-Encoder.
+- **Noch keine automatisierte Testsuite.** Das Audioverhalten wurde durch Messung
+  geprüft — Charts in Node nach PCM gerendert und Timing, Kontur und Tonumfang
+  überprüft — aber nicht als eingecheckte Suite.
+- **Lange MIDI-Importe werden** bei einer festen Notengrenze abgeschnitten, ohne
+  dass die Nutzerin oder der Nutzer davon erfährt.
+
+### Datenschutz
+
+BioBand behält deine Aufnahmen und deinen Fortschritt auf dem Gerät. Ohne
+Anmeldung wird nichts hochgeladen. Vollständige Richtlinie:
+[PRIVACY.md](PRIVACY.md).
+
+Angemeldet und möchtest wieder heraus? Profil → Einstellungen → Konto löschen
+entfernt alles sofort; [`docs/account-deletion.md`](docs/account-deletion.md)
+beschreibt, was gelöscht wird und wie man es ohne installierte App beantragt.
+
+### Mitwirken und Lizenz
+
+Issues und Pull Requests sind willkommen — [CONTRIBUTING.md](CONTRIBUTING.md)
+erklärt Setup, was die CI prüft und was eine Änderung leicht überprüfbar macht.
+Mit der Teilnahme stimmst du dem [Verhaltenskodex](CODE_OF_CONDUCT.md) zu. Eine
+Sicherheitslücke gefunden? Bitte [SECURITY.md](SECURITY.md) folgen, statt ein
+öffentliches Issue zu eröffnen.
+
+Lizenz: [MIT](LICENSE) © Bilal Gürkan Şanlı
