@@ -25,13 +25,13 @@ BOLD, REGULAR = 'segoeuib.ttf', 'segoeui.ttf'
 # strongly coloured field behind it fights that — the colour should look like it
 # is coming off the logo, not painted underneath it. So the field stays almost
 # neutral and the purple arrives as bloom around the artwork.
-GRADIENT = ((17, 14, 27), (8, 7, 12))
+GRADIENT = ((13, 11, 20), (7, 6, 10))
 
 # Two blooms rather than one: purple close in, a smaller warmer one offset, which
 # is what keeps the black from reading as flat.
 BLOOMS = (
-    {'colour': (140, 110, 255), 'strength': 54, 'scale': 1.00, 'offset': (0.0, 0.0)},
-    {'colour': (236, 120, 210), 'strength': 30, 'scale': 0.58, 'offset': (0.24, -0.28)},
+    {'colour': (140, 110, 255), 'strength': 26, 'scale': 1.20, 'offset': (0.0, 0.0)},
+    {'colour': (236, 120, 210), 'strength': 16, 'scale': 0.62, 'offset': (0.26, -0.30)},
 )
 
 TAGLINES = {
