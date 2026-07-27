@@ -11,6 +11,9 @@ module.exports = defineConfig([
       'ios/*',
       // One-off sample-generation utilities, run by hand outside the app.
       'scripts/*',
+      // Deno code running on Supabase's Edge runtime — different globals and
+      // module resolution than the app.
+      'supabase/functions/*',
     ],
   },
 ]);

@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import type { Session } from '@supabase/supabase-js';
 
+import { linkAppleTokenForDeletion } from './appleTokenLink';
 import { isSupabaseConfigured, supabase } from '../supabase/client';
 
 export type AppleProfile = {
@@ -95,6 +96,12 @@ async function signInWithAppleNatively(): Promise<AppleSignInResult> {
       ? [credential.fullName.givenName, credential.fullName.familyName].filter(Boolean).join(' ')
       : null;
 
+    // The code is single-use and expires within minutes, so it is spent now
+    // rather than stored for deletion time. See appleTokenLink.
+    if (credential.authorizationCode) {
+      await linkAppleTokenForDeletion({ authorizationCode: credential.authorizationCode });
+    }
+
     return {
       ok: true,
       session: data.session,
@@ -142,6 +149,12 @@ async function signInWithAppleInBrowser(): Promise<AppleSignInResult> {
     const session = await sessionFromRedirect(result.url);
     if (!session) {
       return { ok: false, code: 'noIdentityToken' };
+    }
+
+    // Supabase surfaces the provider's refresh token in the session at
+    // sign-in and never again, so it is handed off before this scope ends.
+    if (session.provider_refresh_token) {
+      await linkAppleTokenForDeletion({ refreshToken: session.provider_refresh_token });
     }
 
     // Unlike the native sheet, the name is not handed back directly — Apple
