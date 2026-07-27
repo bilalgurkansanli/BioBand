@@ -32,12 +32,18 @@ GRADIENT = ((13, 11, 20), (7, 6, 10))
 BLOOMS = (
     {'colour': (140, 110, 255), 'strength': 26, 'scale': 1.20, 'offset': (0.0, 0.0)},
     {'colour': (236, 120, 210), 'strength': 16, 'scale': 0.62, 'offset': (0.26, -0.30)},
+    # A third, far out to the right. Without it that half is an unlit void:
+    # the logo sits left, so every other source falls off long before the edge.
+    {'colour': (120, 96, 210), 'strength': 30, 'scale': 2.10, 'offset': (1.85, 0.10)},
 )
 
+# Three verbs rather than a list of instruments: the list would have to be
+# regenerated and re-uploaded to three store listings every time an instrument
+# is added, and it says less — what the app is for does not change.
 TAGLINES = {
-    'en': ('BioBand', 'Piano · Drums · Guitar · Violin · Pads'),
-    'tr': ('BioBand', 'Piyano · Davul · Gitar · Keman · Padler'),
-    'de': ('BioBand', 'Klavier · Schlagzeug · Gitarre · Geige · Pads'),
+    'en': ('BioBand', 'Play · Learn · Record'),
+    'tr': ('BioBand', 'Çal · Öğren · Kaydet'),
+    'de': ('BioBand', 'Spielen · Lernen · Aufnehmen'),
 }
 
 
