@@ -18,9 +18,9 @@ Works fully offline.
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6D4AD6.svg)](LICENSE)
 
-**English** ·
-[![Türkçe](https://img.shields.io/badge/-T%C3%BCrk%C3%A7e-E30A17?style=flat-square)](#türkçe) ·
-[![Deutsch](https://img.shields.io/badge/-Deutsch-DD0000?style=flat-square)](#deutsch)
+[![English](https://img.shields.io/badge/English-6D4AD6?style=for-the-badge)](#english)
+[![Türkçe](https://img.shields.io/badge/T%C3%BCrk%C3%A7e-24242C?style=for-the-badge)](#türkçe)
+[![Deutsch](https://img.shields.io/badge/Deutsch-24242C?style=for-the-badge)](#deutsch)
 
 </div>
 
@@ -274,7 +274,9 @@ bundled with the app; per-instrument notes live alongside them in
 
 ## Türkçe
 
-<sub>🇹🇷 · [⬆ English](#english) · [Deutsch](#deutsch)</sub>
+[![English](https://img.shields.io/badge/English-24242C?style=for-the-badge)](#english)
+[![Türkçe](https://img.shields.io/badge/T%C3%BCrk%C3%A7e-6D4AD6?style=for-the-badge)](#türkçe)
+[![Deutsch](https://img.shields.io/badge/Deutsch-24242C?style=for-the-badge)](#deutsch)
 
 **Cebinde beş enstrüman — ve hepsini bir araya getirecek bir stüdyo.**
 
@@ -423,7 +425,9 @@ Lisans: [MIT](LICENSE) © Bilal Gürkan Şanlı
 
 ## Deutsch
 
-<sub>🇩🇪 · [⬆ English](#english) · [Türkçe](#türkçe)</sub>
+[![English](https://img.shields.io/badge/English-24242C?style=for-the-badge)](#english)
+[![Türkçe](https://img.shields.io/badge/T%C3%BCrk%C3%A7e-24242C?style=for-the-badge)](#türkçe)
+[![Deutsch](https://img.shields.io/badge/Deutsch-6D4AD6?style=for-the-badge)](#deutsch)
 
 **Fünf Instrumente in deiner Tasche — und ein Studio, um sie zusammenzubringen.**
 
