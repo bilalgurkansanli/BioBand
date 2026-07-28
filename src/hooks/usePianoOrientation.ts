@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import type { NavigationProp } from '@react-navigation/native';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { AppState, useWindowDimensions } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
@@ -26,13 +26,10 @@ export function usePianoOrientation(
   _navigation: NavigationProp<Record<string, object | undefined>>,
 ) {
   const { width, height } = useWindowDimensions();
-  const [isFocused, setIsFocused] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
-
-      setIsFocused(true);
 
       const enforceLandscape = async () => {
         await ScreenOrientation.lockAsync(LANDSCAPE_LOCK);
@@ -66,7 +63,6 @@ export function usePianoOrientation(
 
       return () => {
         isActive = false;
-        setIsFocused(false);
         ScreenOrientation.removeOrientationChangeListener(subscription);
         appState.remove();
 
@@ -81,7 +77,14 @@ export function usePianoOrientation(
   // reading used to be able to override it: a system screen would report
   // portrait, the reading stuck, and returning to a plainly landscape app left
   // the rotate prompt up with no event coming to clear it.
-  const isPortrait = isFocused && width < height;
+  //
+  // Focus is deliberately not part of it. Leaving one of these screens clears
+  // focus and re-locks the device to portrait, and the screen keeps rendering
+  // through the back transition — so gating on focus switched the guard off at
+  // the exact moment the window turned portrait, and a landscape layout was
+  // drawn into a portrait window: toolbar crushed into the status bar, timeline
+  // gone, tab bar showing through.
+  const isPortrait = width < height;
 
   return { isPortrait };
 }
