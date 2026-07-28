@@ -209,7 +209,7 @@
     "shareUnavailable": "Sharing is not available on this device.",
     "shareError": "Could not share this recording.",
     "downloadSavedToFolder": "Saved to the folder you picked",
-    "downloadSavedToDocuments": "Saved to the BioBand Recordings folder",
+    "downloadSavedToDocuments": "Saved — find it in Files, under On My iPhone › BioBand",
     "downloadError": "Could not download this recording.",
     "import": {
       "button": "Import file",

@@ -73,7 +73,18 @@ export function useRecordingActions() {
           shouldCancel: () => canceledRef.current,
           // The share sheet and the folder picker are native screens; the
           // progress sheet has to be gone before either is presented.
-          onFilePrepared: () => setJob(null),
+          //
+          // The in-flight guard is released here rather than in `finally`,
+          // because from this point it protects nothing: the encode is over,
+          // and its job was to stop two encodes sharing one cancel flag and
+          // one progress slot. Holding it until the promise settles means a
+          // native sheet that never resolves — which is exactly what the iOS
+          // folder picker did — leaves every export button in the app dead
+          // until it is restarted, share and Studio included.
+          onFilePrepared: () => {
+            setJob(null);
+            runningRef.current = false;
+          },
         });
 
         if (result && result.status === 'saved') {
