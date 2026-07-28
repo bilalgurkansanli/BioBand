@@ -1,10 +1,10 @@
+import { hapticHit } from '../utils/haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   LayoutChangeEvent,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -298,9 +298,7 @@ export function DrumsScreen({ navigation }: Props) {
   const onHit = useCallback(
     (id: DrumSoundId, velocity: number) => {
       if (haptics) {
-        // Crisp tick per hit — [wait, duration] form is honored more reliably
-        // than a bare number across Android vibrators; iOS plays its default tap.
-        Vibration.vibrate([0, 35]);
+        hapticHit();
       }
 
       captureEvent(id, velocity);

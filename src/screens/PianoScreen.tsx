@@ -1,10 +1,10 @@
+import { hapticNote } from '../utils/haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   LayoutChangeEvent,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -430,11 +430,7 @@ export function PianoScreen({ navigation }: Props) {
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
       if (haptics) {
-        // Crisp tick for tactile feedback. The [wait, duration] pattern form is
-        // honored more reliably than a bare number across Android vibrators;
-        // ~35ms sits clearly above the perceptible threshold. iOS ignores the
-        // duration and plays its default tap.
-        Vibration.vibrate([0, 35]);
+        hapticNote();
       }
 
       if (playAlongIsActive) {

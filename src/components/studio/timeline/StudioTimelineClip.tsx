@@ -1,3 +1,4 @@
+import { hapticSelection } from '../../../utils/haptics';
 import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -6,7 +7,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -164,7 +164,7 @@ function StudioTimelineClipBase({
   const pickUp = useCallback(() => {
     setLiftState(true);
     if (Platform.OS !== 'web') {
-      Vibration.vibrate(12);
+      hapticSelection();
     }
   }, [setLiftState]);
 

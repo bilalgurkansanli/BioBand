@@ -1,3 +1,4 @@
+import { hapticSoft } from '../utils/haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,7 +7,6 @@ import {
   LayoutChangeEvent,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -413,7 +413,7 @@ export function PadsScreen({ navigation }: Props) {
       captureEventRef.current(id, velocity);
       recordNoteOn();
       if (hapticsRef.current) {
-        Vibration.vibrate([0, 18]);
+        hapticSoft();
       }
 
       const activePlayAlong = playAlongRef.current;

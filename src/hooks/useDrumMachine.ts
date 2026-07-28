@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Vibration } from 'react-native';
+import { hapticSelection } from '../utils/haptics';
 
 import { getSharedAudioContext } from '../audio/sampleBank';
 import {
@@ -42,7 +42,6 @@ import {
 
 const COUNT_IN_BEATS = 4;
 const TAP_TEMPO_RESET_MS = 2200;
-const HAPTIC_TAP_MS = 12;
 
 /** One resolved song-mode slot: a pattern and how many loops it plays. */
 export type SongChainEntry = {
@@ -390,7 +389,7 @@ export function useDrumMachine() {
       setBpm(Math.round(60_000 / avg));
     }
     if (hapticsRef.current) {
-      Vibration.vibrate(HAPTIC_TAP_MS);
+      hapticSelection();
     }
   }, [setBpm]);
 
@@ -531,7 +530,7 @@ export function useDrumMachine() {
     }
     const nextLevel = level >= 2 ? 0 : level + 1;
     if (hapticsRef.current) {
-      Vibration.vibrate(HAPTIC_TAP_MS);
+      hapticSelection();
     }
     // Preview outside the state updater — updaters must stay pure (StrictMode
     // runs them twice, which would double-trigger the sound).
@@ -593,7 +592,7 @@ export function useDrumMachine() {
 
   const toggleMuteRow = useCallback((rowIndex: number) => {
     if (hapticsRef.current) {
-      Vibration.vibrate(HAPTIC_TAP_MS);
+      hapticSelection();
     }
     setMutedRows((prev) => {
       const next = new Set(prev);

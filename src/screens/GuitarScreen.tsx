@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, Vibration, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { hapticNote } from '../utils/haptics';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -355,9 +356,7 @@ export function GuitarScreen({ navigation }: Props) {
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
       if (haptics) {
-        // Crisp tick per pluck — [wait, duration] form is honored more reliably
-        // than a bare number across Android vibrators; iOS plays its default tap.
-        Vibration.vibrate([0, 35]);
+        hapticNote();
       }
 
       const soundId = formatPluckSoundId(stringId, fret);
@@ -414,7 +413,7 @@ export function GuitarScreen({ navigation }: Props) {
       }
 
       if (haptics) {
-        Vibration.vibrate([0, 35]);
+        hapticNote();
       }
 
       if (playAlong.isActive) {

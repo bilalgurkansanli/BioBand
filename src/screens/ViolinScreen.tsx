@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, Vibration, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { hapticNote } from '../utils/haptics';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -227,11 +228,9 @@ export function ViolinScreen({ navigation }: Props) {
     setMetronomeBpmState(bpm);
   }, []);
 
-  // Piano-style pattern: honored more reliably than a bare number across
-  // Android vibrators.
   const buzz = useCallback(() => {
     if (haptics) {
-      Vibration.vibrate([0, 35]);
+      hapticNote();
     }
   }, [haptics]);
 
