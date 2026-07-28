@@ -1,44 +1,53 @@
 # Screenshots
 
-The files here are placeholders so the README renders correctly out of the box.
-**Replace them with real captures, keeping the exact filenames** — then nothing
-in the README needs editing.
+[`raw/`](raw/) holds unedited captures straight off a phone, in the three
+languages the app ships in. Everything else in this folder is generated from
+them by the scripts below and is not committed.
 
-| File | Screen | Orientation | What should be visible |
-| --- | --- | --- | --- |
-| `01-instruments.png` | Instruments list | portrait | All five instruments plus the Drum Machine card |
-| `02-recordings.png` | Recordings | portrait | A few takes, with the İndir / Paylaş row on a card |
-| `03-profile.png` | Profile | portrait | Streak, total practice time, a couple of earned badges |
-| `04-piano.png` | Piano | **landscape** | The 24-key board mid-play, with the toolbar |
-| `05-tutorial.png` | Tutorial Mode | **landscape** | A song playing, with the guide highlighting the next note |
-| `06-drum-machine.png` | Drum Machine | **landscape** | The step grid with a pattern loaded |
-| `07-studio.png` | Studio project | **landscape** | The timeline with two or three tracks |
-| `08-launch.png` | Launch screen | portrait | Logo, greeting, progress bar and a quote |
+| | |
+| --- | --- |
+| `raw/*.jpeg` | The captures. English has no suffix; `-tr` and `-de` are the same screens with the app in that language. |
+| `store/`, `store-tr/`, `store-de/` | App Store sets — 1242×2688, ten images, landscape screens spread across two slots. |
+| `play-en/`, `play-tr/`, `play-de/` | Play sets — 1080×1920 (9:16), eight images. Play rejects the App Store's taller ratio. |
+| `graphics/` | Play's 512 px icon and the 1024×500 feature graphic, per language. |
 
-`08-launch.png` is not referenced by the README yet — it is there if you want it.
+## Rebuilding
 
-## Capturing
+```bash
+python scripts/store_screenshots.py --input docs/screenshots/raw \
+    --output docs/screenshots/store --panorama \
+    --captions "Five instruments. One pocket.|Real piano sound//24 keys, two octaves|…"
 
-- **Android:** power + volume-down, or `adb exec-out screencap -p > shot.png`
-- **iOS:** side + volume-up, or **Device ▸ Screenshot** in the Simulator
+python scripts/store_screenshots.py --input <selection> \
+    --output docs/screenshots/play-en --panorama --store play --captions "…"
 
-Tips that make the set look deliberate rather than incidental:
+python scripts/make_store_graphics.py docs/screenshots/graphics
+```
 
-- Use one device for every shot so the frames match.
-- Put real content on screen — a named recording, an actual streak, a loaded
-  pattern. Empty states read as an unfinished app.
-- Use the same language across all shots.
-- Keep the status bar tidy: full battery, no notifications, sensible clock.
+Captions are `|` separated, one per input file, in filename order. A caption
+containing `//` is split across a panorama's two halves, so neither slot is left
+holding half a sentence — the stores show these one at a time as well as
+side by side.
 
-## Format
+The input folder decides the order and which screens make the cut: Play takes
+eight images and a panorama costs two, so not everything fits.
 
-PNG. Any resolution works — the README sizes them with `width` attributes, so a
-2340 px capture and a 1080 px one lay out identically. The placeholders are
-1080×2280 (portrait) and 2280×1080 (landscape); matching those aspect ratios
-keeps the table from shifting.
+## Capturing more
 
-Please keep each file under about 500 KB so cloning the repo stays quick;
-`pngquant` or `oxipng` will get you there without a visible difference.
+- **Android:** power + volume-down
+- **iOS:** side + volume-up
+
+Send them to yourself in a way that does not recompress — an e-mail attachment,
+USB, or as a file rather than a photo. Do not crop or resize first: the scripts
+locate the status bar and the system navigation bar by measuring them, and both
+need the original pixels.
+
+Whatever is in the status bar does not matter, it is painted out. A notification
+banner *does* — it sits over the app's own content, and removing the banner
+would take that with it.
+
+Put real content on screen. A named recording, an actual streak, a loaded
+pattern: empty states read as an unfinished app.
 
 ## Demo video
 

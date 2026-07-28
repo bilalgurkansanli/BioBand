@@ -28,6 +28,14 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 PORTRAIT = (1242, 2688)
 LANDSCAPE = (2688, 1242)
 
+# Play wants 9:16, which is squarer than Apple's slot, and caps a phone set at
+# eight images. Passing the wrong one through is not a style choice: each store
+# rejects the other's dimensions at upload.
+STORE_SIZES = {
+    'appstore': (1242, 2688),
+    'play': (1080, 1920),
+}
+
 # The app's own background, used to cover the status bar and to letterbox.
 APP_BG = (13, 13, 13)
 ACCENT = (108, 92, 231)
@@ -369,7 +377,7 @@ def soften_seam(half, side, depth=0.05, strength=90):
     return half
 
 
-def panorama_pair(shot, caption, colours):
+def panorama_pair(shot, caption, colours, size=PORTRAIT):
     """One landscape screen spread across two store slots.
 
     A landscape screen in a single portrait slot comes out about a third of the
@@ -382,7 +390,7 @@ def panorama_pair(shot, caption, colours):
     The cost is two of the ten slots for one screen, so this is worth spending
     only on the screens that carry the app.
     """
-    W, H = PORTRAIT
+    W, H = size
     canvas = gradient((W * 2, H), *colours)
     d = ImageDraw.Draw(canvas)
 
@@ -472,6 +480,8 @@ def main():
     ap.add_argument('--captions', default='', help='Headlines, | separated, one per input')
     ap.add_argument('--panorama', action='store_true',
                     help='Spread each landscape capture across two slots')
+    ap.add_argument('--store', choices=sorted(STORE_SIZES), default='appstore',
+                    help='Which store the dimensions must satisfy')
     args = ap.parse_args()
 
     src = pathlib.Path(args.input)
@@ -482,6 +492,9 @@ def main():
     captions = [c.strip() for c in args.captions.split('|')] if args.captions else []
     out = pathlib.Path(args.output)
     out.mkdir(parents=True, exist_ok=True)
+
+    size = STORE_SIZES[args.store]
+    limit = 8 if args.store == 'play' else 10
 
     slot = 0
     for i, path in enumerate(files):
@@ -495,7 +508,7 @@ def main():
         colours = BACKDROPS[i % len(BACKDROPS)]
 
         if args.panorama and shot.width > shot.height:
-            left, right = panorama_pair(shot, caption, colours)
+            left, right = panorama_pair(shot, caption, colours, size)
             for half in (left, right):
                 slot += 1
                 half.save(out / f'{slot:02d}-{path.stem}.png', optimize=True)
@@ -503,8 +516,8 @@ def main():
         else:
             slot += 1
             # Always portrait — see frame_in_phone.
-            frame_in_phone(shot, PORTRAIT, caption,
-                           backdrop=gradient(PORTRAIT, *colours)).save(
+            frame_in_phone(shot, size, caption,
+                           backdrop=gradient(size, *colours)).save(
                 out / f'{slot:02d}-{path.stem}.png', optimize=True)
             note = 'tek slot'
 

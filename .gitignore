@@ -53,3 +53,10 @@ __pycache__/
 docs/screenshots/store/
 docs/screenshots/store-tr/
 docs/screenshots/store-de/
+
+# Generated Play graphics — rebuild with scripts/make_store_graphics.py
+docs/screenshots/graphics/
+
+docs/screenshots/play-en/
+docs/screenshots/play-tr/
+docs/screenshots/play-de/

@@ -52,27 +52,30 @@ Works fully offline.
 
 <table>
   <tr>
-    <td align="center" width="33%"><img src="docs/screenshots/01-instruments.png" width="200" alt="Instruments"><br><sub><b>Instruments</b></sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/02-recordings.png" width="200" alt="Recordings"><br><sub><b>Recordings</b></sub></td>
-    <td align="center" width="33%"><img src="docs/screenshots/03-profile.png" width="200" alt="Profile"><br><sub><b>Profile &amp; streaks</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/raw/instruments.jpeg" width="200" alt="Instruments"><br><sub><b>Instruments</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/raw/recordings.jpeg" width="200" alt="Recordings"><br><sub><b>Recordings</b></sub></td>
+    <td align="center" width="33%"><img src="docs/screenshots/raw/profile.jpeg" width="200" alt="Profile"><br><sub><b>Profile &amp; streaks</b></sub></td>
   </tr>
 </table>
 
 <table>
   <tr>
-    <td align="center" width="50%"><img src="docs/screenshots/04-piano.png" width="400" alt="Piano"><br><sub><b>Piano</b></sub></td>
-    <td align="center" width="50%"><img src="docs/screenshots/05-tutorial.png" width="400" alt="Tutorial Mode"><br><sub><b>Tutorial Mode</b></sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/raw/piano.jpeg" width="400" alt="Piano"><br><sub><b>Piano</b></sub></td>
+    <td align="center" width="50%"><img src="docs/screenshots/raw/guitar.jpeg" width="400" alt="Guitar"><br><sub><b>Guitar</b></sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/06-drum-machine.png" width="400" alt="Drum Machine"><br><sub><b>Drum Machine</b></sub></td>
-    <td align="center"><img src="docs/screenshots/07-studio.png" width="400" alt="Studio"><br><sub><b>Studio</b></sub></td>
+    <td align="center"><img src="docs/screenshots/raw/drums.jpeg" width="400" alt="Drums"><br><sub><b>Drums</b></sub></td>
+    <td align="center"><img src="docs/screenshots/raw/violin.jpeg" width="400" alt="Violin"><br><sub><b>Violin</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/raw/drum-machine.jpeg" width="400" alt="Drum Machine"><br><sub><b>Drum Machine</b></sub></td>
+    <td align="center"><img src="docs/screenshots/raw/studio.jpeg" width="400" alt="Studio"><br><sub><b>Studio</b></sub></td>
   </tr>
 </table>
 
-<sub>Those are placeholders. Drop real captures over the files in
-<a href="docs/screenshots/">docs/screenshots/</a> — keep the filenames and no
-README edit is needed. See
-<a href="docs/screenshots/README.md">docs/screenshots/README.md</a>.</sub>
+<sub>Captured on a phone, unedited. The same shots dressed for the stores are
+built by <a href="scripts/store_screenshots.py">scripts/store_screenshots.py</a>;
+see <a href="docs/screenshots/raw/">docs/screenshots/raw/</a>.</sub>
 
 ## Features
 
