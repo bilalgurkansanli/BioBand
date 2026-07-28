@@ -9,6 +9,15 @@ import type { ExportJob } from '../../hooks/useRecordingActions';
 type Props = {
   job: ExportJob | null;
   onCancel: () => void;
+  /**
+   * Fired once iOS has finished taking the modal down.
+   *
+   * The export waits for this before presenting the share sheet: a sheet
+   * requested while this modal's view controller is still dismissing is
+   * dropped by UIKit without an error, which looked like the share button
+   * doing nothing at all.
+   */
+  onDismissed?: () => void;
 };
 
 /**
@@ -19,13 +28,18 @@ type Props = {
  * Without this the app simply looked dead, which is exactly how it was
  * reported.
  */
-export function ExportProgressModal({ job, onCancel }: Props) {
+export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
   const { t } = useTranslation();
   const percent = Math.round(Math.min(1, Math.max(0, job?.progress ?? 0)) * 100);
 
   return (
     <Modal
-      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={job !== null} onRequestClose={onCancel}>
+      supportedOrientations={MODAL_ORIENTATIONS}
+      animationType="fade"
+      transparent
+      visible={job !== null}
+      onDismiss={onDismissed}
+      onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>

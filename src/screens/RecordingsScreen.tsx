@@ -68,6 +68,7 @@ export function RecordingsScreen({ navigation }: Props) {
     cancel,
     feedback,
     dismissFeedback,
+    onProgressDismissed,
     share,
     download,
     shareProjectMix,
@@ -462,7 +463,7 @@ export function RecordingsScreen({ navigation }: Props) {
         }}
       />
 
-      <ExportProgressModal job={job} onCancel={cancel} />
+      <ExportProgressModal job={job} onCancel={cancel} onDismissed={onProgressDismissed} />
 
       <Toast
         message={importFeedback?.message ?? ''}

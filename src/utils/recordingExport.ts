@@ -18,8 +18,15 @@ export type ExportOptions = {
    * The progress UI has to be torn down at that point: iOS refuses to present
    * the share sheet on top of a view controller that is already presenting
    * one, which a still-visible React Native modal counts as.
+   *
+   * Awaited, because tearing the modal down is not instant. Asking for the
+   * dismissal and presenting in the same tick meant the share sheet was
+   * requested while the modal's view controller was still on screen or midway
+   * through its dismissal animation, and UIKit drops a presentation made
+   * during a transition without raising anything. The export finished, no
+   * sheet appeared, and the app carried on as if nothing had happened.
    */
-  onFilePrepared?: () => void;
+  onFilePrepared?: () => void | Promise<void>;
 };
 
 export type RecordingExport = {
@@ -324,7 +331,7 @@ export async function shareRecording(
   options: ExportOptions = {},
 ): Promise<void> {
   const exported = await prepareRecordingExport(recording, options);
-  options.onFilePrepared?.();
+  await options.onFilePrepared?.();
   await shareWithSystemSheet(exported, dialogTitle);
 }
 
@@ -333,7 +340,7 @@ export async function downloadRecording(
   options: ExportOptions = {},
 ): Promise<DownloadResult> {
   const exported = await prepareRecordingExport(recording, options);
-  options.onFilePrepared?.();
+  await options.onFilePrepared?.();
   return saveExport(exported);
 }
 
@@ -343,7 +350,7 @@ export async function shareProject(
   options: ExportOptions = {},
 ): Promise<void> {
   const exported = await prepareProjectExport(project, options);
-  options.onFilePrepared?.();
+  await options.onFilePrepared?.();
   await shareWithSystemSheet(exported, dialogTitle);
 }
 
@@ -352,6 +359,6 @@ export async function downloadProject(
   options: ExportOptions = {},
 ): Promise<DownloadResult> {
   const exported = await prepareProjectExport(project, options);
-  options.onFilePrepared?.();
+  await options.onFilePrepared?.();
   return saveExport(exported);
 }
