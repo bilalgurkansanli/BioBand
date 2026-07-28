@@ -1,4 +1,5 @@
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from './modalOrientations';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -19,7 +20,8 @@ export function PrivacyPolicyModal({ visible, onClose }: Props) {
   const sections = t('privacy.sections', { returnObjects: true }) as PrivacySection[];
 
   return (
-    <Modal animationType="slide" presentationStyle="pageSheet" visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="slide" presentationStyle="pageSheet" visible={visible} onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={[styles.header, { paddingTop: Math.max(28, insets.top + 16) }]}>
           <Text style={styles.headerTitle}>{t('privacy.screenTitle')}</Text>

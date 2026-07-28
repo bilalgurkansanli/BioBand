@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -360,7 +361,8 @@ export function PlayAlongModal({
   };
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
@@ -728,6 +730,7 @@ export function PlayAlongModal({
       </View>
 
       <Modal
+      supportedOrientations={MODAL_ORIENTATIONS}
         animationType="fade"
         transparent
         visible={pasteOpen}

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from './modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
@@ -63,7 +64,8 @@ export function TimePickerModal({ visible, hour, minute, onCancel, onConfirm }: 
   }, [hour, minute, visible]);
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
         <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           <Text style={styles.title}>{t('profile.reminderTimeTitle')}</Text>

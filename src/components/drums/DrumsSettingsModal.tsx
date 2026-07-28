@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
@@ -64,7 +65,8 @@ export function DrumsSettingsModal({
   const { t } = useTranslation();
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       {/* The card must NOT be a Pressable: a Pressable ancestor can claim the
           gesture and block the ScrollView's drag. The dismiss area is an
           absolute-fill sibling behind the card instead. */}

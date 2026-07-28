@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -201,7 +202,8 @@ export function PianoFxModal({
     t('common.percent', { percent: Math.round(value * 100) });
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
       <Pressable style={styles.overlay} onPress={handleClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           <ModalChromeHeader

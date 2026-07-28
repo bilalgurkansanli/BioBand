@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
@@ -43,7 +44,8 @@ export function ViolinSettingsModal({
   const { t } = useTranslation();
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.overlay}>
         <Pressable
           {...SCREEN_READER_HIDDEN}

@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../components/modalOrientations';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -251,6 +252,7 @@ export function ProfileScreen() {
       </ScrollView>
 
       <Modal
+      supportedOrientations={MODAL_ORIENTATIONS}
         animationType="fade"
         onRequestClose={() => setShowTodayBreakdown(false)}
         transparent

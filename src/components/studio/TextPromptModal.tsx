@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -33,7 +34,8 @@ export function TextPromptModal({
   }, [visible, initialValue]);
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel}>
         <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           <Text style={styles.title}>{title}</Text>

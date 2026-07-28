@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -19,7 +20,8 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
   const { t } = useTranslation();
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         {/* A plain View claims the touch responder for anything starting
             inside the card, so taps here never reach the backdrop below —

@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -23,7 +24,8 @@ export function ExportProgressModal({ job, onCancel }: Props) {
   const percent = Math.round(Math.min(1, Math.max(0, job?.progress ?? 0)) * 100);
 
   return (
-    <Modal animationType="fade" transparent visible={job !== null} onRequestClose={onCancel}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={job !== null} onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
