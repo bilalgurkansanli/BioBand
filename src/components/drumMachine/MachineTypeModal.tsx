@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -24,7 +25,8 @@ export function MachineTypeModal({
   const { t } = useTranslation();
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <Pressable onPress={onClose} style={styles.backdrop}>
         {/* Swallows taps so touching the card itself never closes it. */}
         <Pressable onPress={() => {}} style={styles.card}>

@@ -1,10 +1,10 @@
+import { hapticHit } from '../utils/haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   LayoutChangeEvent,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -32,6 +32,7 @@ import { useDrumsEngine } from '../hooks/useDrumsEngine';
 import { useDrumsPlayAlong } from '../hooks/useDrumsPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserDrumSongs } from '../hooks/useUserDrumSongs';
 import { chokePad } from '../instruments/drums/drumsEngine';
 import { getDrumKit, type DrumKitId } from '../instruments/drums/drumsKits';
@@ -163,6 +164,7 @@ export function DrumsScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('drums');
   const { isPortrait } = usePianoOrientation(navigation);
+  const { notePlayed } = useFreePlayPractice('drums');
 
   const userSongs = useUserDrumSongs();
   const playAlong = useDrumsPlayAlong(playHit, userSongs.songs);
@@ -297,10 +299,9 @@ export function DrumsScreen({ navigation }: Props) {
 
   const onHit = useCallback(
     (id: DrumSoundId, velocity: number) => {
+      notePlayed();
       if (haptics) {
-        // Crisp tick per hit — [wait, duration] form is honored more reliably
-        // than a bare number across Android vibrators; iOS plays its default tap.
-        Vibration.vibrate([0, 35]);
+        hapticHit();
       }
 
       captureEvent(id, velocity);
@@ -313,7 +314,7 @@ export function DrumsScreen({ navigation }: Props) {
 
       playHit(id, velocity);
     },
-    [captureEvent, haptics, playAlong, playHit],
+    [captureEvent, haptics, playAlong, playHit, notePlayed],
   );
 
   const onChoke = useCallback((id: DrumSoundId) => {

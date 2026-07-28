@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from './modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
@@ -42,6 +43,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
 
   return (
     <Modal
+      supportedOrientations={MODAL_ORIENTATIONS}
       animationType="fade"
       transparent
       visible={visible}

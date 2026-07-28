@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, Vibration, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { hapticNote } from '../utils/haptics';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -22,6 +23,7 @@ import { useGuitarEngine } from '../hooks/useGuitarEngine';
 import { useGuitarPlayAlong } from '../hooks/useGuitarPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserGuitarSongs } from '../hooks/useUserGuitarSongs';
 import {
   ALL_GUITAR_CHORD_IDS,
@@ -174,6 +176,7 @@ export function GuitarScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('guitar');
   const { isPortrait } = usePianoOrientation(navigation);
+  const { notePlayed } = useFreePlayPractice('guitar');
   const userSongs = useUserGuitarSongs();
   const playAlong = useGuitarPlayAlong(playSoundId, userSongs.songs);
 
@@ -354,10 +357,9 @@ export function GuitarScreen({ navigation }: Props) {
 
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
+      notePlayed();
       if (haptics) {
-        // Crisp tick per pluck — [wait, duration] form is honored more reliably
-        // than a bare number across Android vibrators; iOS plays its default tap.
-        Vibration.vibrate([0, 35]);
+        hapticNote();
       }
 
       const soundId = formatPluckSoundId(stringId, fret);
@@ -375,7 +377,7 @@ export function GuitarScreen({ navigation }: Props) {
 
       noteOn(stringId, fret, velocity);
     },
-    [captureEvent, haptics, noteOn, playAlong, pluckString],
+    [captureEvent, haptics, noteOn, playAlong, pluckString, notePlayed],
   );
 
   const onPluckOut = useCallback(
@@ -413,8 +415,9 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
+      notePlayed();
       if (haptics) {
-        Vibration.vibrate([0, 35]);
+        hapticNote();
       }
 
       if (playAlong.isActive) {
@@ -436,7 +439,7 @@ export function GuitarScreen({ navigation }: Props) {
       );
       playChord(chordId, { mode: chordPlayMode, direction, gesture });
     },
-    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId],
+    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId, notePlayed],
   );
 
   const isPlayAlongModalVisible =

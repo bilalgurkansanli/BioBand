@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type ComponentType } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../components/modalOrientations';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 import { useIsFocused } from '@react-navigation/native';
@@ -174,6 +175,7 @@ export function InstrumentsListScreen({ navigation }: Props) {
           every touch — other cards, the tab bar, and the Android back
           button — until the instrument screen takes over. */}
       <Modal
+      supportedOrientations={MODAL_ORIENTATIONS}
         animationType="none"
         onRequestClose={() => {}}
         statusBarTranslucent

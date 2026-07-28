@@ -17,7 +17,9 @@
           "de"
         ],
         "NSMicrophoneUsageDescription": "BioBand needs microphone access to record your performances.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
       }
     },
     "android": {

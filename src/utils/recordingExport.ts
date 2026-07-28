@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from 'expo-file-system';
+import { Platform } from 'react-native';
 
 import { encodeMp3Pcm16Async } from '../audio/pcmEncode';
 import { renderRecordingPcm } from '../audio/recordingRender';
@@ -28,7 +29,7 @@ export type RecordingExport = {
 };
 
 export type DownloadResult =
-  | { status: 'saved'; fileName: string; location: 'folder' | 'documents' }
+  | { status: 'saved'; fileName: string; location: 'folder' | 'documents'; uri?: string }
   | { status: 'shared'; fileName: string }
   | { status: 'canceled' };
 
@@ -260,9 +261,37 @@ async function saveToPickedFolder(
 
 /**
  * Saves an already-prepared export.
- * Folder picker first, share sheet second, app Documents folder last.
+ *
+ * Android gets the folder picker: it has a Downloads folder, the Storage
+ * Access Framework behind it, and users who expect to choose a destination.
+ *
+ * iOS has none of that, and asking it to pick a folder was actively harmful.
+ * There is no user-visible filesystem to pick from, and the picker left the
+ * export wedged: its promise did not always settle, and every export in the
+ * app shares one in-flight guard, so a single abandoned picker stopped the
+ * download button, the share button, and both of Studio's buttons until the
+ * app was restarted. That is the "works once, then nothing" this fixes.
+ *
+ * Instead the file lands in the app's own Documents folder, which — with
+ * UIFileSharingEnabled and LSSupportsOpeningDocumentsInPlace now declared —
+ * shows up in the Files app under "On My iPhone → BioBand". Before those keys
+ * existed this same fallback wrote to a folder no one could ever open.
  */
 async function saveExport(exported: RecordingExport): Promise<DownloadResult> {
+  if (Platform.OS !== 'android') {
+    const destination = new File(getDocumentsExportDirectory(), exported.fileName);
+    if (destination.exists) {
+      destination.delete();
+    }
+    new File(exported.uri).copy(destination);
+    return {
+      status: 'saved',
+      fileName: exported.fileName,
+      location: 'documents',
+      uri: destination.uri,
+    };
+  }
+
   const picked = await saveToPickedFolder(exported);
   if (picked === 'saved') {
     return { status: 'saved', fileName: exported.fileName, location: 'folder' };

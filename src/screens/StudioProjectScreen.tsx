@@ -734,6 +734,12 @@ const styles = StyleSheet.create({
   },
   titleWrap: {
     flex: 1,
+    // Without this a flex child holding text refuses to shrink past its own
+    // content, so a long project name pushes the transport off the end of the
+    // row. iOS does not deliver touches to anything drawn outside its parent,
+    // which is why the play button was visible and simply would not take a
+    // tap — Android hands the touch over regardless, so it only showed here.
+    minWidth: 0,
     marginHorizontal: 4,
   },
   bpmGroup: {
@@ -790,6 +796,8 @@ const styles = StyleSheet.create({
   },
   playBtn: {
     alignItems: 'center',
+    // The transport is the one control that must never be squeezed out.
+    flexShrink: 0,
     backgroundColor: colors.accent,
     borderRadius: 10,
     height: 38,

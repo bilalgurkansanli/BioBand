@@ -1,4 +1,5 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import { VIOLIN_VOICES, type ViolinVoiceId } from '../../instruments/violin/violinVoices';
@@ -22,7 +23,8 @@ export function ViolinVoiceModal({
   const { t } = useTranslation();
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       {/* Dismiss area is an absolute-fill sibling behind the card — a
           Pressable ancestor can claim gestures meant for the content. */}
       <View style={styles.overlay}>

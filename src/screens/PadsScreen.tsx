@@ -1,3 +1,4 @@
+import { hapticSoft } from '../utils/haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,7 +7,6 @@ import {
   LayoutChangeEvent,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +38,7 @@ import { usePadsLooper } from '../hooks/usePadsLooper';
 import { usePadsPlayAlong } from '../hooks/usePadsPlayAlong';
 import type { NoteRepeatRate } from '../hooks/usePadNoteRepeat';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserPadSongs } from '../hooks/useUserPadSongs';
 import {
@@ -216,6 +217,7 @@ export function PadsScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('pads');
   const { isPortrait } = usePianoOrientation(navigation);
+  const { notePlayed } = useFreePlayPractice('pads');
 
   const userSongs = useUserPadSongs();
   const playAlong = usePadsPlayAlong(triggerPad, userSongs.songs);
@@ -412,8 +414,9 @@ export function PadsScreen({ navigation }: Props) {
     (id: PadSoundId, velocity: number) => {
       captureEventRef.current(id, velocity);
       recordNoteOn();
+      notePlayed();
       if (hapticsRef.current) {
-        Vibration.vibrate([0, 18]);
+        hapticSoft();
       }
 
       const activePlayAlong = playAlongRef.current;
@@ -426,7 +429,7 @@ export function PadsScreen({ navigation }: Props) {
       pulseStageLight();
       triggerPad(id, velocity);
     },
-    [pulseStageLight, recordNoteOn, triggerPad],
+    [pulseStageLight, recordNoteOn, triggerPad, notePlayed],
   );
 
   // --- Custom bank editing ---------------------------------------------------

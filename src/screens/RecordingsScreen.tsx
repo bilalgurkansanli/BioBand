@@ -502,7 +502,9 @@ function FilterChip({
         pressed && styles.chipPressed,
       ]}
     >
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.3} style={[styles.chipText, active && styles.chipTextActive]}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -550,7 +552,14 @@ const styles = StyleSheet.create({
   },
   chipScroll: {
     flexGrow: 0,
+    flexShrink: 0,
     marginTop: 8,
+    // A horizontal ScrollView has no content to measure its *height* against —
+    // its children lay out along the other axis. Left to itself inside a flex
+    // column it collapsed on iOS, and since iOS does not clip overflow the
+    // chips spilled out below and the first card was drawn over them: the row
+    // looked half-height with unreadable labels. Android clips, so it hid.
+    height: 34,
   },
   chipRow: {
     gap: 8,

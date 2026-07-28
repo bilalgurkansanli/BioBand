@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -247,6 +248,7 @@ export function PadsPlayAlongModal({
 
   return (
     <Modal
+      supportedOrientations={MODAL_ORIENTATIONS}
       animationType="fade"
       transparent
       visible={visible && MODAL_PHASES.has(phase)}
@@ -609,6 +611,7 @@ export function PadsPlayAlongModal({
 
       {/* ── Paste JSON sub-modal ── */}
       <Modal
+      supportedOrientations={MODAL_ORIENTATIONS}
         animationType="fade"
         transparent
         visible={pasteOpen}

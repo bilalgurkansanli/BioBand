@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { MODAL_ORIENTATIONS } from './modalOrientations';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -62,7 +63,8 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
       : 'en-US';
 
   return (
-    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
           <View style={styles.header}>

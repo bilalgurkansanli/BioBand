@@ -1,10 +1,10 @@
+import { hapticNote } from '../utils/haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   LayoutChangeEvent,
   StyleSheet,
   Text,
-  Vibration,
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -31,6 +31,7 @@ import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
@@ -386,6 +387,8 @@ export function PianoScreen({ navigation }: Props) {
 
   const { isPortrait } = usePianoOrientation(navigation);
 
+  const { notePlayed } = useFreePlayPractice('piano');
+
   const handleKeyboardLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setKeyboardSize({ width, height });
@@ -429,12 +432,9 @@ export function PianoScreen({ navigation }: Props) {
 
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
+      notePlayed();
       if (haptics) {
-        // Crisp tick for tactile feedback. The [wait, duration] pattern form is
-        // honored more reliably than a bare number across Android vibrators;
-        // ~35ms sits clearly above the perceptible threshold. iOS ignores the
-        // duration and plays its default tap.
-        Vibration.vibrate([0, 35]);
+        hapticNote();
       }
 
       if (playAlongIsActive) {
@@ -467,6 +467,7 @@ export function PianoScreen({ navigation }: Props) {
       captureEvent,
       haptics,
       noteOn,
+      notePlayed,
       playAlongHandleNotePress,
       playAlongIsActive,
       recordNoteOn,

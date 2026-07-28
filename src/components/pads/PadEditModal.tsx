@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { MODAL_ORIENTATIONS } from '../modalOrientations';
 import { useTranslation } from 'react-i18next';
 import {
   RecordingPresets,
@@ -235,7 +236,8 @@ export function PadEditModal({
       : null;
 
   return (
-    <Modal animationType="fade" transparent visible={visible} onRequestClose={handleCancel}>
+    <Modal
+      supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleCancel}>
       {/* Dismiss layer behind the card — never wrap the card in a Pressable. */}
       <View style={styles.overlay}>
         <Pressable
