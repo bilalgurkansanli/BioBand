@@ -21,6 +21,7 @@ import { ViolinToolbar } from '../components/violin/ViolinToolbar';
 import { ViolinVoiceModal } from '../components/violin/ViolinVoiceModal';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserViolinSongs } from '../hooks/useUserViolinSongs';
 import { useViolinEngine } from '../hooks/useViolinEngine';
 import { useViolinPlayAlong } from '../hooks/useViolinPlayAlong';
@@ -100,6 +101,7 @@ export function ViolinScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('violin');
   const { isPortrait } = usePianoOrientation(navigation);
+  const { notePlayed } = useFreePlayPractice('violin');
   const userSongs = useUserViolinSongs();
   const playAlong = useViolinPlayAlong(playSoundId, userSongs.songs);
 
@@ -229,10 +231,11 @@ export function ViolinScreen({ navigation }: Props) {
   }, []);
 
   const buzz = useCallback(() => {
+    notePlayed();
     if (haptics) {
       hapticNote();
     }
-  }, [haptics]);
+  }, [haptics, notePlayed]);
 
   const onPlayNote = useCallback(
     (stringId: ViolinStringId, position: number) => {

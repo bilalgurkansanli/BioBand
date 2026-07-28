@@ -23,6 +23,7 @@ import { useGuitarEngine } from '../hooks/useGuitarEngine';
 import { useGuitarPlayAlong } from '../hooks/useGuitarPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserGuitarSongs } from '../hooks/useUserGuitarSongs';
 import {
   ALL_GUITAR_CHORD_IDS,
@@ -175,6 +176,7 @@ export function GuitarScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('guitar');
   const { isPortrait } = usePianoOrientation(navigation);
+  const { notePlayed } = useFreePlayPractice('guitar');
   const userSongs = useUserGuitarSongs();
   const playAlong = useGuitarPlayAlong(playSoundId, userSongs.songs);
 
@@ -355,6 +357,7 @@ export function GuitarScreen({ navigation }: Props) {
 
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
+      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -374,7 +377,7 @@ export function GuitarScreen({ navigation }: Props) {
 
       noteOn(stringId, fret, velocity);
     },
-    [captureEvent, haptics, noteOn, playAlong, pluckString],
+    [captureEvent, haptics, noteOn, playAlong, pluckString, notePlayed],
   );
 
   const onPluckOut = useCallback(
@@ -412,6 +415,7 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
+      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -435,7 +439,7 @@ export function GuitarScreen({ navigation }: Props) {
       );
       playChord(chordId, { mode: chordPlayMode, direction, gesture });
     },
-    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId],
+    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId, notePlayed],
   );
 
   const isPlayAlongModalVisible =

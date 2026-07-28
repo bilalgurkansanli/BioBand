@@ -31,6 +31,7 @@ import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
@@ -386,6 +387,8 @@ export function PianoScreen({ navigation }: Props) {
 
   const { isPortrait } = usePianoOrientation(navigation);
 
+  const { notePlayed } = useFreePlayPractice('piano');
+
   const handleKeyboardLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
     setKeyboardSize({ width, height });
@@ -429,6 +432,7 @@ export function PianoScreen({ navigation }: Props) {
 
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
+      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -463,6 +467,7 @@ export function PianoScreen({ navigation }: Props) {
       captureEvent,
       haptics,
       noteOn,
+      notePlayed,
       playAlongHandleNotePress,
       playAlongIsActive,
       recordNoteOn,

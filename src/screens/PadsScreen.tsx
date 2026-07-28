@@ -38,6 +38,7 @@ import { usePadsLooper } from '../hooks/usePadsLooper';
 import { usePadsPlayAlong } from '../hooks/usePadsPlayAlong';
 import type { NoteRepeatRate } from '../hooks/usePadNoteRepeat';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserPadSongs } from '../hooks/useUserPadSongs';
 import {
@@ -216,6 +217,7 @@ export function PadsScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('pads');
   const { isPortrait } = usePianoOrientation(navigation);
+  const { notePlayed } = useFreePlayPractice('pads');
 
   const userSongs = useUserPadSongs();
   const playAlong = usePadsPlayAlong(triggerPad, userSongs.songs);
@@ -412,6 +414,7 @@ export function PadsScreen({ navigation }: Props) {
     (id: PadSoundId, velocity: number) => {
       captureEventRef.current(id, velocity);
       recordNoteOn();
+      notePlayed();
       if (hapticsRef.current) {
         hapticSoft();
       }
@@ -426,7 +429,7 @@ export function PadsScreen({ navigation }: Props) {
       pulseStageLight();
       triggerPad(id, velocity);
     },
-    [pulseStageLight, recordNoteOn, triggerPad],
+    [pulseStageLight, recordNoteOn, triggerPad, notePlayed],
   );
 
   // --- Custom bank editing ---------------------------------------------------
