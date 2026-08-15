@@ -33,11 +33,11 @@ Works fully offline.
 
 <div align="center">
 
-<video src="https://raw.githubusercontent.com/bilalgurkansanli/BioBand/main/docs/demo.mp4" controls muted loop playsinline width="760"></video>
+![BioBand demo](docs/demo.gif)
 
-<sub>Seventy seconds through all five instruments, the drum machine and the
-studio. No sound — if the player does not load,
-<a href="docs/demo.mp4">open the video directly</a>.</sub>
+<sub>Tutorial Mode on the piano, then a pattern running on the drum machine.
+The full seventy-second walkthrough — all five instruments, the drum machine
+and the studio — is in <a href="docs/demo.mp4">docs/demo.mp4</a>.</sub>
 
 </div>
 
