@@ -12,6 +12,9 @@ Piano, drums, guitar, violin and pads with real sampled sound, a step-sequenced
 drum machine, guided tutorials, multi-track recording, and progress tracking.
 Works fully offline.
 
+[![Download on the App Store](https://img.shields.io/badge/App%20Store-Download-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/tr/app/bioband-piano-drums-guitar/id6795242713)
+[![Get it on Google Play](https://img.shields.io/badge/Google%20Play-Download-3DDC84?style=for-the-badge&logo=googleplay&logoColor=black)](https://play.google.com/store/apps/details?id=com.bioband.app)
+
 [![CI](https://github.com/bilalgurkansanli/BioBand/actions/workflows/ci.yml/badge.svg)](https://github.com/bilalgurkansanli/BioBand/actions/workflows/ci.yml)
 [![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
 [![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev)
@@ -28,25 +31,15 @@ Works fully offline.
 
 ## Demo
 
-<!--
-  ─────────────────────────────────────────────────────────────────────────
-  DEMO VIDEO — pick whichever is easier:
+<div align="center">
 
-  1. MP4 (gives a real player, best quality)
-     Open a new issue in this repo, drag the .mp4 into the comment box, wait
-     for the upload to finish, and copy the `https://github.com/user-attachments/...`
-     URL it produces. Paste that URL below **on its own line** — bare, not
-     wrapped in markdown link syntax, which is what makes GitHub render a
-     player. Then close the issue without submitting it.
+<video src="https://raw.githubusercontent.com/bilalgurkansanli/BioBand/main/docs/demo.mp4" controls muted loop playsinline width="760"></video>
 
-  2. GIF (plays inline everywhere, including on mirrors)
-     Save it as `docs/demo.gif` and replace this whole block with:
-     ![BioBand demo](docs/demo.gif)
-  ─────────────────────────────────────────────────────────────────────────
--->
+<sub>Seventy seconds through all five instruments, the drum machine and the
+studio. No sound — if the player does not load,
+<a href="docs/demo.mp4">open the video directly</a>.</sub>
 
-> **📹 Demo video goes here.** The two ways to add it are written in an HTML
-> comment in the source of this section.
+</div>
 
 ## Screenshots
 
@@ -284,6 +277,9 @@ Piyano, davul, gitar, keman ve pad'ler; hepsi gerçek kayıtlardan alınmış se
 Adım adım programlanan bir davul makinesi, rehberli dersler, çok kanallı kayıt ve
 ilerleme takibi. Tamamen çevrimdışı çalışır.
 
+[![App Store](https://img.shields.io/badge/App%20Store-%C4%B0ndir-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/tr/app/bioband-piano-drums-guitar/id6795242713)
+[![Google Play](https://img.shields.io/badge/Google%20Play-%C4%B0ndir-3DDC84?style=for-the-badge&logo=googleplay&logoColor=black)](https://play.google.com/store/apps/details?id=com.bioband.app)
+
 ### Özellikler
 
 **Enstrümanlar** — Piyano (24 tuş, C4–B5), Davul, Gitar, Keman ve Pad'ler. Her
@@ -434,6 +430,9 @@ Lisans: [MIT](LICENSE) © Bilal Gürkan Şanlı
 Klavier, Schlagzeug, Gitarre, Geige und Pads, alle mit echten gesampelten
 Klängen. Dazu ein Step-Sequencer-Drumcomputer, geführte Lektionen,
 Mehrspuraufnahme und Fortschrittsverfolgung. Funktioniert vollständig offline.
+
+[![App Store](https://img.shields.io/badge/App%20Store-Laden-0D96F6?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/tr/app/bioband-piano-drums-guitar/id6795242713)
+[![Google Play](https://img.shields.io/badge/Google%20Play-Laden-3DDC84?style=for-the-badge&logo=googleplay&logoColor=black)](https://play.google.com/store/apps/details?id=com.bioband.app)
 
 ### Funktionen
 
