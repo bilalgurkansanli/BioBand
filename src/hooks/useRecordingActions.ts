@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { SavedRecording } from '../types/recording';
@@ -41,6 +42,17 @@ export type ExportFeedback = {
   detail?: string;
 };
 
+/**
+ * How long to wait for the progress modal to report that it is gone before
+ * presenting anyway.
+ *
+ * A safety net, not the mechanism: the modal normally answers in about the
+ * length of its dismissal animation. It exists because the alternative to
+ * giving up is an export that waits forever, and a share button that never
+ * comes back is a worse bug than a share sheet presented a moment too early.
+ */
+const DISMISS_TIMEOUT_MS = 1_000;
+
 export function useRecordingActions() {
   const { t } = useTranslation();
   const [job, setJob] = useState<ExportJob | null>(null);
@@ -52,6 +64,54 @@ export function useRecordingActions() {
   // would share this hook's single cancel flag and single progress slot: the
   // sheet would show one job's percentage while Cancel stopped both.
   const runningRef = useRef(false);
+  // Resolves the promise `closeProgressSheet` handed out, once the modal says
+  // it has actually gone. Held in a ref because the modal reports back through
+  // a prop callback, long after the export promise started waiting.
+  const dismissedRef = useRef<(() => void) | null>(null);
+
+  /** Called by the progress modal once iOS has finished dismissing it. */
+  const onProgressDismissed = useCallback(() => {
+    const resolve = dismissedRef.current;
+    dismissedRef.current = null;
+    resolve?.();
+  }, []);
+
+  /**
+   * Takes the progress modal down, and waits for it to be gone when something
+   * native is about to be presented in its place.
+   *
+   * Only an iOS share waits. Android draws the modal as a dialog and starts
+   * the share intent through the activity, which does not care what is on
+   * screen — and `onDismiss` is iOS-only, so waiting there would always sit
+   * out the timeout. An iOS download presents nothing at all: it writes into
+   * the app's Documents folder, so making it wait would only make a working
+   * button feel slow.
+   */
+  const closeProgressSheet = useCallback((kind: ExportKind) => {
+    if (Platform.OS !== 'ios' || kind !== 'share') {
+      setJob(null);
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve) => {
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const finish = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        clearTimeout(timer);
+        dismissedRef.current = null;
+        resolve();
+      };
+      // Set before the state update, so a dismissal that reports back
+      // immediately still finds someone waiting for it.
+      dismissedRef.current = finish;
+      timer = setTimeout(finish, DISMISS_TIMEOUT_MS);
+      setJob(null);
+    });
+  }, []);
 
   const run = useCallback(
     async (
@@ -81,9 +141,12 @@ export function useRecordingActions() {
           // native sheet that never resolves — which is exactly what the iOS
           // folder picker did — leaves every export button in the app dead
           // until it is restarted, share and Studio included.
+          //
+          // Awaited: the modal is a native view controller, and iOS silently
+          // drops a share sheet presented while one is still dismissing.
           onFilePrepared: () => {
-            setJob(null);
             runningRef.current = false;
+            return closeProgressSheet(kind);
           },
         });
 
@@ -122,7 +185,7 @@ export function useRecordingActions() {
         setJob(null);
       }
     },
-    [t],
+    [closeProgressSheet, t],
   );
 
   const share = useCallback(
@@ -165,6 +228,7 @@ export function useRecordingActions() {
     cancel,
     feedback,
     dismissFeedback,
+    onProgressDismissed,
     share,
     download,
     shareProjectMix,

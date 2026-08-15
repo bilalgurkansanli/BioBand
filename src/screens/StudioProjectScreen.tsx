@@ -94,6 +94,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
     cancel: cancelExport,
     feedback: exportFeedback,
     dismissFeedback: dismissExportFeedback,
+    onProgressDismissed,
     share: shareTrack,
     download: downloadTrack,
   } = useRecordingActions();
@@ -664,7 +665,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         }}
       />
 
-      <ExportProgressModal job={exportJob} onCancel={cancelExport} />
+      <ExportProgressModal job={exportJob} onCancel={cancelExport} onDismissed={onProgressDismissed} />
 
       <StudioSettingsModal
         grid={gridEnabled}
