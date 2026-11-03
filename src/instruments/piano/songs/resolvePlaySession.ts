@@ -123,8 +123,16 @@ export function resolvePlaySession(
     .filter((event) => inWindow(event, window) && eventsStart + event.atMs >= audioStartMs)
     .map((event) => ({ ...event, atMs: eventsStart + event.atMs - audioStartMs }));
 
+  const scored = pianoVoiceOnly(events);
+  if (useBacking && scored.length === 0) {
+    // The calibration put the whole excerpt before the file starts, so the
+    // track would play out over an empty lesson scored 0%. Practise the
+    // excerpt on its own instead.
+    return resolvePlaySession(song, 'piano', songScope);
+  }
+
   return {
-    events: pianoVoiceOnly(events),
+    events: scored,
     useBacking,
     audioStartMs: useBacking ? audioStartMs : 0,
     audioEndMs: useBacking ? eventsStart + window.endMs + PARTIAL_TAIL_MS : null,

@@ -335,7 +335,14 @@ function startPreparedMix(params: {
       // the exact end on the audio clock instead of to whenever a JS tick
       // noticed — the loop no longer drifts lap after lap. The ending pass's
       // notes and mic clips are cut at that same boundary.
-      const boundary = passEndContextTime(pass.startContextTime, pass.remainingMs, rate);
+      // Never in the past: Android pauses JS timers in the background while
+      // the audio clock runs on, so on return the computed end can be many
+      // passes behind. Anchoring there made each pass finish synchronously
+      // and start the next — one nested call per missed pass.
+      const boundary = Math.max(
+        passEndContextTime(pass.startContextTime, pass.remainingMs, rate),
+        getSharedAudioContext().currentTime,
+      );
       stopViolinPhrases(VOICE_OWNER);
       stopVoicesOwnedBy(VOICE_OWNER, { at: boundary });
       retireMicPlayersAt(boundary);

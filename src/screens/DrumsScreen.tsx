@@ -117,13 +117,16 @@ export function DrumsScreen({ navigation }: Props) {
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [metronomeModalVisible, setMetronomeModalVisible] = useState(false);
 
-  // Blur releases the engine, which stops the metronome — reset the toolbar
-  // state on the way back in, or the button is left reading "on" while nothing
-  // is ticking.
+  // The metronome is shared by every instrument and outlives the screen, so
+  // leaving stops it; coming back resets the toolbar to match, or the button
+  // would read "on" while nothing is ticking.
   useFocusEffect(
     useCallback(() => {
       setMetronomeOn(false);
       setMetronomeModalVisible(false);
+      return () => {
+        stopMetronome();
+      };
     }, []),
   );
   const [metronomeBpm, setMetronomeBpmState] = useState(

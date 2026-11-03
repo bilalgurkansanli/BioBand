@@ -151,3 +151,26 @@ describe('MAX_BACKUP_FILE_BYTES', () => {
     expect(MAX_BACKUP_FILE_BYTES).toBeGreaterThan((MAX_BACKUP_AUDIO_BYTES * 4) / 3);
   });
 });
+
+describe('restored note events', () => {
+  it("keeps a piano take's per-note transposition, bounded", () => {
+    const result = sanitizeBackupEntry(
+      entry({
+        events: [
+          { soundId: 'C4', atMs: 0, transposeSemitones: 2 },
+          { soundId: 'D4', atMs: 10, transposeSemitones: 999 },
+          { soundId: 'E4', atMs: 20, transposeSemitones: 'up' },
+          { soundId: 'F4', atMs: 30, transposeSemitones: 0 },
+        ],
+      }),
+      {},
+      newId,
+    );
+    expect(result?.recording.events).toEqual([
+      { soundId: 'C4', atMs: 0, transposeSemitones: 2 },
+      { soundId: 'D4', atMs: 10, transposeSemitones: 48 },
+      { soundId: 'E4', atMs: 20 },
+      { soundId: 'F4', atMs: 30 },
+    ]);
+  });
+});

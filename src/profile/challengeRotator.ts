@@ -1,4 +1,4 @@
-import { PIANO_SONGS } from '../instruments/piano/songs/catalog';
+import { getSongById } from '../instruments/piano/songs/catalog';
 import { getPracticeMsForDay, todayKey } from '../storage/profileProgressStorage';
 import type { InstrumentId } from '../types/recording';
 import {
@@ -83,11 +83,47 @@ export function completesSongOfWeek(
   );
 }
 
+/**
+ * The song-of-the-week rotation, frozen in the order it shipped in 1.0.0.
+ *
+ * It used to index the live catalog, so adding a song anywhere in the list
+ * reshuffled every week — including the current one, on the day the update
+ * landed, for someone half-way through it. New songs join here only by
+ * appending, and appending still shifts later weeks, so do it deliberately.
+ */
+export const SONG_OF_WEEK_ROTATION: readonly string[] = [
+  'turk-marsi',
+  'jingle-bells',
+  'uskudara-giderken',
+  'ode-to-joy',
+  'fur-elise',
+  'river-flows-in-you',
+  'canon-in-d',
+  'clair-de-lune',
+  'chopin-nocturne',
+  'shape-of-you',
+  'someone-like-you',
+  'billie-jean',
+  'neyleyim-istanbul',
+  'mesafe',
+  'simarik',
+  'biliyorsun',
+  'gulpembe',
+  'tutamiyorum-zamani',
+  'olsun',
+  'aya-benzer',
+  'yasanacaksa',
+  'kusura-bakma',
+  'ayy-ben-hala-ruyada',
+  'ahu',
+];
+
 export function getWeeklyChallengeKind(date: Date = new Date()): WeeklyChallengeKind {
-  if (PIANO_SONGS.length === 0) {
+  const songId = SONG_OF_WEEK_ROTATION[isoWeekNumber(date) % SONG_OF_WEEK_ROTATION.length];
+  const song = getSongById(songId);
+  if (!song) {
     return { type: 'finish-any-song-week' };
   }
-  const song = PIANO_SONGS[isoWeekNumber(date) % PIANO_SONGS.length];
   return {
     type: 'song-of-week',
     songId: song.id,

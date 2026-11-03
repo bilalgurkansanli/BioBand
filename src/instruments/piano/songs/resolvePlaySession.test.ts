@@ -94,3 +94,13 @@ describe('every catalog excerpt', () => {
     },
   );
 });
+
+describe('band excerpt calibrated before the file starts', () => {
+  it('falls back to the excerpt on its own instead of an empty lesson', () => {
+    const band = resolvePlaySession(withBacking(SONG, -10_000), 'fullBand', 'partial');
+    const plain = resolvePlaySession(SONG, 'piano', 'partial');
+    expect(band.useBacking).toBe(false);
+    expect(notesOf(band.events)).toEqual(notesOf(plain.events));
+    expect(band.events.length).toBeGreaterThan(0);
+  });
+});

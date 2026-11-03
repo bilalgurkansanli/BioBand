@@ -315,11 +315,17 @@ export function PianoScreen({ navigation }: Props) {
   // the sustain pedal — but this screen stays mounted, so its toolbar kept
   // showing both as ON over an engine that had turned them off. Coming back
   // re-reads reality instead of trusting the surviving state.
+  // The metronome is shared by every instrument and outlives the screen, so
+  // leaving stops it; coming back resets the toolbar to match, or the button
+  // would read "on" while nothing is ticking.
   useFocusEffect(
     useCallback(() => {
       setMetronomeOn(false);
       setMetronomeModalVisible(false);
       setSustainOn(false);
+      return () => {
+        stopMetronome();
+      };
     }, []),
   );
 

@@ -256,7 +256,14 @@ export async function playSavedRecording(
       // exact end time on the audio clock — no tick of lateness, no drift
       // accumulating lap after lap. The ringing tail is cut at that same
       // boundary, not now.
-      const boundary = passEndContextTime(pass.startContextTime, pass.remainingMs, rate);
+      // Never in the past: Android pauses JS timers in the background while
+      // the audio clock runs on, so on return the computed end can be many
+      // passes behind. Anchoring there made each pass finish synchronously
+      // and start the next — one nested call per missed pass.
+      const boundary = Math.max(
+        passEndContextTime(pass.startContextTime, pass.remainingMs, rate),
+        getSharedAudioContext().currentTime,
+      );
       stopViolinPhrases(VOICE_OWNER);
       stopVoicesOwnedBy(VOICE_OWNER, { at: boundary });
       schedule(0, boundary);

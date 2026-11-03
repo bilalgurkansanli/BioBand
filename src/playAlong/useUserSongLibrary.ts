@@ -109,7 +109,13 @@ export function useUserSongLibrary<TSong, TDef, TCode extends string>(
 
   const removeSong = useCallback(
     async (songId: string) => {
-      setSongs(await adapter.remove(songId));
+      try {
+        setSongs(await adapter.remove(songId));
+      } catch (error) {
+        // A storage read that failed refuses to write rather than risk the
+        // list: the song simply stays, and the next attempt can succeed.
+        console.warn('Could not remove the song:', error);
+      }
     },
     [adapter],
   );

@@ -248,7 +248,10 @@ export function registerActiveVoice(
     for (let i = activeVoices.length - 1; i >= 0; i--) {
       if (activeVoices[i].tag === tag) {
         const [voice] = activeVoices.splice(i, 1);
-        stealVoice(voice, fadeAt);
+        // Never before the old note's own start: two queued repeats closer
+        // than the fade would otherwise stop the first before it sounded, and
+        // fast repeated notes simply went missing.
+        stealVoice(voice, Math.max(fadeAt, voice.startsAt));
       }
     }
   }
@@ -338,9 +341,14 @@ export function resumeAudioContextIfSuspended(): void {
 function releaseMatchingVoices(
   matches: (tag: string) => boolean,
   fadeSeconds: number,
+  at?: number,
 ): boolean {
   const now = getAudioContext().currentTime;
   pruneFinishedVoices(now);
+  // A release placed ahead of the clock (a choke from a queued hit) lands when
+  // that hit sounds, and only on voices sounding by then: a voice queued to
+  // start later is a later note, not one this release is ending.
+  const when = at !== undefined && Number.isFinite(at) ? Math.max(now, at) : now;
   let released = false;
 
   for (let i = activeVoices.length - 1; i >= 0; i--) {
@@ -348,11 +356,18 @@ function releaseMatchingVoices(
     if (tag === undefined || !matches(tag)) {
       continue;
     }
+    if (when > now && activeVoices[i].startsAt > when) {
+      continue;
+    }
     const [voice] = activeVoices.splice(i, 1);
     try {
-      if (voice.startsAt > now) {
+      if (voice.startsAt > when) {
         // Not sounding yet — end it at its start rather than ramping in the past.
         voice.node.stop(voice.startsAt);
+      } else if (when > now) {
+        voice.stealGain.gain.setValueAtTime(1, when);
+        voice.stealGain.gain.linearRampToValueAtTime(0.0001, when + fadeSeconds);
+        voice.node.stop(when + fadeSeconds + 0.02);
       } else {
         voice.stealGain.gain.cancelScheduledValues(now);
         voice.stealGain.gain.setValueAtTime(voice.stealGain.gain.value || 1, now);
@@ -387,8 +402,10 @@ export function releaseVoiceByTag(
 export function releaseVoicesByTagPrefix(
   prefix: string,
   fadeSeconds = NOTE_OFF_FADE_SECONDS,
+  /** Context time to release at; omitted means now. */
+  at?: number,
 ): boolean {
-  return releaseMatchingVoices((t) => t.startsWith(prefix), fadeSeconds);
+  return releaseMatchingVoices((t) => t.startsWith(prefix), fadeSeconds, at);
 }
 
 const bufferCache = new Map<number, Promise<AudioBuffer>>();

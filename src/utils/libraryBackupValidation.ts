@@ -87,9 +87,21 @@ function sanitizeEvent(value: unknown): InstrumentEvent | null {
     typeof value.velocity === 'number' && Number.isFinite(value.velocity)
       ? Math.min(1, Math.max(0, value.velocity))
       : undefined;
-  return velocity === undefined
-    ? { soundId: value.soundId, atMs }
-    : { soundId: value.soundId, atMs, velocity };
+  // Piano takes carry the tone slider per note; dropping it would restore
+  // every transposed take in its written key. Four octaves either way is far
+  // past anything the slider produces.
+  const transposeSemitones =
+    typeof value.transposeSemitones === 'number' && Number.isFinite(value.transposeSemitones)
+      ? Math.max(-48, Math.min(48, Math.round(value.transposeSemitones)))
+      : undefined;
+  const event: InstrumentEvent = { soundId: value.soundId, atMs };
+  if (velocity !== undefined) {
+    event.velocity = velocity;
+  }
+  if (transposeSemitones !== undefined && transposeSemitones !== 0) {
+    event.transposeSemitones = transposeSemitones;
+  }
+  return event;
 }
 
 /** The blob, if it is one this app could have written; null otherwise. */

@@ -325,13 +325,13 @@ function padTagPrefix(bankId: PadBankId, id: PadSoundId): string {
 /** Base tags of the most recent hit per custom choke group. */
 const chokeGroupTags = new Map<PadChokeGroup, string[]>();
 
-function chokeGroup(group: PadChokeGroup, fadeSeconds = 0.05): void {
+function chokeGroup(group: PadChokeGroup, fadeSeconds = 0.05, at?: number): void {
   const tags = chokeGroupTags.get(group);
   if (!tags) {
     return;
   }
   for (const tag of tags) {
-    releaseVoicesByTagPrefix(tag, fadeSeconds);
+    releaseVoicesByTagPrefix(tag, fadeSeconds, at);
   }
   chokeGroupTags.set(group, []);
 }
@@ -421,14 +421,14 @@ export function triggerPadForBank(
 
   resumeAudioContextIfSuspended();
 
-  // Closed hat chokes a ringing open hat — including its reverb/echo tails.
-  // The choke lands now even for a hit placed ahead of the clock: releasing by
-  // tag has no scheduled form, and the lookahead is far shorter than the tail.
+  // Closed hat chokes a ringing open hat — including its reverb/echo tails —
+  // at the moment this hit sounds, so a queued hit cannot silence an open hat
+  // that has not started yet.
   if (slot.chokeOpenHat) {
-    releaseVoicesByTagPrefix(padTagPrefix(bankId, 'pad04'), 0.04);
+    releaseVoicesByTagPrefix(padTagPrefix(bankId, 'pad04'), 0.04, performance?.atTime);
   }
   if (slot.chokeGroup) {
-    chokeGroup(slot.chokeGroup);
+    chokeGroup(slot.chokeGroup, undefined, performance?.atTime);
   }
 
   const { buffer, rate } = resolved;

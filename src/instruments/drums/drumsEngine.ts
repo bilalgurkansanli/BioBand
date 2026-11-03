@@ -246,11 +246,11 @@ export function playHit(
   resumeAudioContextIfSuspended();
 
   // Closed hat chokes a ringing open hat (real kit behaviour) — including
-  // the open hat's pending reverb/echo tails. The choke lands now even for a
-  // hit placed ahead of the clock: releasing by tag has no scheduled form, and
-  // the lookahead is far shorter than the open hat's tail.
+  // the open hat's pending reverb/echo tails. For a hit placed ahead of the
+  // clock the choke lands when the closed hat sounds: choking at queue time
+  // silenced an open hat a 16th earlier before it had even started.
   if (id === 'hihatClosed') {
-    releaseVoicesByTagPrefix(padTagPrefix('hihatOpen'), 0.04);
+    releaseVoicesByTagPrefix(padTagPrefix('hihatOpen'), 0.04, performance?.atTime);
   }
 
   const clampedVelocity = Math.max(
