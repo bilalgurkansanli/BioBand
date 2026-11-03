@@ -299,7 +299,6 @@ export function DrumsScreen({ navigation }: Props) {
 
   const onHit = useCallback(
     (id: DrumSoundId, velocity: number) => {
-      notePlayed();
       if (haptics) {
         hapticHit();
       }
@@ -312,6 +311,9 @@ export function DrumsScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its hits here as well billed that time twice.
+      notePlayed();
       playHit(id, velocity);
     },
     [captureEvent, haptics, playAlong, playHit, notePlayed],

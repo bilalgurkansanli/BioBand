@@ -231,11 +231,10 @@ export function ViolinScreen({ navigation }: Props) {
   }, []);
 
   const buzz = useCallback(() => {
-    notePlayed();
     if (haptics) {
       hapticNote();
     }
-  }, [haptics, notePlayed]);
+  }, [haptics]);
 
   const onPlayNote = useCallback(
     (stringId: ViolinStringId, position: number) => {
@@ -252,10 +251,13 @@ export function ViolinScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its notes here as well billed that time twice.
+      notePlayed();
       buzz();
       playNote(stringId, position);
     },
-    [buzz, captureEvent, playAlong, playNote],
+    [buzz, captureEvent, notePlayed, playAlong, playNote],
   );
 
   const isPlayAlongModalVisible =

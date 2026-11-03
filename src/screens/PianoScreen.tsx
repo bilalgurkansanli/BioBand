@@ -432,7 +432,6 @@ export function PianoScreen({ navigation }: Props) {
 
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
-      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -443,6 +442,9 @@ export function PianoScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its notes here as well billed that time twice.
+      notePlayed();
       const sounded = resolveSoundedNotes(noteId);
       activePressRef.current.set(noteId, sounded);
       if (sounded.length === 0) {

@@ -357,7 +357,6 @@ export function GuitarScreen({ navigation }: Props) {
 
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
-      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -375,6 +374,9 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its notes here as well billed that time twice.
+      notePlayed();
       noteOn(stringId, fret, velocity);
     },
     [captureEvent, haptics, noteOn, playAlong, pluckString, notePlayed],
@@ -415,7 +417,6 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
-      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -432,6 +433,8 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only — see onPluckIn.
+      notePlayed();
       setSelectedChordId(chordId);
       // Record the performance form so playback keeps mode + strum direction.
       captureEvent(

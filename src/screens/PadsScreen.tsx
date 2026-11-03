@@ -414,7 +414,6 @@ export function PadsScreen({ navigation }: Props) {
     (id: PadSoundId, velocity: number) => {
       captureEventRef.current(id, velocity);
       recordNoteOn();
-      notePlayed();
       if (hapticsRef.current) {
         hapticSoft();
       }
@@ -425,6 +424,9 @@ export function PadsScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its hits here as well billed that time twice.
+      notePlayed();
       looperRef.current.captureHit(id, velocity);
       pulseStageLight();
       triggerPad(id, velocity);
