@@ -37,6 +37,8 @@ import {
 } from '../instruments/shared/songPerformance';
 import {
   applyHit,
+  sessionElapsedMs,
+  summarizeResults,
   HIT_WINDOW_BAND_MS,
   HIT_WINDOW_MS,
   judgeStepPress,
@@ -88,8 +90,6 @@ export type PadsPlayAlongProgress = {
   hits: number;
 };
 
-/** Practice-time award ceiling — a stale clock must not bank hours. */
-const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
 const COUNTDOWN_STEP_MS = 800;
@@ -97,19 +97,6 @@ const RESULTS_DELAY_MS = 700;
 const CALIBRATE_PREVIEW_MS = 4500;
 const OFFSET_MIN_MS = -5000;
 const OFFSET_MAX_MS = 60_000;
-
-function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
-  if (accuracy >= 0.9) {
-    return 3;
-  }
-  if (accuracy >= 0.7) {
-    return 2;
-  }
-  if (accuracy >= 0.45) {
-    return 1;
-  }
-  return 0;
-}
 
 const padIdOf = (event: { padId: string }) => event.padId;
 
@@ -168,6 +155,8 @@ export function usePadsPlayAlong(
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const notesFinishedRef = useRef(false);
+  /** Set once a session has been scored; cleared by every start. */
+  const finishedRef = useRef(false);
   /**
    * Bumped by every start attempt. The starters await before installing their
    * timers, so without this a second tap (double-tapped level or Replay)
@@ -240,37 +229,48 @@ export function usePadsPlayAlong(
   }, []);
 
   const finishSong = useCallback(() => {
+    // The backing track ending and the tick loop can both get here; a session
+    // is scored and awarded once.
+    if (finishedRef.current) {
+      return;
+    }
+    finishedRef.current = true;
     clearTimers();
     stopSessionAudio();
     setGuidePadId(null);
 
+    // Whatever is still unplayed when the session ends is a miss. A band track
+    // running out used to end the song without counting them: one correct
+    // note, then let the track play, scored 100% and three stars.
     const events = chartRef.current;
-    const stats = statsRef.current;
-    const scored = stats.hits + stats.misses + stats.wrongPresses;
-    const accuracy = scored > 0 ? stats.hits / scored : 0;
-    const stars = computeStars(accuracy);
+    if (pointerRef.current < events.length) {
+      statsRef.current.misses += events.length - pointerRef.current;
+      pointerRef.current = events.length;
+      setProgress({
+        resolved: events.length,
+        total: events.length,
+        hits: statsRef.current.hits,
+      });
+    }
 
-    setResults({
-      totalNotes: events.length,
-      hits: stats.hits,
-      misses: stats.misses,
-      wrongPresses: stats.wrongPresses,
-      accuracy,
-      stars,
-    });
+    const results = summarizeResults(statsRef.current, events.length);
+    setResults(results);
 
     void awardPlayAlongCompletion({
       instrument: 'pads',
       songId: songRef.current?.id ?? null,
-      stars,
-      elapsedMs: Math.max(0, Math.min(getElapsedMs(), MAX_AWARD_ELAPSED_MS)),
+      stars: results.stars,
+      elapsedMs: sessionElapsedMs(
+        startTimeRef.current,
+        getSharedAudioContext().currentTime,
+      ),
     });
 
     const timer = setTimeout(() => {
       setPhase('results');
     }, RESULTS_DELAY_MS);
     timersRef.current.push(timer);
-  }, [clearTimers, getElapsedMs, stopSessionAudio]);
+  }, [clearTimers, stopSessionAudio]);
 
   const maybeFinishAfterNotes = useCallback(() => {
     const session = sessionRef.current;
@@ -407,21 +407,9 @@ export function usePadsPlayAlong(
         session.audioEndMs != null &&
         getBackingCurrentTimeMs() >= session.audioEndMs
       ) {
+        // finishSong scores whatever is still unplayed as missed.
         pauseBackingTrack();
-        if (notesFinishedRef.current || pointerRef.current >= events.length) {
-          finishSong();
-        } else {
-          while (pointerRef.current < events.length) {
-            statsRef.current.misses += 1;
-            pointerRef.current += 1;
-          }
-          setProgress({
-            resolved: events.length,
-            total: events.length,
-            hits: statsRef.current.hits,
-          });
-          finishSong();
-        }
+        finishSong();
         return;
       }
 
@@ -449,6 +437,7 @@ export function usePadsPlayAlong(
     }
 
     notesFinishedRef.current = false;
+    finishedRef.current = false;
     startTimeRef.current = getSharedAudioContext().currentTime;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
@@ -495,6 +484,7 @@ export function usePadsPlayAlong(
     setResults(null);
     setDemoJustFinished(false);
     notesFinishedRef.current = false;
+    finishedRef.current = false;
     pointerRef.current = 0;
     statsRef.current = { hits: 0, misses: 0, wrongPresses: 0 };
     setProgress({ resolved: 0, total: chartRef.current.length, hits: 0 });
@@ -592,6 +582,7 @@ export function usePadsPlayAlong(
     clearTimers();
     setResults(null);
     notesFinishedRef.current = false;
+    finishedRef.current = false;
     // Without this, finishing step mode with no backing track computed the
     // award elapsed from a stale/zero start (same bug fixed in drums/guitar).
     startTimeRef.current = getSharedAudioContext().currentTime;

@@ -48,6 +48,25 @@ export function computeStars(accuracy: number): Stars {
   return 0;
 }
 
+/** Practice-award ceiling per session — step mode can sit idle indefinitely. */
+export const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
+
+/**
+ * Practice time a finished session earns: real time between the session's
+ * start and now, both read off the shared audio clock (seconds).
+ *
+ * Not the song clock. That one is tempo-scaled — a slow run would earn less
+ * than it took — and in Band Mode it is the backing track's position, which
+ * reads 0 once the track has been stopped at the end of the session.
+ */
+export function sessionElapsedMs(startSeconds: number, nowSeconds: number): number {
+  const elapsed = (nowSeconds - startSeconds) * 1000;
+  if (!Number.isFinite(elapsed)) {
+    return 0;
+  }
+  return Math.min(MAX_AWARD_ELAPSED_MS, Math.max(0, elapsed));
+}
+
 /** Accuracy counts wrong presses against the player, so mashing cannot score. */
 export function summarizeResults(stats: PlayAlongStats, totalNotes: number): PlayAlongResults {
   const scored = stats.hits + stats.misses + stats.wrongPresses;

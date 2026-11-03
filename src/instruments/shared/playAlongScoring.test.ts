@@ -6,6 +6,8 @@ import {
   HIT_WINDOW_MS,
   judgeStepPress,
   judgeTimedPress,
+  MAX_AWARD_ELAPSED_MS,
+  sessionElapsedMs,
   summarizeResults,
   type PlayAlongStats,
 } from './playAlongScoring';
@@ -185,5 +187,17 @@ describe('a whole free-mode run', () => {
     const notes = chart([['a', 0], ['b', 500]]);
     const presses: [string, number][] = [['z', 0], ['y', 10], ['x', 20], ['w', 30]];
     expect(simulate(notes, presses)).toMatchObject({ hits: 0, misses: 2, wrongPresses: 4 });
+  });
+});
+
+describe('sessionElapsedMs', () => {
+  it('is real time on the audio clock, in ms', () => {
+    expect(sessionElapsedMs(10, 70)).toBe(60_000);
+  });
+
+  it('never goes negative, never passes the cap, never NaN', () => {
+    expect(sessionElapsedMs(70, 10)).toBe(0);
+    expect(sessionElapsedMs(0, 100_000)).toBe(MAX_AWARD_ELAPSED_MS);
+    expect(sessionElapsedMs(Number.NaN, 5)).toBe(0);
   });
 });
