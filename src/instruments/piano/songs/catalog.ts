@@ -7,6 +7,7 @@ import { canonInDSong } from './canonInD';
 import { chopinNocturneSong } from './chopinNocturne';
 import { clairDeLuneSong } from './clairDeLune';
 import { furEliseSong } from './furElise';
+import { greatFairyFountainSong } from './greatFairyFountain';
 import { gulpembeSong } from './gulpembe';
 import { jingleBellsSong } from './jingleBells';
 import { kusuraBakmaSong } from './kusuraBakma';
@@ -79,6 +80,13 @@ export const SONG_CATALOG: CatalogSong[] = [
     artist: 'Johann Pachelbel',
     difficulty: 'easy',
     song: canonInDSong,
+  },
+  {
+    id: 'great-fairy-fountain',
+    title: "Great Fairy's Fountain",
+    artist: 'Koji Kondo',
+    difficulty: 'medium',
+    song: greatFairyFountainSong,
   },
   {
     id: 'clair-de-lune',
