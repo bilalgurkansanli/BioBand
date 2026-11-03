@@ -120,11 +120,44 @@ type ActiveVoice = {
   startsAt: number;
   /** Optional identity (e.g. "organ:C4") for same-note retrigger stealing. */
   tag?: string;
+  /**
+   * Who scheduled the voice (see withVoiceOwner) — "studio", "recording"…
+   * Undefined for a note played by hand on an instrument screen.
+   */
+  owner?: string;
 };
 
 // Ordered oldest-first; playSample both prunes finished voices and steals
 // the oldest one when the cap is hit.
 const activeVoices: ActiveVoice[] = [];
+
+/** Owner stamped on voices registered right now — see withVoiceOwner. */
+let currentVoiceOwner: string | undefined;
+
+/**
+ * Runs `play` with every voice it registers attributed to `owner`.
+ *
+ * Several things sound through the one context at once — a Studio mix, a
+ * saved-take player, the drum machine, the instrument under your fingers —
+ * and each needs to stop its own notes without silencing the others. Voices
+ * are registered synchronously inside an engine's play call (notes placed
+ * ahead of the clock register their reverb/echo taps in the same call), so
+ * attributing the call attributes everything it schedules.
+ */
+export function withVoiceOwner<T>(owner: string, play: () => T): T {
+  const previous = currentVoiceOwner;
+  currentVoiceOwner = owner;
+  try {
+    return play();
+  } finally {
+    currentVoiceOwner = previous;
+  }
+}
+
+/** The owner voices are currently being attributed to, if any. */
+export function getCurrentVoiceOwner(): string | undefined {
+  return currentVoiceOwner;
+}
 
 function pruneFinishedVoices(now: number): void {
   for (let i = activeVoices.length - 1; i >= 0; i--) {
@@ -223,18 +256,83 @@ export function registerActiveVoice(
   while (activeVoices.length >= MAX_VOICES) {
     stealOldestVoice(now);
   }
-  activeVoices.push({ node, stealGain, endsAt, startsAt: startsAt ?? now, tag });
+  activeVoices.push({
+    node,
+    stealGain,
+    endsAt,
+    startsAt: startsAt ?? now,
+    tag,
+    owner: currentVoiceOwner,
+  });
 }
 
-/** Fade out and stop every active voice — used when leaving an instrument. */
-export function stopAllVoices(): void {
+/**
+ * Fade out and stop every voice `matches` selects. A voice not yet sounding
+ * is ended at its own start, so it never plays; a sounding one fades over the
+ * steal fade, starting at `cutAt` (default: now).
+ */
+function stopVoicesWhere(matches: (voice: ActiveVoice) => boolean, cutAt?: number): void {
   const now = getAudioContext().currentTime;
-  while (activeVoices.length > 0) {
-    const voice = activeVoices.shift();
-    if (voice) {
-      stealVoice(voice, now);
+  pruneFinishedVoices(now);
+  const at = Math.max(now, cutAt ?? now);
+  for (let i = activeVoices.length - 1; i >= 0; i--) {
+    if (!matches(activeVoices[i])) {
+      continue;
     }
+    const [voice] = activeVoices.splice(i, 1);
+    stealVoice(voice, at);
   }
+}
+
+/**
+ * Stop the voices an owner scheduled (see withVoiceOwner), leaving every
+ * other source of sound alone.
+ *
+ * - `at`: cut at this future context time instead of now. Only voices that
+ *   start before it are touched, so a loop's next pass — already queued on
+ *   the clock from `at` on — survives the cut of the pass before it.
+ * - `pendingOnly`: only cancel notes still waiting on the clock; whatever is
+ *   already sounding rings out.
+ */
+export function stopVoicesOwnedBy(
+  owner: string,
+  options: { at?: number; pendingOnly?: boolean } = {},
+): void {
+  const { at, pendingOnly = false } = options;
+  const now = getAudioContext().currentTime;
+  stopVoicesWhere(
+    (voice) =>
+      voice.owner === owner &&
+      (at === undefined || voice.startsAt < at) &&
+      (!pendingOnly || voice.startsAt > now),
+    at,
+  );
+}
+
+/**
+ * Stop every voice whose tag starts with one of `prefixes` — an engine
+ * tearing down its own sound without touching anybody else's.
+ */
+export function stopVoicesByTagPrefix(prefixes: readonly string[]): void {
+  stopVoicesWhere(
+    (voice) =>
+      voice.tag !== undefined && prefixes.some((prefix) => voice.tag?.startsWith(prefix)),
+  );
+}
+
+/**
+ * Wake a context the OS suspended (audio focus, a modal). Never throws and
+ * never leaves a rejection unhandled — a failed resume is logged, and the
+ * next note simply tries again.
+ */
+export function resumeAudioContextIfSuspended(): void {
+  const context = getAudioContext();
+  if (context.state !== 'suspended') {
+    return;
+  }
+  context.resume().catch((error: unknown) => {
+    console.warn('Audio: could not resume the audio context', error);
+  });
 }
 
 function releaseMatchingVoices(
@@ -429,6 +527,12 @@ export function playSample(
 export async function prepareSamplePlayback(): Promise<void> {
   await restorePlaybackAudioMode();
   if (getAudioContext().state === 'suspended') {
-    await getAudioContext().resume();
+    try {
+      await getAudioContext().resume();
+    } catch (error) {
+      // Not fatal: the samples still decode, and every note retries the
+      // resume. Failing the whole engine init here left it silent for good.
+      console.warn('Audio: could not resume the audio context', error);
+    }
   }
 }

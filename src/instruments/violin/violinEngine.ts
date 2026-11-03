@@ -5,15 +5,15 @@ import {
   loadSample,
   playSample,
   prepareSamplePlayback,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
-  resetPianoFx,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
 } from '../piano/pianoFx';
-import { stopMetronome } from '../piano/pianoMetronome';
 import { getMidi } from './violinNotes';
 import { getPhraseById, isPhraseId, type PhraseId } from './violinPhrases';
 import {
@@ -37,6 +37,8 @@ const PHRASE_STAGGER_MS = 220;
 const NOTE_GAIN = 0.36;
 /** Bow lift at the end of a written note — long enough to stay legato. */
 const VIOLIN_RELEASE_SECONDS = 0.28;
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const VIOLIN_OWNER = 'violin';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
@@ -192,10 +194,7 @@ export function playNote(
   gainScale = 1,
   performance?: NotePerformance,
 ): void {
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   hitSerial += 1;
   const dryTag = `violin:${stringId}:${position}#${hitSerial}`;
@@ -219,7 +218,7 @@ export function playNote(
       gainScale: dynamics * tapScale,
       startAtSeconds: tapStart(delayMs),
     });
-  }, aheadOfClock);
+  }, aheadOfClock, VIOLIN_OWNER);
 
   // Each repeat needs its own tag — same-tag voices steal each other.
   let echoIndex = 0;
@@ -229,7 +228,7 @@ export function playNote(
       startAtSeconds: tapStart(delayMs),
       sustainSeconds,
     });
-  }, aheadOfClock);
+  }, aheadOfClock, VIOLIN_OWNER);
 }
 
 export function playPhrase(phraseId: PhraseId, gainScale = 1): void {
@@ -281,11 +280,11 @@ export function playViolinSoundId(
 }
 
 export function releaseViolinEngine(): void {
-  stopMetronome();
   stopViolinPhrases();
-  stopAllVoices();
   // Cancels pending echo/reverb re-triggers — without this, taps keep
-  // sounding after leaving the screen (buffers stay decoded).
-  resetPianoFx();
+  // sounding after leaving the screen (buffers stay decoded). Only the
+  // violin's own: the FX bus, its settings and the metronome are shared.
+  clearPianoFxTimersFor(VIOLIN_OWNER);
+  stopVoicesByTagPrefix(['violin:']);
   initialized = false;
 }

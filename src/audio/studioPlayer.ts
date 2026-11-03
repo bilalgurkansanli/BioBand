@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
-import { stopAllVoices } from './sampleBank';
+import { stopVoicesOwnedBy, withVoiceOwner } from './sampleBank';
 import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
 import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
 import { isDrumKitId } from '../instruments/drums/drumsKits';
@@ -59,6 +59,13 @@ const heldEngines = new Set<InstrumentId>();
 let activeCancel: (() => void) | null = null;
 let activeMicPlayers: AudioPlayer[] = [];
 
+/**
+ * Voices the mix schedules carry this owner, so stopping the mix (or an
+ * overdub's beds) silences only the mix — never the instrument the user is
+ * recording over it.
+ */
+const VOICE_OWNER = 'studio';
+
 async function holdEngine(instrument: InstrumentId): Promise<void> {
   if (heldEngines.has(instrument)) {
     return;
@@ -82,24 +89,26 @@ function playInstrumentEvent(
   // so a late JS timer would not just drag one note, it would pull that track
   // out of alignment with the others.
   const performance: NotePerformance = { atTime: atContextTime };
-  switch (instrument) {
-    case 'piano':
-      playPianoNote(soundId as NoteId, undefined, undefined, gainScale, performance);
-      return;
-    case 'drums':
-      playHit(soundId as DrumSoundId, velocity, gainScale, performance);
-      return;
-    case 'pads':
-      // Per-track bank — looper exports layer tracks from different banks.
-      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale, performance);
-      return;
-    case 'guitar':
-      playGuitarSoundId(soundId, velocity, gainScale, performance);
-      return;
-    case 'violin':
-      playViolinSoundId(soundId, gainScale, performance);
-      return;
-  }
+  withVoiceOwner(VOICE_OWNER, () => {
+    switch (instrument) {
+      case 'piano':
+        playPianoNote(soundId as NoteId, undefined, undefined, gainScale, performance);
+        return;
+      case 'drums':
+        playHit(soundId as DrumSoundId, velocity, gainScale, performance);
+        return;
+      case 'pads':
+        // Per-track bank — looper exports layer tracks from different banks.
+        triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale, performance);
+        return;
+      case 'guitar':
+        playGuitarSoundId(soundId, velocity, gainScale, performance);
+        return;
+      case 'violin':
+        playViolinSoundId(soundId, gainScale, performance);
+        return;
+    }
+  });
 }
 
 function stopMicPlayers(): void {
@@ -122,7 +131,7 @@ function stopActivePlayback(): void {
   stopMicPlayers();
   // Cancel violin phrase notes still scheduled inside the engine.
   stopViolinPhrases();
-  stopAllVoices();
+  stopVoicesOwnedBy(VOICE_OWNER);
 }
 
 export function stopStudioPlayback(): void {
@@ -246,7 +255,7 @@ export async function playStudioProject(
       // Seamlessly restart the mix from the top instead of ending.
       stopMicPlayers();
       stopViolinPhrases();
-      stopAllVoices();
+      stopVoicesOwnedBy(VOICE_OWNER);
       schedule(0);
       return;
     }
@@ -254,7 +263,7 @@ export async function playStudioProject(
     clearScheduled();
     stopMicPlayers();
     stopViolinPhrases();
-    stopAllVoices();
+    stopVoicesOwnedBy(VOICE_OWNER);
     activeCancel = null;
     onProgress?.(durationMs, durationMs);
     onEnded?.();
@@ -393,7 +402,7 @@ export async function playStudioProject(
       }
       stopMicPlayers();
       stopViolinPhrases();
-      stopAllVoices();
+      stopVoicesOwnedBy(VOICE_OWNER);
       schedule(Math.max(0, Math.min(positionMs, durationMs)));
     },
   };

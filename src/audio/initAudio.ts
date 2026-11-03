@@ -29,9 +29,28 @@ function alignNativeAudioApiSession(): void {
   }
 }
 
-export async function restorePlaybackAudioMode(): Promise<void> {
-  await setIsAudioActiveAsync(true);
-  await setAudioModeAsync({
+// None of these reject. They are awaited on the way into playback, recording
+// and app boot, and a refused session change is no reason to abort any of
+// those — App.tsx runs initAudioMode inside its boot Promise.all, where one
+// rejection skipped the auth/data bootstrap and the instrument preload. A
+// failure is logged and reported as `false` for callers that want to react.
+
+async function applyAudioMode(
+  label: string,
+  mode: Parameters<typeof setAudioModeAsync>[0],
+): Promise<boolean> {
+  try {
+    await setIsAudioActiveAsync(true);
+    await setAudioModeAsync(mode);
+    return true;
+  } catch (error) {
+    console.warn(`Audio: could not switch to the ${label} audio mode`, error);
+    return false;
+  }
+}
+
+export async function restorePlaybackAudioMode(): Promise<boolean> {
+  return applyAudioMode('playback', {
     playsInSilentMode: true,
     allowsRecording: false,
     interruptionMode: 'mixWithOthers',
@@ -40,19 +59,19 @@ export async function restorePlaybackAudioMode(): Promise<void> {
   });
 }
 
-export async function initAudioMode(): Promise<void> {
+export async function initAudioMode(): Promise<boolean> {
   if (configured) {
-    return;
+    return true;
   }
 
   alignNativeAudioApiSession();
-  await restorePlaybackAudioMode();
-  configured = true;
+  // Only a successful setup is remembered, so a later call can retry.
+  configured = await restorePlaybackAudioMode();
+  return configured;
 }
 
-export async function prepareRecordingAudioMode(): Promise<void> {
-  await setIsAudioActiveAsync(true);
-  await setAudioModeAsync({
+export async function prepareRecordingAudioMode(): Promise<boolean> {
+  return applyAudioMode('recording', {
     playsInSilentMode: true,
     allowsRecording: true,
     interruptionMode: 'doNotMix',
@@ -62,9 +81,8 @@ export async function prepareRecordingAudioMode(): Promise<void> {
 }
 
 /** Mic overdub: allow beds to keep playing while recording. */
-export async function prepareOverdubRecordingAudioMode(): Promise<void> {
-  await setIsAudioActiveAsync(true);
-  await setAudioModeAsync({
+export async function prepareOverdubRecordingAudioMode(): Promise<boolean> {
+  return applyAudioMode('overdub recording', {
     playsInSilentMode: true,
     allowsRecording: true,
     interruptionMode: 'mixWithOthers',

@@ -6,9 +6,11 @@ import {
   playSample,
   prepareSamplePlayback,
   releaseVoicesByTagPrefix,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
@@ -39,6 +41,8 @@ let kitFilter: BiquadFilterNode | null = null;
 let cymbalTone: BiquadFilterNode | null = null;
 
 const SOUND_IDS = Object.keys(DRUM_SOUND_FILES) as DrumSoundId[];
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const DRUMS_OWNER = 'drums';
 
 type HitEnvelope = {
   attackSeconds: number;
@@ -222,10 +226,7 @@ export function playHit(
     return;
   }
 
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   // Closed hat chokes a ringing open hat (real kit behaviour) — including
   // the open hat's pending reverb/echo tails. The choke lands now even for a
@@ -258,7 +259,7 @@ export function playHit(
       true,
       tapStart(delayMs),
     );
-  }, aheadOfClock);
+  }, aheadOfClock, DRUMS_OWNER);
 
   let echoIndex = 0;
   schedulePianoEchoRepeats((tapScale, delayMs) => {
@@ -270,7 +271,7 @@ export function playHit(
       false,
       tapStart(delayMs),
     );
-  }, aheadOfClock);
+  }, aheadOfClock, DRUMS_OWNER);
 }
 
 /**
@@ -292,7 +293,9 @@ function disconnectSafe(node: { disconnect: () => void } | null): void {
 }
 
 export function releaseDrumsEngine(): void {
-  stopAllVoices();
+  // Only the kit's own sound — other instruments may still be playing.
+  clearPianoFxTimersFor(DRUMS_OWNER);
+  stopVoicesByTagPrefix(['drums:']);
   // Detach the bus chain before dropping the refs — otherwise every
   // focus/blur cycle leaves an orphaned gain→filter chain on the FX input.
   disconnectSafe(cymbalTone);

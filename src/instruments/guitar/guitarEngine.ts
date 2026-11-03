@@ -6,10 +6,12 @@ import {
   playSample,
   prepareSamplePlayback,
   releaseVoiceByTag,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
   type PlayedSampleHandle,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
@@ -47,6 +49,8 @@ const STRING_GAIN = 0.42;
 const NOTE_OFF_FADE_SECONDS = 0.18;
 /** Damp at the end of a written note — a string is muted, not cut dead. */
 const GUITAR_DAMPER_SECONDS = 0.4;
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const GUITAR_OWNER = 'guitar';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
@@ -280,10 +284,7 @@ export function pluckString(
     performance?: NotePerformance;
   },
 ): void {
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   const performance = options?.performance;
   const velocity = clampGuitarVelocity(options?.velocity ?? GUITAR_VELOCITY_DEFAULT);
@@ -312,7 +313,7 @@ export function pluckString(
       velocity,
       startAtSeconds: tapStart(delayMs),
     });
-  }, aheadOfClock);
+  }, aheadOfClock, GUITAR_OWNER);
 
   // Each repeat needs its own tag — same-tag voices steal each other in sampleBank.
   let echoIndex = 0;
@@ -322,7 +323,7 @@ export function pluckString(
       startAtSeconds: tapStart(delayMs),
       sustainSeconds,
     });
-  }, aheadOfClock);
+  }, aheadOfClock, GUITAR_OWNER);
 }
 
 /**
@@ -334,10 +335,7 @@ export function noteOn(
   fret: number,
   velocity: number = GUITAR_VELOCITY_DEFAULT,
 ): void {
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   const key = cellKey(stringId, fret);
   const midi = fretToMidi(stringId, fret);
@@ -365,12 +363,12 @@ export function noteOn(
       shortTail: true,
       velocity: v,
     });
-  });
+  }, false, GUITAR_OWNER);
 
   let echoIndex = 0;
   schedulePianoEchoRepeats((gainScale) => {
     triggerPluck(midi, gain * gainScale, `${fxTag}:echo:${echoIndex++}`, { velocity: v });
-  });
+  }, false, GUITAR_OWNER);
 }
 
 /** Interactive fret release — soft damp like lifting a finger. */
@@ -535,7 +533,9 @@ export function releaseGuitarEngine(): void {
   clearStrumTimers();
   fingerHeld.clear();
   heldBendHandles.clear();
-  stopAllVoices();
+  // Only the guitar's own sound — other instruments may still be playing.
+  clearPianoFxTimersFor(GUITAR_OWNER);
+  stopVoicesByTagPrefix(['guitar:']);
   // Detach the bus — otherwise every focus cycle leaves a dead gain+filter
   // pair connected to the FX input.
   try {

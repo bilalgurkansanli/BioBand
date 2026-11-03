@@ -7,15 +7,15 @@ import {
   prepareSamplePlayback,
   registerActiveVoice,
   releaseVoiceByTag,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
-  resetPianoFx,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
 } from './pianoFx';
-import { stopMetronome } from './pianoMetronome';
 import {
   BASE_SAMPLE_FILES,
   getNoteSampleConfig,
@@ -49,6 +49,12 @@ const fingerHeldNotes = new Map<NoteId, PianoVoiceId>();
 const pedalHeldNotes = new Map<NoteId, PianoVoiceId>();
 
 const HELD_SYNTH_SECONDS = 24;
+
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const PIANO_FX_OWNER = 'piano';
+/** Every tag this engine's voices carry — sampled voices, then each synth. */
+const PIANO_TAG_PREFIXES = ['piano:', 'organ:', 'rhodes:', 'synth:'] as const;
+
 /** How fast the damper silences a note once its written length is over. */
 const PIANO_DAMPER_SECONDS = 0.22;
 
@@ -652,10 +658,7 @@ export function playNote(
   }
 
   // Modal / OS audio focus can suspend the context; resume on first note.
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   // Repitching an anchor sample covers pitches below the keyboard fine, so an
   // accompaniment can sit an octave under the tune it supports.
@@ -696,7 +699,7 @@ export function playNote(
       false,
       tapScheduling(delayMs),
     );
-  }, aheadOfClock);
+  }, aheadOfClock, PIANO_FX_OWNER);
 
   // 3) Echo: quieter spaced repeats — leave echo path unchanged (full tail).
   schedulePianoEchoRepeats((tapScale, delayMs) => {
@@ -710,7 +713,7 @@ export function playNote(
       false,
       tapScheduling(delayMs),
     );
-  }, aheadOfClock);
+  }, aheadOfClock, PIANO_FX_OWNER);
 }
 
 /**
@@ -726,10 +729,7 @@ export function noteOn(
     return;
   }
 
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   fingerHeldNotes.set(noteId, voice);
   pedalHeldNotes.delete(noteId);
@@ -739,10 +739,10 @@ export function noteOn(
 
   schedulePianoReverbTaps((gainScale, tapIndex) => {
     triggerVoice(noteId, shiftedMidi, voice, gainScale, `:reverb:${tapIndex}`, true);
-  });
+  }, false, PIANO_FX_OWNER);
   schedulePianoEchoRepeats((gainScale) => {
     triggerVoice(noteId, shiftedMidi, voice, gainScale, ':echo');
-  });
+  }, false, PIANO_FX_OWNER);
 }
 
 function releaseDryNote(
@@ -789,10 +789,12 @@ export function setSustainPedal(on: boolean): void {
 }
 
 export function releasePianoEngine(): void {
-  stopMetronome();
-  stopAllVoices();
+  // Only the piano's own sound goes. The metronome, the shared FX bus and its
+  // settings, and voices of other instruments (a Studio mix, a saved take)
+  // all outlive this engine — the screens that own them stop them.
+  clearPianoFxTimersFor(PIANO_FX_OWNER);
+  stopVoicesByTagPrefix(PIANO_TAG_PREFIXES);
   resetPianoVoiceFilters();
-  resetPianoFx();
   fingerHeldNotes.clear();
   pedalHeldNotes.clear();
   sustainPedalOn = false;

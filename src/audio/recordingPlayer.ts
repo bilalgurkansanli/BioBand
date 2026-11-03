@@ -2,7 +2,7 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
-import { stopAllVoices } from './sampleBank';
+import { stopVoicesOwnedBy, withVoiceOwner } from './sampleBank';
 import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
 import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
 import { isDrumKitId } from '../instruments/drums/drumsKits';
@@ -59,6 +59,12 @@ let heldInstrument: InstrumentId | null = null;
 // state.
 let playbackGeneration = 0;
 
+/**
+ * Voices this player schedules carry this owner, so stopping a take silences
+ * only the take — not the instrument the user is playing, nor a Studio mix.
+ */
+const VOICE_OWNER = 'recording';
+
 async function ensureInstrumentEngine(instrument: InstrumentId): Promise<void> {
   if (heldInstrument === instrument) {
     return;
@@ -88,25 +94,27 @@ function playInstrumentEvent(
   // audio thread owns it from here. That is the whole point of scheduling this
   // way: a JS thread busy rendering the scrubber can no longer move the beat.
   const performance: NotePerformance = { atTime: atContextTime };
-  switch (instrument) {
-    case 'piano':
-      playPianoNote(soundId as NoteId, undefined, undefined, 1, performance);
-      return;
-    case 'drums':
-      playHit(soundId as DrumSoundId, velocity, 1, performance);
-      return;
-    case 'pads':
-      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, 1, performance);
-      return;
-    case 'guitar': {
-      playGuitarSoundId(soundId, velocity, 1, performance);
-      return;
+  withVoiceOwner(VOICE_OWNER, () => {
+    switch (instrument) {
+      case 'piano':
+        playPianoNote(soundId as NoteId, undefined, undefined, 1, performance);
+        return;
+      case 'drums':
+        playHit(soundId as DrumSoundId, velocity, 1, performance);
+        return;
+      case 'pads':
+        triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, 1, performance);
+        return;
+      case 'guitar': {
+        playGuitarSoundId(soundId, velocity, 1, performance);
+        return;
+      }
+      case 'violin': {
+        playViolinSoundId(soundId, 1, performance);
+        return;
+      }
     }
-    case 'violin': {
-      playViolinSoundId(soundId, 1, performance);
-      return;
-    }
-  }
+  });
 }
 
 function stopActivePlayback(): void {
@@ -126,7 +134,7 @@ function stopActivePlayback(): void {
   // Phrase presets schedule their notes inside the violin engine — cancel
   // them too, or a stop mid-phrase keeps sounding the rest.
   stopViolinPhrases();
-  stopAllVoices();
+  stopVoicesOwnedBy(VOICE_OWNER);
 }
 
 export function stopRecordingPlayback(): void {
@@ -294,14 +302,14 @@ export async function playSavedRecording(
       // Straight back to the top: the take never "ends", so the screen keeps
       // its playing state and the scrubber simply starts over.
       stopViolinPhrases();
-      stopAllVoices();
+      stopVoicesOwnedBy(VOICE_OWNER);
       schedule(0);
       return;
     }
     finished = true;
     clearScheduled();
     stopViolinPhrases();
-    stopAllVoices();
+    stopVoicesOwnedBy(VOICE_OWNER);
     activeCancel = null;
     onEnded();
   };
@@ -372,7 +380,7 @@ export async function playSavedRecording(
       if (finished || isSuperseded()) {
         return;
       }
-      stopAllVoices();
+      stopVoicesOwnedBy(VOICE_OWNER);
       schedule(Math.max(0, Math.min(positionMs, recording.durationMs)));
       onProgress?.(Math.max(0, Math.min(positionMs, recording.durationMs)), recording.durationMs);
     },
