@@ -24,6 +24,7 @@ export const ALL_APP_DATA_KEYS: string[] = [
   // the local changes it stands for would push the freshly-emptied state over
   // the cloud row on the next sign-in (see appDataSyncStateStorage).
   '@bioband/app-data-push-pending.v1',
+  '@bioband/app-data-synced-user.v1',
   '@bioband/drum-machine-patterns.v1',
   '@bioband/drum-machine-settings.v1',
   '@bioband/drum-machine-song.v1',

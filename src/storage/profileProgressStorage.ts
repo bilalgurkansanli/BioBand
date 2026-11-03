@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { notifyAppDataChanged } from './appDataChangeSignal';
+import { isSameJson, readJson } from './jsonStorage';
 import type { InstrumentId } from '../types/recording';
 import {
   EMPTY_PROFILE_PROGRESS,
@@ -158,41 +159,49 @@ function withLongestStreakFloor(progress: ProfileProgress): ProfileProgress {
   return { ...progress, longestStreak: floor };
 }
 
+/**
+ * For screens. A storage failure shows as empty progress rather than an error,
+ * which is safe only because nothing writes this result back — every mutator
+ * reads through the strict loader below instead.
+ */
 export function loadProfileProgress(): Promise<ProfileProgress> {
-  return withProgressLock(loadProfileProgressUnlocked);
+  return withProgressLock(loadProfileProgressUnlocked).catch((error: unknown) => {
+    console.warn('[profileProgress] could not be read', error);
+    return { ...EMPTY_PROFILE_PROGRESS };
+  });
 }
 
+/**
+ * Rejects when storage cannot be read. Every mutator builds on this, and
+ * carrying on with empty progress would persist it over the real streak.
+ */
 async function loadProfileProgressUnlocked(): Promise<ProfileProgress> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return { ...EMPTY_PROFILE_PROGRESS };
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isProfileProgress(parsed)) {
-      return { ...EMPTY_PROFILE_PROGRESS };
-    }
-    const normalized = normalizeStreak({
-      ...EMPTY_PROFILE_PROGRESS,
-      ...parsed,
-      practiceByDay: parsed.practiceByDay ?? {},
-      completedChallengeIds: parsed.completedChallengeIds ?? [],
-    });
-    const { practiceByDay, changed: practiceChanged } = sanitizePracticeByDay(
-      normalized.practiceByDay,
-    );
-    const result = withLongestStreakFloor({ ...normalized, practiceByDay });
-    if (
-      result.streakCount !== parsed.streakCount ||
-      result.longestStreak !== parsed.longestStreak ||
-      practiceChanged
-    ) {
-      await persist(result);
-    }
-    return result;
-  } catch {
+  const parsed = await readJson<ProfileProgress | null>(
+    STORAGE_KEY,
+    (value) => (isProfileProgress(value) ? value : null),
+    () => null,
+  );
+  if (!parsed) {
     return { ...EMPTY_PROFILE_PROGRESS };
   }
+  const normalized = normalizeStreak({
+    ...EMPTY_PROFILE_PROGRESS,
+    ...parsed,
+    practiceByDay: parsed.practiceByDay ?? {},
+    completedChallengeIds: parsed.completedChallengeIds ?? [],
+  });
+  const { practiceByDay, changed: practiceChanged } = sanitizePracticeByDay(
+    normalized.practiceByDay,
+  );
+  const result = withLongestStreakFloor({ ...normalized, practiceByDay });
+  if (
+    result.streakCount !== parsed.streakCount ||
+    result.longestStreak !== parsed.longestStreak ||
+    practiceChanged
+  ) {
+    await persist(result);
+  }
+  return result;
 }
 
 async function persist(progress: ProfileProgress): Promise<void> {
@@ -200,13 +209,175 @@ async function persist(progress: ProfileProgress): Promise<void> {
   notifyAppDataChanged();
 }
 
-/** Overwrites local progress wholesale — used to hydrate from a cloud sync on sign-in. */
-export function restoreProfileProgress(progress: ProfileProgress): Promise<ProfileProgress> {
+/**
+ * Folds the cloud copy into local progress and returns the result, which is
+ * also what the cloud should hold afterwards.
+ *
+ * Written without the change signal: this *is* the sync, and announcing it as
+ * a fresh local edit would schedule another sync to push it straight back.
+ */
+export function mergeRemoteProfileProgress(
+  remote: ProfileProgress | null,
+): Promise<ProfileProgress> {
   return withProgressLock(async () => {
-    const normalized = withLongestStreakFloor(normalizeStreak(progress));
-    await persist(normalized);
-    return normalized;
+    const local = await loadProfileProgressUnlocked();
+    const merged = withLongestStreakFloor(
+      normalizeStreak(remote ? mergeProfileProgress(local, remote) : local),
+    );
+    if (!isSameJson(merged, local)) {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    }
+    return merged;
   });
+}
+
+const DAY_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function nonNegativeCount(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+}
+
+/**
+ * Makes a progress blob from outside the app — the cloud row — safe to merge.
+ *
+ * Every field is repaired on its own instead of the blob being all-or-nothing:
+ * one bad value from an older build must not throw away the rest. Fields this
+ * build does not know are carried through untouched, so a newer build's data
+ * survives a round trip through an older one.
+ */
+export function coerceProfileProgress(value: unknown): ProfileProgress | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const rawDays = isRecord(value.practiceByDay) ? value.practiceByDay : {};
+  const days: ProfileProgress['practiceByDay'] = {};
+  for (const [day, dayMap] of Object.entries(rawDays)) {
+    if (DAY_KEY_PATTERN.test(day) && isRecord(dayMap)) {
+      days[day] = dayMap as Partial<Record<InstrumentId, number>>;
+    }
+  }
+  const featureUse: Partial<Record<TrackedFeature, number>> = {};
+  if (isRecord(value.featureUse)) {
+    for (const [feature, count] of Object.entries(value.featureUse)) {
+      if (typeof count === 'number' && Number.isFinite(count) && count >= 0) {
+        featureUse[feature as TrackedFeature] = Math.floor(count);
+      }
+    }
+  }
+  return {
+    ...value,
+    streakCount: nonNegativeCount(value.streakCount),
+    longestStreak: nonNegativeCount(value.longestStreak),
+    lastPracticeDay:
+      typeof value.lastPracticeDay === 'string' && DAY_KEY_PATTERN.test(value.lastPracticeDay)
+        ? value.lastPracticeDay
+        : null,
+    practiceByDay: sanitizePracticeByDay(days).practiceByDay,
+    completedChallengeIds: Array.isArray(value.completedChallengeIds)
+      ? value.completedChallengeIds.filter((id): id is string => typeof id === 'string')
+      : [],
+    totalSongCompletions: nonNegativeCount(value.totalSongCompletions),
+    featureUse,
+  };
+}
+
+function maxPerKey<K extends string>(
+  a: Partial<Record<K, number>>,
+  b: Partial<Record<K, number>>,
+): Partial<Record<K, number>> {
+  const merged: Partial<Record<K, number>> = { ...a };
+  for (const [key, value] of Object.entries(b) as [K, number | undefined][]) {
+    merged[key] = Math.max(merged[key] ?? 0, value ?? 0);
+  }
+  return merged;
+}
+
+/**
+ * The streak at `lastDay` once both copies' practice is known.
+ *
+ * Walks back over consecutive practised days. Where the walk reaches the day a
+ * copy last practised, that copy's own count takes over from there — its
+ * history may reach further back than the per-day log, which only covers days
+ * this data has seen. Days phone A practised and days phone B practised join
+ * into one run, which neither phone could have counted alone.
+ */
+function mergedStreak(
+  lastDay: DayKey | null,
+  practiceByDay: ProfileProgress['practiceByDay'],
+  copies: ProfileProgress[],
+): number {
+  if (!lastDay) {
+    return 0;
+  }
+  const practised = new Set(
+    Object.keys(practiceByDay).filter((day) =>
+      Object.values(practiceByDay[day] ?? {}).some((ms) => (ms ?? 0) > 0),
+    ),
+  );
+  for (const copy of copies) {
+    if (copy.lastPracticeDay) {
+      practised.add(copy.lastPracticeDay);
+    }
+  }
+  let best = 0;
+  let walked = 0;
+  let day = lastDay;
+  while (practised.has(day)) {
+    for (const copy of copies) {
+      if (copy.lastPracticeDay === day) {
+        best = Math.max(best, walked + copy.streakCount);
+      }
+    }
+    walked += 1;
+    day = addDays(day, -1);
+  }
+  return Math.max(best, walked);
+}
+
+/**
+ * Combines two copies of the same user's progress — this device's and the
+ * cloud's — without losing what either one earned.
+ *
+ * Every field only ever grows (time is added, challenges and badges are
+ * completed, counters go up), so each merges with max or union. That makes the
+ * merge order-independent and safe to repeat, which is what lets two phones
+ * converge instead of the last one to sync erasing the other. The price is
+ * that the same day's practice on the same instrument on two phones counts
+ * once, as the larger of the two, rather than as their sum: an undercount the
+ * user can earn back, instead of a double count that can never be taken out.
+ */
+export function mergeProfileProgress(
+  local: ProfileProgress,
+  remote: ProfileProgress,
+): ProfileProgress {
+  const practiceByDay: ProfileProgress['practiceByDay'] = { ...local.practiceByDay };
+  for (const [day, dayMap] of Object.entries(remote.practiceByDay)) {
+    practiceByDay[day] = maxPerKey(practiceByDay[day] ?? {}, dayMap ?? {});
+  }
+  const lastPracticeDay =
+    !local.lastPracticeDay || (remote.lastPracticeDay && remote.lastPracticeDay > local.lastPracticeDay)
+      ? remote.lastPracticeDay
+      : local.lastPracticeDay;
+  const streakCount = mergedStreak(lastPracticeDay, practiceByDay, [local, remote]);
+  return {
+    ...remote,
+    ...local,
+    streakCount,
+    longestStreak: Math.max(local.longestStreak ?? 0, remote.longestStreak ?? 0, streakCount),
+    lastPracticeDay,
+    practiceByDay,
+    // Sorted so both devices arrive at the identical list, whatever order
+    // each completed things in — nothing reads this list in order.
+    completedChallengeIds: [
+      ...new Set([...local.completedChallengeIds, ...remote.completedChallengeIds]),
+    ].sort(),
+    totalSongCompletions: Math.max(local.totalSongCompletions ?? 0, remote.totalSongCompletions ?? 0),
+    featureUse: maxPerKey(local.featureUse ?? {}, remote.featureUse ?? {}),
+  };
 }
 
 function touchStreak(progress: ProfileProgress, day: DayKey): ProfileProgress {
