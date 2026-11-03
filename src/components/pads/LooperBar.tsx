@@ -183,7 +183,7 @@ export function LooperBar({
             />
           )}
           <Text style={styles.bpmLabel}>
-            {t('pads.looper.bpm', { value: bpm })} · {bars} {t('pads.looper.barsShort')}
+            {t('common.bpmValue', { value: bpm })} · {bars} {t('pads.looper.barsShort')}
           </Text>
         </View>
 

@@ -113,6 +113,10 @@ export function PianoMetronomeModal({
             </Pressable>
             <HorizontalSlider
               accentColor={ACCENT}
+              accessibilityLabel={t('piano.metronome.title')}
+              // The same 5 BPM as the nudge buttons either side of it.
+              accessibilityStep={5}
+              accessibilityValueText={t('common.bpmValue', { value: Math.round(displayBpm) })}
               max={METRONOME_BPM_MAX}
               min={METRONOME_BPM_MIN}
               onValueChange={commitBpm}

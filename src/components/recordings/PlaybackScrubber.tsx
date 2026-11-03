@@ -1,8 +1,20 @@
 import { useCallback, useRef, useState } from 'react';
-import { PanResponder, StyleSheet, Text, View } from 'react-native';
+import {
+  type AccessibilityActionEvent,
+  PanResponder,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
 import { formatDuration } from '../../utils/formatDuration';
+
+/** One swipe up/down with a screen reader skips this far. */
+const ACCESSIBILITY_SEEK_STEP_MS = 5000;
+
+const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 type Props = {
   positionMs: number;
@@ -11,6 +23,7 @@ type Props = {
 };
 
 export function PlaybackScrubber({ positionMs, durationMs, onSeek }: Props) {
+  const { t } = useTranslation();
   const [trackWidth, setTrackWidth] = useState(0);
   const durationRef = useRef(durationMs);
   durationRef.current = durationMs;
@@ -50,9 +63,37 @@ export function PlaybackScrubber({ positionMs, durationMs, onSeek }: Props) {
 
   const progress = durationMs > 0 ? Math.min(1, Math.max(0, positionMs / durationMs)) : 0;
 
+  // Dragging is out of reach with a screen reader running; swipe up/down
+  // arrives here instead and skips a few seconds either way.
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    const direction =
+      event.nativeEvent.actionName === 'increment'
+        ? 1
+        : event.nativeEvent.actionName === 'decrement'
+          ? -1
+          : 0;
+    if (direction === 0 || durationMs <= 0) {
+      return;
+    }
+    onSeek(
+      Math.min(durationMs, Math.max(0, positionMs + direction * ACCESSIBILITY_SEEK_STEP_MS)),
+    );
+  };
+
   return (
     <View style={styles.wrap}>
       <View
+        accessible
+        accessibilityActions={ADJUSTABLE_ACTIONS}
+        accessibilityLabel={t('recordings.playbackPosition')}
+        accessibilityRole="adjustable"
+        accessibilityValue={{
+          text: t('recordings.positionValue', {
+            duration: formatDuration(durationMs),
+            position: formatDuration(positionMs),
+          }),
+        }}
+        onAccessibilityAction={handleAccessibilityAction}
         hitSlop={{ bottom: 10, top: 10 }}
         onLayout={(event) => setTrackWidth(event.nativeEvent.layout.width)}
         style={styles.track}

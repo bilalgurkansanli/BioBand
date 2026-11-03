@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, PanResponder, StyleSheet, View } from 'react-native';
+import {
+  type AccessibilityActionEvent,
+  Animated,
+  Easing,
+  PanResponder,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../../theme/colors';
+import { formatDuration } from '../../../utils/formatDuration';
 import { type PlaybackPosition, usePlaybackPositionMs } from './playbackPosition';
 import { RULER_HEIGHT } from './timelineGeometry';
+
+/** One swipe up/down with a screen reader moves the playhead this far. */
+const ACCESSIBILITY_SEEK_STEP_MS = 5000;
+
+const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 type Props = {
   position: PlaybackPosition;
@@ -22,6 +36,7 @@ export function StudioPlayhead({
   scrollX,
   onSeek,
 }: Props) {
+  const { t } = useTranslation();
   // Subscribed here, at the leaf, so a progress tick redraws the playhead and
   // nothing above it.
   const positionMs = usePlaybackPositionMs(position);
@@ -72,6 +87,23 @@ export function StudioPlayhead({
     [durationMs, onSeek, pxPerMs],
   );
 
+  // The knob is dragged; a screen reader swipes up/down instead, which moves
+  // the playhead a few seconds at a time.
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    const direction =
+      event.nativeEvent.actionName === 'increment'
+        ? 1
+        : event.nativeEvent.actionName === 'decrement'
+          ? -1
+          : 0;
+    if (direction === 0) {
+      return;
+    }
+    onSeek(
+      Math.max(0, Math.min(durationMs, positionMs + direction * ACCESSIBILITY_SEEK_STEP_MS)),
+    );
+  };
+
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       <Animated.View
@@ -79,7 +111,21 @@ export function StudioPlayhead({
         style={[styles.group, { transform: [{ translateX }] }]}
       >
         <View style={styles.line} pointerEvents="none" />
-        <View {...panResponder.panHandlers} style={styles.knobHit}>
+        <View
+          {...panResponder.panHandlers}
+          accessible
+          accessibilityActions={ADJUSTABLE_ACTIONS}
+          accessibilityLabel={t('studio.playhead')}
+          accessibilityRole="adjustable"
+          accessibilityValue={{
+            text: t('recordings.positionValue', {
+              duration: formatDuration(durationMs),
+              position: formatDuration(positionMs),
+            }),
+          }}
+          onAccessibilityAction={handleAccessibilityAction}
+          style={styles.knobHit}
+        >
           <View style={styles.knob} />
         </View>
       </Animated.View>

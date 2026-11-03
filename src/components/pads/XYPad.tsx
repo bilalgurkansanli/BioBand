@@ -1,5 +1,6 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
+  type AccessibilityActionEvent,
   Animated,
   StyleSheet,
   Text,
@@ -18,6 +19,8 @@ type XYPadProps = {
 };
 
 const DOT_SIZE = 26;
+
+const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 /**
  * One-finger performance surface: drag to bend the filter (X = cutoff,
@@ -69,8 +72,47 @@ export function XYPad({ width, height, accent, onChange, onRelease }: XYPadProps
     [applyPoint, dotOpacity, onRelease],
   );
 
+  // A screen reader cannot drag a dot around a square, so it gets the one axis
+  // that matters most: swipe down closes the filter a step, swipe up opens it,
+  // and reaching fully open hands back to the same neutral glide a finger lift
+  // does. Resonance stays at neutral.
+  const a11yCutoffRef = useRef(1);
+  const [a11yCutoff, setA11yCutoff] = useState(1);
+  const handleAccessibilityAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      const direction =
+        event.nativeEvent.actionName === 'increment'
+          ? 1
+          : event.nativeEvent.actionName === 'decrement'
+            ? -1
+            : 0;
+      if (direction === 0) {
+        return;
+      }
+      const next = Math.max(
+        0,
+        Math.min(1, Math.round((a11yCutoffRef.current + direction * 0.1) * 10) / 10),
+      );
+      a11yCutoffRef.current = next;
+      setA11yCutoff(next);
+      if (next >= 1) {
+        onRelease();
+      } else {
+        onChange(next, 0);
+      }
+    },
+    [onChange, onRelease],
+  );
+
   return (
     <View
+      accessible
+      accessibilityActions={ADJUSTABLE_ACTIONS}
+      accessibilityHint={t('pads.xy.a11yHint')}
+      accessibilityLabel={t('pads.xy.filter')}
+      accessibilityRole="adjustable"
+      accessibilityValue={{ min: 0, max: 100, now: Math.round(a11yCutoff * 100) }}
+      onAccessibilityAction={handleAccessibilityAction}
       onTouchEnd={handleRelease}
       onTouchCancel={handleRelease}
       onTouchMove={handleTouch}

@@ -57,6 +57,7 @@
     "minutesShort": "{{count}} dk",
     "hoursShort": "{{count}} saat",
     "percent": "%{{percent}}",
+    "bpmValue": "{{value}} BPM",
     "about": "Hakkında",
     "privacyPolicy": "Gizlilik Politikası"
   },
@@ -231,7 +232,9 @@
     "noResultsTitle": "Eşleşen kayıt yok",
     "noResultsDescription": "Aramayı değiştir ya da filtreyi Tümü'ne al.",
     "playbackSpeed": "Oynatma hızı",
-    "loop": "Döngü"
+    "loop": "Döngü",
+    "playbackPosition": "Çalma konumu",
+    "positionValue": "{{position}} / {{duration}}"
   },
   "studio": {
     "title": "Studio",
@@ -295,7 +298,8 @@
     "loop": "Döngüde çal",
     "grid": "Beat ızgarası",
     "snap": "Izgaraya yapıştır",
-    "snapResolution": "Izgara çözünürlüğü"
+    "snapResolution": "Izgara çözünürlüğü",
+    "playhead": "Çalma imleci"
   },
   "drumMachine": {
     "title": "Bateri Makinesi",
@@ -710,6 +714,9 @@
       },
       "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
+    },
+    "a11y": {
+      "note": "{{string}} telinde {{note}}"
     }
   },
   "guitar": {
@@ -897,6 +904,10 @@
       },
       "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
+    },
+    "a11y": {
+      "string": "{{string}} teli",
+      "stringHint": "Teli boş ya da seçili akordun perdesinde çalar."
     }
   },
   "pads": {
@@ -1122,14 +1133,14 @@
     },
     "xy": {
       "filter": "Filtre",
-      "resonance": "Rezonans"
+      "resonance": "Rezonans",
+      "a11yHint": "Filtreyi açmak ya da kısmak için yukarı veya aşağı kaydır."
     },
     "looper": {
       "play": "Loop başlat",
       "stop": "Loop durdur",
       "record": "Yakalama aç/kapat",
       "barsShort": "bar",
-      "bpm": "{{value}} BPM",
       "newLayer": "Katman",
       "export": "Studio'ya gönder",
       "exportTitle": "Pad Loop {{date}}",

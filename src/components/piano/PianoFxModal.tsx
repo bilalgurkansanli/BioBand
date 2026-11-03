@@ -64,6 +64,8 @@ const FxSlider = React.memo(function FxSlider({
       </View>
       <HorizontalSlider
         accentColor={accent}
+        accessibilityLabel={label}
+        accessibilityValueText={formatValue(value)}
         disabled={disabled}
         max={max}
         min={min}

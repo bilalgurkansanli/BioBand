@@ -116,6 +116,11 @@ export function TrackSettingsModal({
                 </Pressable>
                 <HorizontalSlider
                   accentColor={color}
+                  accessibilityLabel={t('studio.volume')}
+                  accessibilityStep={VOLUME_STEP}
+                  accessibilityValueText={t('common.percent', {
+                    percent: Math.round(liveVolume * 100),
+                  })}
                   onSlidingComplete={(value) => onCommitVolume(clampVolume(value))}
                   onValueChange={setLiveVolume}
                   style={styles.slider}

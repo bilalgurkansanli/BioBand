@@ -57,6 +57,7 @@
     "minutesShort": "{{count}} Min.",
     "hoursShort": "{{count}} Std.",
     "percent": "{{percent}}%",
+    "bpmValue": "{{value}} BPM",
     "about": "Über",
     "privacyPolicy": "Datenschutzrichtlinie"
   },
@@ -231,7 +232,9 @@
     "noResultsTitle": "Keine Treffer",
     "noResultsDescription": "Ändere die Suche oder setze den Filter auf „Alle“.",
     "playbackSpeed": "Wiedergabegeschwindigkeit",
-    "loop": "Schleife"
+    "loop": "Schleife",
+    "playbackPosition": "Wiedergabeposition",
+    "positionValue": "{{position}} von {{duration}}"
   },
   "studio": {
     "title": "Studio",
@@ -295,7 +298,8 @@
     "loop": "Wiedergabe wiederholen",
     "grid": "Beat-Raster",
     "snap": "Am Raster einrasten",
-    "snapResolution": "Raster-Auflösung"
+    "snapResolution": "Raster-Auflösung",
+    "playhead": "Abspielmarke"
   },
   "drumMachine": {
     "title": "Drum Machine",
@@ -710,6 +714,9 @@
       },
       "requestSong": "Findest du das gesuchte Lied nicht? Schreib den Liednamen in eine Rezension — wir fügen es in der nächsten Version hinzu.",
       "requestSongOpenFailed": "Die Store-Seite konnte nicht geöffnet werden. Versuch es später erneut."
+    },
+    "a11y": {
+      "note": "{{note}} auf der {{string}}-Saite"
     }
   },
   "guitar": {
@@ -897,6 +904,10 @@
       },
       "requestSong": "Findest du das gesuchte Lied nicht? Schreib den Liednamen in eine Rezension — wir fügen es in der nächsten Version hinzu.",
       "requestSongOpenFailed": "Die Store-Seite konnte nicht geöffnet werden. Versuch es später erneut."
+    },
+    "a11y": {
+      "string": "{{string}}-Saite",
+      "stringHint": "Zupft die leere Saite oder den Ton des gewählten Akkords."
     }
   },
   "pads": {
@@ -1122,14 +1133,14 @@
     },
     "xy": {
       "filter": "Filter",
-      "resonance": "Resonanz"
+      "resonance": "Resonanz",
+      "a11yHint": "Nach oben oder unten wischen, um den Filter zu öffnen oder zu schließen."
     },
     "looper": {
       "play": "Loop starten",
       "stop": "Loop stoppen",
       "record": "Aufnahme ein/aus",
       "barsShort": "Takte",
-      "bpm": "{{value}} BPM",
       "newLayer": "Ebene",
       "export": "An Studio senden",
       "exportTitle": "Pad-Loop {{date}}",

@@ -57,6 +57,7 @@
     "minutesShort": "{{count}} min",
     "hoursShort": "{{count}} hr",
     "percent": "{{percent}}%",
+    "bpmValue": "{{value}} BPM",
     "about": "About",
     "privacyPolicy": "Privacy Policy"
   },
@@ -231,7 +232,9 @@
     "noResultsTitle": "No matching takes",
     "noResultsDescription": "Try a different search, or set the filter back to All.",
     "playbackSpeed": "Playback speed",
-    "loop": "Loop"
+    "loop": "Loop",
+    "playbackPosition": "Playback position",
+    "positionValue": "{{position}} of {{duration}}"
   },
   "studio": {
     "title": "Studio",
@@ -295,7 +298,8 @@
     "loop": "Loop playback",
     "grid": "Beat grid",
     "snap": "Snap to grid",
-    "snapResolution": "Snap resolution"
+    "snapResolution": "Snap resolution",
+    "playhead": "Playhead"
   },
   "drumMachine": {
     "title": "Drum Machine",
@@ -710,6 +714,9 @@
       },
       "requestSong": "Can't find the song you're looking for? Write the song name in a review — we'll add it in the next version.",
       "requestSongOpenFailed": "Couldn't open the store page. Try again later."
+    },
+    "a11y": {
+      "note": "{{note}} on the {{string}} string"
     }
   },
   "guitar": {
@@ -897,6 +904,10 @@
       },
       "requestSong": "Can't find the song you're looking for? Write the song name in a review — we'll add it in the next version.",
       "requestSongOpenFailed": "Couldn't open the store page. Try again later."
+    },
+    "a11y": {
+      "string": "{{string}} string",
+      "stringHint": "Plucks the string open, or at the armed chord's fret."
     }
   },
   "pads": {
@@ -1122,14 +1133,14 @@
     },
     "xy": {
       "filter": "Filter",
-      "resonance": "Resonance"
+      "resonance": "Resonance",
+      "a11yHint": "Swipe up or down to open or close the filter."
     },
     "looper": {
       "play": "Start loop",
       "stop": "Stop loop",
       "record": "Capture on/off",
       "barsShort": "bars",
-      "bpm": "{{value}} BPM",
       "newLayer": "Layer",
       "export": "Send to Studio",
       "exportTitle": "Pad Loop {{date}}",

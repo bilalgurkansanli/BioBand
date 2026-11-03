@@ -386,6 +386,9 @@ export function PadEditModal({
             </View>
             <HorizontalSlider
               accentColor={accent}
+              accessibilityLabel={t('pads.editor.pitchSection')}
+              accessibilityStep={1}
+              accessibilityValueText={`${draft.pitchSemitones > 0 ? '+' : ''}${draft.pitchSemitones}`}
               max={12}
               min={-12}
               onSlidingComplete={(value) =>
@@ -405,6 +408,10 @@ export function PadEditModal({
             </View>
             <HorizontalSlider
               accentColor={accent}
+              accessibilityLabel={t('pads.editor.gainSection')}
+              accessibilityValueText={t('common.percent', {
+                percent: Math.round(draft.gain * 100),
+              })}
               max={1.4}
               min={0.2}
               onSlidingComplete={(value) => updateDraft({ gain: value }, true)}

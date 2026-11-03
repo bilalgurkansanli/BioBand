@@ -77,6 +77,8 @@ export function PianoVolumeModal({
             <Ionicons color={colors.textSecondary} name="volume-low-outline" size={18} />
             <HorizontalSlider
               accentColor={ACCENT}
+              accessibilityLabel={t('piano.volume.title')}
+              accessibilityValueText={t('common.percent', { percent: Math.round(ratio * 100) })}
               onValueChange={handleVolumeChange}
               style={styles.sliderFlex}
               value={displayVolume}
