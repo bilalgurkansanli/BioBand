@@ -29,8 +29,12 @@ const PODS = ['GoogleUtilities', 'RecaptchaInterop'];
 
 const MARKER = '# Added by withGoogleSignInModularHeaders';
 
-/** Matches the generated Podfile's app target, e.g. `target 'BioBand' do`. */
-const TARGET_LINE = /^(\s*)target\s+['"][^'"]+['"]\s+do\s*$/m;
+/**
+ * Matches the generated Podfile's app target, e.g. `target 'BioBand' do`.
+ * Indentation is `[ \t]*`, not `\s*`: under the `m` flag `\s*` also swallows
+ * the blank line above the target, which then leaked into every inserted line.
+ */
+const TARGET_LINE = /^([ \t]*)target\s+['"][^'"]+['"]\s+do[ \t]*$/m;
 
 /**
  * Exported for the test alongside this file: the string edit is the whole risk

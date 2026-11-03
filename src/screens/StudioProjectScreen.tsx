@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,11 @@ import { StudioSettingsModal, type SnapDivision } from '../components/studio/Stu
 import { Toast } from '../components/Toast';
 import { TextPromptModal } from '../components/studio/TextPromptModal';
 import { TrackSettingsModal } from '../components/studio/TrackSettingsModal';
+import {
+  createPlaybackPosition,
+  type PlaybackPosition,
+  usePlaybackPositionMs,
+} from '../components/studio/timeline/playbackPosition';
 import { StudioTimeline } from '../components/studio/timeline/StudioTimeline';
 import {
   DEFAULT_ZOOM_INDEX,
@@ -28,7 +33,7 @@ import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioPlayback } from '../hooks/useStudioPlayback';
 import { useStudioProject } from '../hooks/useStudioProject';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { deleteStudioProject } from '../storage/studioProjectsStorage';
 import {
   clearStudioOverdubSession,
@@ -59,10 +64,83 @@ type Props = NativeStackScreenProps<RecordingsStackParamList, 'StudioProject'>;
 
 const INSTRUMENTS: InstrumentId[] = ['piano', 'drums', 'guitar', 'violin', 'pads'];
 
+type Playback = ReturnType<typeof useStudioPlayback>;
+
+type EditorProps = Props & {
+  play: Playback['play'];
+  stop: Playback['stop'];
+  seek: Playback['seek'];
+  isPlaying: boolean;
+  playLoading: boolean;
+  playingProjectId: string | null;
+  position: PlaybackPosition;
+};
+
+/**
+ * A thin shell around the editor that owns the playback hook.
+ *
+ * The hook keeps the playhead position as state and updates it ten times a
+ * second. Held by the editor, every one of those updates re-rendered all of
+ * it — header, the take filter, a dozen modals — to move one line and one
+ * clock. This shell takes those renders alone: it forwards the position into
+ * a store that only the clock and the playhead subscribe to, and the memoised
+ * editor sees new props only when the transport actually changes state.
+ */
 export function StudioProjectScreen({ navigation, route }: Props) {
+  const { play, stop, seek, isPlaying, loading, playingProjectId, positionMs } =
+    useStudioPlayback();
+  const [position] = useState(createPlaybackPosition);
+
+  // A layout effect, so subscribers redraw in the same frame as the update.
+  useLayoutEffect(() => {
+    position.set(positionMs);
+  }, [position, positionMs]);
+
+  return (
+    <StudioProjectEditor
+      isPlaying={isPlaying}
+      navigation={navigation}
+      play={play}
+      playLoading={loading}
+      playingProjectId={playingProjectId}
+      position={position}
+      route={route}
+      seek={seek}
+      stop={stop}
+    />
+  );
+}
+
+/** "0:42 / 1:30" — subscribed on its own so the header does not redraw. */
+function StudioClock({
+  position,
+  durationMs,
+}: {
+  position: PlaybackPosition;
+  durationMs: number;
+}) {
+  const positionMs = usePlaybackPositionMs(position);
+  return (
+    <Text style={styles.time}>
+      {formatDuration(positionMs)} / {formatDuration(durationMs)}
+    </Text>
+  );
+}
+
+const StudioProjectEditor = memo(function StudioProjectEditor({
+  navigation,
+  route,
+  play,
+  stop,
+  seek,
+  isPlaying,
+  playLoading,
+  playingProjectId,
+  position,
+}: EditorProps) {
   const { projectId } = route.params;
   const { t } = useTranslation();
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const {
     project,
     loading,
@@ -75,15 +153,18 @@ export function StudioProjectScreen({ navigation, route }: Props) {
     setBpm,
   } = useStudioProject(projectId);
   const { recordings } = useRecordings();
-  const {
-    play,
-    stop,
-    seek,
-    isPlaying,
-    loading: playLoading,
-    playingProjectId,
-    positionMs,
-  } = useStudioPlayback();
+  // Only takes that can become a track: instrument takes with events, and mic
+  // takes with audio. Memoised — the list can be long and the editor
+  // re-renders on every edit.
+  const pickableTakes = useMemo(
+    () =>
+      recordings.filter(
+        (take) =>
+          (take.mode === 'instrument' && (take.events?.length ?? 0) > 0) ||
+          (take.mode === 'microphone' && !!take.audioUri),
+      ),
+    [recordings],
+  );
   const {
     playingId: playingTrackId,
     play: playTrack,
@@ -166,11 +247,9 @@ export function StudioProjectScreen({ navigation, route }: Props) {
   const beatMs = 60000 / bpm;
   const snapMs = snapEnabled ? beatMs * (4 / snapDivision) : 10;
 
-  // Latest values for the hold-to-repeat BPM buttons and the tempo restart.
+  // Latest value for the hold-to-repeat BPM buttons.
   const bpmRef = useRef(bpm);
   bpmRef.current = bpm;
-  const positionRef = useRef(positionMs);
-  positionRef.current = positionMs;
 
   // The grid/snap follow the tempo instantly, but re-scheduling audio is
   // expensive — so the metronome and the mid-playback restart wait until the
@@ -204,10 +283,10 @@ export function StudioProjectScreen({ navigation, route }: Props) {
       return;
     }
     appliedRateRef.current = settledRate;
-    const from = positionRef.current;
+    const from = position.get();
     stop(false);
     void play(project, { startAtMs: from, loop: loopEnabled, rate: settledRate });
-  }, [settledRate, playingThis, project, loopEnabled, play, stop]);
+  }, [settledRate, playingThis, project, loopEnabled, play, stop, position]);
 
   const bpmRepeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const bpmDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -249,13 +328,13 @@ export function StudioProjectScreen({ navigation, route }: Props) {
 
   // Mixed playback and single-track preview share the same instrument engines —
   // keep them mutually exclusive.
-  const stopAllPlayback = () => {
+  const stopAllPlayback = useCallback(() => {
     if (playingThis) {
       // Keep the playhead where it is — editing a track shouldn't rewind.
       stop(false);
     }
     stopTrackPlayback();
-  };
+  }, [playingThis, stop, stopTrackPlayback]);
 
   const promptOverdubMode = (instrument: InstrumentId) => {
     if (!project) {
@@ -287,32 +366,47 @@ export function StudioProjectScreen({ navigation, route }: Props) {
     void deleteStudioProject(projectId).then(() => navigation.goBack());
   };
 
-  const commitClipStart = (trackId: string, startMs: number) => {
-    stopAllPlayback();
-    void patchTrack(trackId, { startMs });
-  };
+  // Stable handlers for the memoised timeline: they change only with the
+  // project or the transport, which the timeline redraws for anyway.
+  const commitClipStart = useCallback(
+    (trackId: string, startMs: number) => {
+      stopAllPlayback();
+      void patchTrack(trackId, { startMs });
+    },
+    [patchTrack, stopAllPlayback],
+  );
 
-  const toggleMute = (trackId: string) => {
-    const track = project?.tracks.find((entry) => entry.id === trackId);
-    if (!track) {
-      return;
-    }
-    stopAllPlayback();
-    void patchTrack(trackId, { muted: !track.muted });
-  };
+  const toggleMute = useCallback(
+    (trackId: string) => {
+      const track = project?.tracks.find((entry) => entry.id === trackId);
+      if (!track) {
+        return;
+      }
+      stopAllPlayback();
+      void patchTrack(trackId, { muted: !track.muted });
+    },
+    [patchTrack, project, stopAllPlayback],
+  );
 
-  const toggleSolo = (trackId: string) => {
-    const track = project?.tracks.find((entry) => entry.id === trackId);
-    if (!track) {
-      return;
-    }
-    stopAllPlayback();
-    void patchTrack(trackId, { solo: !track.solo });
-  };
+  const toggleSolo = useCallback(
+    (trackId: string) => {
+      const track = project?.tracks.find((entry) => entry.id === trackId);
+      if (!track) {
+        return;
+      }
+      stopAllPlayback();
+      void patchTrack(trackId, { solo: !track.solo });
+    },
+    [patchTrack, project, stopAllPlayback],
+  );
+
+  const openClipMenu = useCallback((track: StudioTrack) => {
+    setClipMenuTrackId(track.id);
+  }, []);
 
   if (loading) {
     return (
-      <ScreenContainer style={styles.container} wide>
+      <ScreenContainer bottomInset style={styles.container} wide>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
@@ -322,9 +416,10 @@ export function StudioProjectScreen({ navigation, route }: Props) {
 
   if (!project) {
     return (
-      <ScreenContainer style={styles.container} wide>
+      <ScreenContainer bottomInset style={styles.container} wide>
         <View style={styles.topBar}>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             hitSlop={8}
             onPress={() => navigation.goBack()}
@@ -348,10 +443,16 @@ export function StudioProjectScreen({ navigation, route }: Props) {
       ? null
       : project.tracks.find((track) => track.id === clipMenuTrackId) ?? null;
 
+  // `wide`: the timeline shows more of the arrangement the wider it is, which
+  // is the case ScreenContainer's width cap makes an exception for — the
+  // loading and empty states above already had it. `bottomInset`: the tab bar
+  // is hidden here, so nothing else keeps the footer hint off the home
+  // indicator or the navigation bar.
   return (
-    <ScreenContainer style={styles.container}>
+    <ScreenContainer bottomInset style={styles.container} wide>
       <View style={styles.topBar}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('common.back')}
           hitSlop={8}
           onPress={() => navigation.goBack()}
@@ -370,6 +471,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
             can't accidentally exit while starting/stopping playback. */}
         <View style={styles.bpmGroup}>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('studio.bpmDown')}
             hitSlop={6}
             onPressIn={() => startBpmRepeat(-5)}
@@ -383,6 +485,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
             <Text style={styles.bpmUnit}>{t('studio.bpm')}</Text>
           </View>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('studio.bpmUp')}
             hitSlop={6}
             onPressIn={() => startBpmRepeat(5)}
@@ -394,6 +497,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.zoomOut')}
           disabled={!canZoomOut}
           hitSlop={6}
@@ -403,6 +507,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           <Ionicons color={colors.text} name="remove-circle-outline" size={22} />
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.zoomIn')}
           disabled={!canZoomIn}
           hitSlop={6}
@@ -412,11 +517,16 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           <Ionicons color={colors.text} name="add-circle-outline" size={22} />
         </Pressable>
 
+        {/* Both open modals, and modals stay hidden while the window is
+            portrait — so these wait for landscape rather than look dead. */}
         <Pressable
           accessibilityLabel={t('studio.addTrack')}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isPortrait }}
+          disabled={isPortrait}
           hitSlop={6}
           onPress={() => setAddTrackVisible(true)}
-          style={styles.addBtn}
+          style={[styles.addBtn, isPortrait && styles.disabled]}
         >
           <Ionicons color={colors.accent} name="add" size={18} />
           <Text style={styles.addBtnText}>{t('studio.addTrack')}</Text>
@@ -424,16 +534,17 @@ export function StudioProjectScreen({ navigation, route }: Props) {
 
         <Pressable
           accessibilityLabel={t('studio.settingsTitle')}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isPortrait }}
+          disabled={isPortrait}
           hitSlop={6}
           onPress={() => setSettingsVisible(true)}
-          style={styles.iconBtn}
+          style={[styles.iconBtn, isPortrait && styles.disabled]}
         >
           <Ionicons color={colors.text} name="settings-outline" size={20} />
         </Pressable>
 
-        <Text style={styles.time}>
-          {formatDuration(positionMs)} / {formatDuration(projectDurationMs)}
-        </Text>
+        <StudioClock durationMs={projectDurationMs} position={position} />
 
         <Pressable
           accessibilityLabel={playingThis ? t('studio.stop') : t('studio.play')}
@@ -452,9 +563,9 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           style={[styles.playBtn, playingThis && styles.playBtnActive, !hasTracks && styles.disabled]}
         >
           {playLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.white} />
           ) : (
-            <Ionicons color="#FFFFFF" name={playingThis ? 'stop' : 'play'} size={20} />
+            <Ionicons color={colors.white} name={playingThis ? 'stop' : 'play'} size={20} />
           )}
         </Pressable>
       </View>
@@ -471,12 +582,12 @@ export function StudioProjectScreen({ navigation, route }: Props) {
             durationMs={projectDurationMs}
             isPlaying={playingThis}
             onClipCommitStart={commitClipStart}
-            onClipPress={(track) => setClipMenuTrackId(track.id)}
+            onClipPress={openClipMenu}
             onSeek={seek}
             onToggleMute={toggleMute}
             onToggleSolo={toggleSolo}
             pixelsPerSecond={pixelsPerSecond}
-            positionMs={positionMs}
+            position={position}
             pxPerMs={pxPerMs}
             showGrid={gridEnabled}
             snapMs={snapMs}
@@ -492,12 +603,8 @@ export function StudioProjectScreen({ navigation, route }: Props) {
       )}
 
       <PickTakeModal
-        takes={recordings.filter(
-          (take) =>
-            (take.mode === 'instrument' && (take.events?.length ?? 0) > 0) ||
-            (take.mode === 'microphone' && !!take.audioUri),
-        )}
-        visible={pickTakeVisible}
+        takes={pickableTakes}
+        visible={pickTakeVisible && !isPortrait}
         onClose={() => setPickTakeVisible(false)}
         onRecordInstead={() => {
           setPickTakeVisible(false);
@@ -516,7 +623,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         confirmLabel={t('studio.rename')}
         initialValue={project.title}
         title={t('studio.renameTitle')}
-        visible={renameVisible}
+        visible={renameVisible && !isPortrait}
         onCancel={() => setRenameVisible(false)}
         onConfirm={(value) => {
           setRenameVisible(false);
@@ -527,7 +634,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
       />
 
       <AddTrackModal
-        visible={addTrackVisible}
+        visible={addTrackVisible && !isPortrait}
         onClose={() => setAddTrackVisible(false)}
         onPickFromTake={() => {
           setAddTrackVisible(false);
@@ -544,7 +651,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         confirmLabel={t('recordings.deleteConfirm')}
         message={t('studio.deleteProjectConfirm')}
         title={t('studio.deleteProject')}
-        visible={deleteProjectVisible}
+        visible={deleteProjectVisible && !isPortrait}
         onCancel={() => setDeleteProjectVisible(false)}
         onConfirm={() => {
           setDeleteProjectVisible(false);
@@ -559,7 +666,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           icon: INSTRUMENT_ICONS[instrument],
         }))}
         title={t('studio.pickInstrumentTitle')}
-        visible={overdubInstrumentVisible}
+        visible={overdubInstrumentVisible && !isPortrait}
         onClose={() => setOverdubInstrumentVisible(false)}
         onSelect={(key) => {
           setOverdubInstrumentVisible(false);
@@ -574,7 +681,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
           { key: 'microphone', label: t('recording.modeMicrophone'), icon: 'mic-outline' },
         ]}
         title={t('recording.chooseModeTitle')}
-        visible={overdubModeInstrument !== null}
+        visible={overdubModeInstrument !== null && !isPortrait}
         onClose={() => setOverdubModeInstrument(null)}
         onSelect={(key) => {
           const instrument = overdubModeInstrument;
@@ -588,7 +695,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
       <TrackSettingsModal
         isPreviewPlaying={playingTrackId === clipMenuTrack?.id}
         track={clipMenuTrack}
-        visible={clipMenuTrack !== null}
+        visible={clipMenuTrack !== null && !isPortrait}
         onClose={() => setClipMenuTrackId(null)}
         onCommitVolume={(volume) => {
           if (!clipMenuTrack) {
@@ -654,7 +761,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         confirmLabel={t('recordings.deleteConfirm')}
         message={t('studio.trackDeleteConfirm')}
         title={t('studio.trackDelete')}
-        visible={trackDeleteTarget !== null}
+        visible={trackDeleteTarget !== null && !isPortrait}
         onCancel={() => setTrackDeleteTarget(null)}
         onConfirm={() => {
           if (trackDeleteTarget) {
@@ -673,7 +780,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
         metronome={metronomeEnabled}
         snap={snapEnabled}
         snapDivision={snapDivision}
-        visible={settingsVisible}
+        visible={settingsVisible && !isPortrait}
         onChangeSnapDivision={setSnapDivision}
         onClose={() => setSettingsVisible(false)}
         onDelete={() => {
@@ -707,7 +814,7 @@ export function StudioProjectScreen({ navigation, route }: Props) {
       />
     </ScreenContainer>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

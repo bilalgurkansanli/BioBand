@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   padGlow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 5,
   },
 });

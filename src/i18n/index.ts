@@ -34,7 +34,10 @@ export async function saveLanguage(language: AppLanguage): Promise<void> {
 }
 
 export async function initI18n(): Promise<void> {
-  const stored = await getStoredLanguage();
+  // An unreadable store must not leave the app without a catalogue — every
+  // label would render as its raw key. The language picker can fix the choice;
+  // nothing can fix a missing init.
+  const stored = await getStoredLanguage().catch(() => null);
   const language = stored ?? DEFAULT_LANGUAGE;
 
   // `i18next` exports a bare `use` alongside the default instance, which trips

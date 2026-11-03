@@ -16,8 +16,8 @@ Works fully offline.
 [![Get it on Google Play](https://img.shields.io/badge/Google%20Play-Download-3DDC84?style=for-the-badge&logo=googleplay&logoColor=black)](https://play.google.com/store/apps/details?id=com.bioband.app)
 
 [![CI](https://github.com/bilalgurkansanli/BioBand/actions/workflows/ci.yml/badge.svg)](https://github.com/bilalgurkansanli/BioBand/actions/workflows/ci.yml)
-[![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
-[![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev)
+[![Expo SDK 57](https://img.shields.io/badge/Expo%20SDK-57-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v57.0.0/)
+[![React Native 0.86](https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react&logoColor=black)](https://reactnative.dev)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6D4AD6.svg)](LICENSE)
 
@@ -146,7 +146,7 @@ rather than on first focus.
 
 ### Requirements
 
-- Node.js 20+
+- Node.js 22.13+
 - Android Studio or Xcode for the platform you target
 - BioBand uses native audio modules, so it needs a **dev client build** — it
   does not run in Expo Go
@@ -211,7 +211,8 @@ supabase/schema.sql   database schema and RLS policies
 | `npm run android` / `npm run ios` | Build and launch a dev client |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm run check` | Typecheck + lint — the same pair CI runs |
+| `npm test` | Jest unit tests |
+| `npm run check` | Typecheck + lint + tests — what CI runs |
 | `npm run doctor` | `expo-doctor` project health check |
 
 ## Known trade-offs
@@ -226,11 +227,12 @@ Things that are true today, so you don't have to discover them the hard way:
   AAC-in-MP4 and are exported as-is, but a rendered instrument take has to be
   encoded and there is no AAC encoder available in JavaScript. True MP4
   everywhere needs a small native module.
-- **No automated test suite yet.** Audio behaviour has been checked by
-  measurement — rendering charts to PCM and asserting timing, contour and range
-  in Node — rather than by a committed suite. Contributions welcome.
-- **Long MIDI imports are truncated** at a fixed note cap without telling the
-  user.
+- **Tests cover the logic, not the sound.** 800+ Jest tests check scoring,
+  MIDI reading, import validation, sync merging and launch decisions, and play
+  every shipped chart through the judging. What a phone actually sounds like —
+  latency, mixing, exports — is still checked by ear on a device.
+- **Long MIDI imports are shortened** to the opening of the song (a few hundred
+  notes); files over 2 MB are refused with a message.
 
 ## Contributing
 
@@ -355,7 +357,7 @@ için, bir enstrümana dokunulduğunda anında ses çıkması gerekiyor. Her mot
 
 ### Başlarken
 
-**Gerekenler:** Node.js 20+, hedeflediğin platform için Android Studio veya
+**Gerekenler:** Node.js 22.13+, hedeflediğin platform için Android Studio veya
 Xcode. BioBand yerel ses modülleri kullanıyor, bu yüzden **dev client build**
 gerekiyor — Expo Go'da çalışmaz. Supabase projesi isteğe bağlı; sadece giriş ve
 bulut senkronu için.
@@ -388,11 +390,13 @@ Bulut senkronu için: bir Supabase projesi açıp
 - **Enstrüman kayıtları MP3 olarak dışa aktarılıyor, MP4 değil.** Mikrofon
   kayıtları zaten AAC-in-MP4 ve olduğu gibi aktarılıyor; JavaScript'te AAC
   kodlayıcı olmadığı için işlenmiş enstrüman kaydı MP3'e çevriliyor.
-- **Henüz otomatik test paketi yok.** Ses davranışı ölçümle doğrulandı —
-  Node'da nota çizelgelerini PCM'e işleyip zamanlama, çizgi ve aralık
-  sınanarak — ama depoya işlenmiş bir paket hâlinde değil.
-- **Uzun MIDI aktarımları** sabit bir nota sınırında, kullanıcıya söylenmeden
-  kesiliyor.
+- **Testler mantığı kapsıyor, sesi değil.** 800'den fazla Jest testi
+  puanlamayı, MIDI okumayı, içe aktarma doğrulamasını, senkron birleştirmeyi ve
+  açılış kararlarını sınıyor; uygulamadaki her şarkıyı puanlamadan geçiriyor.
+  Telefonda gerçekte nasıl duyulduğu — gecikme, miks, dışa aktarma — hâlâ
+  cihazda kulakla kontrol ediliyor.
+- **Uzun MIDI aktarımları** şarkının başına (birkaç yüz nota) kısaltılıyor;
+  2 MB'tan büyük dosyalar bir mesajla reddediliyor.
 
 ### Gizlilik
 
@@ -510,7 +514,7 @@ ihre Samples hinter dem Startbildschirm statt beim ersten Fokus.
 
 ### Erste Schritte
 
-**Voraussetzungen:** Node.js 20+, Android Studio oder Xcode für die Zielplattform.
+**Voraussetzungen:** Node.js 22.13+, Android Studio oder Xcode für die Zielplattform.
 BioBand nutzt native Audio-Module und braucht daher einen **Dev-Client-Build** —
 in Expo Go läuft es nicht. Ein [Supabase](https://supabase.com)-Projekt ist
 optional und nur für Anmeldung und Cloud-Sync nötig.
@@ -544,11 +548,13 @@ Für den Cloud-Sync: ein Supabase-Projekt anlegen,
 - **Instrumenten-Exporte sind MP3, nicht MP4.** Mikrofonaufnahmen liegen bereits
   als AAC-in-MP4 vor und werden unverändert exportiert; für eine gerenderte
   Instrumentenaufnahme gibt es in JavaScript keinen AAC-Encoder.
-- **Noch keine automatisierte Testsuite.** Das Audioverhalten wurde durch Messung
-  geprüft — Charts in Node nach PCM gerendert und Timing, Kontur und Tonumfang
-  überprüft — aber nicht als eingecheckte Suite.
-- **Lange MIDI-Importe werden** bei einer festen Notengrenze abgeschnitten, ohne
-  dass die Nutzerin oder der Nutzer davon erfährt.
+- **Tests decken die Logik ab, nicht den Klang.** Über 800 Jest-Tests prüfen
+  Bewertung, MIDI-Einlesen, Import-Validierung, Sync-Zusammenführung und
+  Startentscheidungen und spielen jeden mitgelieferten Song durch die Bewertung.
+  Wie es auf dem Telefon tatsächlich klingt — Latenz, Mischung, Exporte — wird
+  weiterhin auf einem Gerät nach Gehör geprüft.
+- **Lange MIDI-Importe werden** auf den Anfang des Songs (einige hundert Noten)
+  gekürzt; Dateien über 2 MB werden mit einer Meldung abgelehnt.
 
 ### Datenschutz
 

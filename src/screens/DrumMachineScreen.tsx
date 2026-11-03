@@ -6,7 +6,6 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,9 +23,16 @@ import {
   restorePlaybackAudioMode,
 } from '../audio/initAudio';
 import { ConfirmDeleteModal } from '../components/ConfirmDeleteModal';
+import {
+  BpmHoldButton,
+  FooterBtn,
+  IconBtn,
+  LabeledToolbarBtn,
+} from '../components/drumMachine/DrumMachineControls';
 import { DrumMachineSettingsModal } from '../components/drumMachine/DrumMachineSettingsModal';
 import { LoadPatternModal } from '../components/drumMachine/LoadPatternModal';
 import { MachineTypeModal } from '../components/drumMachine/MachineTypeModal';
+import { SavePatternDialog } from '../components/drumMachine/SavePatternDialog';
 import {
   SongModeModal,
   type ResolvedSongEntry,
@@ -36,7 +42,7 @@ import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { OptionListModal } from '../components/studio/OptionListModal';
 import { useDrumMachine, type SongChainEntry } from '../hooks/useDrumMachine';
 import { useDrumMachineEngine } from '../hooks/useDrumMachineEngine';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import type { DrumMachineTypeId } from '../instruments/drumMachine/drumMachineBanks';
 import {
   DRUM_MACHINE_PRESETS,
@@ -83,7 +89,7 @@ export function DrumMachineScreen({ navigation }: Props) {
 
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const {
     settingsReady,
     machineType,
@@ -92,7 +98,7 @@ export function DrumMachineScreen({ navigation }: Props) {
     grid,
     bpm,
     playing,
-    currentStep,
+    stepStore,
     countdown,
     stepCount,
     setStepCount,
@@ -619,7 +625,7 @@ export function DrumMachineScreen({ navigation }: Props) {
             rows={bank.rows}
             theme={bank.theme}
             grid={grid}
-            currentStep={currentStep}
+            stepStore={stepStore}
             mutedRows={mutedRows}
             onToggleCell={toggleCell}
             onPreviewRow={previewRow}
@@ -683,46 +689,17 @@ export function DrumMachineScreen({ navigation }: Props) {
       </View>
 
       {naming ? (
-        <Pressable onPress={() => setNaming(false)} style={styles.nameOverlay}>
-          <Pressable
-            onPress={() => {}}
-            style={[styles.nameCard, { borderColor: accent }]}
-          >
-            <Text style={styles.nameTitle}>{t('drumMachine.saveTitle')}</Text>
-            <TextInput
-              autoFocus
-              placeholder={t('drumMachine.namePlaceholder')}
-              placeholderTextColor={colors.textSecondary}
-              style={[styles.nameInput, { borderColor: accent }]}
-              value={nameDraft}
-              onChangeText={setNameDraft}
-              maxLength={40}
-            />
-            <View style={styles.nameActions}>
-              <Pressable onPress={() => setNaming(false)} style={styles.nameBtn}>
-                <Text style={styles.nameBtnText}>{t('common.cancel')}</Text>
-              </Pressable>
-              <Pressable
-                disabled={!nameDraft.trim()}
-                onPress={() => void confirmSave()}
-                style={[
-                  styles.nameBtn,
-                  styles.nameBtnPrimary,
-                  { backgroundColor: accent },
-                  !nameDraft.trim() && styles.nameBtnDisabled,
-                ]}
-              >
-                <Text style={[styles.nameBtnText, styles.nameBtnPrimaryText]}>
-                  {t('common.save')}
-                </Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
+        <SavePatternDialog
+          accent={accent}
+          name={nameDraft}
+          onChangeName={setNameDraft}
+          onCancel={() => setNaming(false)}
+          onConfirm={() => void confirmSave()}
+        />
       ) : null}
 
       <LoadPatternModal
-        visible={loadOpen}
+        visible={loadOpen && !isPortrait}
         accent={accent}
         patterns={patterns}
         onClose={() => setLoadOpen(false)}
@@ -734,7 +711,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <SongModeModal
-        visible={songOpen}
+        visible={songOpen && !isPortrait}
         accent={accent}
         entries={resolvedSong}
         patterns={patterns}
@@ -750,14 +727,14 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <MachineTypeModal
-        visible={typeOpen}
+        visible={typeOpen && !isPortrait}
         machineType={machineType}
         onClose={() => setTypeOpen(false)}
         onSelectType={handleSelectType}
       />
 
       <DrumMachineSettingsModal
-        visible={settingsOpen}
+        visible={settingsOpen && !isPortrait}
         accent={accent}
         showKit={machineType === 'drums'}
         previewOnToggle={previewOnToggle}
@@ -781,7 +758,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <ConfirmDeleteModal
-        visible={confirmAction !== null}
+        visible={confirmAction !== null && !isPortrait}
         title={confirmCopy.title}
         message={confirmCopy.message}
         confirmLabel={confirmCopy.confirmLabel}
@@ -792,7 +769,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <OptionListModal
-        visible={recordModeOpen}
+        visible={recordModeOpen && !isPortrait}
         title={t('drumMachine.recordTitle')}
         message={t('drumMachine.recordHint')}
         options={[
@@ -803,177 +780,8 @@ export function DrumMachineScreen({ navigation }: Props) {
         onClose={() => setRecordModeOpen(false)}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={handleBack} visible={isPortrait} />
     </View>
-  );
-}
-
-function IconBtn({
-  icon,
-  label,
-  onPress,
-  accent,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  accent: string;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.iconBtn,
-        { borderColor: accent },
-        disabled && styles.btnDisabled,
-        pressed && styles.btnPressed,
-      ]}
-    >
-      <Ionicons color={accent} name={icon} size={20} />
-    </Pressable>
-  );
-}
-
-function LabeledToolbarBtn({
-  icon,
-  label,
-  onPress,
-  accentColor,
-  filled,
-  disabled,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  accentColor: string;
-  filled?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      disabled={disabled}
-      onPress={onPress}
-      style={[
-        styles.labeledBtn,
-        {
-          borderColor: accentColor,
-          backgroundColor: filled ? accentColor : colors.surface,
-        },
-        disabled && styles.labeledBtnDisabled,
-      ]}
-    >
-      <Ionicons color={filled ? '#FFFFFF' : accentColor} name={icon} size={18} />
-      <Text
-        style={[
-          styles.labeledBtnText,
-          { color: filled ? '#FFFFFF' : accentColor },
-        ]}
-        numberOfLines={1}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
-type FooterBtnVariant = 'primary' | 'tinted' | 'plain';
-
-function FooterBtn({
-  icon,
-  label,
-  onPress,
-  accent,
-  variant = 'tinted',
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  accent: string;
-  variant?: FooterBtnVariant;
-}) {
-  const contentColor =
-    variant === 'primary'
-      ? '#FFFFFF'
-      : variant === 'tinted'
-        ? accent
-        : colors.textSecondary;
-  const boxStyle =
-    variant === 'primary'
-      ? { backgroundColor: accent, borderColor: accent }
-      : variant === 'tinted'
-        ? { backgroundColor: `${accent}1F`, borderColor: `${accent}66` }
-        : { backgroundColor: colors.surface, borderColor: colors.border };
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.footerBtn,
-        boxStyle,
-        variant === 'primary' && styles.footerBtnPrimary,
-        pressed && styles.footerBtnPressed,
-      ]}
-    >
-      <Ionicons color={contentColor} name={icon} size={16} />
-      <Text style={[styles.footerBtnText, { color: contentColor }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
-const BPM_HOLD_DELAY_MS = 320;
-const BPM_HOLD_INTERVAL_MS = 70;
-
-function BpmHoldButton({
-  icon,
-  accessibilityLabel,
-  onNudge,
-  accent,
-}: {
-  icon: 'add' | 'remove';
-  accessibilityLabel: string;
-  onNudge: () => void;
-  accent: string;
-}) {
-  const delayRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const clearHold = useCallback(() => {
-    if (delayRef.current) {
-      clearTimeout(delayRef.current);
-      delayRef.current = null;
-    }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => clearHold, [clearHold]);
-
-  const startHold = useCallback(() => {
-    clearHold();
-    onNudge();
-    delayRef.current = setTimeout(() => {
-      intervalRef.current = setInterval(() => {
-        onNudge();
-      }, BPM_HOLD_INTERVAL_MS);
-    }, BPM_HOLD_DELAY_MS);
-  }, [clearHold, onNudge]);
-
-  return (
-    <Pressable
-      accessibilityLabel={accessibilityLabel}
-      onPressIn={startHold}
-      onPressOut={clearHold}
-      style={styles.bpmBtn}
-    >
-      <Ionicons color={accent} name={icon} size={18} />
-    </Pressable>
   );
 }
 
@@ -987,42 +795,11 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 6,
   },
-  iconBtn: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
-  },
-  labeledBtn: {
-    alignItems: 'center',
-    borderRadius: 10,
-    borderWidth: 1.5,
-    flexDirection: 'row',
-    gap: 4,
-    height: 40,
-    paddingHorizontal: 10,
-  },
-  labeledBtnDisabled: {
-    opacity: 0.45,
-  },
-  labeledBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   title: {
     flex: 1,
     fontSize: 13,
     fontWeight: '700',
     textAlign: 'center',
-  },
-  btnDisabled: {
-    opacity: 0.45,
-  },
-  btnPressed: {
-    opacity: 0.7,
   },
   stage: {
     flex: 1,
@@ -1034,7 +811,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countInOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.35)',
     borderRadius: 12,
@@ -1055,31 +832,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 8,
   },
-  footerBtn: {
-    alignItems: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  footerBtnPrimary: {
-    elevation: 3,
-    shadowColor: '#000000',
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-  },
-  footerBtnPressed: {
-    opacity: 0.82,
-    transform: [{ scale: 0.97 }],
-  },
-  footerBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
   bpmWrap: {
     alignItems: 'center',
     backgroundColor: colors.surface,
@@ -1089,68 +841,10 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
     paddingHorizontal: 4,
   },
-  bpmBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
   bpmText: {
     fontSize: 13,
     fontWeight: '700',
     minWidth: 64,
     textAlign: 'center',
-  },
-  nameOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    padding: 24,
-    zIndex: 20,
-  },
-  nameCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    padding: 16,
-    width: '100%',
-  },
-  nameTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 10,
-  },
-  nameInput: {
-    backgroundColor: colors.surfaceLight,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    color: colors.text,
-    fontSize: 15,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  nameActions: {
-    flexDirection: 'row',
-    gap: 10,
-    justifyContent: 'flex-end',
-    marginTop: 12,
-  },
-  nameBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  nameBtnPrimary: {
-    borderRadius: 8,
-  },
-  nameBtnDisabled: {
-    opacity: 0.45,
-  },
-  nameBtnText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  nameBtnPrimaryText: {
-    color: '#FFFFFF',
   },
 });

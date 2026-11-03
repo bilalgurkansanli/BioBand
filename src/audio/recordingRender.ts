@@ -5,7 +5,6 @@ import { resolveGuitarDryEvents } from './dryBounce/guitarDryEvents';
 import { resolvePadsDryEvents } from './dryBounce/padsDryEvents';
 import { resolvePianoDryEvents } from './dryBounce/pianoDryEvents';
 import { resolveViolinDryEvents } from './dryBounce/violinDryEvents';
-import type { PianoVoiceId } from '../instruments/piano/pianoVoices';
 import type { SavedRecording } from '../types/recording';
 
 export type RenderedPcm = {
@@ -25,9 +24,23 @@ export class UnrenderableRecordingError extends Error {
  * Microphone takes: decodes the already-captured audio file.
  * Instrument-mode takes: dry-bounces the note events through an
  * OfflineAudioContext — no reverb/echo, since those are scheduled via
- * wall-clock setTimeout in the live engines and cannot be fast-forwarded.
+ * wall-clock setTimeout in the live engines and cannot be fast-forwarded —
+ * but through the live master chain, so it sounds as loud as it played.
  */
-export async function renderRecordingPcm(recording: SavedRecording): Promise<RenderedPcm> {
+export async function renderRecordingPcm(
+  recording: SavedRecording,
+  options: {
+    /** Instrument takes: gain ahead of the master chain (Studio track volume). */
+    gainScale?: number;
+    /**
+     * Tempo the events' times were already scaled to (Studio BPM). Only what
+     * the events cannot carry themselves follows it — a violin phrase
+     * preset's note spacing.
+     */
+    tempoRate?: number;
+    shouldCancel?: () => boolean;
+  } = {},
+): Promise<RenderedPcm> {
   if (recording.mode === 'microphone') {
     if (!recording.audioUri) {
       throw new UnrenderableRecordingError();
@@ -48,13 +61,13 @@ export async function renderRecordingPcm(recording: SavedRecording): Promise<Ren
   const { sampleEvents, oscillatorEvents } = await (() => {
     switch (recording.instrument) {
       case 'piano':
-        return resolvePianoDryEvents(events, recording.pianoVoiceId as PianoVoiceId | undefined);
+        return resolvePianoDryEvents(events, recording.pianoVoiceId);
       case 'drums':
         return resolveDrumsDryEvents(events, recording.drumKitId);
       case 'guitar':
         return resolveGuitarDryEvents(events, recording.guitarVoiceId);
       case 'violin':
-        return resolveViolinDryEvents(events, recording.violinVoiceId);
+        return resolveViolinDryEvents(events, recording.violinVoiceId, options.tempoRate);
       case 'pads':
         return resolvePadsDryEvents(events, recording.padBankId);
     }
@@ -68,5 +81,7 @@ export async function renderRecordingPcm(recording: SavedRecording): Promise<Ren
     durationMs: recording.durationMs,
     sampleEvents,
     oscillatorEvents,
+    inputGain: options.gainScale,
+    shouldCancel: options.shouldCancel,
   });
 }

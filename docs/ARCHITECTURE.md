@@ -69,6 +69,13 @@ has not arrived yet.
 The same tick coalesces UI updates into a single `onAdvance` callback per frame,
 so a dense passage does not fire one React render per note.
 
+Two rules keep it honest after a stall. An event more than 50 ms late is
+dropped rather than played — after a background pause, "catching up" meant every
+missed note sounding at once ([`schedulerTiming.ts`](../src/audio/schedulerTiming.ts)).
+And a loop's next pass is anchored to the exact end of the last one on the audio
+clock, not restarted from a timer, so it does not drift. Loops, violin phrases,
+the pad looper and the drum machine's step clock all ride this clock now.
+
 ### Instruments are nearest-anchor samplers
 
 Each instrument ships a handful of real recordings and repitches with
@@ -109,6 +116,18 @@ An instrument take is stored as note events, not audio. Exporting it means:
 The render is *dry*: reverb and echo are scheduled with wall-clock timers in the
 live engines and cannot be fast-forwarded, so they are left out rather than
 smeared.
+
+It runs at the **live context's sample rate**
+([`renderSampleRate.ts`](../src/audio/renderSampleRate.ts)). Buffers are decoded
+at that rate and the library's buffer source does not resample by
+`buffer.sampleRate`, so a fixed 44.1 kHz render of 48 kHz buffers came out about
+a semitone and a half flat and 9% slow. The mix then goes through the same
+master stage as live playback — 0.55 headroom and the `tanh` soft-clip in
+[`masterChain.ts`](../src/audio/masterChain.ts) — so an export is as loud as what
+was heard and saturates instead of clipping. In Studio exports, mic tracks are
+time-stretched to the project tempo with a pitch-correcting source
+([`timeStretch.ts`](../src/audio/timeStretch.ts)) and fall back to native speed
+if that fails.
 
 The buffer is sized to the longest-ringing note's actual decay, not a fixed
 tail — a long-sustain guitar preset holds 3+ seconds and would otherwise be
@@ -152,8 +171,17 @@ in E minor here so that the theme's peak and its real coda both fit the board.
 
 ### MIDI import
 
-[`midiToSong.ts`](../src/instruments/piano/songs/midiToSong.ts) does rather more
-than read note-ons:
+Every importer reads through one parser,
+[`shared/midiReader.ts`](../src/instruments/shared/midiReader.ts): notes tagged
+by channel, note-offs paired per channel, a tempo map searched in O(log n), and
+caps on notes per part and per file *before* anything is converted. A zero time
+division is refused; SMPTE files are timed in frames.
+[`shared/midiArrange.ts`](../src/instruments/shared/midiArrange.ts) picks the
+part: melodic instruments never take General MIDI channel 10, drums and pads
+take only channel 10 when a file has one.
+
+The piano converter, [`midiToSong.ts`](../src/instruments/piano/songs/midiToSong.ts),
+then does rather more than place note-ons:
 
 - **Tempo map** — the opening tempo sets the beat length; a meter is only
   derived when the tempo never changes after tick 0, since a grid means nothing
@@ -164,16 +192,43 @@ than read note-ons:
 - **De-jitter** — a human performance is snapped to the grid within a ±32 ms
   tolerance, and left alone beyond it, so groove survives but sloppiness does not
 
+### Play-along
+
+The five tutorial hooks are thin adapters over one session,
+[`playAlong/usePlayAlongSession.ts`](../src/playAlong/usePlayAlongSession.ts);
+judging lives in pure functions in
+[`shared/playAlongScoring.ts`](../src/instruments/shared/playAlongScoring.ts).
+A press is matched to the earliest note of that pitch whose window is open, so
+one missed note in a fast run costs one miss rather than every note after it;
+notes within 1 ms form a chord that can be played in any order. Practice time
+is wall-clock time on the audio clock. A test plays every shipped chart through
+the judging.
+
+User charts arrive through [`playAlong/chartImport.ts`](../src/playAlong/chartImport.ts):
+2 MB cap, schema validation shared by all instruments, octaves bounded so a
+hostile pitch cannot hang the fold onto the keyboard.
+
 ---
 
 ## State and persistence
 
 - **Local first.** Everything lives in `AsyncStorage` under `src/storage/`.
-  The app is fully usable with no account and no network.
+  The app is fully usable with no account and no network. List-shaped values go
+  through [`jsonStorage.ts`](../src/storage/jsonStorage.ts): a missing key is the
+  default, a failed read throws instead of being taken as empty (and then
+  written back over real data), corrupt JSON is kept under a backup key, and
+  each key has its own write lock.
 - **Optional sync.** Signing in mirrors profile progress and settings into
   Supabase (`src/supabase/`). Access is enforced by Postgres **Row Level
   Security** — the anon key is public by design and grants nothing on its own.
-  Recordings are **not** synced; they stay on the device.
+  Recordings are **not** synced; they stay on the device. Sync pulls before it
+  pushes and never pushes after a failed pull; progress from two devices is
+  merged ([`mergeProfileProgress`](../src/storage/profileProgressStorage.ts)), not
+  overwritten.
+- **Launch never wipes on doubt.** Guests start fresh each launch, but
+  [`launchAuthState.ts`](../src/auth/launchAuthState.ts) wipes only when every
+  source agrees there is no account — an expired session that could not refresh
+  offline keeps the library.
 - **Signals over context.** Cross-screen events (a Studio overdub landing, an
   auth reset) go through tiny subscribe/notify modules in `src/studio/` and
   `src/storage/` instead of a global store. Fewer re-renders, and an engine can
@@ -203,9 +258,12 @@ memory. See *Known trade-offs* in the [README](../README.md).
 
 ## Conventions
 
-- **TypeScript strict.** `any` appears once in the whole codebase.
+- **TypeScript strict.** No `any` in app code.
 - **Static `require()` for assets.** Metro cannot resolve a computed path; a
   dynamic require silently ships nothing.
 - **Comments explain *why*.** The what is in the code. If a constant looks
   arbitrary, the comment says what breaks at other values.
 - **No dead exports.** If nothing imports it, delete it — git remembers.
+- **Tests for the pure parts.** Scoring, MIDI reading, import validation, sync
+  merging and launch decisions are plain functions with Jest tests
+  (`npm test`); hooks and engines stay thin around them.

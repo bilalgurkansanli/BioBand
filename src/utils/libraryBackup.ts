@@ -3,19 +3,14 @@ import * as Application from 'expo-application';
 
 import { loadRecordings, saveRecording } from '../storage/recordingsStorage';
 import type { SavedRecording } from '../types/recording';
+import {
+  MAX_BACKUP_AUDIO_BYTES,
+  MAX_BACKUP_FILE_BYTES,
+  sanitizeBackupEntry,
+} from './libraryBackupValidation';
 import { prepareRecordingExport } from './recordingExport';
 
 const FORMAT = 'bioband-library-v1';
-
-/**
- * Ceiling on the audio a single backup may carry.
- *
- * Everything is base64'd into one JSON document, so the peak cost is roughly
- * twice this in strings before the file is written. Instrument takes are note
- * events and weigh almost nothing; only microphone and imported takes count
- * against it, which is why the limit can be this generous.
- */
-const MAX_AUDIO_BYTES = 80 * 1024 * 1024;
 
 export class BackupTooLargeError extends Error {
   constructor(readonly totalBytes: number) {
@@ -112,7 +107,7 @@ export async function exportLibrary(onProgress?: BackupProgress): Promise<Export
       // A missing file is skipped below; it should not block the backup.
     }
   }
-  if (totalBytes > MAX_AUDIO_BYTES) {
+  if (totalBytes > MAX_BACKUP_AUDIO_BYTES) {
     throw new BackupTooLargeError(totalBytes);
   }
 
@@ -230,12 +225,29 @@ export async function exportLibraryAsAudio(
   return { written, skipped };
 }
 
-function isBackupFile(value: unknown): value is BackupFile {
+/**
+ * Only the envelope is checked here; every take inside is rebuilt on its own
+ * by sanitizeBackupEntry, since this is a file anyone can hand the user.
+ */
+function readBackupEnvelope(
+  value: unknown,
+): { recordings: unknown[]; audio: Record<string, unknown> } | null {
   if (!value || typeof value !== 'object') {
-    return false;
+    return null;
   }
-  const doc = value as BackupFile;
-  return doc.format === FORMAT && Array.isArray(doc.recordings);
+  const doc = value as { format?: unknown; recordings?: unknown; audio?: unknown };
+  if (doc.format !== FORMAT || !Array.isArray(doc.recordings)) {
+    return null;
+  }
+  const audio =
+    doc.audio && typeof doc.audio === 'object' && !Array.isArray(doc.audio)
+      ? (doc.audio as Record<string, unknown>)
+      : {};
+  return { recordings: doc.recordings, audio };
+}
+
+function newRestoredId(): string {
+  return `restored-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /**
@@ -250,46 +262,55 @@ export async function restoreLibrary(
 ): Promise<RestoreResult> {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(await new File(fileUri).text());
-  } catch {
-    throw new BackupUnreadableError();
+    const file = new File(fileUri);
+    // Weighed before it is read: the whole file becomes one string and then
+    // one parsed tree, and an oversized one ends the app rather than the
+    // restore. `size` is 0 when it cannot be determined, which falls through
+    // to the read and its own failure.
+    if (file.size > MAX_BACKUP_FILE_BYTES) {
+      throw new BackupUnreadableError('Larger than any BioBand backup can be.');
+    }
+    parsed = JSON.parse(await file.text());
+  } catch (error) {
+    throw error instanceof BackupUnreadableError ? error : new BackupUnreadableError();
   }
-  if (!isBackupFile(parsed)) {
+  const backup = readBackupEnvelope(parsed);
+  if (!backup) {
     throw new BackupUnreadableError();
   }
 
   const existing = await loadRecordings();
   const existingIds = new Set(existing.map((take) => take.id));
-  const audio = parsed.audio ?? {};
 
   let restored = 0;
   let skipped = 0;
   let done = 0;
 
-  for (const entry of parsed.recordings) {
+  for (const entry of backup.recordings) {
     done += 1;
-    onProgress?.(parsed.recordings.length ? done / parsed.recordings.length : 1);
+    onProgress?.(done / backup.recordings.length);
 
-    if (!entry || typeof entry.id !== 'string') {
+    const restorable = sanitizeBackupEntry(entry, backup.audio, newRestoredId);
+    if (!restorable) {
       continue;
     }
-    if (existingIds.has(entry.id)) {
+    const { recording, audio } = restorable;
+    if (existingIds.has(recording.id)) {
       skipped += 1;
       continue;
     }
 
-    const { audioRef, ...rest } = entry;
-    const take = rest as SavedRecording;
-
-    const blob = audioRef ? audio[audioRef] : undefined;
-    if (blob?.base64) {
+    const take: SavedRecording = { ...recording };
+    if (audio) {
       try {
-        const target = new File(restoredAudioDirectory(), `${entry.id}.${blob.ext || 'm4a'}`);
+        // Both halves of the name are validated: the id against a strict
+        // pattern, the extension against the formats the app records.
+        const target = new File(restoredAudioDirectory(), `${recording.id}.${audio.ext}`);
         if (target.exists) {
           target.delete();
         }
         target.create();
-        target.write(blob.base64, { encoding: 'base64' });
+        target.write(audio.base64, { encoding: 'base64' });
         take.audioUri = target.uri;
       } catch {
         // Without its audio the take cannot play, so it is not worth adding.
@@ -298,7 +319,7 @@ export async function restoreLibrary(
     }
 
     await saveRecording(take);
-    existingIds.add(entry.id);
+    existingIds.add(recording.id);
     restored += 1;
   }
 

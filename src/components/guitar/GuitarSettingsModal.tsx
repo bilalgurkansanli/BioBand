@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -103,6 +104,7 @@ function OptionChips<T extends string | number>({
         const isOn = option.value === selected;
         return (
           <Pressable
+            accessibilityRole="button"
             key={String(option.value)}
             onPress={() => onSelect(option.value)}
             style={({ pressed }) => [
@@ -150,6 +152,7 @@ export function GuitarSettingsModal({
   onStartTutorial,
   onClose,
 }: GuitarSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
   const visibleSet = new Set(visibleChordIds);
   const visibleModeSet = new Set(visiblePlayModes);
@@ -196,7 +199,7 @@ export function GuitarSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           onPress={onClose}
@@ -220,9 +223,10 @@ export function GuitarSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('guitar.settings.showFretNumbers')}</Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.showFretNumbers')}
                 onValueChange={onChangeShowFretNumbers}
-                thumbColor={showFretNumbers ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showFretNumbers ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showFretNumbers}
               />
             </View>
@@ -232,9 +236,10 @@ export function GuitarSettingsModal({
                 {t('guitar.settings.strongGuideHighlight')}
               </Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
-                thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={strongGuideHighlight ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={strongGuideHighlight}
               />
             </View>
@@ -242,9 +247,10 @@ export function GuitarSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('guitar.settings.haptics')}</Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
@@ -254,9 +260,10 @@ export function GuitarSettingsModal({
                 {t('guitar.settings.stringAnimation')}
               </Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.stringAnimation')}
                 onValueChange={onChangeStringAnimation}
-                thumbColor={stringAnimation ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={stringAnimation ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={stringAnimation}
               />
             </View>
@@ -269,9 +276,10 @@ export function GuitarSettingsModal({
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>{t('guitar.settings.bend')}</Text>
                 <Switch
+                  accessibilityLabel={t('guitar.settings.bend')}
                   onValueChange={onChangeBendEnabled}
-                  thumbColor={bendEnabled ? colors.accent : '#7A7A7E'}
-                  trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                  thumbColor={bendEnabled ? colors.accent : colors.controlThumbOff}
+                  trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                   value={bendEnabled}
                 />
               </View>
@@ -335,9 +343,10 @@ export function GuitarSettingsModal({
                   {t('guitar.settings.showPlayModeBar')}
                 </Text>
                 <Switch
+                  accessibilityLabel={t('guitar.settings.showPlayModeBar')}
                   onValueChange={onChangeShowChordPlayModeBar}
-                  thumbColor={showChordPlayModeBar ? colors.accent : '#7A7A7E'}
-                  trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                  thumbColor={showChordPlayModeBar ? colors.accent : colors.controlThumbOff}
+                  trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                   value={showChordPlayModeBar}
                 />
               </View>
@@ -347,6 +356,7 @@ export function GuitarSettingsModal({
                   const isOn = visibleModeSet.has(mode);
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={mode}
                       onPress={() => togglePlayMode(mode)}
                       style={({ pressed }) => [
@@ -379,6 +389,7 @@ export function GuitarSettingsModal({
 
               <View style={styles.presetRow}>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={selectAll}
                   style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                 >
@@ -387,6 +398,7 @@ export function GuitarSettingsModal({
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={selectOpen}
                   style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                 >
@@ -395,6 +407,7 @@ export function GuitarSettingsModal({
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={selectRock}
                   style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                 >
@@ -417,6 +430,7 @@ export function GuitarSettingsModal({
                         const isOn = visibleSet.has(chord.id);
                         return (
                           <Pressable
+                            accessibilityRole="button"
                             key={chord.id}
                             onPress={() => toggleChord(chord.id)}
                             style={({ pressed }) => [
@@ -443,6 +457,7 @@ export function GuitarSettingsModal({
             </View>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();
@@ -468,13 +483,13 @@ export function GuitarSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   card: {
     backgroundColor: colors.surface,
@@ -605,7 +620,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tutorialButtonText: {
-    color: '#FFD54F',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '700',
   },

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   type LayoutChangeEvent,
@@ -11,6 +11,7 @@ import {
 
 import { INSTRUMENT_COLORS } from '../../../utils/recordingLabels';
 import type { StudioTrack } from '../../../types/studio';
+import type { PlaybackPosition } from './playbackPosition';
 import { StudioPlayhead } from './StudioPlayhead';
 import { StudioTimelineLanes } from './StudioTimelineLanes';
 import { StudioTimelineRuler } from './StudioTimelineRuler';
@@ -25,7 +26,8 @@ type Props = {
   bpm: number;
   snapMs: number;
   showGrid: boolean;
-  positionMs: number;
+  /** Read by the playhead alone — see playbackPosition.ts. */
+  position: PlaybackPosition;
   durationMs: number;
   isPlaying: boolean;
   onSeek: (positionMs: number) => void;
@@ -35,7 +37,7 @@ type Props = {
   onToggleSolo: (trackId: string) => void;
 };
 
-export function StudioTimeline({
+function StudioTimelineBase({
   tracks,
   pxPerMs,
   pixelsPerSecond,
@@ -43,7 +45,7 @@ export function StudioTimeline({
   bpm,
   snapMs,
   showGrid,
-  positionMs,
+  position,
   durationMs,
   isPlaying,
   onSeek,
@@ -57,12 +59,10 @@ export function StudioTimeline({
   const laneViewportHeight = Math.max(0, bodyHeight - RULER_HEIGHT);
 
   /**
-   * The screen owns the playhead position, so it re-renders this timeline ten
-   * times a second and rebuilds every one of these handlers as it goes. Kept
-   * behind a ref and handed out as fixed identities, they stop a progress tick
-   * from looking like a change to the memoised headers, ruler and lanes — those
-   * are the expensive halves of the tree, and none of them care where the
-   * playhead is.
+   * The screen rebuilds these handlers whenever it re-renders. Kept behind a
+   * ref and handed out as fixed identities, they stop an unrelated screen
+   * render from looking like a change to the memoised headers, ruler and
+   * lanes — the expensive halves of the tree.
    */
   const handlersRef = useRef({
     onSeek,
@@ -208,7 +208,7 @@ export function StudioTimeline({
           durationMs={durationMs}
           isPlaying={isPlaying}
           onSeek={handleSeek}
-          positionMs={positionMs}
+          position={position}
           pxPerMs={pxPerMs}
           scrollX={scrollX}
         />
@@ -216,6 +216,12 @@ export function StudioTimeline({
     </View>
   );
 }
+
+/**
+ * Memoised: playback progress reaches only the playhead (through `position`),
+ * so the timeline itself redraws for edits, zoom and transport changes only.
+ */
+export const StudioTimeline = memo(StudioTimelineBase);
 
 const styles = StyleSheet.create({
   root: {

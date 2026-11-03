@@ -3,7 +3,7 @@
 **App:** BioBand (`com.bioband.app`)
 **Developer:** Bilal Gürkan Şanlı
 **Contact:** bilalsanli129@gmail.com
-**Last updated: July 26, 2026**
+**Last updated: November 3, 2026**
 
 This page explains how to delete your BioBand account and the data stored under
 it. You do not need the app installed to make the request.
@@ -18,8 +18,11 @@ the app already resets it to a fresh state.
 2. Go to **Profile → Settings**.
 3. Choose **Delete account** and confirm.
 
-The deletion happens immediately and cannot be undone. The app also wipes the
-copy of your data held on that device and returns to guest mode.
+The deletion happens immediately and cannot be undone. The app also wipes
+everything it holds on that device — including your recordings, Studio
+projects and imported songs, which exist nowhere else — and returns to guest
+mode. If you want to keep your recordings, back them up first under
+**Profile → Settings → Data**.
 
 ## Option 2 — request deletion by e-mail
 
@@ -53,14 +56,21 @@ Everything BioBand holds for you server-side:
   tokens attached to it. After this, signing in with the same Google or Apple
   account creates a brand-new, empty BioBand account.
 
-If you delete from inside the app, the local copy on that device is wiped in the
-same step.
-
-## What is *not* deleted, because it was never uploaded
+## What happens on your device
 
 Your recordings, Studio projects, imported songs and any audio you create or
-import stay on your device and are never sent to us. Deleting your account does
-not touch them. To remove those, delete them in the app or uninstall it.
+import are never sent to us, so there is no server-side copy of them to delete.
+What happens to the copy on your device depends on how you delete:
+
+- **In the app (Option 1):** that device is wiped in the same step — your
+  recordings, Studio projects, imported songs and their audio files, your
+  progress and settings, and the scheduled practice reminder.
+- **By e-mail (Option 2):** we cannot reach your device, so nothing on it
+  changes. Delete those files in the app, or uninstall it.
+- **Other devices you were signed in on** are not wiped either. When a device
+  finds its session ended without you signing out there, BioBand keeps its
+  files rather than deleting recordings that may exist nowhere else, and asks
+  you to sign in. Delete them in the app or uninstall it on that device.
 
 Deleting your BioBand account also does not affect your Google or Apple account
 itself — only BioBand's link to it.

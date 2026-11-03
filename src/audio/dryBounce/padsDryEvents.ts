@@ -21,6 +21,13 @@ function loadUserBuffer(uri: string) {
   }
   const loading = getSharedAudioContext().decodeAudioData(uri);
   userBufferCache.set(uri, loading);
+  // Same rule as the sample bank: a failed decode must not be cached, or a
+  // single bad moment breaks this pad's export until the app restarts.
+  loading.catch(() => {
+    if (userBufferCache.get(uri) === loading) {
+      userBufferCache.delete(uri);
+    }
+  });
   return loading;
 }
 

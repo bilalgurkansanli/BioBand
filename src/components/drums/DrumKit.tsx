@@ -1,10 +1,11 @@
-import { useCallback, useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import { DrumPiece, getDrumPieceBounds } from './DrumPiece';
 import { DRUM_KIT_LAYOUT } from '../../instruments/drums/drumKitLayout';
 import { DRUM_PADS, type DrumSoundId } from '../../instruments/drums/drumsSounds';
+import { colors } from '../../theme/colors';
 import { tint } from '../../utils/colorMix';
 
 type DrumKitProps = {
@@ -177,7 +178,7 @@ function HardwareStands({
   );
 }
 
-export function DrumKit({
+function DrumKitBase({
   width,
   height,
   onHit,
@@ -293,6 +294,12 @@ export function DrumKit({
   );
 }
 
+/**
+ * Memoised: the drums screen re-renders on play-along progress and every
+ * toolbar/modal change, none of which reach the kit's own props.
+ */
+export const DrumKit = memo(DrumKitBase);
+
 const styles = StyleSheet.create({
   stage: {
     borderRadius: 14,
@@ -315,7 +322,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   vignetteTop: {
-    backgroundColor: '#000',
+    backgroundColor: colors.black,
     left: 0,
     opacity: 0.28,
     position: 'absolute',
@@ -323,7 +330,7 @@ const styles = StyleSheet.create({
     top: 0,
   },
   vignetteBottom: {
-    backgroundColor: '#000',
+    backgroundColor: colors.black,
     bottom: 0,
     left: 0,
     opacity: 0.35,

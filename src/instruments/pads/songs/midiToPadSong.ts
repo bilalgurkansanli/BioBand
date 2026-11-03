@@ -1,14 +1,12 @@
-import { parseMidi } from 'midi-file';
-
+import { finishImportedEvents, importTitle, percussionNotes } from '../../shared/midiArrange';
+import { noteTimes, readMidiFile, type MidiFileContent } from '../../shared/midiReader';
+import { MAX_USER_SONG_EVENTS, readDurationMs } from '../../shared/userSongDocument';
 import type { PadSoundId } from '../padsSounds';
 import type { PadSongDefinition, PadSongEvent } from './types';
 import {
   buildUserPadSongDefinition,
-  MAX_USER_PAD_EVENTS,
   UserPadSongParseError,
 } from './userPadSongSchema';
-
-const DEFAULT_MICROSECONDS_PER_BEAT = 500_000;
 
 /**
  * General MIDI percussion note -> PadSoundId.
@@ -41,163 +39,53 @@ const GM_NOTE_TO_PAD: Record<number, PadSoundId> = {
   59: 'pad08', // ride
 };
 
-type RawHit = {
-  tick: number;
-  /** Tick the note was released — null when the file never closes it. */
-  endTick: number | null;
-  padId: PadSoundId;
-  /** 0..1, from the MIDI strike velocity. */
-  velocity: number;
-};
-
-function titleFromFileName(fileName: string): string {
-  const base = fileName.replace(/\.(mid|midi)$/i, '').trim();
-  return base.length > 0 ? base : 'Imported MIDI';
-}
-
 function mapNoteToPad(noteNumber: number): PadSoundId | null {
   return GM_NOTE_TO_PAD[noteNumber] ?? null;
 }
 
+/**
+ * Convert a MIDI file into a pads chart from its General MIDI percussion. Only
+ * the drum channel is read when the file has one.
+ */
 export function midiBytesToPadSong(
   bytes: ArrayLike<number>,
   options?: { fileName?: string },
 ): PadSongDefinition & { artist?: string } {
-  let midi;
+  let file: MidiFileContent;
   try {
-    midi = parseMidi(bytes);
+    file = readMidiFile(bytes);
   } catch {
     throw new UserPadSongParseError('midiParseFailed');
   }
 
-  const ticksPerBeat = midi.header.ticksPerBeat ?? 480;
-  const tempoMap: { tick: number; microsecondsPerBeat: number }[] = [
-    { tick: 0, microsecondsPerBeat: DEFAULT_MICROSECONDS_PER_BEAT },
-  ];
-
-  const hits: RawHit[] = [];
-  let trackName: string | undefined;
-
-  midi.tracks.forEach((track) => {
-    let absTick = 0;
-    /** Hits sounding right now, so a note-off can give them their ring time. */
-    const open = new Map<number, RawHit>();
-
-    const close = (noteNumber: number, tick: number): void => {
-      const hit = open.get(noteNumber);
-      if (hit) {
-        hit.endTick = tick;
-        open.delete(noteNumber);
-      }
-    };
-
-    for (const event of track) {
-      absTick += event.deltaTime;
-
-      if (event.type === 'setTempo') {
-        tempoMap.push({
-          tick: absTick,
-          microsecondsPerBeat: event.microsecondsPerBeat,
-        });
-      }
-
-      if (event.type === 'trackName' && !trackName && event.text.trim()) {
-        trackName = event.text.trim();
-      }
-
-      if (event.type === 'noteOn' && event.velocity > 0) {
-        const padId = mapNoteToPad(event.noteNumber);
-        if (!padId) {
-          continue;
-        }
-        // A retrigger without an intervening note-off ends the previous one.
-        close(event.noteNumber, absTick);
-        const hit: RawHit = {
-          tick: absTick,
-          endTick: null,
-          padId,
-          velocity: Math.min(1, Math.max(0.05, event.velocity / 127)),
-        };
-        open.set(event.noteNumber, hit);
-        hits.push(hit);
-      } else if (
-        event.type === 'noteOff' ||
-        (event.type === 'noteOn' && event.velocity === 0)
-      ) {
-        close(event.noteNumber, absTick);
-      }
+  const events: PadSongEvent[] = [];
+  for (const note of percussionNotes(file)) {
+    const padId = mapNoteToPad(note.noteNumber);
+    if (!padId) {
+      continue;
     }
-  });
+    const { atMs, durationMs: rawDuration } = noteTimes(note, file.timing);
+    const durationMs = readDurationMs(rawDuration);
+    events.push({
+      padId,
+      atMs,
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      velocity: note.velocity,
+    });
+  }
 
-  if (hits.length === 0) {
+  if (events.length === 0) {
     throw new UserPadSongParseError('emptySong');
   }
 
-  tempoMap.sort((a, b) => a.tick - b.tick);
-
-  function ticksToMs(tick: number): number {
-    let ms = 0;
-    let prevTick = 0;
-    let tempo = DEFAULT_MICROSECONDS_PER_BEAT;
-
-    for (const point of tempoMap) {
-      if (point.tick > tick) {
-        break;
-      }
-      if (point.tick > prevTick) {
-        ms += ((point.tick - prevTick) / ticksPerBeat) * (tempo / 1000);
-        prevTick = point.tick;
-      }
-      tempo = point.microsecondsPerBeat;
-    }
-
-    if (tick > prevTick) {
-      ms += ((tick - prevTick) / ticksPerBeat) * (tempo / 1000);
-    }
-
-    return Math.round(ms);
-  }
-
-  let events: PadSongEvent[] = hits.map((h) => {
-    const atMs = ticksToMs(h.tick);
-    const durationMs =
-      h.endTick !== null ? Math.max(1, ticksToMs(h.endTick) - atMs) : undefined;
-    return {
-      padId: h.padId,
-      atMs,
-      ...(durationMs !== undefined ? { durationMs } : {}),
-      velocity: h.velocity,
-    };
+  return buildUserPadSongDefinition({
+    title: importTitle(file.trackName, options?.fileName),
+    events: finishImportedEvents(events, {
+      maxEvents: MAX_USER_SONG_EVENTS,
+      keyOf: (event) => event.padId,
+      compare: (a, b) => a.padId.localeCompare(b.padId),
+    }),
   });
-
-  events.sort((a, b) => a.atMs - b.atMs || a.padId.localeCompare(b.padId));
-
-  const deduped: PadSongEvent[] = [];
-  for (const event of events) {
-    const prev = deduped[deduped.length - 1];
-    if (prev && prev.atMs === event.atMs && prev.padId === event.padId) {
-      continue;
-    }
-    deduped.push(event);
-  }
-  events = deduped;
-
-  if (events.length > MAX_USER_PAD_EVENTS) {
-    events = events.slice(0, MAX_USER_PAD_EVENTS);
-  }
-
-  const minAt = events.reduce((min, e) => Math.min(min, e.atMs), Infinity);
-  if (minAt > 0 && Number.isFinite(minAt)) {
-    for (const event of events) {
-      event.atMs -= minAt;
-    }
-  }
-
-  const title =
-    trackName ??
-    (options?.fileName ? titleFromFileName(options.fileName) : 'Imported MIDI');
-
-  return buildUserPadSongDefinition({ title, events });
 }
 
 export function parseMidiToPadSong(

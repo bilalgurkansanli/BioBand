@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     top: 3,
   },
   keyHighlight: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.accent,
   },
 });

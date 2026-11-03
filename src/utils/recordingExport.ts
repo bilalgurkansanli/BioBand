@@ -181,7 +181,7 @@ export async function prepareRecordingExport(
     const extension = MP4_EXTENSIONS.has(sourceExt) ? 'mp4' : sourceExt;
     const fileName = `${baseName}.${extension}`;
     const destination = freshExportFile(fileName);
-    new File(recording.audioUri).copy(destination);
+    new File(recording.audioUri).copySync(destination);
 
     options.onProgress?.(1);
     return {
@@ -192,7 +192,9 @@ export async function prepareRecordingExport(
   }
 
   options.onProgress?.(0);
-  const { channels, sampleRate } = await renderRecordingPcm(recording);
+  const { channels, sampleRate } = await renderRecordingPcm(recording, {
+    shouldCancel: options.shouldCancel,
+  });
   const mp3Bytes = await encodeMp3Pcm16Async(channels, sampleRate, {
     onProgress: options.onProgress,
     shouldCancel: options.shouldCancel,
@@ -212,7 +214,9 @@ export async function prepareProjectExport(
   options: ExportOptions = {},
 ): Promise<RecordingExport> {
   options.onProgress?.(0);
-  const { channels, sampleRate } = await renderProjectPcm(project);
+  const { channels, sampleRate } = await renderProjectPcm(project, {
+    shouldCancel: options.shouldCancel,
+  });
   const mp3Bytes = await encodeMp3Pcm16Async(channels, sampleRate, {
     onProgress: options.onProgress,
     shouldCancel: options.shouldCancel,
@@ -290,7 +294,7 @@ async function saveExport(exported: RecordingExport): Promise<DownloadResult> {
     if (destination.exists) {
       destination.delete();
     }
-    new File(exported.uri).copy(destination);
+    new File(exported.uri).copySync(destination);
     return {
       status: 'saved',
       fileName: exported.fileName,
@@ -321,7 +325,7 @@ async function saveExport(exported: RecordingExport): Promise<DownloadResult> {
   if (destination.exists) {
     destination.delete();
   }
-  new File(exported.uri).copy(destination);
+  new File(exported.uri).copySync(destination);
   return { status: 'saved', fileName: exported.fileName, location: 'documents' };
 }
 

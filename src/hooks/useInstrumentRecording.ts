@@ -23,18 +23,25 @@ import { loadRecordingSettings } from '../storage/recordingSettingsStorage';
 import { OptionListModal } from '../components/studio/OptionListModal';
 import { Toast } from '../components/Toast';
 import {
-  playStudioProject,
+  prepareStudioPlayback,
   stopStudioPlayback,
+  type PreparedStudioPlayback,
   type StudioPlaybackHandle,
 } from '../audio/studioPlayer';
 import { getCurrentDrumKitId } from '../instruments/drums/drumsEngine';
 import { getCurrentGuitarVoiceId } from '../instruments/guitar/guitarEngine';
 import { getCurrentPadBankId } from '../instruments/pads/padsEngine';
+import { getPianoToneOffset, getPianoVoice } from '../instruments/piano/pianoEngine';
 import { getCurrentViolinVoiceId } from '../instruments/violin/violinEngine';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
 import { persistRecordingAudio } from '../storage/recordingAudioStorage';
 import { saveRecording } from '../storage/recordingsStorage';
-import { appendRecordedTrack, getStudioProject } from '../storage/studioProjectsStorage';
+import {
+  appendRecordedTrack,
+  getStudioProject,
+  updateStudioTrack,
+} from '../storage/studioProjectsStorage';
+import { captureOffsetMs } from '../studio/overdubTiming';
 import {
   clearStudioOverdubSession,
   getStudioOverdubSession,
@@ -68,6 +75,10 @@ export function useInstrumentRecording(instrument: InstrumentId) {
   const startTimeRef = useRef(0);
   const eventsRef = useRef<InstrumentEvent[]>([]);
   const bedsHandleRef = useRef<StudioPlaybackHandle | null>(null);
+  /** How far after the overdub's beds the mic capture began (see overdubTiming). */
+  const takeOffsetMsRef = useRef(0);
+  /** False once the screen is gone — an overdub still preparing must not start. */
+  const mountedRef = useRef(true);
   const countdownTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countInCancelsRef = useRef<(() => void)[]>([]);
   const countInTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -199,40 +210,62 @@ export function useInstrumentRecording(instrument: InstrumentId) {
    */
   const prepareMicRecording = useCallback(
     async (overdub: boolean) => {
-      const { granted } = await requestRecordingPermissionsAsync();
-      if (!granted) {
-        Alert.alert(t('recording.permissionDenied'));
+      try {
+        const { granted } = await requestRecordingPermissionsAsync();
+        if (!granted) {
+          Alert.alert(t('recording.permissionDenied'));
+          return false;
+        }
+
+        if (overdub) {
+          await prepareOverdubRecordingAudioMode();
+        } else {
+          await prepareRecordingAudioMode();
+        }
+        await audioRecorder.prepareToRecordAsync();
+        return true;
+      } catch (error) {
+        // A recorder that will not prepare used to fail silently inside a
+        // fire-and-forget promise: the button simply did nothing.
+        console.warn('Recording: could not prepare the microphone', error);
+        Alert.alert(t('recording.startError'));
+        void restorePlaybackAudioMode();
         return false;
       }
-
-      if (overdub) {
-        await prepareOverdubRecordingAudioMode();
-      } else {
-        await prepareRecordingAudioMode();
-      }
-      await audioRecorder.prepareToRecordAsync();
-      return true;
     },
     [audioRecorder, t],
   );
 
-  const beginMicRecording = useCallback(() => {
-    audioRecorder.record();
-    startTimeRef.current = Date.now();
-    setMode('microphone');
-    setIsRecording(true);
-  }, [audioRecorder]);
-
-  const startMicRecording = useCallback(
-    async (overdub: boolean) => {
-      const ok = await prepareMicRecording(overdub);
-      if (!ok) {
+  /**
+   * Starts the prepared recorder. With `bedsStartContextTime` (an overdub),
+   * also measures how long after the beds' start the capture actually began,
+   * so the take can be placed exactly that far in on the project timeline.
+   */
+  const beginMicRecording = useCallback(
+    (bedsStartContextTime?: number): boolean => {
+      try {
+        audioRecorder.record();
+      } catch (error) {
+        // Thrown from a count-in timer this would be an uncaught exception.
+        console.warn('Recording: the microphone would not start', error);
+        Alert.alert(t('recording.startError'));
+        void restorePlaybackAudioMode();
         return false;
       }
-      beginMicRecording();
+      startTimeRef.current = Date.now();
+      takeOffsetMsRef.current =
+        bedsStartContextTime === undefined
+          ? 0
+          : captureOffsetMs(
+              bedsStartContextTime,
+              getSharedAudioContext().currentTime,
+              audioRecorder.currentTime,
+            );
+      setMode('microphone');
+      setIsRecording(true);
       return true;
     },
-    [beginMicRecording, prepareMicRecording],
+    [audioRecorder, t],
   );
 
   const finishSave = useCallback(
@@ -254,7 +287,15 @@ export function useInstrumentRecording(instrument: InstrumentId) {
         void recordFeatureUse('recordingSaved');
         void awardRecordingPractice(instrument, durationMs);
         if (session?.active && session.instrument === instrument) {
-          await appendRecordedTrack(session.projectId, take);
+          const project = await appendRecordedTrack(session.projectId, take);
+          // The capture began this long after the beds did (measured when the
+          // recorder started): place the take that far in, so it lines up
+          // with what the user was hearing instead of sitting early.
+          const offsetMs = takeOffsetMsRef.current;
+          const track = project?.tracks.find((entry) => entry.sourceTakeId === take.id);
+          if (track && offsetMs > 0) {
+            await updateStudioTrack(session.projectId, track.id, { startMs: offsetMs });
+          }
           clearStudioOverdubSession();
           setStudioSession(null);
           notifyStudioTrackAdded();
@@ -277,10 +318,14 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           guitarVoiceId: instrument === 'guitar' ? getCurrentGuitarVoiceId() : undefined,
           violinVoiceId: instrument === 'violin' ? getCurrentViolinVoiceId() : undefined,
           padBankId: instrument === 'pads' ? getCurrentPadBankId() : undefined,
+          // The engine's voice is the one the screen plays with — playback no
+          // longer re-voices it, so it is safe to read even during an overdub.
+          pianoVoiceId: instrument === 'piano' ? getPianoVoice() : undefined,
         };
         await saveRecording(take);
         void recordFeatureUse('recordingSaved');
-        void awardRecordingPractice(instrument, durationMs);
+        // Every note of this take already earned its time through free play.
+        void awardRecordingPractice(instrument, durationMs, { timeAlreadyCounted: true });
         if (session?.active && session.instrument === instrument) {
           await appendRecordedTrack(session.projectId, take);
           clearStudioOverdubSession();
@@ -339,28 +384,77 @@ export function useInstrumentRecording(instrument: InstrumentId) {
     }
   }, [audioRecorder, clearCountdown, finishSave, mode, stopBeds, t]);
 
+  /**
+   * Overdub start. Everything slow — the permission prompt, the audio-session
+   * switch, preparing the recorder, loading the beds' engines — happens
+   * first; then the beds and the recorder start back to back in one tick.
+   * Starting the beds first and preparing the mic afterwards (the old order)
+   * left the take hundreds of milliseconds late against them, switched the
+   * audio mode twice while they played, and placed the take at 0 anyway.
+   */
   const beginStudioCapture = useCallback(async () => {
     const session = getStudioOverdubSession();
     if (!session || session.instrument !== instrument) {
       return;
     }
+    const isMic = session.mode === 'microphone';
+    // The cancel button stays live through the awaits below, and the user can
+    // leave the screen.
+    const stillArmed = () => mountedRef.current && getStudioOverdubSession() === session;
 
-    const project = await getStudioProject(session.projectId);
-    if (project && project.tracks.length > 0) {
-      const handle = await playStudioProject(project);
-      bedsHandleRef.current = handle;
+    if (isMic) {
+      const ok = await prepareMicRecording(true);
+      if (!ok || !stillArmed()) {
+        if (ok) {
+          void restorePlaybackAudioMode();
+        }
+        return;
+      }
     }
 
-    if (session.mode === 'microphone') {
-      const ok = await startMicRecording(true);
-      if (!ok) {
-        stopBeds();
+    let beds: PreparedStudioPlayback | null = null;
+    try {
+      const project = await getStudioProject(session.projectId);
+      if (project && project.tracks.length > 0) {
+        // The mic's recording session already plays audio; switching back to
+        // plain playback would take the microphone away from the recorder.
+        beds = await prepareStudioPlayback(project, { restoreAudioMode: !isMic });
+      }
+    } catch (error) {
+      console.warn('Overdub: the backing tracks could not be prepared', error);
+      Alert.alert(t('studio.playbackError'));
+      if (isMic) {
+        void restorePlaybackAudioMode();
+      }
+      return;
+    }
+    if (!stillArmed()) {
+      if (isMic) {
+        void restorePlaybackAudioMode();
       }
       return;
     }
 
+    // Back to back from here — nothing slow between the beds and the take.
+    const handle = beds?.start() ?? null;
+    bedsHandleRef.current = handle;
+
+    if (isMic) {
+      if (!beginMicRecording(handle?.startContextTime)) {
+        stopBeds();
+      }
+      return;
+    }
+    // An instrument take is timed from this moment, which is the beds' start.
     startInstrumentRecording();
-  }, [instrument, startInstrumentRecording, startMicRecording, stopBeds]);
+  }, [
+    beginMicRecording,
+    instrument,
+    prepareMicRecording,
+    startInstrumentRecording,
+    stopBeds,
+    t,
+  ]);
 
   const startStudioOverdub = useCallback(() => {
     clearCountdown();
@@ -395,9 +489,13 @@ export function useInstrumentRecording(instrument: InstrumentId) {
         soundId,
         atMs: Date.now() - startTimeRef.current,
         velocity,
+        // The piano records written keys; the tone slider decides the pitch
+        // they sound at. Read from the engine at the moment of the note, so a
+        // slider move mid-take is kept and no screen has to pass it in.
+        ...(instrument === 'piano' ? { transposeSemitones: getPianoToneOffset() } : {}),
       });
     },
-    [isRecording, mode],
+    [instrument, isRecording, mode],
   );
 
   const handleRecordPress = useCallback(() => {
@@ -491,7 +589,9 @@ export function useInstrumentRecording(instrument: InstrumentId) {
   });
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
+      mountedRef.current = false;
       clearCountdown();
       clearCountIn();
       stopBeds();

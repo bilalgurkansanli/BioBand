@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { LooperBars, LooperLayer, LooperPhase } from '../../hooks/usePadsLooper';
 import type { PadBankId } from '../../instruments/pads/padsBanks';
+import { colors } from '../../theme/colors';
 
 type LooperBarProps = {
   phase: LooperPhase;
@@ -111,6 +112,7 @@ export function LooperBar({
     <View style={[styles.container, { borderColor: `${accent}44` }]}>
       <View style={styles.transportRow}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={running || phase === 'countIn' ? t('pads.looper.stop') : t('pads.looper.play')}
           onPress={running || phase === 'countIn' ? onStop : onStart}
           style={({ pressed }) => [
@@ -127,6 +129,7 @@ export function LooperBar({
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('pads.looper.record')}
           onPress={onToggleRecArm}
           style={({ pressed }) => [
@@ -143,6 +146,7 @@ export function LooperBar({
             const locked = phase !== 'idle' || barsLocked;
             return (
               <Pressable
+                accessibilityRole="button"
                 key={option}
                 disabled={locked}
                 onPress={() => onSetBars(option)}
@@ -180,11 +184,12 @@ export function LooperBar({
             />
           )}
           <Text style={styles.bpmLabel}>
-            {bpm} BPM · {bars} {t('pads.looper.barsShort')}
+            {t('common.bpmValue', { value: bpm })} · {bars} {t('pads.looper.barsShort')}
           </Text>
         </View>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('pads.looper.export')}
           disabled={!hasEvents}
           onPress={onExport}
@@ -194,10 +199,11 @@ export function LooperBar({
             pressed && styles.pressed,
           ]}
         >
-          <Ionicons color={hasEvents ? '#FFD54F' : '#5A5A5E'} name="albums-outline" size={18} />
+          <Ionicons color={hasEvents ? colors.gold : '#5A5A5E'} name="albums-outline" size={18} />
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('common.close')}
           onPress={onClose}
           style={({ pressed }) => [styles.transportButton, pressed && styles.pressed]}
@@ -211,6 +217,7 @@ export function LooperBar({
           <View style={styles.layersInner}>
             {layers.map((layer, index) => (
               <Pressable
+                accessibilityRole="button"
                 key={layer.id}
                 onLongPress={() => confirmRemoveLayer(layer, index)}
                 onPress={() => onToggleLayerMuted(layer.id)}
@@ -231,6 +238,7 @@ export function LooperBar({
             ))}
 
             <Pressable
+              accessibilityRole="button"
               onPress={onCommitLayer}
               style={({ pressed }) => [styles.layerChip, styles.addChip, pressed && styles.pressed]}
             >
@@ -287,7 +295,7 @@ const styles = StyleSheet.create({
     width: 10,
   },
   recDotArmed: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.record,
   },
   barsGroup: {
     flexDirection: 'row',

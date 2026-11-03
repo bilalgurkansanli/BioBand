@@ -1,5 +1,15 @@
 import { memo, useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import {
+  type AccessibilityActionEvent,
+  Animated,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+
+import type { PadSoundId } from '../../instruments/pads/padsSounds';
+import { colors } from '../../theme/colors';
+import { ACTIVATE_ACTIONS, isActivateAction } from '../../utils/accessibility';
 
 type LaunchPadProps = {
   label: string;
@@ -15,6 +25,16 @@ type LaunchPadProps = {
   trail?: boolean;
   /** Looper playback flash — every stamp change fires a soft pulse. */
   ghostStamp?: number;
+  /** Which pad this is, handed back to `onAccessibilityActivate`. */
+  padId?: PadSoundId;
+  /** The pad's sound, spoken even when the on-pad labels are switched off. */
+  accessibilityLabel?: string;
+  /**
+   * Plays the pad for a screen-reader double-tap. The grid reads raw
+   * multi-touch, which a reader running in front of it swallows; each pad has
+   * to be its own button. One stable handler serves all sixteen pads.
+   */
+  onAccessibilityActivate?: (padId: PadSoundId) => void;
 };
 
 function withAlpha(hex: string, alpha: number): string {
@@ -44,6 +64,9 @@ function LaunchPadBase({
   pressed = false,
   trail = false,
   ghostStamp = 0,
+  padId,
+  accessibilityLabel,
+  onAccessibilityActivate,
 }: LaunchPadProps) {
   const flash = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(1)).current;
@@ -141,8 +164,22 @@ function LaunchPadBase({
   const fontSize = shortSide < 56 ? 9 : shortSide < 72 ? 11 : shortSide < 96 ? 12 : 13;
   const inset = Math.max(2, Math.round(shortSide * 0.04));
 
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    if (isActivateAction(event) && padId) {
+      onAccessibilityActivate?.(padId);
+    }
+  };
+
   return (
-    <View pointerEvents="none" style={[styles.cell, { width, height, padding: inset }]}>
+    <View
+      accessible={accessibilityLabel !== undefined}
+      accessibilityActions={ACTIVATE_ACTIONS}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      onAccessibilityAction={handleAccessibilityAction}
+      pointerEvents="none"
+      style={[styles.cell, { width, height, padding: inset }]}
+    >
       <Animated.View
         style={[
           styles.glow,
@@ -183,7 +220,7 @@ function LaunchPadBase({
               style={[
                 styles.guideRing,
                 {
-                  borderColor: strongGuide ? '#FFFFFF' : color,
+                  borderColor: strongGuide ? colors.white : color,
                   borderRadius: radius,
                   borderWidth: strongGuide ? 3 : 2.5,
                   opacity: guidePulse,
@@ -229,7 +266,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     margin: 1,
   },
   shell: {
@@ -264,13 +301,13 @@ const styles = StyleSheet.create({
     right: 1,
   },
   pressedOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderColor: 'rgba(255,255,255,0.9)',
     borderWidth: 1.5,
     margin: 1,
   },
   guideRing: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   led: {
     borderRadius: 2,

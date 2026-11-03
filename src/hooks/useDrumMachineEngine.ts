@@ -36,7 +36,14 @@ export function useDrumMachineEngine(
   typeId: DrumMachineTypeId,
   drumKitId: DrumKitId = 'acoustic',
 ) {
-  const [ready, setReady] = useState(false);
+  // Which machine type's engine is up — not a bare boolean. When the type
+  // changes, a boolean stays `true` for the render that switches it (the
+  // effect that resets it only runs afterwards), so anything gated on
+  // "ready" in that render — a queued song-mode start — ran against an engine
+  // that was still loading. Comparing against the current type makes `ready`
+  // false in that very render.
+  const [readyType, setReadyType] = useState<DrumMachineTypeId | null>(null);
+  const ready = readyType === typeId;
   const [error, setError] = useState<string | null>(null);
   // Read through a ref so kit changes don't tear the engine down — the hook
   // owner applies them live via setDrumKit.
@@ -46,27 +53,27 @@ export function useDrumMachineEngine(
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      setReady(false);
+      setReadyType(null);
       setError(null);
 
       acquireForType(typeId, kitRef.current)
         .then(() => {
           if (active) {
-            setReady(true);
+            setReadyType(typeId);
           }
         })
         .catch((err: unknown) => {
           console.error('Drum machine engine init failed:', err);
           if (active) {
             setError(err instanceof Error ? err.message : 'init failed');
-            setReady(false);
+            setReadyType(null);
           }
         });
 
       return () => {
         active = false;
         releaseEngine(typeId);
-        setReady(false);
+        setReadyType(null);
       };
     }, [typeId]),
   );

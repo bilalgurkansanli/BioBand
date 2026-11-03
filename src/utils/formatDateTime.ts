@@ -51,6 +51,30 @@ export function formatDateTime(timestampMs: number, language: string): string {
   return formatterFor(language).format(timestampMs);
 }
 
+const dateFormatterCache = new Map<string, Intl.DateTimeFormat>();
+
+/**
+ * A bare numeric date ("3.11.2026", "11/3/2026") in the app's language.
+ *
+ * `toLocaleDateString()` with no arguments follows the device locale, not the
+ * language picked in the app — a German-language app on an American phone
+ * named its exports in American order.
+ */
+export function formatDate(timestampMs: number, language: string): string {
+  const tag = resolveTag(language);
+  let formatter = dateFormatterCache.get(tag);
+  if (!formatter) {
+    // The same fields `toLocaleDateString()` prints by default.
+    formatter = new Intl.DateTimeFormat(tag, {
+      day: 'numeric',
+      month: 'numeric',
+      year: 'numeric',
+    });
+    dateFormatterCache.set(tag, formatter);
+  }
+  return formatter.format(timestampMs);
+}
+
 const numberFormatterCache = new Map<string, Intl.NumberFormat>();
 
 /**

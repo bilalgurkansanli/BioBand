@@ -32,7 +32,7 @@ export function copyPadSampleFile(slotIndex: number, sourceUri: string): string 
   const safeExt = /^[a-z0-9]{1,5}$/.test(ext) ? ext : 'm4a';
   // Timestamped name — never overwrite a file a still-cached buffer points at.
   const destination = new File(dir, `slot${slotIndex + 1}-${Date.now()}.${safeExt}`);
-  new File(sourceUri).copy(destination);
+  new File(sourceUri).copySync(destination);
   return destination.uri;
 }
 

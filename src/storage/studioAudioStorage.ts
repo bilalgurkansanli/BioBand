@@ -42,7 +42,7 @@ export function copyStudioTrackAudio(
   if (destination.exists) {
     destination.delete();
   }
-  new File(sourceUri).copy(destination);
+  new File(sourceUri).copySync(destination);
   return destination.uri;
 }
 

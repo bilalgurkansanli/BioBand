@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -48,6 +49,7 @@ export function TrackSettingsModal({
   onDuplicate,
   onDelete,
 }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [liveVolume, setLiveVolume] = useState(track?.volume ?? 1);
 
@@ -70,8 +72,8 @@ export function TrackSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           {track ? (
             <>
               <View style={styles.header}>
@@ -80,12 +82,13 @@ export function TrackSettingsModal({
                 </View>
                 <Text style={styles.title}>{t(INSTRUMENT_TITLE_KEYS[track.instrument])}</Text>
                 <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={t('common.close')}
                   hitSlop={8}
                   onPress={onClose}
                   style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
                 >
-                  <Ionicons color="#FFFFFF" name="close" size={18} />
+                  <Ionicons color={colors.white} name="close" size={18} />
                 </Pressable>
               </View>
 
@@ -103,6 +106,7 @@ export function TrackSettingsModal({
 
               <View style={styles.volumeRow}>
                 <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={t('studio.volumeDown')}
                   hitSlop={6}
                   onPress={() => step(-VOLUME_STEP)}
@@ -112,6 +116,11 @@ export function TrackSettingsModal({
                 </Pressable>
                 <HorizontalSlider
                   accentColor={color}
+                  accessibilityLabel={t('studio.volume')}
+                  accessibilityStep={VOLUME_STEP}
+                  accessibilityValueText={t('common.percent', {
+                    percent: Math.round(liveVolume * 100),
+                  })}
                   onSlidingComplete={(value) => onCommitVolume(clampVolume(value))}
                   onValueChange={setLiveVolume}
                   style={styles.slider}
@@ -119,6 +128,7 @@ export function TrackSettingsModal({
                   value={liveVolume}
                 />
                 <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={t('studio.volumeUp')}
                   hitSlop={6}
                   onPress={() => step(VOLUME_STEP)}
@@ -143,6 +153,7 @@ export function TrackSettingsModal({
                       const active = voice.id === selectedVoiceId;
                       return (
                         <Pressable
+                          accessibilityRole="button"
                           key={voice.id}
                           onPress={() => onSelectVoice(voice.id)}
                           style={({ pressed }) => [
@@ -207,7 +218,7 @@ type ActionRowProps = {
 
 function ActionRow({ icon, label, onPress, danger }: ActionRowProps) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
         <Ionicons color={danger ? colors.error : colors.accent} name={icon} size={18} />
       </View>
@@ -220,7 +231,7 @@ function ActionRow({ icon, label, onPress, danger }: ActionRowProps) {
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

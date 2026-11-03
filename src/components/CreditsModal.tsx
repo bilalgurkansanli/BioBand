@@ -117,6 +117,7 @@ export function CreditsModal({ visible, onClose }: Props) {
         <View style={[styles.header, { paddingTop: Math.max(28, insets.top + 16) }]}>
           <Text style={styles.headerTitle}>{t('credits.screenTitle')}</Text>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('common.close')}
             hitSlop={8}
             onPress={onClose}

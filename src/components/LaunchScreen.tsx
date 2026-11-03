@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   // the bottom — three bands rather than one centred stack.
   root: {
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: colors.black,
     flex: 1,
     justifyContent: 'space-between',
     paddingBottom: 56,

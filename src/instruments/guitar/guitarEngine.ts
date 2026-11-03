@@ -6,10 +6,12 @@ import {
   playSample,
   prepareSamplePlayback,
   releaseVoiceByTag,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
   type PlayedSampleHandle,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
@@ -47,6 +49,8 @@ const STRING_GAIN = 0.42;
 const NOTE_OFF_FADE_SECONDS = 0.18;
 /** Damp at the end of a written note — a string is muted, not cut dead. */
 const GUITAR_DAMPER_SECONDS = 0.4;
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const GUITAR_OWNER = 'guitar';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
@@ -91,8 +95,14 @@ export function setGuitarSustainScale(scale: number): void {
   sustainScale = scale > 0 ? scale : 1;
 }
 
-let voiceGain: GainNode | null = null;
-let voiceFilter: BiquadFilterNode | null = null;
+/**
+ * One bus per voice (gain → tone filter → FX input), built the first time
+ * that voice plays. A single shared bus could only wear one voice's tone at a
+ * time, so a Studio mix had to put every guitar track on the first track's
+ * voice — and an overdub's beds re-voiced the guitar under the user's hands.
+ */
+type VoiceBus = { gain: GainNode; filter: BiquadFilterNode };
+const voiceBuses = new Map<GuitarVoiceId, VoiceBus>();
 
 function cellKey(stringId: GuitarStringId, fret: number): string {
   return `${stringId}:f${fret}`;
@@ -102,35 +112,33 @@ function dryHeldTag(stringId: GuitarStringId, fret: number): string {
   return `guitar:held:${cellKey(stringId, fret)}`;
 }
 
-function applyVoiceToBus(): void {
-  if (!voiceGain || !voiceFilter) {
-    return;
-  }
-  const audio = getGuitarVoice(currentVoiceId).audio;
-  voiceGain.gain.value = audio.gainScale;
-  voiceFilter.type = audio.filterType;
-  voiceFilter.frequency.value = audio.filterFrequency;
-  voiceFilter.Q.value = audio.filterQ;
+function applyVoiceToBus(bus: VoiceBus, voiceId: GuitarVoiceId): void {
+  const audio = getGuitarVoice(voiceId).audio;
+  bus.gain.gain.value = audio.gainScale;
+  bus.filter.type = audio.filterType;
+  bus.filter.frequency.value = audio.filterFrequency;
+  bus.filter.Q.value = audio.filterQ;
   if (audio.filterType === 'lowshelf') {
-    voiceFilter.gain.value = audio.filterGainDb ?? 3;
+    bus.filter.gain.value = audio.filterGainDb ?? 3;
   } else if (audio.filterType === 'peaking') {
-    voiceFilter.gain.value = audio.filterGainDb ?? 0;
+    bus.filter.gain.value = audio.filterGainDb ?? 0;
   } else {
-    voiceFilter.gain.value = 0;
+    bus.filter.gain.value = 0;
   }
 }
 
-function ensureVoiceBus(): GainNode {
-  if (voiceGain && voiceFilter) {
-    return voiceGain;
+function ensureVoiceBus(voiceId: GuitarVoiceId = currentVoiceId): GainNode {
+  const existing = voiceBuses.get(voiceId);
+  if (existing) {
+    return existing.gain;
   }
   const context = getSharedAudioContext();
-  voiceGain = context.createGain();
-  voiceFilter = context.createBiquadFilter();
-  voiceGain.connect(voiceFilter);
-  voiceFilter.connect(getPianoFxInput());
-  applyVoiceToBus();
-  return voiceGain;
+  const bus: VoiceBus = { gain: context.createGain(), filter: context.createBiquadFilter() };
+  bus.gain.connect(bus.filter);
+  bus.filter.connect(getPianoFxInput());
+  applyVoiceToBus(bus, voiceId);
+  voiceBuses.set(voiceId, bus);
+  return bus.gain;
 }
 
 export async function initGuitarEngine(): Promise<void> {
@@ -169,9 +177,9 @@ async function loadGuitarEngine(): Promise<void> {
   initialized = true;
 }
 
+/** The voice hand-played notes use. Every voice keeps its own bus, so nothing to re-tune. */
 export function setGuitarVoice(id: GuitarVoiceId): void {
   currentVoiceId = id;
-  applyVoiceToBus();
 }
 
 export function getCurrentGuitarVoiceId(): GuitarVoiceId {
@@ -190,18 +198,21 @@ function triggerPluck(
     startAtSeconds?: number;
     /** Written note length — the string is damped once it is over. */
     sustainSeconds?: number;
+    /** Voice to sound with; defaults to the one selected for hand-played notes. */
+    voiceId?: GuitarVoiceId;
   },
 ): { handle: PlayedSampleHandle; rate: number } | null {
-  const bank = sampleBankForVoice(currentVoiceId);
+  const voiceId = options?.voiceId ?? currentVoiceId;
+  const bank = sampleBankForVoice(voiceId);
   const config = getGuitarNoteSampleConfig(midi, bank);
   const buffer = buffers.get(`${config.bank}:${config.anchorId}`);
   if (!buffer) {
     return null;
   }
 
-  const voice = getGuitarVoice(currentVoiceId).audio;
+  const voice = getGuitarVoice(voiceId).audio;
   const rate = config.playbackRate * voice.playbackRate;
-  const output = ensureVoiceBus();
+  const output = ensureVoiceBus(voiceId);
   const shortTail = options?.shortTail ?? false;
   const held = options?.held ?? false;
   const velocity = clampGuitarVelocity(options?.velocity ?? GUITAR_VELOCITY_DEFAULT);
@@ -268,7 +279,8 @@ function resolveMidi(
  * `velocity` stays the picking hand: it shapes the attack and the string's own
  * gain curve. `performance` is what the song asks for — the moment the pluck
  * must sound, how long it rings and how hard it is struck. Interactive plucks
- * omit it and keep the immediate, fixed-envelope behaviour.
+ * omit it and keep the immediate, fixed-envelope behaviour. `voiceId` replays
+ * a take or Studio track on its own voice (default: the selected one).
  */
 export function pluckString(
   stringId: GuitarStringId,
@@ -278,13 +290,13 @@ export function pluckString(
     velocity?: number;
     gainScale?: number;
     performance?: NotePerformance;
+    voiceId?: GuitarVoiceId;
   },
 ): void {
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
+  // Fixed now, so echo/reverb taps fired later keep the voice of their note.
+  const voiceId = options?.voiceId ?? currentVoiceId;
   const performance = options?.performance;
   const velocity = clampGuitarVelocity(options?.velocity ?? GUITAR_VELOCITY_DEFAULT);
   const gainScale = (options?.gainScale ?? 1) * velocityGain(performance?.velocity);
@@ -304,6 +316,7 @@ export function pluckString(
     velocity,
     startAtSeconds: atTime,
     sustainSeconds,
+    voiceId,
   });
 
   schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
@@ -311,8 +324,9 @@ export function pluckString(
       shortTail: true,
       velocity,
       startAtSeconds: tapStart(delayMs),
+      voiceId,
     });
-  }, aheadOfClock);
+  }, aheadOfClock, GUITAR_OWNER);
 
   // Each repeat needs its own tag — same-tag voices steal each other in sampleBank.
   let echoIndex = 0;
@@ -321,8 +335,9 @@ export function pluckString(
       velocity,
       startAtSeconds: tapStart(delayMs),
       sustainSeconds,
+      voiceId,
     });
-  }, aheadOfClock);
+  }, aheadOfClock, GUITAR_OWNER);
 }
 
 /**
@@ -334,10 +349,7 @@ export function noteOn(
   fret: number,
   velocity: number = GUITAR_VELOCITY_DEFAULT,
 ): void {
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   const key = cellKey(stringId, fret);
   const midi = fretToMidi(stringId, fret);
@@ -350,7 +362,9 @@ export function noteOn(
   fingerHeld.add(key);
 
   pluckListener?.(stringId, v, midiToFret(stringId, midi));
-  const played = triggerPluck(midi, gain, tag, { held: true, velocity: v });
+  // Fixed now, so echo/reverb taps fired later keep the voice of their note.
+  const voiceId = currentVoiceId;
+  const played = triggerPluck(midi, gain, tag, { held: true, velocity: v, voiceId });
   if (played) {
     heldBendHandles.set(key, { handle: played.handle, baseRate: played.rate });
   }
@@ -364,13 +378,17 @@ export function noteOn(
     triggerPluck(midi, gain * gainScale, `${fxTag}:reverb:${tapIndex}`, {
       shortTail: true,
       velocity: v,
+      voiceId,
     });
-  });
+  }, false, GUITAR_OWNER);
 
   let echoIndex = 0;
   schedulePianoEchoRepeats((gainScale) => {
-    triggerPluck(midi, gain * gainScale, `${fxTag}:echo:${echoIndex++}`, { velocity: v });
-  });
+    triggerPluck(midi, gain * gainScale, `${fxTag}:echo:${echoIndex++}`, {
+      velocity: v,
+      voiceId,
+    });
+  }, false, GUITAR_OWNER);
 }
 
 /** Interactive fret release — soft damp like lifting a finger. */
@@ -421,6 +439,8 @@ export function playChord(
     gesture?: GuitarChordGesture;
     gainScale?: number;
     performance?: NotePerformance;
+    /** Voice to strum with; defaults to the one selected for hand playing. */
+    voiceId?: GuitarVoiceId;
   },
 ): void {
   const chord = getChordById(chordId);
@@ -428,7 +448,16 @@ export function playChord(
     return;
   }
 
-  clearStrumTimers();
+  const performance = options?.performance;
+  const atTime = performance?.atTime;
+  const voiceId = options?.voiceId ?? currentVoiceId;
+
+  // A new hand-played strum replaces one still cascading. A chord placed on
+  // the audio clock (a take, a Studio track) uses no timers, and must not cut
+  // short the strum the user is playing over it.
+  if (atTime === undefined) {
+    clearStrumTimers();
+  }
 
   const mode = options?.mode ?? 'strum';
   const direction = options?.direction ?? 'down';
@@ -446,9 +475,6 @@ export function playChord(
   // keeps its shape exactly; a JS timer per string would smear it against the
   // chord's own onset. Each step keeps its pattern velocity (the accent within
   // the strum) — the song's own strength rides on top via `performance`.
-  const performance = options?.performance;
-  const atTime = performance?.atTime;
-
   for (const step of steps) {
     if (atTime !== undefined) {
       pluckString(step.stringId, step.midi, {
@@ -456,6 +482,7 @@ export function playChord(
         velocity: step.velocity,
         gainScale,
         performance: { ...performance, atTime: atTime + step.atMs / 1000 },
+        voiceId,
       });
       continue;
     }
@@ -465,6 +492,7 @@ export function playChord(
         velocity: step.velocity,
         gainScale,
         performance,
+        voiceId,
       });
     }, step.atMs);
     strumTimers.push(timer);
@@ -482,12 +510,14 @@ export function strumChord(
 /**
  * Play a recording / tutorial sound id: `s3:f5`, `chord:Em`, legacy `s3`, or
  * the performance form `chord:Em:arpeggio:up:swipe` (mode/direction/gesture).
+ * `voiceId` replays a take or Studio track on its own voice.
  */
 export function playGuitarSoundId(
   soundId: string,
   velocity?: number,
   gainScale = 1,
   performance?: NotePerformance,
+  voiceId?: GuitarVoiceId,
 ): void {
   if (soundId.startsWith('chord:')) {
     const [chordId, mode, direction, gesture] = soundId
@@ -500,6 +530,7 @@ export function playGuitarSoundId(
         gesture: gesture === 'tap' ? 'tap' : 'swipe',
         gainScale,
         performance,
+        voiceId,
       });
     }
     return;
@@ -512,6 +543,7 @@ export function playGuitarSoundId(
       velocity,
       gainScale,
       performance,
+      voiceId,
     });
     return;
   }
@@ -522,12 +554,13 @@ export function playGuitarSoundId(
       velocity,
       gainScale,
       performance,
+      voiceId,
     });
     return;
   }
 
   if (/^s[1-6]$/.test(soundId)) {
-    pluckString(soundId as GuitarStringId, 0, { velocity, gainScale, performance });
+    pluckString(soundId as GuitarStringId, 0, { velocity, gainScale, performance, voiceId });
   }
 }
 
@@ -535,21 +568,24 @@ export function releaseGuitarEngine(): void {
   clearStrumTimers();
   fingerHeld.clear();
   heldBendHandles.clear();
-  stopAllVoices();
-  // Detach the bus — otherwise every focus cycle leaves a dead gain+filter
-  // pair connected to the FX input.
-  try {
-    voiceGain?.disconnect();
-  } catch {
-    // Already disconnected.
+  // Only the guitar's own sound — other instruments may still be playing.
+  clearPianoFxTimersFor(GUITAR_OWNER);
+  stopVoicesByTagPrefix(['guitar:']);
+  // Detach the buses — otherwise every focus cycle leaves dead gain+filter
+  // pairs connected to the FX input.
+  for (const bus of voiceBuses.values()) {
+    try {
+      bus.gain.disconnect();
+    } catch {
+      // Already disconnected.
+    }
+    try {
+      bus.filter.disconnect();
+    } catch {
+      // Already disconnected.
+    }
   }
-  try {
-    voiceFilter?.disconnect();
-  } catch {
-    // Already disconnected.
-  }
-  voiceGain = null;
-  voiceFilter = null;
+  voiceBuses.clear();
   initialized = false;
 }
 

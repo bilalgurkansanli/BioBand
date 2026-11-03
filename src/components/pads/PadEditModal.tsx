@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 import {
   RecordingPresets,
@@ -73,6 +74,7 @@ export function PadEditModal({
   onSave,
   onClose,
 }: PadEditModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -239,7 +241,7 @@ export function PadEditModal({
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleCancel}>
       {/* Dismiss layer behind the card — never wrap the card in a Pressable. */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           style={StyleSheet.absoluteFill}
@@ -259,6 +261,7 @@ export function PadEditModal({
             style={styles.scroll}
           >
             <Pressable
+              accessibilityRole="button"
               onPress={() => preview(draft)}
               style={({ pressed }) => [
                 styles.previewButton,
@@ -276,6 +279,7 @@ export function PadEditModal({
             <View style={styles.bankChips}>
               {PAD_BANKS.map((bank) => (
                 <Pressable
+                  accessibilityRole="button"
                   key={bank.id}
                   onPress={() => setSourceBankId(bank.id as Exclude<PadBankId, 'custom'>)}
                   style={({ pressed }) => [
@@ -303,6 +307,7 @@ export function PadEditModal({
             <View style={styles.soundGrid}>
               {sourceBank.slots.map((bankSlot) => (
                 <Pressable
+                  accessibilityRole="button"
                   key={bankSlot.id}
                   onPress={() => pickBuiltinSound(sourceBank.id as Exclude<PadBankId, 'custom'>, bankSlot.id)}
                   style={({ pressed }) => [
@@ -325,6 +330,7 @@ export function PadEditModal({
             <Text style={styles.sectionTitle}>{t('pads.editor.micSection')}</Text>
             <View style={styles.micRow}>
               <Pressable
+                accessibilityRole="button"
                 disabled={busy}
                 onPress={recording ? stopRecording : startRecording}
                 style={({ pressed }) => [
@@ -335,7 +341,7 @@ export function PadEditModal({
                 ]}
               >
                 <Ionicons
-                  color={recording ? '#FFFFFF' : '#FF3B30'}
+                  color={recording ? colors.white : colors.record}
                   name={recording ? 'stop' : 'mic'}
                   size={18}
                 />
@@ -380,6 +386,9 @@ export function PadEditModal({
             </View>
             <HorizontalSlider
               accentColor={accent}
+              accessibilityLabel={t('pads.editor.pitchSection')}
+              accessibilityStep={1}
+              accessibilityValueText={`${draft.pitchSemitones > 0 ? '+' : ''}${draft.pitchSemitones}`}
               max={12}
               min={-12}
               onSlidingComplete={(value) =>
@@ -399,6 +408,10 @@ export function PadEditModal({
             </View>
             <HorizontalSlider
               accentColor={accent}
+              accessibilityLabel={t('pads.editor.gainSection')}
+              accessibilityValueText={t('common.percent', {
+                percent: Math.round(draft.gain * 100),
+              })}
               max={1.4}
               min={0.2}
               onSlidingComplete={(value) => updateDraft({ gain: value }, true)}
@@ -413,6 +426,7 @@ export function PadEditModal({
                   option === 'none' ? !draft.chokeGroup : draft.chokeGroup === option;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={option}
                     onPress={() =>
                       updateDraft({
@@ -435,6 +449,7 @@ export function PadEditModal({
             <Text style={styles.hint}>{t('pads.editor.chokeHint')}</Text>
 
             <Pressable
+              accessibilityRole="button"
               disabled={recording || busy}
               onPress={handleSave}
               style={({ pressed }) => [
@@ -456,7 +471,7 @@ export function PadEditModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -559,8 +574,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   micButtonActive: {
-    backgroundColor: '#FF3B30',
-    borderColor: '#FF3B30',
+    backgroundColor: colors.record,
+    borderColor: colors.record,
   },
   micButtonText: {
     color: '#FF6B62',
@@ -568,7 +583,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   micButtonTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   micBadge: {
     alignItems: 'center',
@@ -598,7 +613,7 @@ const styles = StyleSheet.create({
     width: 28,
   },
   colorDotSelected: {
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
   },
   sliderHeader: {
     alignItems: 'center',

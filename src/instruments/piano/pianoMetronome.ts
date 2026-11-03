@@ -1,4 +1,8 @@
-import { getMasterInput, getSharedAudioContext } from '../../audio/sampleBank';
+import {
+  getMasterInput,
+  getSharedAudioContext,
+  resumeAudioContextIfSuspended,
+} from '../../audio/sampleBank';
 
 export const METRONOME_BPM_MIN = 40;
 export const METRONOME_BPM_MAX = 200;
@@ -148,9 +152,7 @@ function playClick(
 ): void {
   try {
     const context = getSharedAudioContext();
-    if (context.state === 'suspended') {
-      void context.resume();
-    }
+    resumeAudioContextIfSuspended();
 
     const attack = profile.attackMs / 1000;
     const release = profile.releaseMs / 1000;
@@ -188,9 +190,7 @@ function previewClick(profile: MetronomeSoundProfile, accent = false): void {
 export function scheduleCountInClickAt(when: number, accent = false): () => void {
   try {
     const context = getSharedAudioContext();
-    if (context.state === 'suspended') {
-      void context.resume();
-    }
+    resumeAudioContextIfSuspended();
 
     const profile = getSoundProfile(soundId);
     const attack = profile.attackMs / 1000;
@@ -250,9 +250,7 @@ function runScheduler(): void {
     return;
   }
   const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
   while (nextTickTime < context.currentTime + SCHEDULE_AHEAD_SECONDS) {
     scheduleTick(tickIndex, nextTickTime);
     nextTickTime += tickIntervalSeconds();

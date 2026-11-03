@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -46,6 +47,7 @@ export function StudioSettingsModal({
   onRename,
   onDelete,
 }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
 
   const switchColors = { false: colors.surfaceLight, true: colors.accentMuted };
@@ -53,17 +55,18 @@ export function StudioSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('studio.settingsTitle')}</Text>
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel={t('common.close')}
               hitSlop={8}
               onPress={onClose}
               style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="close" size={18} />
+              <Ionicons color={colors.white} name="close" size={18} />
             </Pressable>
           </View>
 
@@ -74,6 +77,7 @@ export function StudioSettingsModal({
           >
           <Row icon="musical-note-outline" label={t('studio.metronome')}>
             <Switch
+              accessibilityLabel={t('studio.metronome')}
               onValueChange={onToggleMetronome}
               thumbColor={metronome ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -83,6 +87,7 @@ export function StudioSettingsModal({
 
           <Row icon="repeat-outline" label={t('studio.loop')}>
             <Switch
+              accessibilityLabel={t('studio.loop')}
               onValueChange={onToggleLoop}
               thumbColor={loop ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -92,6 +97,7 @@ export function StudioSettingsModal({
 
           <Row icon="grid-outline" label={t('studio.grid')}>
             <Switch
+              accessibilityLabel={t('studio.grid')}
               onValueChange={onToggleGrid}
               thumbColor={grid ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -101,6 +107,7 @@ export function StudioSettingsModal({
 
           <Row icon="magnet-outline" label={t('studio.snap')}>
             <Switch
+              accessibilityLabel={t('studio.snap')}
               onValueChange={onToggleSnap}
               thumbColor={snap ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -116,6 +123,7 @@ export function StudioSettingsModal({
                   const active = option.value === snapDivision;
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={option.value}
                       onPress={() => onChangeSnapDivision(option.value)}
                       style={[styles.segmentBtn, active && styles.segmentBtnActive]}
@@ -133,6 +141,7 @@ export function StudioSettingsModal({
           <View style={styles.divider} />
 
           <Pressable
+            accessibilityRole="button"
             onPress={onRename}
             style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
           >
@@ -144,6 +153,7 @@ export function StudioSettingsModal({
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onDelete}
             style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
           >
@@ -183,7 +193,7 @@ function Row({
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,
@@ -300,7 +310,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   segmentTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   pressed: {
     opacity: 0.75,

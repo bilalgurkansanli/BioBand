@@ -9,6 +9,7 @@ import {
 import type { InstrumentId } from '../types/recording';
 import { CHALLENGE_PRACTICE_MS } from '../types/profile';
 import {
+  completesSongOfWeek,
   dailyChallengeId,
   getDailyChallengeKind,
   getWeeklyChallengeKind,
@@ -71,17 +72,39 @@ export async function awardPlayAlongCompletion(input: PlayAlongAwardInput): Prom
   const weekKey = isoWeekKey();
   if (weeklyKind.type === 'finish-any-song-week') {
     await markChallengeComplete(weeklyChallengeId(weekKey, weeklyKind));
-  } else if (
-    weeklyKind.type === 'song-of-week' &&
-    input.songId &&
-    input.songId === weeklyKind.songId
-  ) {
+  } else if (completesSongOfWeek(weeklyKind, input.instrument, input.songId)) {
+    // The challenge id is unchanged, so a week already completed stays so.
     await markChallengeComplete(weeklyChallengeId(weekKey, weeklyKind));
   }
 }
 
-/** After a recording save — practice + maybe daily 2min challenge. */
+/**
+ * After a recording save — practice + maybe daily 2min challenge.
+ *
+ * `timeAlreadyCounted` is for takes played on the app's own instrument: free
+ * play has already credited the time between those notes as they were played,
+ * so adding the take's length again would count the same minutes twice.
+ */
 export async function awardRecordingPractice(
+  instrument: InstrumentId,
+  durationMs: number,
+  { timeAlreadyCounted = false }: { timeAlreadyCounted?: boolean } = {},
+): Promise<void> {
+  if (durationMs <= 0) {
+    return;
+  }
+  if (!timeAlreadyCounted) {
+    await addPracticeMs(instrument, durationMs);
+  }
+  await maybeCompletePracticeChallenge(instrument);
+}
+
+/**
+ * Time credited by free play. It also settles the daily practice challenge,
+ * which otherwise waited for a recording or a finished tutorial even when the
+ * minutes had already been played.
+ */
+export async function awardFreePlayPractice(
   instrument: InstrumentId,
   durationMs: number,
 ): Promise<void> {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from './modalOrientations';
+import { useCenteredModalPadding } from './modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
@@ -30,6 +31,7 @@ const LOSS_KEYS = [
  * account has to cost two deliberate taps rather than one stray one.
  */
 export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onConfirm }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [acknowledged, setAcknowledged] = useState(false);
 
@@ -55,10 +57,10 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
         }
       }}
     >
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, safeAreaPadding]}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
-            <Ionicons color="#FFFFFF" name="trash" size={24} />
+            <Ionicons color={colors.white} name="trash" size={24} />
           </View>
           <Text style={styles.title}>{t('auth.deleteAccountConfirmTitle')}</Text>
           <Text style={styles.message}>{t('auth.deleteAccountConfirmMessage')}</Text>
@@ -82,7 +84,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
             style={styles.acknowledgeRow}
           >
             <View style={[styles.checkbox, acknowledged && styles.checkboxChecked]}>
-              {acknowledged ? <Ionicons color="#FFFFFF" name="checkmark" size={13} /> : null}
+              {acknowledged ? <Ionicons color={colors.white} name="checkmark" size={13} /> : null}
             </View>
             <Text style={styles.acknowledgeText}>{t('auth.deleteAccountAcknowledge')}</Text>
           </Pressable>
@@ -91,6 +93,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               disabled={busy}
               onPress={onCancel}
               style={({ pressed }) => [
@@ -103,6 +106,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
               <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               disabled={!acknowledged || busy}
               onPress={onConfirm}
               style={({ pressed }) => [
@@ -113,7 +117,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
               ]}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.white} size="small" />
               ) : (
                 <Text style={styles.confirmText}>{t('auth.deleteAccountConfirm')}</Text>
               )}
@@ -252,7 +256,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

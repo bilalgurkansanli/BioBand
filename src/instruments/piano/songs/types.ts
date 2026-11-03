@@ -46,10 +46,20 @@ export type SongBackingTrack = {
   eventsStartMs: number;
 };
 
+/**
+ * The "part" excerpt, in CHART time — the same timeline as `SongEvent.atMs`.
+ *
+ * Chart time is what every catalog song writes here (it is read off the song's
+ * own events), and it is the only timeline that stays put when a user
+ * calibrates where the song starts in their audio file. The audio position is
+ * derived in `resolvePlaySession`: `backingTrack.eventsStartMs + chart`. This
+ * used to be documented as audio time while being filled with chart time, so
+ * after a calibration the excerpt played the wrong section.
+ */
 export type SongPartialWindow = {
-  /** Inclusive start on the audio timeline (ms). */
+  /** Onset (ms, chart time) of the excerpt's first note — inclusive. */
   startMs: number;
-  /** Inclusive end on the audio timeline (ms). */
+  /** Onset (ms, chart time) of the excerpt's last note — inclusive. */
   endMs: number;
 };
 
@@ -81,8 +91,8 @@ export type SongDefinition = {
   /** Present when a full-mix backing track is available for Band Mode. */
   backingTrack?: SongBackingTrack;
   /**
-   * Audio-timeline window used for "partial" scope.
-   * Defaults to the piano events span when omitted.
+   * Chart-time window used for "partial" scope (see `SongPartialWindow`).
+   * Defaults to the first 50 melody notes when omitted.
    */
   partialWindowMs?: SongPartialWindow;
 };

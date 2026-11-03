@@ -89,9 +89,14 @@ let distortionFailed = false;
 const DISTORTION_TEARDOWN_MS = 220;
 let distortionTeardownTimer: ReturnType<typeof setTimeout> | null = null;
 
-/** Pending echo / reverb re-triggers — cleared when FX off or engine releases. */
-const echoTimers = new Set<ReturnType<typeof setTimeout>>();
-const reverbTimers = new Set<ReturnType<typeof setTimeout>>();
+/**
+ * Pending echo / reverb re-triggers → the engine that scheduled them. Cleared
+ * when an effect is switched off (all of them) or when an engine is released
+ * (only that engine's — the FX bus is shared, and releasing the violin must
+ * not cancel the drums' echo).
+ */
+const echoTimers = new Map<ReturnType<typeof setTimeout>, string | undefined>();
+const reverbTimers = new Map<ReturnType<typeof setTimeout>, string | undefined>();
 
 function disconnectSafe(node: { disconnect: () => void } | null | undefined): void {
   if (!node) {
@@ -236,20 +241,36 @@ function tearDownWetStages(g: FxGraph): void {
   tearDownDistortionStage(g);
 }
 
+function clearFxTimers(
+  timers: Map<ReturnType<typeof setTimeout>, string | undefined>,
+  owner?: string,
+): void {
+  for (const [timer, timerOwner] of timers) {
+    if (owner === undefined || timerOwner === owner) {
+      clearTimeout(timer);
+      timers.delete(timer);
+    }
+  }
+}
+
 /** Cancel pending delayed echo repeats (echo off / leave piano). */
 export function clearPianoEchoTimers(): void {
-  for (const timer of echoTimers) {
-    clearTimeout(timer);
-  }
-  echoTimers.clear();
+  clearFxTimers(echoTimers);
 }
 
 /** Cancel pending reverb taps (reverb off / leave piano). */
 export function clearPianoReverbTimers(): void {
-  for (const timer of reverbTimers) {
-    clearTimeout(timer);
-  }
-  reverbTimers.clear();
+  clearFxTimers(reverbTimers);
+}
+
+/**
+ * Cancel the echo/reverb re-triggers one engine still has pending — its own
+ * teardown, leaving every other instrument's tails (and the shared FX
+ * settings) alone.
+ */
+export function clearPianoFxTimersFor(owner: string): void {
+  clearFxTimers(echoTimers, owner);
+  clearFxTimers(reverbTimers, owner);
 }
 
 /**
@@ -277,10 +298,13 @@ export function getPianoEchoPlayback(): PianoEchoPlayback {
  * for a future moment: the repeats are then emitted straight away with their
  * offsets, for the caller to place on the same clock. Timing a repeat off a JS
  * timer would otherwise drift away from the note it belongs to.
+ *
+ * `owner` names the engine, so its release can cancel just its own repeats.
  */
 export function schedulePianoEchoRepeats(
   playRepeat: (gainScale: number, delayMs: number) => void,
   scheduledAhead = false,
+  owner?: string,
 ): void {
   const echo = getPianoEchoPlayback();
   if (!echo.enabled || echo.firstRepeatGain < 0.02) {
@@ -305,7 +329,7 @@ export function schedulePianoEchoRepeats(
         }
         playRepeat(thisLevel, thisDelay);
       }, delay);
-      echoTimers.add(timer);
+      echoTimers.set(timer, owner);
     }
 
     delay += echo.delayMs;
@@ -320,11 +344,13 @@ export function schedulePianoEchoRepeats(
  *
  * `scheduledAhead` behaves as in schedulePianoEchoRepeats — taps are emitted
  * immediately with their offsets so the caller can place them on the audio
- * clock alongside the note that produced them.
+ * clock alongside the note that produced them. `owner` as in
+ * schedulePianoEchoRepeats.
  */
 export function schedulePianoReverbTaps(
   playTap: (gainScale: number, tapIndex: number, delayMs: number) => void,
   scheduledAhead = false,
+  owner?: string,
 ): void {
   const { reverb } = currentSettings;
   if (!reverb.enabled) {
@@ -368,24 +394,8 @@ export function schedulePianoReverbTaps(
       }
       playTap(thisLevel, tapIndex, delayMs);
     }, delayMs);
-    reverbTimers.add(timer);
+    reverbTimers.set(timer, owner);
   }
-}
-
-export function resetPianoFx(): void {
-  clearPianoEchoTimers();
-  clearPianoReverbTimers();
-
-  if (graph) {
-    tearDownWetStages(graph);
-    setGainImmediate(graph.dry, 1);
-    setGainImmediate(graph.post, 1);
-    graph.bypassed = false;
-    connectCorePath(graph);
-  }
-
-  distortionFailed = false;
-  currentSettings = cloneSettings(PIANO_FX_DEFAULTS);
 }
 
 function ensureDistortionStage(g: FxGraph): void {

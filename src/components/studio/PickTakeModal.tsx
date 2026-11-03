@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -17,12 +18,13 @@ type Props = {
 };
 
 export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInstead }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
         {/* A plain View claims the touch responder for anything starting
             inside the card, so taps here never reach the backdrop below —
             more reliable than relying on event.stopPropagation() alone. */}
@@ -36,7 +38,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
               onPress={onClose}
               style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="close" size={18} />
+              <Ionicons color={colors.white} name="close" size={18} />
             </Pressable>
           </View>
           {takes.length === 0 ? (
@@ -44,10 +46,11 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
               <Text style={styles.empty}>{t('studio.pickTakeEmpty')}</Text>
               {onRecordInstead ? (
                 <Pressable
+                  accessibilityRole="button"
                   onPress={onRecordInstead}
                   style={({ pressed }) => [styles.recordCta, pressed && styles.pressed]}
                 >
-                  <Ionicons color="#FFFFFF" name="mic" size={18} />
+                  <Ionicons color={colors.white} name="mic" size={18} />
                   <Text style={styles.recordCtaText}>{t('studio.pickTakeRecord')}</Text>
                 </Pressable>
               ) : null}
@@ -56,6 +59,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
             <ScrollView style={styles.list}>
               {takes.map((take) => (
                 <Pressable
+                  accessibilityRole="button"
                   key={take.id}
                   onPress={() => onSelect(take)}
                   style={({ pressed }) => [styles.row, pressed && styles.pressed]}
@@ -84,6 +88,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
             </ScrollView>
           )}
           <Pressable
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}
           >
@@ -98,7 +103,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,
@@ -148,7 +153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   recordCtaText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

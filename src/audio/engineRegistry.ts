@@ -73,8 +73,6 @@ const ENGINES: Record<InstrumentId, EngineEntry> = {
   },
 };
 
-const ENGINE_IDS = Object.keys(ENGINES) as InstrumentId[];
-
 /**
  * Take a reference on an instrument engine, loading it if nobody had it yet.
  * Resolves once the engine is playable. Every acquire — including one whose
@@ -93,8 +91,7 @@ export async function acquireEngine(instrument: InstrumentId): Promise<void> {
       await loading;
       entry.loaded = true;
     } finally {
-      // A hard teardown mid-load already dropped this promise; leave whatever
-      // it put there instead of clearing a newer owner's init.
+      // Only clear our own promise — never a newer owner's init.
       if (entry.loading === loading) {
         entry.loading = null;
       }
@@ -132,18 +129,4 @@ export function releaseEngine(instrument: InstrumentId): void {
 
   entry.loaded = false;
   entry.release();
-}
-
-/** Hard teardown for app-level cleanup: drops every reference and engine. */
-export function releaseAllEngines(): void {
-  for (const instrument of ENGINE_IDS) {
-    const entry = ENGINES[instrument];
-    const wasLoaded = entry.loaded;
-    entry.count = 0;
-    entry.loading = null;
-    entry.loaded = false;
-    if (wasLoaded) {
-      entry.release();
-    }
-  }
 }

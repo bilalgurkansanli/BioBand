@@ -9,6 +9,7 @@
     "promptSubtitle": "Melde dich mit Google oder Apple an, um deine Aufnahmen, Serien und Einstellungen geräteübergreifend zu behalten. Als Gast wird beim Öffnen der App alles zurückgesetzt.",
     "signInWithGoogle": "Mit Google anmelden",
     "signInWithApple": "Mit Apple anmelden",
+    "or": "oder",
     "continueAsGuest": "Als Gast fortfahren",
     "guestHint": "Du kannst dich später in den Profileinstellungen anmelden.",
     "signOut": "Abmelden",
@@ -56,6 +57,7 @@
     "minutesShort": "{{count}} Min.",
     "hoursShort": "{{count}} Std.",
     "percent": "{{percent}}%",
+    "bpmValue": "{{value}} BPM",
     "about": "Über",
     "privacyPolicy": "Datenschutzrichtlinie"
   },
@@ -150,7 +152,6 @@
     "subtitle": "Wähle ein Instrument und leg los.",
     "piano": "Klavier",
     "pianoDescription": "Tippe die Tasten zum Spielen.",
-    "open": "Öffnen",
     "pianoLoading": "Klavierklänge werden geladen...",
     "pianoLoadError": "Klänge konnten nicht geladen werden. Geh zurück und versuch es erneut.",
     "pianoLandscapeRequired": "Klavier funktioniert nur im Querformat",
@@ -231,7 +232,9 @@
     "noResultsTitle": "Keine Treffer",
     "noResultsDescription": "Ändere die Suche oder setze den Filter auf „Alle“.",
     "playbackSpeed": "Wiedergabegeschwindigkeit",
-    "loop": "Schleife"
+    "loop": "Schleife",
+    "playbackPosition": "Wiedergabeposition",
+    "positionValue": "{{position}} von {{duration}}"
   },
   "studio": {
     "title": "Studio",
@@ -250,6 +253,8 @@
     "trackCount": "{{count}} Spuren",
     "trackCount_one": "{{count}} Spur",
     "trackCount_other": "{{count}} Spuren",
+    "projectCount_one": "{{count}} Projekt",
+    "projectCount_other": "{{count}} Projekte",
     "play": "Mix abspielen",
     "stop": "Stopp",
     "playbackError": "Dieses Studio-Projekt konnte nicht abgespielt werden.",
@@ -293,13 +298,13 @@
     "loop": "Wiedergabe wiederholen",
     "grid": "Beat-Raster",
     "snap": "Am Raster einrasten",
-    "snapResolution": "Raster-Auflösung"
+    "snapResolution": "Raster-Auflösung",
+    "playhead": "Abspielmarke"
   },
   "drumMachine": {
     "title": "Drum Machine",
     "loading": "Klänge werden geladen...",
     "start": "Start",
-    "play": "Abspielen",
     "stop": "Stopp",
     "random": "Zufällig",
     "settings": "Einstellungen",
@@ -414,16 +419,6 @@
       "pad15": "Pad 15",
       "pad16": "Pad 16"
     },
-    "short": {
-      "kick": "Kick",
-      "snare": "Snare",
-      "tomLow": "Tom T",
-      "tomMid": "Tom M",
-      "tomHi": "Tom H",
-      "hihatClosed": "HH",
-      "hihatOpen": "OH",
-      "crash": "Crash"
-    },
     "clearConfirmTitle": "Grid leeren?",
     "clearConfirmBody": "Alle Steps werden gelöscht, das lässt sich nicht rückgängig machen. Vorher speichern?",
     "randomConfirmTitle": "Zufälliges Pattern würfeln?",
@@ -444,7 +439,8 @@
     "saveError": "Diese Aufnahme konnte nicht gespeichert werden. Möglicherweise ist der Speicher deines Geräts voll — schaffe Platz und versuche es erneut.",
     "savedTitle": "Aufnahme gespeichert",
     "savedDetail": "Du findest sie unter „Meine Aufnahmen“.",
-    "countIn": "Gleich geht's los…"
+    "countIn": "Gleich geht's los…",
+    "startError": "Die Aufnahme konnte nicht gestartet werden. Bitte versuche es erneut."
   },
   "drums": {
     "pads": {
@@ -509,7 +505,6 @@
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jeden Schlag von Anfang bis Ende spielen",
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Schlagzeug dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -573,7 +568,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -583,6 +577,7 @@
           "tooManyNotes": "Zu viele Schläge (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -644,7 +639,6 @@
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jede Note von Anfang bis Ende spielen",
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Geige dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -708,7 +702,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"soundId\": \"v2:3\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -718,11 +711,15 @@
           "tooManyNotes": "Zu viele Noten (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
       "requestSong": "Findest du das gesuchte Lied nicht? Schreib den Liednamen in eine Rezension — wir fügen es in der nächsten Version hinzu.",
       "requestSongOpenFailed": "Die Store-Seite konnte nicht geöffnet werden. Versuch es später erneut."
+    },
+    "a11y": {
+      "note": "{{note}} auf der {{string}}-Saite"
     }
   },
   "guitar": {
@@ -833,7 +830,6 @@
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jede Note von Anfang bis Ende spielen",
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Gitarre dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -897,7 +893,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"soundId\": \"s5:f7\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -907,11 +902,16 @@
           "tooManyNotes": "Zu viele Noten (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
       "requestSong": "Findest du das gesuchte Lied nicht? Schreib den Liednamen in eine Rezension — wir fügen es in der nächsten Version hinzu.",
       "requestSongOpenFailed": "Die Store-Seite konnte nicht geöffnet werden. Versuch es später erneut."
+    },
+    "a11y": {
+      "string": "{{string}}-Saite",
+      "stringHint": "Zupft die leere Saite oder den Ton des gewählten Akkords."
     }
   },
   "pads": {
@@ -1052,7 +1052,6 @@
         "hard": "Schwer",
         "empty": "Keine Lieder in dieser Schwierigkeit"
       },
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickScope": "Wie viel möchtest du spielen?",
       "scopePartial": "Mit einem Teil fortfahren",
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
@@ -1121,7 +1120,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"padId\": \"pad01\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -1131,6 +1129,7 @@
           "tooManyNotes": "Zu viele Schläge (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -1139,7 +1138,8 @@
     },
     "xy": {
       "filter": "Filter",
-      "resonance": "Resonanz"
+      "resonance": "Resonanz",
+      "a11yHint": "Nach oben oder unten wischen, um den Filter zu öffnen oder zu schließen."
     },
     "looper": {
       "play": "Loop starten",
@@ -1234,8 +1234,6 @@
       "auto": "Automatisch"
     },
     "scale": {
-      "off": "Aus",
-      "close": "Schließen",
       "names": {
         "cMajor": "C-Dur",
         "gMajor": "G-Dur",
@@ -1340,9 +1338,6 @@
         "hint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A dieses Tracks, um Klavier dazu zu spielen.",
         "button": "Audiodatei wählen",
         "errors": {
-          "canceled": "Keine Datei ausgewählt.",
-          "pickerUnavailable": "Dateiauswahl in diesem Build nicht verfügbar.",
-          "readFailed": "Die Audiodatei konnte nicht gespeichert werden. Versuch es erneut.",
           "unsupported": "Wähle eine MP3-, M4A-, MP4- oder WAV-Datei."
         }
       },
@@ -1399,7 +1394,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -1409,6 +1403,7 @@
           "tooManyNotes": "Zu viele Noten (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -1417,8 +1412,6 @@
     }
   },
   "tutorial": {
-    "pickSong": "Wähle ein Lied",
-    "close": "Schließen",
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m-Groove + Refrain + Keyboard-Teil."
@@ -1437,6 +1430,9 @@
       },
       "canonInD": {
         "description": "Pachelbel — aufsteigende Variationen über die berühmte Akkordfolge."
+      },
+      "greatFairyFountain": {
+        "description": "Koji Kondo — harfenartige Arpeggien über einem langsam fallenden Bass."
       },
       "clairDeLune": {
         "description": "Debussy — sanftes, traumhaftes Eröffnungsthema."
@@ -1496,7 +1492,7 @@
   },
   "privacy": {
     "screenTitle": "Datenschutzrichtlinie",
-    "lastUpdated": "Zuletzt aktualisiert: 26. Juli 2026",
+    "lastUpdated": "Zuletzt aktualisiert: 3. November 2026",
     "contactLabel": "Fragen zu dieser Richtlinie oder deinen Daten? E-Mail:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "Vollständige Richtlinie auf GitHub ansehen",
@@ -1527,7 +1523,7 @@
       },
       {
         "title": "Deine Wahlmöglichkeiten",
-        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten und setzt die App in einen neuen Gast-Zustand zurück.\n• Konto endgültig löschen: Profil → Einstellungen → Konto löschen. Damit werden dein Konto und alle Fortschritts-/Einstellungsdaten in der Cloud dauerhaft entfernt, anschließend werden die Daten auf diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.\n• Wenn du die Löschung lieber ohne Installation der App beantragen möchtest, kontaktiere uns unter der unten stehenden E-Mail-Adresse."
+        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten — einschließlich Aufnahmen, Studio-Projekten, importierter Songs und ihrer Audiodateien —, beendet die Übungserinnerung und setzt die App in einen neuen Gast-Zustand zurück.\n• Wirst du abgemeldet, ohne es selbst zu wählen — weil deine Sitzung abgelaufen ist oder dein Konto auf einem anderen Gerät gelöscht wurde —, behandelt BioBand dich nicht als Gast: Die Daten auf diesem Gerät bleiben erhalten, weil es deine Aufnahmen nirgendwo sonst gibt, und du wirst gebeten, dich erneut anzumelden. Erneutes Anmelden und anschließendes Abmelden oder das Deinstallieren der App entfernt sie.\n• Konto endgültig löschen: Profil → Einstellungen → Konto löschen. Damit werden dein Konto und alle Fortschritts-/Einstellungsdaten in der Cloud dauerhaft entfernt, anschließend werden die Daten auf diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.\n• Wenn du die Löschung lieber ohne Installation der App beantragen möchtest, kontaktiere uns unter der unten stehenden E-Mail-Adresse."
       },
       {
         "title": "Änderungen an dieser Richtlinie",

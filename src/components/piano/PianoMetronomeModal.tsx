@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -40,6 +41,7 @@ export function PianoMetronomeModal({
   showSubdivision = false,
   onChangeSubdivision,
 }: PianoMetronomeModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [displayBpm, setDisplayBpm] = useState(bpm);
   const [soundId, setSoundId] = useState<MetronomeSoundId>(() => getMetronomeSoundId());
@@ -91,8 +93,8 @@ export function PianoMetronomeModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.metronome.close')}
             onClose={onClose}
@@ -103,6 +105,7 @@ export function PianoMetronomeModal({
 
           <View style={styles.sliderRow}>
             <Pressable
+              accessibilityRole="button"
               onPress={() => nudge(-5)}
               style={({ pressed }) => [styles.nudge, pressed && styles.pressed]}
             >
@@ -110,6 +113,10 @@ export function PianoMetronomeModal({
             </Pressable>
             <HorizontalSlider
               accentColor={ACCENT}
+              accessibilityLabel={t('piano.metronome.title')}
+              // The same 5 BPM as the nudge buttons either side of it.
+              accessibilityStep={5}
+              accessibilityValueText={t('common.bpmValue', { value: Math.round(displayBpm) })}
               max={METRONOME_BPM_MAX}
               min={METRONOME_BPM_MIN}
               onValueChange={commitBpm}
@@ -117,6 +124,7 @@ export function PianoMetronomeModal({
               value={displayBpm}
             />
             <Pressable
+              accessibilityRole="button"
               onPress={() => nudge(5)}
               style={({ pressed }) => [styles.nudge, pressed && styles.pressed]}
             >
@@ -132,6 +140,7 @@ export function PianoMetronomeModal({
                   const selected = option === subdivision;
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={option}
                       onPress={() => selectSubdivision(option)}
                       style={({ pressed }) => [
@@ -164,6 +173,7 @@ export function PianoMetronomeModal({
               const selected = sound.id === soundId;
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={sound.id}
                   onPress={() => selectSound(sound.id)}
                   style={({ pressed }) => [
@@ -191,7 +201,7 @@ export function PianoMetronomeModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

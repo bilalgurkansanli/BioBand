@@ -251,7 +251,7 @@ function StudioTimelineClipBase({
         styles.clip,
         {
           backgroundColor: withAlpha(color, lifted ? 0.4 : 0.26),
-          borderColor: lifted ? '#FFFFFF' : withAlpha(color, 0.9),
+          borderColor: lifted ? colors.white : withAlpha(color, 0.9),
           // No `left` here on purpose — see `posX`. The clip is pinned to the
           // lane's origin and translated into place, so its position only ever
           // has one owner.
@@ -268,6 +268,7 @@ function StudioTimelineClipBase({
     >
       <View style={[styles.accentEdge, { backgroundColor: color }]} />
       <Pressable
+        accessibilityRole="button"
         accessibilityHint={t('studio.clipDragHint')}
         accessibilityLabel={t('studio.trackOptions')}
         delayLongPress={LIFT_DELAY_MS}
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
   },
   clipLifted: {
     borderWidth: 2,
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { height: 5, width: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 10,

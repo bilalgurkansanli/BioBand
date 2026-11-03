@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   View,
+  type AccessibilityActionEvent,
   type GestureResponderEvent,
   type ViewStyle,
 } from 'react-native';
@@ -12,8 +13,16 @@ import {
 import type { DrumPieceKind } from '../../instruments/drums/drumKitLayout';
 import type { DrumSoundId } from '../../instruments/drums/drumsSounds';
 import { getMetronomeBpm } from '../../instruments/piano/pianoMetronome';
+import { colors } from '../../theme/colors';
 import { shade, tint } from '../../utils/colorMix';
-import { SCREEN_READER_HIDDEN } from '../../utils/accessibility';
+import {
+  ACTIVATE_ACTIONS,
+  isActivateAction,
+  SCREEN_READER_HIDDEN,
+} from '../../utils/accessibility';
+
+/** A solid, not-quite-centre hit — roughly where a finger usually lands. */
+const ACCESSIBILITY_HIT_VELOCITY = 0.8;
 
 type DrumPieceProps = {
   kind: DrumPieceKind;
@@ -65,7 +74,7 @@ const HOOP = '#8E949E';
 
 function pieceShadow(size: number): ViewStyle {
   return {
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: size * 0.06 },
     shadowOpacity: 0.45,
     shadowRadius: size * 0.12,
@@ -607,10 +616,28 @@ export function DrumPiece({
     }
   })();
 
+  // A screen-reader double-tap hits the piece once, at a mid velocity. The
+  // label and role were already here, but without `accessible` iOS never made
+  // this an element, and with no press handler on it a TalkBack double-tap had
+  // nothing to call — the pressables inside are hidden from readers.
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    if (!isActivateAction(event)) {
+      return;
+    }
+    trigger();
+    if (kind === 'cymbal') {
+      triggerWobble();
+    }
+    onHit(soundId, ACCESSIBILITY_HIT_VELOCITY);
+  };
+
   return (
     <View
+      accessible
+      accessibilityActions={ACTIVATE_ACTIONS}
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
+      onAccessibilityAction={handleAccessibilityAction}
       style={[styles.pieceRoot, { width: size, height: size }]}
     >
       {guided ? <GuidePulse size={size} strong={strongGuide} /> : null}
@@ -637,16 +664,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   guideRing: {
-    borderColor: '#FFD54F',
+    borderColor: colors.gold,
     position: 'absolute',
     zIndex: 2,
   },
   hitGlow: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     position: 'absolute',
   },
   shine: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     opacity: 0.16,
     position: 'absolute',
   },

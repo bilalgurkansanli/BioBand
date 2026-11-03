@@ -31,7 +31,7 @@ import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { useDrumsEngine } from '../hooks/useDrumsEngine';
 import { useDrumsPlayAlong } from '../hooks/useDrumsPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserDrumSongs } from '../hooks/useUserDrumSongs';
 import { chokePad } from '../instruments/drums/drumsEngine';
@@ -117,13 +117,16 @@ export function DrumsScreen({ navigation }: Props) {
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [metronomeModalVisible, setMetronomeModalVisible] = useState(false);
 
-  // Blur releases the engine, which stops the metronome — reset the toolbar
-  // state on the way back in, or the button is left reading "on" while nothing
-  // is ticking.
+  // The metronome is shared by every instrument and outlives the screen, so
+  // leaving stops it; coming back resets the toolbar to match, or the button
+  // would read "on" while nothing is ticking.
   useFocusEffect(
     useCallback(() => {
       setMetronomeOn(false);
       setMetronomeModalVisible(false);
+      return () => {
+        stopMetronome();
+      };
     }, []),
   );
   const [metronomeBpm, setMetronomeBpmState] = useState(
@@ -163,7 +166,7 @@ export function DrumsScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('drums');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('drums');
 
   const userSongs = useUserDrumSongs();
@@ -297,24 +300,32 @@ export function DrumsScreen({ navigation }: Props) {
     setStageSize({ width, height });
   };
 
+  // Depend on the two fields the hit handler actually reads, not on the whole
+  // play-along object — that is new on every render, and the kit would redraw
+  // with it on every progress tick.
+  const playAlongIsActive = playAlong.isActive;
+  const playAlongHandlePadPress = playAlong.handlePadPress;
+
   const onHit = useCallback(
     (id: DrumSoundId, velocity: number) => {
-      notePlayed();
       if (haptics) {
         hapticHit();
       }
 
       captureEvent(id, velocity);
 
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         // Charts only know the base pads — the rim zone counts as snare here.
-        playAlong.handlePadPress(id === 'snareRim' ? 'snare' : id);
+        playAlongHandlePadPress(id === 'snareRim' ? 'snare' : id);
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its hits here as well billed that time twice.
+      notePlayed();
       playHit(id, velocity);
     },
-    [captureEvent, haptics, playAlong, playHit, notePlayed],
+    [captureEvent, haptics, notePlayed, playAlongHandlePadPress, playAlongIsActive, playHit],
   );
 
   const onChoke = useCallback((id: DrumSoundId) => {
@@ -339,7 +350,9 @@ export function DrumsScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -434,13 +447,13 @@ export function DrumsScreen({ navigation }: Props) {
         onChangeBpm={handleMetronomeBpmChange}
         onClose={() => setMetronomeModalVisible(false)}
         showSubdivision
-        visible={metronomeModalVisible}
+        visible={metronomeModalVisible && !isPortrait}
       />
 
       <PianoVolumeModal
         onChange={handleVolumeChange}
         onClose={() => setVolumeModalVisible(false)}
-        visible={volumeModalVisible}
+        visible={volumeModalVisible && !isPortrait}
         volume={volume}
       />
 
@@ -451,14 +464,14 @@ export function DrumsScreen({ navigation }: Props) {
           setKitModalVisible(false);
         }}
         selectedKitId={kitId}
-        visible={kitModalVisible}
+        visible={kitModalVisible && !isPortrait}
       />
 
       <PianoFxModal
         onChange={handleFxSettingsChange}
         onClose={() => setFxModalVisible(false)}
         settings={fxSettings}
-        visible={fxModalVisible}
+        visible={fxModalVisible && !isPortrait}
       />
 
       <DrumsSettingsModal
@@ -474,7 +487,7 @@ export function DrumsScreen({ navigation }: Props) {
         padScale={padScale}
         showPadLabels={showPadLabels}
         strongGuideHighlight={strongGuideHighlight}
-        visible={settingsModalVisible}
+        visible={settingsModalVisible && !isPortrait}
       />
 
       <DrumsPlayAlongModal
@@ -518,10 +531,10 @@ export function DrumsScreen({ navigation }: Props) {
         selectedSong={playAlong.selectedSong}
         tempo={playAlong.tempo}
         userSongs={userSongs.songs}
-        visible={isPlayAlongModalVisible}
+        visible={isPlayAlongModalVisible && !isPortrait}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={() => navigation.goBack()} visible={isPortrait} />
     </View>
   );
 }

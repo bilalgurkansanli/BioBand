@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { memo } from 'react';
+import { memo, useSyncExternalStore } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import type { CurrentStepStore } from '../../instruments/drumMachine/currentStepStore';
 import type {
   DrumMachineRowDef,
   DrumMachineTheme,
@@ -17,16 +18,18 @@ type Props = {
   rows: readonly DrumMachineRowDef[];
   theme: DrumMachineTheme;
   grid: DrumMachineGrid;
-  currentStep: number;
+  /** The playhead. The grid subscribes to it itself — see currentStepStore. */
+  stepStore: CurrentStepStore;
   mutedRows: ReadonlySet<number>;
   onToggleCell: (rowIndex: number, stepIndex: number) => void;
   onPreviewRow: (rowIndex: number) => void;
   onToggleMuteRow: (rowIndex: number) => void;
 };
 
-// The playhead advances every 16th note (83ms at 180 BPM), which re-renders
-// the whole grid. Memoized cells keep that tick down to the two affected
-// playhead columns instead of all rows × steps.
+// The playhead advances every 16th note (83ms at 180 BPM). Only this grid
+// re-renders for it (the screen around it no longer does), and memoized cells
+// keep that tick down to the two affected playhead columns instead of all
+// rows × steps.
 const StepCell = memo(function StepCell({
   rowIndex,
   rowLabel,
@@ -150,12 +153,13 @@ export function StepSequencerGrid({
   rows,
   theme,
   grid,
-  currentStep,
+  stepStore,
   mutedRows,
   onToggleCell,
   onPreviewRow,
   onToggleMuteRow,
 }: Props) {
+  const currentStep = useSyncExternalStore(stepStore.subscribe, stepStore.get);
   return (
     <ScrollView
       contentContainerStyle={styles.scrollContent}

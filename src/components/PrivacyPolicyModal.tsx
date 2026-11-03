@@ -26,6 +26,7 @@ export function PrivacyPolicyModal({ visible, onClose }: Props) {
         <View style={[styles.header, { paddingTop: Math.max(28, insets.top + 16) }]}>
           <Text style={styles.headerTitle}>{t('privacy.screenTitle')}</Text>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('common.close')}
             hitSlop={8}
             onPress={onClose}
@@ -52,6 +53,7 @@ export function PrivacyPolicyModal({ visible, onClose }: Props) {
             {t('privacy.contactLabel')} {t('privacy.contactEmail')}
           </Text>
           <Pressable
+            accessibilityRole="button"
             onPress={() => void openPrivacyPolicy()}
             style={({ pressed }) => [styles.externalLink, pressed && styles.pressed]}
           >

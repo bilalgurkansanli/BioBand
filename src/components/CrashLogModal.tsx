@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from './modalOrientations';
+import { useModalInsets } from './modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -11,6 +12,8 @@ import {
   type CrashRecord,
 } from '../diagnostics/crashLog';
 import { colors } from '../theme/colors';
+
+const SHEET_PADDING = 20;
 
 type Props = {
   visible: boolean;
@@ -27,6 +30,7 @@ type Props = {
  */
 export function CrashLogModal({ visible, onClose, onCleared }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useModalInsets();
   const [records, setRecords] = useState<CrashRecord[]>([]);
 
   useEffect(() => {
@@ -65,11 +69,23 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+      <View style={[styles.backdrop, { paddingTop: insets.top }]}>
+        {/* The sheet's colour runs down under the navigation bar / home
+            indicator, but its content — the Clear and Share buttons — stops
+            above it. */}
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: SHEET_PADDING + insets.bottom,
+              paddingLeft: Math.max(SHEET_PADDING, insets.left),
+              paddingRight: Math.max(SHEET_PADDING, insets.right),
+            },
+          ]}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>{t('errors.diagnosticsTitle')}</Text>
-            <Pressable accessibilityLabel={t('common.close')} hitSlop={8} onPress={onClose}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('common.close')} hitSlop={8} onPress={onClose}>
               <Ionicons color={colors.textSecondary} name="close" size={22} />
             </Pressable>
           </View>
@@ -104,16 +120,18 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               onPress={clear}
               style={({ pressed }) => [styles.btn, styles.btnGhost, pressed && styles.pressed]}
             >
               <Text style={styles.btnGhostText}>{t('errors.diagnosticsClear')}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               onPress={share}
               style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="share-outline" size={16} />
+              <Ionicons color={colors.white} name="share-outline" size={16} />
               <Text style={styles.btnPrimaryText}>{t('errors.diagnosticsShare')}</Text>
             </Pressable>
           </View>
@@ -134,7 +152,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     maxHeight: '82%',
-    padding: 20,
+    padding: SHEET_PADDING,
   },
   header: {
     alignItems: 'center',
@@ -210,7 +228,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

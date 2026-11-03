@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef } from 'react';
 
-import { addPracticeMs } from '../storage/profileProgressStorage';
+import { awardFreePlayPractice } from '../profile/awardPlayAlong';
 import type { InstrumentId } from '../types/recording';
 
 /**
@@ -42,7 +42,7 @@ export function useFreePlayPractice(instrument: InstrumentId) {
     if (pending > 0) {
       // Fire and forget: practice credit must never delay a note or surface an
       // error over an instrument someone is in the middle of playing.
-      void addPracticeMs(instrument, pending).catch(() => {});
+      void awardFreePlayPractice(instrument, pending).catch(() => {});
     }
   }, [instrument]);
 

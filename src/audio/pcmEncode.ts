@@ -1,5 +1,13 @@
 import { Mp3Encoder } from '@breezystack/lamejs';
 
+import {
+  checkpoint,
+  EncodeCanceledError,
+  SAMPLES_PER_SLICE,
+  yieldToEventLoop,
+  type CooperativeOptions,
+} from './cooperative';
+
 /** Samples per lamejs encode call — its own recommended block size. */
 const MP3_BLOCK_SIZE = 1152;
 
@@ -12,12 +20,8 @@ function floatTo16BitPCM(input: Float32Array): Int16Array {
   return output;
 }
 
-export class EncodeCanceledError extends Error {
-  constructor(message = 'Encoding was canceled.') {
-    super(message);
-    this.name = 'EncodeCanceledError';
-  }
-}
+// Kept exported from here: it is what every export caller already catches.
+export { EncodeCanceledError };
 
 export type EncodeMp3Options = {
   kbps?: number;
@@ -35,10 +39,6 @@ export type EncodeMp3Options = {
  */
 const BLOCKS_PER_SLICE = 24;
 
-function yieldToEventLoop(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 /**
  * True when the two channels carry the exact same samples.
  *
@@ -47,14 +47,27 @@ function yieldToEventLoop(): Promise<void> {
  * bit-identical. Encoding one channel instead of two then costs about a third
  * less time for an identical-sounding file. (The file does not shrink — the
  * encoder is constant-bitrate, so it spends the same 128 kbps either way.)
+ *
+ * Identical channels are exactly the case where the whole buffer has to be
+ * walked, so the walk is sliced like the encode and honours cancel too.
  */
-function channelsAreIdentical(left: Float32Array, right: Float32Array): boolean {
+async function channelsAreIdentical(
+  left: Float32Array,
+  right: Float32Array,
+  options: CooperativeOptions,
+): Promise<boolean> {
   if (left.length !== right.length) {
     return false;
   }
-  for (let i = 0; i < left.length; i++) {
-    if (left[i] !== right[i]) {
-      return false;
+  for (let start = 0; start < left.length; start += SAMPLES_PER_SLICE) {
+    const end = Math.min(left.length, start + SAMPLES_PER_SLICE);
+    for (let i = start; i < end; i++) {
+      if (left[i] !== right[i]) {
+        return false;
+      }
+    }
+    if (end < left.length) {
+      await checkpoint(options);
     }
   }
   return true;
@@ -76,7 +89,7 @@ export async function encodeMp3Pcm16Async(
 ): Promise<Uint8Array> {
   const kbps = options.kbps ?? 128;
   const stereo =
-    channels.length >= 2 && !channelsAreIdentical(channels[0], channels[1]);
+    channels.length >= 2 && !(await channelsAreIdentical(channels[0], channels[1], options));
   const source = stereo ? [channels[0], channels[1]] : [channels[0] ?? new Float32Array(0)];
   const numChannels = source.length as 1 | 2;
 

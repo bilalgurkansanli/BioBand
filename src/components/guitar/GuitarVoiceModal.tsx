@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { GUITAR_VOICES, type GuitarVoiceId } from '../../instruments/guitar/guitarVoices';
@@ -19,13 +20,14 @@ export function GuitarVoiceModal({
   onSelect,
   onClose,
 }: GuitarVoiceModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('guitar.voices.close')}
             onClose={onClose}
@@ -38,6 +40,7 @@ export function GuitarVoiceModal({
 
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={voice.id}
                   onPress={() => onSelect(voice.id)}
                   style={({ pressed }) => [
@@ -71,7 +74,7 @@ export function GuitarVoiceModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,

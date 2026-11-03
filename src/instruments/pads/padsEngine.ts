@@ -6,9 +6,11 @@ import {
   playSample,
   prepareSamplePlayback,
   releaseVoicesByTagPrefix,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
@@ -41,6 +43,8 @@ const userBuffers = new Map<string, AudioBuffer>();
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 let currentBankId: PadBankId = 'drums';
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const PADS_OWNER = 'pads';
 
 let bankGain: GainNode | null = null;
 let bankFilter: BiquadFilterNode | null = null;
@@ -321,13 +325,13 @@ function padTagPrefix(bankId: PadBankId, id: PadSoundId): string {
 /** Base tags of the most recent hit per custom choke group. */
 const chokeGroupTags = new Map<PadChokeGroup, string[]>();
 
-function chokeGroup(group: PadChokeGroup, fadeSeconds = 0.05): void {
+function chokeGroup(group: PadChokeGroup, fadeSeconds = 0.05, at?: number): void {
   const tags = chokeGroupTags.get(group);
   if (!tags) {
     return;
   }
   for (const tag of tags) {
-    releaseVoicesByTagPrefix(tag, fadeSeconds);
+    releaseVoicesByTagPrefix(tag, fadeSeconds, at);
   }
   chokeGroupTags.set(group, []);
 }
@@ -415,19 +419,16 @@ export function triggerPadForBank(
     return;
   }
 
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
-  // Closed hat chokes a ringing open hat — including its reverb/echo tails.
-  // The choke lands now even for a hit placed ahead of the clock: releasing by
-  // tag has no scheduled form, and the lookahead is far shorter than the tail.
+  // Closed hat chokes a ringing open hat — including its reverb/echo tails —
+  // at the moment this hit sounds, so a queued hit cannot silence an open hat
+  // that has not started yet.
   if (slot.chokeOpenHat) {
-    releaseVoicesByTagPrefix(padTagPrefix(bankId, 'pad04'), 0.04);
+    releaseVoicesByTagPrefix(padTagPrefix(bankId, 'pad04'), 0.04, performance?.atTime);
   }
   if (slot.chokeGroup) {
-    chokeGroup(slot.chokeGroup);
+    chokeGroup(slot.chokeGroup, undefined, performance?.atTime);
   }
 
   const { buffer, rate } = resolved;
@@ -459,7 +460,7 @@ export function triggerPadForBank(
       true,
       { startAtSeconds: tapStart(delayMs) },
     );
-  }, aheadOfClock);
+  }, aheadOfClock, PADS_OWNER);
 
   let echoIndex = 0;
   schedulePianoEchoRepeats((tapScale, delayMs) => {
@@ -473,7 +474,7 @@ export function triggerPadForBank(
       false,
       { startAtSeconds: tapStart(delayMs) },
     );
-  }, aheadOfClock);
+  }, aheadOfClock, PADS_OWNER);
 }
 
 export function triggerPad(
@@ -534,7 +535,9 @@ function disconnectSafe(node: { disconnect: () => void } | null): void {
 }
 
 export function releasePadsEngine(): void {
-  stopAllVoices();
+  // Only the pads' own sound — other instruments may still be playing.
+  clearPianoFxTimersFor(PADS_OWNER);
+  stopVoicesByTagPrefix(['pads:']);
   // Detach the bus chain before dropping the refs — otherwise every
   // focus/blur cycle leaves an orphaned gain→filter chain on the FX input.
   disconnectSafe(brightTone);

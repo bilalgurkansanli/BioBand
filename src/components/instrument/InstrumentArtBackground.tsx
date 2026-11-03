@@ -80,11 +80,11 @@ export function InstrumentArtBackground({
 
 const styles = StyleSheet.create({
   veil: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.surface,
   },
   micRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,6 +1,8 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { colors } from '../../theme/colors';
+
 type ViolinNoteCellProps = {
   isActive: boolean;
   isOpenString: boolean;
@@ -42,7 +44,7 @@ export const ViolinNoteCell = memo(function ViolinNoteCell({
   const labelText = label ? (
     <Text
       numberOfLines={1}
-      style={[styles.label, { color: labelColor ?? '#FFFFFF' }]}
+      style={[styles.label, { color: labelColor ?? colors.white }]}
     >
       {label}
     </Text>
@@ -67,7 +69,7 @@ export const ViolinNoteCell = memo(function ViolinNoteCell({
               height: height * 0.72,
               backgroundColor: lit ? guideAccent : nutColor,
               borderColor: lit ? guideAccent : `${nutColor}99`,
-              shadowColor: lit ? guideAccent : '#000',
+              shadowColor: lit ? guideAccent : colors.black,
             },
             isGuide && strongGuide && styles.strongGlow,
           ]}
