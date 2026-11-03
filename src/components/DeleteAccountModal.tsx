@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from './modalOrientations';
+import { useCenteredModalPadding } from './modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
@@ -30,6 +31,7 @@ const LOSS_KEYS = [
  * account has to cost two deliberate taps rather than one stray one.
  */
 export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onConfirm }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [acknowledged, setAcknowledged] = useState(false);
 
@@ -55,7 +57,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
         }
       }}
     >
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, safeAreaPadding]}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
             <Ionicons color="#FFFFFF" name="trash" size={24} />

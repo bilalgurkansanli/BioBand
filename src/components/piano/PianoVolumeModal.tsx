@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +25,7 @@ export function PianoVolumeModal({
   onChange,
   onClose,
 }: PianoVolumeModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [displayVolume, setDisplayVolume] = useState(volume);
 
@@ -46,7 +48,7 @@ export function PianoVolumeModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.volume.close')}

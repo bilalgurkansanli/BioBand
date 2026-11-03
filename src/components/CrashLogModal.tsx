@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from './modalOrientations';
+import { useModalInsets } from './modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -11,6 +12,8 @@ import {
   type CrashRecord,
 } from '../diagnostics/crashLog';
 import { colors } from '../theme/colors';
+
+const SHEET_PADDING = 20;
 
 type Props = {
   visible: boolean;
@@ -27,6 +30,7 @@ type Props = {
  */
 export function CrashLogModal({ visible, onClose, onCleared }: Props) {
   const { t, i18n } = useTranslation();
+  const insets = useModalInsets();
   const [records, setRecords] = useState<CrashRecord[]>([]);
 
   useEffect(() => {
@@ -65,8 +69,20 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+      <View style={[styles.backdrop, { paddingTop: insets.top }]}>
+        {/* The sheet's colour runs down under the navigation bar / home
+            indicator, but its content — the Clear and Share buttons — stops
+            above it. */}
+        <View
+          style={[
+            styles.sheet,
+            {
+              paddingBottom: SHEET_PADDING + insets.bottom,
+              paddingLeft: Math.max(SHEET_PADDING, insets.left),
+              paddingRight: Math.max(SHEET_PADDING, insets.right),
+            },
+          ]}
+        >
           <View style={styles.header}>
             <Text style={styles.title}>{t('errors.diagnosticsTitle')}</Text>
             <Pressable accessibilityLabel={t('common.close')} hitSlop={8} onPress={onClose}>
@@ -134,7 +150,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     maxHeight: '82%',
-    padding: 20,
+    padding: SHEET_PADDING,
   },
   header: {
     alignItems: 'center',

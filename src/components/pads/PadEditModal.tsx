@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 import {
   RecordingPresets,
@@ -73,6 +74,7 @@ export function PadEditModal({
   onSave,
   onClose,
 }: PadEditModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
@@ -239,7 +241,7 @@ export function PadEditModal({
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleCancel}>
       {/* Dismiss layer behind the card — never wrap the card in a Pressable. */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           style={StyleSheet.absoluteFill}

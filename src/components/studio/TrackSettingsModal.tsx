@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -48,6 +49,7 @@ export function TrackSettingsModal({
   onDuplicate,
   onDelete,
 }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [liveVolume, setLiveVolume] = useState(track?.volume ?? 1);
 
@@ -70,7 +72,7 @@ export function TrackSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
         <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           {track ? (
             <>

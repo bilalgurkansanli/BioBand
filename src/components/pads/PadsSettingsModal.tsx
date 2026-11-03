@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import type { NoteRepeatRate } from '../../hooks/usePadNoteRepeat';
@@ -137,6 +138,7 @@ export function PadsSettingsModal({
   onStartTutorial,
   onClose,
 }: PadsSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
 
   return (
@@ -145,7 +147,7 @@ export function PadsSettingsModal({
       {/* The card must NOT be a Pressable: a Pressable ancestor can claim the
           gesture and block the ScrollView's drag. The dismiss area is an
           absolute-fill sibling behind the card instead. */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           style={StyleSheet.absoluteFill}

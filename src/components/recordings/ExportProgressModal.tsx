@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -29,6 +30,7 @@ type Props = {
  * reported.
  */
 export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const percent = Math.round(Math.min(1, Math.max(0, job?.progress ?? 0)) * 100);
 
@@ -40,7 +42,7 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
       visible={job !== null}
       onDismiss={onDismissed}
       onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, safeAreaPadding]}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
             <Ionicons

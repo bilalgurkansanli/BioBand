@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -150,6 +151,7 @@ export function GuitarSettingsModal({
   onStartTutorial,
   onClose,
 }: GuitarSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
   const visibleSet = new Set(visibleChordIds);
   const visibleModeSet = new Set(visiblePlayModes);
@@ -196,7 +198,7 @@ export function GuitarSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           onPress={onClose}

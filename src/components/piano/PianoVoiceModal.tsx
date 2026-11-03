@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -22,12 +23,13 @@ export function PianoVoiceModal({
   onSelect,
   onClose,
 }: PianoVoiceModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.voices.close')}

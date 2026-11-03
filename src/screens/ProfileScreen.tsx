@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../components/modalOrientations';
+import { useCenteredModalPadding } from '../components/modalSafeArea';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -39,6 +40,7 @@ function weekdayIndex(dayKey: string): number {
 
 export function ProfileScreen() {
   const { t } = useTranslation();
+  const breakdownPadding = useCenteredModalPadding(24);
   const navigation =
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const {
@@ -260,7 +262,7 @@ export function ProfileScreen() {
       >
         <Pressable
           onPress={() => setShowTodayBreakdown(false)}
-          style={styles.backdrop}
+          style={[styles.backdrop, breakdownPadding]}
         >
           <Pressable onPress={() => {}} style={styles.sheet}>
             <Pressable

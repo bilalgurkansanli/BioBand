@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -131,6 +132,7 @@ export function PianoFxModal({
   onChange,
   onClose,
 }: PianoFxModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(16);
   const { t } = useTranslation();
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef(settings);
@@ -204,7 +206,7 @@ export function PianoFxModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
-      <Pressable style={styles.overlay} onPress={handleClose}>
+      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={handleClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.fx.close')}

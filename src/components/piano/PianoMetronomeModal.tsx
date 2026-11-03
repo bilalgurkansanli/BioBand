@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -40,6 +41,7 @@ export function PianoMetronomeModal({
   showSubdivision = false,
   onChangeSubdivision,
 }: PianoMetronomeModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [displayBpm, setDisplayBpm] = useState(bpm);
   const [soundId, setSoundId] = useState<MetronomeSoundId>(() => getMetronomeSoundId());
@@ -91,7 +93,7 @@ export function PianoMetronomeModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.metronome.close')}

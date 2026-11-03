@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { getSelectableBankDefinitions, type PadBankId } from '../../instruments/pads/padsBanks';
@@ -20,6 +21,7 @@ export function PadsKitModal({
   onSelect,
   onClose,
 }: PadsKitModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
 
   return (
@@ -27,7 +29,7 @@ export function PadsKitModal({
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       {/* Dismiss area is an absolute-fill sibling behind the card — a
           Pressable ancestor would claim child gestures (see drums modals). */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           style={StyleSheet.absoluteFill}

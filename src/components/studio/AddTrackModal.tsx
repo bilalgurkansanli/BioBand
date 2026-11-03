@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -13,12 +14,13 @@ type Props = {
 };
 
 export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdub }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
         <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('studio.addTrack')}</Text>

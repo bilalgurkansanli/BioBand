@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -119,13 +120,14 @@ export function PianoSettingsModal({
   onStartTutorial,
   onClose,
 }: PianoSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
   const scaleLightsOn = scaleId !== null;
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
         <Pressable style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.settings.close')}

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
@@ -62,6 +63,7 @@ export function DrumsSettingsModal({
   onStartTutorial,
   onClose,
 }: DrumsSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
 
   return (
@@ -70,7 +72,7 @@ export function DrumsSettingsModal({
       {/* The card must NOT be a Pressable: a Pressable ancestor can claim the
           gesture and block the ScrollView's drag. The dismiss area is an
           absolute-fill sibling behind the card instead. */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           style={StyleSheet.absoluteFill}

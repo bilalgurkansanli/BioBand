@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from './modalOrientations';
+import { useCenteredModalPadding } from './modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../theme/colors';
@@ -36,6 +37,7 @@ function pad(value: number): string {
  * exact mismatch that made the old export alerts look out of place here.
  */
 export function TimePickerModal({ visible, hour, minute, onCancel, onConfirm }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const [pickedHour, setPickedHour] = useState(hour);
   const [pickedMinute, setPickedMinute] = useState(minute);
@@ -66,7 +68,7 @@ export function TimePickerModal({ visible, hour, minute, onCancel, onConfirm }: 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel}>
+      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
         <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
           <Text style={styles.title}>{t('profile.reminderTimeTitle')}</Text>
           <Text style={styles.preview}>
