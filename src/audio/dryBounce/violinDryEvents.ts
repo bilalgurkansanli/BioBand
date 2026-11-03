@@ -12,11 +12,18 @@ const PHRASE_STAGGER_MS = 220;
 /** Mirrors violinEngine.ts's private NOTE_GAIN constant. */
 const NOTE_GAIN = 0.36;
 
-/** Dry (no reverb/echo) resolution of recorded violin note/phrase events into schedulable samples. */
+/**
+ * Dry (no reverb/echo) resolution of recorded violin note/phrase events into
+ * schedulable samples. `tempoRate` is the playback tempo the events were
+ * already scaled to (a Studio project away from 120 BPM): live playback
+ * spaces a phrase preset's notes by it too.
+ */
 export async function resolveViolinDryEvents(
   events: InstrumentEvent[],
   violinVoiceId?: string,
+  tempoRate = 1,
 ): Promise<{ sampleEvents: DrySampleEvent[]; oscillatorEvents: [] }> {
+  const phraseStaggerMs = PHRASE_STAGGER_MS / (tempoRate > 0 ? tempoRate : 1);
   const voiceId = isViolinVoiceId(violinVoiceId) ? violinVoiceId : 'classic';
   const voice = getViolinVoice(voiceId);
   const sampleEvents: DrySampleEvent[] = [];
@@ -61,7 +68,7 @@ export async function resolveViolinDryEvents(
     }
     for (let i = 0; i < phrase.notes.length; i++) {
       const note = phrase.notes[i];
-      await pushNote(note.stringId, note.position, event.atMs + i * PHRASE_STAGGER_MS);
+      await pushNote(note.stringId, note.position, event.atMs + i * phraseStaggerMs);
     }
   }
 

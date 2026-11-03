@@ -439,7 +439,8 @@
     "saveError": "Could not save this recording. Your device may be out of storage — free up some space and try again.",
     "savedTitle": "Take saved",
     "savedDetail": "Find it in My Recordings.",
-    "countIn": "Get ready…"
+    "countIn": "Get ready…",
+    "startError": "Recording could not start. Please try again."
   },
   "drums": {
     "pads": {

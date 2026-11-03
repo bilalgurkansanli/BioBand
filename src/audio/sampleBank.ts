@@ -6,6 +6,7 @@ import {
 } from './audioApi';
 
 import { restorePlaybackAudioMode } from './initAudio';
+import { buildSoftClipCurve, MASTER_HEADROOM } from './masterChain';
 
 // One shared AudioContext for the whole app. Web Audio buffer sources are
 // single-use and self-cleaning, so playing a sample never needs a pool of
@@ -25,26 +26,26 @@ type AudioNodeT = AudioNode;
 type StoppableNode = { stop: (when?: number) => void };
 
 // All samples route through a shared master gain that leaves headroom, then
-// a tanh soft-clipper. When overlapping notes sum past the ceiling anyway,
-// the waveshaper rounds the peaks off smoothly instead of letting the DAC
-// hard-clip them into harsh digital crackle.
+// a tanh soft-clipper, then the user's output volume (see masterChain.ts —
+// the export renders through the same chain). When overlapping notes sum
+// past the ceiling anyway, the waveshaper rounds the peaks off smoothly
+// instead of letting the DAC hard-clip them into harsh digital crackle.
 //
-// IMPORTANT: Web Audio WaveShaper maps input [-1, 1] to curve values.  Any
-// signal above 1.0 hard-clips to the last curve sample.  Using tanh(3x)
-// instead of tanh(x) means the curve is nearly flat (saturated) well before
-// ±1 — so the transition at the boundary is imperceptible even if the
-// signal slightly exceeds the range.
-const MASTER_HEADROOM = 0.55;
+// The volume sits AFTER the shaper on purpose. In front of it, turning the
+// volume down also turned the saturation drive down, so the slider changed
+// the tone as well as the level. Below the ceiling the two orders are the
+// same signal; only the saturated peaks differ.
 const DEFAULT_SAMPLE_GAIN = 0.55;
 const ATTACK_SECONDS = 0.004;
 let masterGain: GainNodeT | null = null;
+let outputVolume: GainNodeT | null = null;
 let masterVolume = 1;
 
-/** User-facing output volume (0..1); multiplied under the fixed headroom. */
+/** User-facing output volume (0..1), applied after the soft-clipper. */
 export function setMasterVolume(volume: number): void {
   masterVolume = Math.max(0, Math.min(1, volume));
-  if (masterGain) {
-    masterGain.gain.value = MASTER_HEADROOM * masterVolume;
+  if (outputVolume) {
+    outputVolume.gain.value = masterVolume;
   }
 }
 
@@ -52,33 +53,24 @@ export function getMasterVolume(): number {
   return masterVolume;
 }
 
-function buildSoftClipCurve(): Float32Array {
-  const resolution = 4096;
-  const curve = new Float32Array(resolution);
-  for (let i = 0; i < resolution; i++) {
-    const x = (i / (resolution - 1)) * 2 - 1;
-    // tanh(3x) saturates at ≈ ±0.995 by x = ±1, leaving almost no
-    // amplitude step at the [-1, 1] boundary → no audible hard clip.
-    curve[i] = Math.tanh(3 * x);
-  }
-  return curve;
-}
-
 function getMasterGain(context: AudioContext): GainNodeT {
   if (!masterGain) {
     masterGain = context.createGain();
-    masterGain.gain.value = MASTER_HEADROOM * masterVolume;
+    masterGain.gain.value = MASTER_HEADROOM;
+    outputVolume = context.createGain();
+    outputVolume.gain.value = masterVolume;
+    outputVolume.connect(context.destination);
 
     // The limiter is an enhancement — if the backend cannot build it, the
-    // master connects straight to the speakers so sound always works.
+    // master connects straight to the volume stage so sound always works.
     try {
       const limiter = context.createWaveShaper();
       limiter.curve = buildSoftClipCurve();
-      limiter.connect(context.destination);
+      limiter.connect(outputVolume);
       masterGain.connect(limiter);
     } catch (error) {
       console.warn('Audio: soft-clip limiter unavailable', error);
-      masterGain.connect(context.destination);
+      masterGain.connect(outputVolume);
     }
   }
   return masterGain;
@@ -128,11 +120,44 @@ type ActiveVoice = {
   startsAt: number;
   /** Optional identity (e.g. "organ:C4") for same-note retrigger stealing. */
   tag?: string;
+  /**
+   * Who scheduled the voice (see withVoiceOwner) — "studio", "recording"…
+   * Undefined for a note played by hand on an instrument screen.
+   */
+  owner?: string;
 };
 
 // Ordered oldest-first; playSample both prunes finished voices and steals
 // the oldest one when the cap is hit.
 const activeVoices: ActiveVoice[] = [];
+
+/** Owner stamped on voices registered right now — see withVoiceOwner. */
+let currentVoiceOwner: string | undefined;
+
+/**
+ * Runs `play` with every voice it registers attributed to `owner`.
+ *
+ * Several things sound through the one context at once — a Studio mix, a
+ * saved-take player, the drum machine, the instrument under your fingers —
+ * and each needs to stop its own notes without silencing the others. Voices
+ * are registered synchronously inside an engine's play call (notes placed
+ * ahead of the clock register their reverb/echo taps in the same call), so
+ * attributing the call attributes everything it schedules.
+ */
+export function withVoiceOwner<T>(owner: string, play: () => T): T {
+  const previous = currentVoiceOwner;
+  currentVoiceOwner = owner;
+  try {
+    return play();
+  } finally {
+    currentVoiceOwner = previous;
+  }
+}
+
+/** The owner voices are currently being attributed to, if any. */
+export function getCurrentVoiceOwner(): string | undefined {
+  return currentVoiceOwner;
+}
 
 function pruneFinishedVoices(now: number): void {
   for (let i = activeVoices.length - 1; i >= 0; i--) {
@@ -231,18 +256,83 @@ export function registerActiveVoice(
   while (activeVoices.length >= MAX_VOICES) {
     stealOldestVoice(now);
   }
-  activeVoices.push({ node, stealGain, endsAt, startsAt: startsAt ?? now, tag });
+  activeVoices.push({
+    node,
+    stealGain,
+    endsAt,
+    startsAt: startsAt ?? now,
+    tag,
+    owner: currentVoiceOwner,
+  });
 }
 
-/** Fade out and stop every active voice — used when leaving an instrument. */
-export function stopAllVoices(): void {
+/**
+ * Fade out and stop every voice `matches` selects. A voice not yet sounding
+ * is ended at its own start, so it never plays; a sounding one fades over the
+ * steal fade, starting at `cutAt` (default: now).
+ */
+function stopVoicesWhere(matches: (voice: ActiveVoice) => boolean, cutAt?: number): void {
   const now = getAudioContext().currentTime;
-  while (activeVoices.length > 0) {
-    const voice = activeVoices.shift();
-    if (voice) {
-      stealVoice(voice, now);
+  pruneFinishedVoices(now);
+  const at = Math.max(now, cutAt ?? now);
+  for (let i = activeVoices.length - 1; i >= 0; i--) {
+    if (!matches(activeVoices[i])) {
+      continue;
     }
+    const [voice] = activeVoices.splice(i, 1);
+    stealVoice(voice, at);
   }
+}
+
+/**
+ * Stop the voices an owner scheduled (see withVoiceOwner), leaving every
+ * other source of sound alone.
+ *
+ * - `at`: cut at this future context time instead of now. Only voices that
+ *   start before it are touched, so a loop's next pass — already queued on
+ *   the clock from `at` on — survives the cut of the pass before it.
+ * - `pendingOnly`: only cancel notes still waiting on the clock; whatever is
+ *   already sounding rings out.
+ */
+export function stopVoicesOwnedBy(
+  owner: string,
+  options: { at?: number; pendingOnly?: boolean } = {},
+): void {
+  const { at, pendingOnly = false } = options;
+  const now = getAudioContext().currentTime;
+  stopVoicesWhere(
+    (voice) =>
+      voice.owner === owner &&
+      (at === undefined || voice.startsAt < at) &&
+      (!pendingOnly || voice.startsAt > now),
+    at,
+  );
+}
+
+/**
+ * Stop every voice whose tag starts with one of `prefixes` — an engine
+ * tearing down its own sound without touching anybody else's.
+ */
+export function stopVoicesByTagPrefix(prefixes: readonly string[]): void {
+  stopVoicesWhere(
+    (voice) =>
+      voice.tag !== undefined && prefixes.some((prefix) => voice.tag?.startsWith(prefix)),
+  );
+}
+
+/**
+ * Wake a context the OS suspended (audio focus, a modal). Never throws and
+ * never leaves a rejection unhandled — a failed resume is logged, and the
+ * next note simply tries again.
+ */
+export function resumeAudioContextIfSuspended(): void {
+  const context = getAudioContext();
+  if (context.state !== 'suspended') {
+    return;
+  }
+  context.resume().catch((error: unknown) => {
+    console.warn('Audio: could not resume the audio context', error);
+  });
 }
 
 function releaseMatchingVoices(
@@ -311,6 +401,15 @@ export function loadSample(source: number): Promise<AudioBuffer> {
 
   const loading = getAudioContext().decodeAudioData(source);
   bufferCache.set(source, loading);
+  // Only a decoded buffer is worth keeping. A rejected promise left in the
+  // cache would hand the same failure to every later caller, so one transient
+  // decode error (low memory, an interrupted session) would silence that
+  // sample until the app restarts. Dropping it lets the next load retry.
+  loading.catch(() => {
+    if (bufferCache.get(source) === loading) {
+      bufferCache.delete(source);
+    }
+  });
   return loading;
 }
 
@@ -428,6 +527,12 @@ export function playSample(
 export async function prepareSamplePlayback(): Promise<void> {
   await restorePlaybackAudioMode();
   if (getAudioContext().state === 'suspended') {
-    await getAudioContext().resume();
+    try {
+      await getAudioContext().resume();
+    } catch (error) {
+      // Not fatal: the samples still decode, and every note retries the
+      // resume. Failing the whole engine init here left it silent for good.
+      console.warn('Audio: could not resume the audio context', error);
+    }
   }
 }

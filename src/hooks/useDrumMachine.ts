@@ -2,7 +2,12 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { hapticSelection } from '../utils/haptics';
 
-import { getSharedAudioContext } from '../audio/sampleBank';
+import {
+  getSharedAudioContext,
+  stopVoicesOwnedBy,
+  withVoiceOwner,
+} from '../audio/sampleBank';
+import { createCurrentStepStore } from '../instruments/drumMachine/currentStepStore';
 import {
   getDrumMachineBank,
   type DrumMachineTypeId,
@@ -41,7 +46,11 @@ import {
 } from '../storage/drumMachineSettingsStorage';
 
 const COUNT_IN_BEATS = 4;
+/** First count-in click this far ahead, so it is queued on the clock, never late. */
+const COUNT_IN_LEAD_SECONDS = 0.08;
 const TAP_TEMPO_RESET_MS = 2200;
+/** Sequencer steps carry this voice owner, so Stop can cancel the queued ones. */
+const MACHINE_VOICE_OWNER = 'drumMachine';
 
 /** One resolved song-mode slot: a pattern and how many loops it plays. */
 export type SongChainEntry = {
@@ -65,7 +74,9 @@ export function useDrumMachine() {
   );
   const [bpm, setBpmState] = useState(BPM_DEFAULT);
   const [playing, setPlaying] = useState(false);
-  const [currentStep, setCurrentStep] = useState(-1);
+  // The playhead lives outside React state: the grid subscribes to it itself,
+  // so a 16th-note tick no longer re-renders the whole screen.
+  const [stepStore] = useState(createCurrentStepStore);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [mutedRows, setMutedRows] = useState<ReadonlySet<number>>(new Set());
   const [liveRecord, setLiveRecord] = useState(false);
@@ -94,8 +105,8 @@ export function useDrumMachine() {
   const liveRecordRef = useRef(liveRecord);
   const playingRef = useRef(playing);
   const clockRef = useRef<StepClockHandle | null>(null);
-  /** Timing of the most recent step — live-record quantizes against this. */
-  const stepInfoRef = useRef<{ step: number; at: number } | null>(null);
+  /** Metronome clicks queued on the audio clock that may not have sounded yet. */
+  const metronomeClicksRef = useRef<{ time: number; cancel: () => void }[]>([]);
   /** Pending count-in cleanup (timeouts + scheduled clicks). */
   const countInCleanupRef = useRef<(() => void) | null>(null);
   /** Active song-mode chain — null during regular single-pattern playback. */
@@ -175,12 +186,21 @@ export function useDrumMachine() {
     cancelCountIn();
     clockRef.current?.stop();
     clockRef.current = null;
-    stepInfoRef.current = null;
+    // Steps already queued on the audio clock (up to one lookahead ahead)
+    // must not sound after Stop; what is ringing finishes, as before.
+    stopVoicesOwnedBy(MACHINE_VOICE_OWNER, { pendingOnly: true });
+    const now = getSharedAudioContext().currentTime;
+    for (const click of metronomeClicksRef.current) {
+      if (click.time > now) {
+        click.cancel();
+      }
+    }
+    metronomeClicksRef.current = [];
     songRef.current = null;
     setSongEntryIndex(null);
     setPlaying(false);
-    setCurrentStep(-1);
-  }, [cancelCountIn]);
+    stepStore.set(-1);
+  }, [cancelCountIn, stepStore]);
 
   useEffect(() => {
     return () => {
@@ -219,49 +239,74 @@ export function useDrumMachine() {
     setBpmState(pattern.bpm);
   }, []);
 
-  const startClock = useCallback(() => {
-    const bank = getDrumMachineBank(typeRef.current);
-    clockRef.current = startStepClock(
-      () => bpmRef.current,
-      () => swingRef.current,
-      () => stepCountRef.current,
-      (step) => {
-        // Song mode advances at loop boundaries: after the current entry's
-        // repeats run out, the next pattern takes over seamlessly.
-        if (step === 0 && songRef.current) {
-          const song = songRef.current;
-          if (!song.started) {
-            song.started = true;
-          } else {
-            song.loopsLeft -= 1;
-            if (song.loopsLeft <= 0) {
-              song.index = (song.index + 1) % song.chain.length;
-              const entry = song.chain[song.index];
-              song.loopsLeft = Math.max(1, entry.repeats);
-              applySongPattern(entry.pattern);
-              setSongEntryIndex(song.index);
+  /**
+   * Start the step clock. Each step's sounds (and metronome click) are handed
+   * to the engines with the exact audio-clock time the step lands on;
+   * `startAtContextTime` places step 0 (a count-in passes its downbeat).
+   */
+  const startClock = useCallback(
+    (startAtContextTime?: number) => {
+      const bank = getDrumMachineBank(typeRef.current);
+      clockRef.current = startStepClock(
+        () => bpmRef.current,
+        () => swingRef.current,
+        () => stepCountRef.current,
+        (step, atTime) => {
+          // Song mode advances at loop boundaries: after the current entry's
+          // repeats run out, the next pattern takes over seamlessly. (This
+          // runs a lookahead before the step sounds, so the grid on screen
+          // switches a hair early — the sound switches exactly on the one.)
+          if (step === 0 && songRef.current) {
+            const song = songRef.current;
+            if (!song.started) {
+              song.started = true;
+            } else {
+              song.loopsLeft -= 1;
+              if (song.loopsLeft <= 0) {
+                song.index = (song.index + 1) % song.chain.length;
+                const entry = song.chain[song.index];
+                song.loopsLeft = Math.max(1, entry.repeats);
+                applySongPattern(entry.pattern);
+                setSongEntryIndex(song.index);
+              }
             }
           }
-        }
-        stepInfoRef.current = { step, at: Date.now() };
-        setCurrentStep(step);
-        if (metronomeRef.current && isBeatStep(stepCountRef.current, step)) {
-          scheduleCountInClickAt(getSharedAudioContext().currentTime, step === 0);
-        }
-        const rows = gridRef.current;
-        const muted = mutedRowsRef.current;
-        bank.rows.forEach((row, rowIndex) => {
-          if (muted.has(rowIndex)) {
-            return;
+          if (metronomeRef.current && isBeatStep(stepCountRef.current, step)) {
+            // Clicks are queued ahead like the notes; remembered so Stop can
+            // take back the ones that have not sounded yet.
+            const now = getSharedAudioContext().currentTime;
+            metronomeClicksRef.current = metronomeClicksRef.current.filter(
+              (click) => click.time > now,
+            );
+            metronomeClicksRef.current.push({
+              time: atTime,
+              cancel: scheduleCountInClickAt(atTime, step === 0),
+            });
           }
-          const level = rows[rowIndex]?.[step] ?? 0;
-          if (level > 0) {
-            playMachineSound(typeRef.current, row.playKey, velocityForLevel(level));
-          }
-        });
-      },
-    );
-  }, [applySongPattern]);
+          const rows = gridRef.current;
+          const muted = mutedRowsRef.current;
+          withVoiceOwner(MACHINE_VOICE_OWNER, () => {
+            bank.rows.forEach((row, rowIndex) => {
+              if (muted.has(rowIndex)) {
+                return;
+              }
+              const level = rows[rowIndex]?.[step] ?? 0;
+              if (level > 0) {
+                playMachineSound(typeRef.current, row.playKey, velocityForLevel(level), atTime);
+              }
+            });
+          });
+        },
+        {
+          startAtContextTime,
+          onStepSounding: (step) => {
+            stepStore.set(step);
+          },
+        },
+      );
+    },
+    [applySongPattern, stepStore],
+  );
 
   const launchPlayback = useCallback(() => {
     setPlaying(true);
@@ -271,30 +316,34 @@ export function useDrumMachine() {
       return;
     }
 
-    // Count-in: click COUNT_IN_BEATS quarter notes on the audio clock, tick
-    // the on-screen countdown alongside, then hand over to the step clock.
-    const beatMs = stepIntervalMs(bpmRef.current) * 4;
+    // Count-in: click COUNT_IN_BEATS quarter notes on the audio clock and tick
+    // the on-screen countdown alongside. The step clock is started right away
+    // with step 0 on the beat after the last click — the same clock as the
+    // clicks, so the first downbeat lands exactly in time. (It used to start
+    // from a JS timer while the clicks sat 80 ms ahead on the audio clock, so
+    // the first downbeat came ~80 ms early.)
+    const beatSeconds = (stepIntervalMs(bpmRef.current) * 4) / 1000;
     const context = getSharedAudioContext();
-    const startAt = context.currentTime + 0.08;
+    const startAt = context.currentTime + COUNT_IN_LEAD_SECONDS;
+    const downbeat = startAt + COUNT_IN_BEATS * beatSeconds;
     const clickCancels: (() => void)[] = [];
     const timers: ReturnType<typeof setTimeout>[] = [];
+    const msUntil = (time: number) => Math.max(0, (time - context.currentTime) * 1000);
 
     for (let beat = 0; beat < COUNT_IN_BEATS; beat += 1) {
-      clickCancels.push(
-        scheduleCountInClickAt(startAt + (beat * beatMs) / 1000, beat === 0),
-      );
+      const clickAt = startAt + beat * beatSeconds;
+      clickCancels.push(scheduleCountInClickAt(clickAt, beat === 0));
       timers.push(
         setTimeout(() => {
           setCountdown(COUNT_IN_BEATS - beat);
-        }, beat * beatMs),
+        }, msUntil(clickAt)),
       );
     }
     timers.push(
       setTimeout(() => {
         countInCleanupRef.current = null;
         setCountdown(null);
-        startClock();
-      }, COUNT_IN_BEATS * beatMs),
+      }, msUntil(downbeat)),
     );
 
     countInCleanupRef.current = () => {
@@ -305,6 +354,7 @@ export function useDrumMachine() {
         clearTimeout(timer);
       }
     };
+    startClock(downbeat);
   }, [startClock]);
 
   const play = useCallback(() => {
@@ -568,12 +618,15 @@ export function useDrumMachine() {
     if (!liveRecordRef.current || !playingRef.current) {
       return;
     }
-    const info = stepInfoRef.current;
+    // Quantize against the step actually sounding now, on the clock the steps
+    // play on.
+    const now = getSharedAudioContext().currentTime;
+    const info = clockRef.current?.stepAt(now);
     if (!info) {
       return;
     }
     const interval = stepIntervalMs(bpmRef.current);
-    const elapsed = Date.now() - info.at;
+    const elapsed = (now - info.time) * 1000;
     const target =
       elapsed > interval / 2
         ? (info.step + 1) % stepCountRef.current
@@ -662,7 +715,8 @@ export function useDrumMachine() {
     grid,
     bpm,
     playing,
-    currentStep,
+    /** The playhead — subscribe with useSyncExternalStore (see StepSequencerGrid). */
+    stepStore,
     countdown,
     stepCount,
     setStepCount,

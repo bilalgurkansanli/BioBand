@@ -1,4 +1,7 @@
 import { OfflineAudioContext, type AudioBuffer as AudioBufferT, type AudioNode } from './audioApi';
+import { MASTER_HEADROOM, softClipInPlace } from './masterChain';
+import { bufferRateCompensation, resolveRenderSampleRate } from './renderSampleRate';
+import { getSharedAudioContext } from './sampleBank';
 
 export type DryFilter = {
   type: 'lowpass' | 'highpass' | 'peaking' | 'lowshelf' | 'highshelf';
@@ -66,16 +69,30 @@ function oscillatorEventEndSeconds(event: DryOscillatorEvent): number {
  * Renders a set of note events into real PCM audio using an OfflineAudioContext
  * — much faster than real time, but with no reverb/echo (those are scheduled via
  * wall-clock setTimeout in the live engines and cannot be fast-forwarded).
+ *
+ * The mix goes through the same master chain as live playback (headroom gain,
+ * then the tanh soft-clipper — see masterChain.ts), so a take exports at the
+ * level the player heard it and dense passages saturate instead of clipping.
  */
 export async function renderDryBounce(params: {
   durationMs: number;
   sampleEvents: DrySampleEvent[];
   oscillatorEvents?: DryOscillatorEvent[];
+  /** Defaults to the live context's rate — the rate every buffer was decoded at. */
   sampleRate?: number;
   numberOfChannels?: number;
+  /**
+   * Linear gain ahead of the master chain — a Studio track's volume fader,
+   * which live playback also applies to every note before the clipper.
+   */
+  inputGain?: number;
+  /** Polled while the soft-clipper runs; `true` aborts with EncodeCanceledError. */
+  shouldCancel?: () => boolean;
 }): Promise<BounceResult> {
-  const sampleRate = params.sampleRate ?? 44100;
+  const sampleRate =
+    params.sampleRate ?? resolveRenderSampleRate(getSharedAudioContext().sampleRate);
   const numberOfChannels = params.numberOfChannels ?? 2;
+  const inputGain = Math.max(0, params.inputGain ?? 1);
 
   // Sized to the longest-ringing note's actual decay, not a fixed tail — a
   // long-sustain voice (e.g. guitar's clean/warm presets hold 3+ seconds)
@@ -89,10 +106,23 @@ export async function renderDryBounce(params: {
 
   const context = new OfflineAudioContext(numberOfChannels, length, sampleRate);
 
+  // The headroom half of the master chain runs inside the graph, so the sum
+  // reaching the renderer's output is already scaled the way live playback
+  // scales it. (The renderer quietly rescales any 128-frame block that
+  // peaks above 1 — with the headroom in place that only happens where the
+  // live shaper would be flat out anyway.) The shaper itself follows the
+  // render, in softClipInPlace.
+  const master = context.createGain();
+  master.gain.value = MASTER_HEADROOM * inputGain;
+  master.connect(context.destination);
+
   for (const event of params.sampleEvents) {
     const source = context.createBufferSource();
     source.buffer = event.buffer;
-    source.playbackRate.value = event.playbackRate ?? 1;
+    // The buffer source ignores buffer.sampleRate, so a buffer at any rate
+    // other than the render's would come out off-pitch and off-tempo.
+    source.playbackRate.value =
+      (event.playbackRate ?? 1) * bufferRateCompensation(event.buffer.sampleRate, sampleRate);
 
     const attackSeconds = Math.max(0.0005, event.attackSeconds ?? DEFAULT_ATTACK_SECONDS);
     const holdSeconds = event.holdSeconds ?? DEFAULT_HOLD_SECONDS;
@@ -124,7 +154,7 @@ export async function renderDryBounce(params: {
       outputNode.connect(filterNode);
       outputNode = filterNode;
     }
-    outputNode.connect(context.destination);
+    outputNode.connect(master);
 
     if (event.offsetSeconds && event.offsetSeconds > 0) {
       source.start(startAt, event.offsetSeconds);
@@ -149,7 +179,7 @@ export async function renderDryBounce(params: {
       noteGain.gain.setValueAtTime(peak, startAt + sustainSeconds);
     }
     noteGain.gain.exponentialRampToValueAtTime(0.0001, endAt);
-    noteGain.connect(context.destination);
+    noteGain.connect(master);
 
     for (const partial of partials) {
       const osc = context.createOscillator();
@@ -171,5 +201,6 @@ export async function renderDryBounce(params: {
   for (let ch = 0; ch < rendered.numberOfChannels; ch++) {
     channels.push(rendered.getChannelData(ch));
   }
+  await softClipInPlace(channels, { shouldCancel: params.shouldCancel });
   return { channels, sampleRate: rendered.sampleRate };
 }

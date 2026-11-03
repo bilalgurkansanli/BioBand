@@ -36,8 +36,12 @@ export function useRecordingPlayback() {
   // Survives the restart a speed change forces, and is read when a new take
   // starts — arming loop once keeps it armed.
   const loopRef = useRef(false);
+  // Bumped by every start and stop. A start that resolves after a newer
+  // start or a stop must not claim the "playing" state for itself.
+  const startTokenRef = useRef(0);
 
   const stop = useCallback(() => {
+    startTokenRef.current += 1;
     handleRef.current?.stop();
     handleRef.current = null;
     stopRecordingPlayback();
@@ -67,15 +71,23 @@ export function useRecordingPlayback() {
   /** Starts a take from `startAtMs`, at whatever speed is currently selected. */
   const start = useCallback(
     async (recording: SavedRecording, startAtMs: number) => {
+      const token = ++startTokenRef.current;
       setLoadingId(recording.id);
       setPositionMs(startAtMs);
       positionRef.current = startAtMs;
       setDurationMs(recording.durationMs);
+      // An empty or unplayable take reports its end synchronously, from inside
+      // playSavedRecording — before the code below has marked it as playing.
+      // Remembered here so it is never marked as playing afterwards.
+      let endedEarly = false;
 
       try {
         const handle = await playSavedRecording(
           recording,
           () => {
+            if (playingIdRef.current === null && startTokenRef.current === token) {
+              endedEarly = true;
+            }
             if (playingIdRef.current === recording.id) {
               playingIdRef.current = null;
               playingRecordingRef.current = null;
@@ -94,6 +106,15 @@ export function useRecordingPlayback() {
           },
           { loop: loopRef.current, rate: rateRef.current },
         );
+        if (startTokenRef.current !== token) {
+          // Stopped, or replaced by another take, while this one was loading.
+          return;
+        }
+        if (endedEarly) {
+          positionRef.current = 0;
+          setPositionMs(0);
+          return;
+        }
         handleRef.current = handle;
         playingIdRef.current = recording.id;
         playingRecordingRef.current = recording;
@@ -102,13 +123,19 @@ export function useRecordingPlayback() {
           handle.seek(startAtMs);
         }
       } catch {
+        if (startTokenRef.current !== token) {
+          return;
+        }
         Alert.alert(t('recordings.playbackError'));
         playingIdRef.current = null;
         playingRecordingRef.current = null;
         handleRef.current = null;
         setPlayingId(null);
       } finally {
-        setLoadingId(null);
+        // A newer start owns the spinner now; a stop already cleared it.
+        if (startTokenRef.current === token) {
+          setLoadingId(null);
+        }
       }
     },
     [t],

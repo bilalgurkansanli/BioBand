@@ -2,30 +2,12 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
-import { stopAllVoices } from './sampleBank';
+import { playInstrumentEvent, resolveEventVoice, type EventVoice } from './playInstrumentEvent';
+import { getSharedAudioContext, stopVoicesOwnedBy, withVoiceOwner } from './sampleBank';
+import { MIN_LOOP_PASS_MS, passEndContextTime, passTailMs } from './schedulerTiming';
 import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
-import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
-import { isDrumKitId } from '../instruments/drums/drumsKits';
-import type { DrumSoundId } from '../instruments/drums/drumsSounds';
-import { playGuitarSoundId, setGuitarVoice } from '../instruments/guitar/guitarEngine';
-import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
-import { triggerPadForBank } from '../instruments/pads/padsEngine';
-import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
-import type { PadSoundId } from '../instruments/pads/padsSounds';
-import {
-  playNote as playPianoNote,
-  setPianoVoice,
-} from '../instruments/piano/pianoEngine';
-import type { NoteId } from '../instruments/piano/pianoNotes';
-import { PIANO_VOICES, type PianoVoiceId } from '../instruments/piano/pianoVoices';
-import type { NotePerformance } from '../instruments/shared/songPerformance';
-import {
-  playViolinSoundId,
-  setViolinVoice,
-  stopViolinPhrases,
-} from '../instruments/violin/violinEngine';
-import { isViolinVoiceId } from '../instruments/violin/violinVoices';
-import type { InstrumentId } from '../types/recording';
+import { stopViolinPhrases } from '../instruments/violin/violinEngine';
+import type { InstrumentEvent, InstrumentId } from '../types/recording';
 import {
   getProjectDurationMs,
   getTrackStartMs,
@@ -38,6 +20,11 @@ export type StudioPlaybackHandle = {
   stop: () => void;
   /** Jumps the whole mix to a position in ms (reschedules every track). */
   seek: (positionMs: number) => void;
+  /**
+   * Audio-context time the mix's starting position sounds at. An overdub
+   * measures its recording's offset against it.
+   */
+  startContextTime: number;
 };
 
 export type StudioPlayOptions = {
@@ -52,58 +39,70 @@ export type StudioPlayOptions = {
   loop?: boolean;
   /** Tempo multiplier — 1 plays as recorded, 2 plays twice as fast. */
   rate?: number;
+  /**
+   * Switch the session to plain playback before starting (default true). A
+   * mic overdub has already put it in its recording mode, which plays fine —
+   * switching back would take the microphone away from the recorder.
+   */
+  restoreAudioMode?: boolean;
 };
 
-/** Registry references this module holds, so its own release stays balanced. */
-const heldEngines = new Set<InstrumentId>();
+/**
+ * A mix with every slow step (audio session, engine loading) done, ready to
+ * start in the same tick as something it has to line up with.
+ */
+export type PreparedStudioPlayback = {
+  /** Starts sounding now. A no-op handle if playback was stopped meanwhile. */
+  start: () => StudioPlaybackHandle;
+};
+
+/**
+ * Registry references this module holds, so its own release stays balanced —
+ * and the in-flight acquire, so a second play waits for a load the first one
+ * started instead of scheduling notes on an engine that is not up yet.
+ */
+const heldEngines = new Map<InstrumentId, Promise<void>>();
 let activeCancel: (() => void) | null = null;
 let activeMicPlayers: AudioPlayer[] = [];
+/** Loop passes retiring the previous pass's mic players at its exact end. */
+const micRetireTimers = new Set<ReturnType<typeof setTimeout>>();
 
-async function holdEngine(instrument: InstrumentId): Promise<void> {
-  if (heldEngines.has(instrument)) {
-    return;
+/**
+ * Voices the mix schedules carry this owner, so stopping the mix (or an
+ * overdub's beds) silences only the mix — never the instrument the user is
+ * recording over it.
+ */
+const VOICE_OWNER = 'studio';
+
+// Bumped by every play and every stop. A play resuming from one of its awaits
+// to find the generation moved on was stopped (blur, overdub cancelled) or
+// replaced (a BPM change re-plays the mix) while it was loading, and must not
+// start a mix nobody can stop any more.
+let playGeneration = 0;
+
+function holdEngine(instrument: InstrumentId): Promise<void> {
+  const held = heldEngines.get(instrument);
+  if (held) {
+    return held;
   }
   // Recorded before awaiting: acquireEngine takes its reference synchronously,
   // so a teardown landing mid-load still sees one to give back.
-  heldEngines.add(instrument);
-  await acquireEngine(instrument);
+  const loading: Promise<void> = acquireEngine(instrument).catch((error: unknown) => {
+    // A failed init still took a reference — give it back and forget the
+    // entry, so the next play retries instead of reusing the failure.
+    if (heldEngines.get(instrument) === loading) {
+      heldEngines.delete(instrument);
+      releaseEngine(instrument);
+    }
+    throw error;
+  });
+  heldEngines.set(instrument, loading);
+  return loading;
 }
 
-function playInstrumentEvent(
-  instrument: InstrumentId,
-  soundId: string,
-  velocity: number | undefined,
-  padBankId: PadBankId,
-  gainScale: number,
-  atContextTime: number,
-): void {
-  // Absolute audio-context onset, straight through to the engine. In a mix this
-  // matters more than anywhere else: every track is timed off the same clock,
-  // so a late JS timer would not just drag one note, it would pull that track
-  // out of alignment with the others.
-  const performance: NotePerformance = { atTime: atContextTime };
-  switch (instrument) {
-    case 'piano':
-      playPianoNote(soundId as NoteId, undefined, undefined, gainScale, performance);
-      return;
-    case 'drums':
-      playHit(soundId as DrumSoundId, velocity, gainScale, performance);
-      return;
-    case 'pads':
-      // Per-track bank — looper exports layer tracks from different banks.
-      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale, performance);
-      return;
-    case 'guitar':
-      playGuitarSoundId(soundId, velocity, gainScale, performance);
-      return;
-    case 'violin':
-      playViolinSoundId(soundId, gainScale, performance);
-      return;
-  }
-}
 
-function stopMicPlayers(): void {
-  for (const player of activeMicPlayers) {
+function stopPlayers(players: AudioPlayer[]): void {
+  for (const player of players) {
     try {
       player.pause();
       player.remove();
@@ -111,7 +110,41 @@ function stopMicPlayers(): void {
       // Already released.
     }
   }
+}
+
+/** Players of an ending loop pass, still sounding until their retire timer. */
+let retiringMicPlayers: AudioPlayer[] = [];
+
+/** Stop every mic clip at once — running, and retiring from a loop pass. */
+function stopMicPlayers(): void {
+  for (const timer of micRetireTimers) {
+    clearTimeout(timer);
+  }
+  micRetireTimers.clear();
+  stopPlayers(activeMicPlayers);
+  stopPlayers(retiringMicPlayers);
   activeMicPlayers = [];
+  retiringMicPlayers = [];
+}
+
+/**
+ * Stop the mic players running now at audio-clock time `contextTime` — the
+ * end of a loop pass, while the next pass's clips are already queued.
+ */
+function retireMicPlayersAt(contextTime: number): void {
+  const retiring = activeMicPlayers;
+  activeMicPlayers = [];
+  if (retiring.length === 0) {
+    return;
+  }
+  retiringMicPlayers.push(...retiring);
+  const delayMs = Math.max(0, (contextTime - getSharedAudioContext().currentTime) * 1000);
+  const timer = setTimeout(() => {
+    micRetireTimers.delete(timer);
+    stopPlayers(retiring);
+    retiringMicPlayers = retiringMicPlayers.filter((player) => !retiring.includes(player));
+  }, delayMs);
+  micRetireTimers.add(timer);
 }
 
 function stopActivePlayback(): void {
@@ -121,17 +154,19 @@ function stopActivePlayback(): void {
   }
   stopMicPlayers();
   // Cancel violin phrase notes still scheduled inside the engine.
-  stopViolinPhrases();
-  stopAllVoices();
+  stopViolinPhrases(VOICE_OWNER);
+  stopVoicesOwnedBy(VOICE_OWNER);
 }
 
 export function stopStudioPlayback(): void {
+  playGeneration += 1;
   stopActivePlayback();
 }
 
 export function releaseStudioPlaybackResources(): void {
+  playGeneration += 1;
   stopActivePlayback();
-  for (const instrument of heldEngines) {
+  for (const instrument of heldEngines.keys()) {
     releaseEngine(instrument);
   }
   heldEngines.clear();
@@ -152,56 +187,105 @@ export async function playStudioProject(
   project: StudioProject,
   options: StudioPlayOptions = {},
 ): Promise<StudioPlaybackHandle> {
+  const prepared = await prepareStudioPlayback(project, options);
+  return prepared.start();
+}
+
+/**
+ * Everything slow about starting a mix — stopping the previous one, the audio
+ * session, loading every track's engine — without starting it. `start()` is
+ * then synchronous, so a caller can line the mix up with something else (an
+ * overdub's recorder) in a single tick.
+ */
+export async function prepareStudioPlayback(
+  project: StudioProject,
+  options: StudioPlayOptions = {},
+): Promise<PreparedStudioPlayback> {
+  const generation = ++playGeneration;
+  const isSuperseded = () => generation !== playGeneration;
+  const noopHandle = (): StudioPlaybackHandle => ({
+    stop: () => {},
+    seek: () => {},
+    startContextTime: getSharedAudioContext().currentTime,
+  });
+  const superseded: PreparedStudioPlayback = { start: noopHandle };
+
   stopActivePlayback();
-  await restorePlaybackAudioMode();
+  if (options.restoreAudioMode !== false) {
+    await restorePlaybackAudioMode();
+    if (isSuperseded()) {
+      return superseded;
+    }
+  }
 
   const tracks = audibleTracks(project, options.excludeTrackIds);
   const durationMs = getProjectDurationMs({ ...project, tracks: project.tracks });
   const onEnded = options.onEnded;
   const onProgress = options.onProgress;
-  const loop = options.loop ?? false;
+  const loop = (options.loop ?? false) && durationMs >= MIN_LOOP_PASS_MS;
   // All scheduling below works in "material time" (the ms stored on tracks);
   // wall-clock delays are that time divided by the rate.
   const rate = Math.max(0.1, options.rate ?? 1);
   const initialStartAtMs = Math.max(0, Math.min(options.startAtMs ?? 0, durationMs));
 
   if (tracks.length === 0 || durationMs <= 0) {
-    onEnded?.();
-    return { stop: stopActivePlayback, seek: () => {} };
+    return {
+      start: () => {
+        if (!isSuperseded()) {
+          onEnded?.();
+        }
+        return noopHandle();
+      },
+    };
   }
 
   const instruments = new Set(tracks.map((track) => track.instrument));
   await Promise.all([...instruments].map((instrument) => holdEngine(instrument)));
-
-  // The drums bus is global, so one kit per play: use the first drums track's
-  // recorded kit (older tracks without one fall back to acoustic).
-  const drumsTrack = tracks.find((track) => track.instrument === 'drums');
-  if (drumsTrack) {
-    setDrumKit(isDrumKitId(drumsTrack.drumKitId) ? drumsTrack.drumKitId : 'acoustic');
+  if (isSuperseded()) {
+    // Stopped or replaced while the engines loaded. The references stay held
+    // (released with the module's resources), but nothing may start.
+    return superseded;
   }
 
-  // The guitar bus is global too — one voice per play, first guitar track wins.
-  const guitarTrack = tracks.find((track) => track.instrument === 'guitar');
-  if (guitarTrack) {
-    setGuitarVoice(
-      isGuitarVoiceId(guitarTrack.guitarVoiceId) ? guitarTrack.guitarVoiceId : 'nylon',
-    );
-  }
+  return {
+    start: () => {
+      if (isSuperseded()) {
+        return noopHandle();
+      }
+      return startPreparedMix({
+        tracks,
+        durationMs,
+        onEnded,
+        onProgress,
+        loop,
+        rate,
+        initialStartAtMs,
+        isSuperseded,
+      });
+    },
+  };
+}
 
-  // Same for violin — first violin track's voice wins.
-  const violinTrack = tracks.find((track) => track.instrument === 'violin');
-  if (violinTrack) {
-    setViolinVoice(
-      isViolinVoiceId(violinTrack.violinVoiceId) ? violinTrack.violinVoiceId : 'classic',
-    );
-  }
+function startPreparedMix(params: {
+  tracks: StudioTrack[];
+  durationMs: number;
+  onEnded?: () => void;
+  onProgress?: (positionMs: number, durationMs: number) => void;
+  loop: boolean;
+  rate: number;
+  initialStartAtMs: number;
+  isSuperseded: () => boolean;
+}): StudioPlaybackHandle {
+  const { tracks, durationMs, onEnded, onProgress, loop, rate, initialStartAtMs } = params;
 
-  // Piano bus is global as well — first piano track's voice wins.
-  const pianoTrack = tracks.find((track) => track.instrument === 'piano');
-  if (pianoTrack) {
-    const voice = PIANO_VOICES.find((entry) => entry.id === pianoTrack.pianoVoiceId);
-    setPianoVoice((voice?.id ?? 'acoustic') as PianoVoiceId);
-  }
+  // Every track plays on its own recorded kit / voice / bank, handed to the
+  // engine per note (older tracks without one get the base voice). Nothing
+  // global is touched, so the instrument an overdub is being played on keeps
+  // the voice the user picked — and the export, which always rendered each
+  // track on its own voice, now sounds like the live mix.
+  const trackVoices = new Map<string, EventVoice>(
+    tracks.map((track) => [track.id, resolveEventVoice(track)]),
+  );
 
   /**
    * One note from any track, rebased onto the playhead. Every track's events
@@ -211,9 +295,8 @@ export async function playStudioProject(
   type ScheduledNote = {
     atMs: number;
     instrument: InstrumentId;
-    soundId: string;
-    velocity?: number;
-    padBankId: PadBankId;
+    event: InstrumentEvent;
+    voice: EventVoice;
     gainScale: number;
   };
 
@@ -224,6 +307,10 @@ export async function playStudioProject(
   let scheduler: SongSchedulerHandle | null = null;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let finished = false;
+  /** Bumped per pass, so a pass whose onDone fired synchronously cannot clobber its successor. */
+  let passSerial = 0;
+  /** The running pass: its length on the timeline and its clock anchor. */
+  let pass = { remainingMs: 0, startContextTime: 0 };
 
   const clearScheduled = () => {
     for (const timer of micTimers) {
@@ -243,31 +330,44 @@ export async function playStudioProject(
       return;
     }
     if (loop) {
-      // Seamlessly restart the mix from the top instead of ending.
-      stopMicPlayers();
-      stopViolinPhrases();
-      stopAllVoices();
-      schedule(0);
+      // Seamlessly restart the mix from the top instead of ending. This runs
+      // one lookahead before the pass ends, so the next pass is anchored to
+      // the exact end on the audio clock instead of to whenever a JS tick
+      // noticed — the loop no longer drifts lap after lap. The ending pass's
+      // notes and mic clips are cut at that same boundary.
+      const boundary = passEndContextTime(pass.startContextTime, pass.remainingMs, rate);
+      stopViolinPhrases(VOICE_OWNER);
+      stopVoicesOwnedBy(VOICE_OWNER, { at: boundary });
+      retireMicPlayersAt(boundary);
+      schedule(0, boundary, true);
       return;
     }
     finished = true;
     clearScheduled();
     stopMicPlayers();
-    stopViolinPhrases();
-    stopAllVoices();
+    stopViolinPhrases(VOICE_OWNER);
+    stopVoicesOwnedBy(VOICE_OWNER);
     activeCancel = null;
     onProgress?.(durationMs, durationMs);
     onEnded?.();
   };
 
-  // (Re)schedule the whole mix from an absolute project position. Reused by
-  // seek so jumping restarts every audible track from the new spot, honoring
-  // each track's timeline offset (startMs).
-  const schedule = (startAtMs: number) => {
+  // (Re)schedule the whole mix from an absolute project position, anchored at
+  // audio-clock time `startContextTime` (default: now). Reused by seek so
+  // jumping restarts every audible track from the new spot, honoring each
+  // track's timeline offset (startMs), and by the loop to queue the next pass
+  // (`loopPass`: the previous pass's mic clips retire on their own).
+  const schedule = (startAtMs: number, startContextTime?: number, loopPass = false) => {
     clearScheduled();
-    stopMicPlayers();
+    if (!loopPass) {
+      stopMicPlayers();
+    }
     finished = false;
+    const serial = ++passSerial;
     const clampedStart = Math.max(0, Math.min(startAtMs, durationMs));
+    const anchor = startContextTime ?? getSharedAudioContext().currentTime;
+    // A queued loop pass starts in the future; its mic clips wait that long too.
+    const leadMs = Math.max(0, (anchor - getSharedAudioContext().currentTime) * 1000);
     const notes: ScheduledNote[] = [];
 
     for (const track of tracks) {
@@ -306,7 +406,11 @@ export async function playStudioProject(
         };
         if (clampedStart <= trackStart) {
           // Clip starts later on the timeline — delay it into place.
-          micTimers.push(setTimeout(() => startPlayer(0), (trackStart - clampedStart) / rate));
+          micTimers.push(
+            setTimeout(() => startPlayer(0), (trackStart - clampedStart) / rate + leadMs),
+          );
+        } else if (leadMs > 0) {
+          micTimers.push(setTimeout(() => startPlayer(clampedStart - trackStart), leadMs));
         } else {
           // Playhead is already inside the clip — jump into it.
           startPlayer(clampedStart - trackStart);
@@ -314,10 +418,8 @@ export async function playStudioProject(
         continue;
       }
 
-      if (track.mode === 'instrument' && track.events) {
-        const trackPadBank: PadBankId = isPadBankId(track.padBankId)
-          ? track.padBankId
-          : 'drums';
+      const voice = trackVoices.get(track.id);
+      if (track.mode === 'instrument' && track.events && voice) {
         for (const event of track.events) {
           if (event.atMs > track.durationMs) {
             continue;
@@ -330,9 +432,8 @@ export async function playStudioProject(
             atMs: absAtMs - clampedStart,
             gainScale: track.volume,
             instrument: track.instrument,
-            padBankId: trackPadBank,
-            soundId: event.soundId,
-            velocity: event.velocity,
+            event,
+            voice,
           });
         }
       }
@@ -340,6 +441,7 @@ export async function playStudioProject(
 
     const remainingMs = Math.max(durationMs - clampedStart, 0);
     const lastAtMs = notes.reduce((latest, note) => Math.max(latest, note.atMs), 0);
+    pass = { remainingMs, startContextTime: anchor };
 
     const handle = startSongScheduler({
       events: notes,
@@ -347,36 +449,55 @@ export async function playStudioProject(
         if (finished) {
           return;
         }
-        playInstrumentEvent(
-          note.instrument,
-          note.soundId,
-          note.velocity,
-          note.padBankId,
-          note.gainScale,
-          atContextTime,
+        // Absolute audio-context onset, straight through to the engine. In a
+        // mix this matters more than anywhere else: every track is timed off
+        // the same clock, so a late JS timer would not just drag one note, it
+        // would pull that track out of alignment with the others.
+        withVoiceOwner(VOICE_OWNER, () =>
+          playInstrumentEvent(
+            note.instrument,
+            note.event,
+            note.voice,
+            note.gainScale,
+            atContextTime,
+            rate,
+          ),
         );
       },
       onDone: finish,
       rate,
+      startAtContextTime: anchor,
       // The mix runs to the project's length, not to its last note — a track
-      // that ends early must not cut the ones still playing behind it.
-      tailMs: Math.max(remainingMs - lastAtMs, 0) + 50,
+      // that ends early must not cut the ones still playing behind it. A
+      // looping pass hands over a lookahead early instead (see passTailMs).
+      tailMs: passTailMs(remainingMs, lastAtMs, loop),
     });
+    if (serial !== passSerial || finished) {
+      // Over by its first tick, and finish() already moved on.
+      handle.stop();
+      return;
+    }
     scheduler = handle;
 
     if (onProgress) {
-      onProgress(clampedStart, durationMs);
+      if (!loopPass) {
+        onProgress(clampedStart, durationMs);
+      }
       progressInterval = setInterval(() => {
         // The scheduler's clock is already in material time, so the playhead
         // still spans the whole timeline at any rate — and it is the same clock
-        // the notes sound on, so the two cannot drift apart.
-        const elapsed = Math.min(clampedStart + handle.getElapsedMs(), durationMs);
+        // the notes sound on, so the two cannot drift apart. A queued loop
+        // pass reads negative until it starts: the previous one is finishing.
+        const passElapsed = handle.getElapsedMs();
+        const elapsed =
+          passElapsed < 0 ? durationMs : Math.min(clampedStart + passElapsed, durationMs);
         onProgress(elapsed, durationMs);
       }, 100);
     }
   };
 
-  schedule(initialStartAtMs);
+  const startContextTime = getSharedAudioContext().currentTime;
+  schedule(initialStartAtMs, startContextTime);
 
   activeCancel = () => {
     finished = true;
@@ -385,16 +506,19 @@ export async function playStudioProject(
 
   return {
     stop: () => {
-      stopActivePlayback();
+      if (!params.isSuperseded()) {
+        stopStudioPlayback();
+      }
     },
     seek: (positionMs: number) => {
-      if (finished) {
+      if (finished || params.isSuperseded()) {
         return;
       }
       stopMicPlayers();
-      stopViolinPhrases();
-      stopAllVoices();
+      stopViolinPhrases(VOICE_OWNER);
+      stopVoicesOwnedBy(VOICE_OWNER);
       schedule(Math.max(0, Math.min(positionMs, durationMs)));
     },
+    startContextTime,
   };
 }

@@ -192,7 +192,9 @@ export async function prepareRecordingExport(
   }
 
   options.onProgress?.(0);
-  const { channels, sampleRate } = await renderRecordingPcm(recording);
+  const { channels, sampleRate } = await renderRecordingPcm(recording, {
+    shouldCancel: options.shouldCancel,
+  });
   const mp3Bytes = await encodeMp3Pcm16Async(channels, sampleRate, {
     onProgress: options.onProgress,
     shouldCancel: options.shouldCancel,
@@ -212,7 +214,9 @@ export async function prepareProjectExport(
   options: ExportOptions = {},
 ): Promise<RecordingExport> {
   options.onProgress?.(0);
-  const { channels, sampleRate } = await renderProjectPcm(project);
+  const { channels, sampleRate } = await renderProjectPcm(project, {
+    shouldCancel: options.shouldCancel,
+  });
   const mp3Bytes = await encodeMp3Pcm16Async(channels, sampleRate, {
     onProgress: options.onProgress,
     shouldCancel: options.shouldCancel,

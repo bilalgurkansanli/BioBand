@@ -11,6 +11,13 @@ export type InstrumentEvent = {
   atMs: number;
   /** 0..1 hit strength (drums velocity) — absent means full strength. */
   velocity?: number;
+  /**
+   * Piano only: semitones the note sounded away from its written key (the
+   * tone slider). Stored per note so a mid-take slider move is kept, and so it
+   * travels with the events into Studio tracks. Absent on older takes, which
+   * play untransposed.
+   */
+  transposeSemitones?: number;
 };
 
 export type RecordingSource = 'instrument' | 'drumMachine' | 'imported';
@@ -35,7 +42,10 @@ export type SavedRecording = {
   violinVoiceId?: string;
   /** Pad bank the take was performed with — playback restores this timbre. */
   padBankId?: string;
-  /** Piano voice the take was performed with — playback restores this timbre. */
+  /**
+   * Piano voice the take was performed with — playback restores this timbre.
+   * The tone slider's transposition lives on each event (transposeSemitones).
+   */
   pianoVoiceId?: string;
 };
 

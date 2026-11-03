@@ -7,29 +7,31 @@ import {
   prepareSamplePlayback,
   registerActiveVoice,
   releaseVoiceByTag,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
 } from '../../audio/sampleBank';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
-  resetPianoFx,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
 } from './pianoFx';
-import { stopMetronome } from './pianoMetronome';
 import {
   BASE_SAMPLE_FILES,
   getNoteSampleConfig,
+  MAX_PIANO_PLAYBACK_RATE,
   SAMPLE_ANCHORS,
   type BaseSampleId,
 } from './pianoSamples';
 import { PIANO_NOTES, type NoteId } from './pianoNotes';
 import type { PianoVoiceId } from './pianoVoices';
+import { createSynthVoiceCounter } from './synthVoiceCount';
 import {
   velocityGain,
   type NotePerformance,
 } from '../shared/songPerformance';
 
-const MAX_PLAYBACK_RATE = 2.5;
+const MAX_PLAYBACK_RATE = MAX_PIANO_PLAYBACK_RATE;
 
 const anchorBuffers = new Map<BaseSampleId, AudioBuffer>();
 const noteMidis = new Map<NoteId, number>();
@@ -48,6 +50,12 @@ const fingerHeldNotes = new Map<NoteId, PianoVoiceId>();
 const pedalHeldNotes = new Map<NoteId, PianoVoiceId>();
 
 const HELD_SYNTH_SECONDS = 24;
+
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const PIANO_FX_OWNER = 'piano';
+/** Every tag this engine's voices carry — sampled voices, then each synth. */
+const PIANO_TAG_PREFIXES = ['piano:', 'organ:', 'rhodes:', 'synth:'] as const;
+
 /** How fast the damper silences a note once its written length is over. */
 const PIANO_DAMPER_SECONDS = 0.22;
 
@@ -80,8 +88,6 @@ function startTimeFor(
 type GainNodeT = ReturnType<ReturnType<typeof getSharedAudioContext>['createGain']>;
 
 let synthBusNode: GainNodeT | null = null;
-let activeSynthCount = 0;
-const synthEndTimers = new Set<ReturnType<typeof setTimeout>>();
 
 function getSynthBus(): GainNodeT {
   if (!synthBusNode) {
@@ -93,7 +99,7 @@ function getSynthBus(): GainNodeT {
   return synthBusNode;
 }
 
-function updateSynthBusGain(): void {
+function updateSynthBusGain(activeSynthCount: number): void {
   const bus = synthBusNode;
   if (!bus) return;
   const ctx = getSharedAudioContext();
@@ -110,30 +116,37 @@ function updateSynthBusGain(): void {
 }
 
 /**
- * Register a synth voice in the polyphony-compensation budget.  The counter
- * is decremented automatically when the voice's lifetime expires.  Early
- * voice stealing may cause the counter to stay briefly high, which is safe
- * (results in slightly more ducking — never in clipping).
+ * The synth voices actually sounding. A voice leaves the count when it falls
+ * silent — at its natural end, or as soon as it is released or stolen — not
+ * when its worst-case scheduled lifetime runs out (a held note is scheduled
+ * for ~24 s, and counting it that long kept ducking every later note).
  */
-function registerSynthLifetime(durationSeconds: number, leadSeconds = 0): void {
-  activeSynthCount++;
-  updateSynthBusGain();
+const synthVoices = createSynthVoiceCounter({
+  now: () => getSharedAudioContext().currentTime,
+  onChange: updateSynthBusGain,
+});
 
-  // Voices placed ahead of the clock are still ringing for `leadSeconds`
-  // longer in wall time — decrementing early would under-duck the bus.
-  const ms = Math.max(50, (durationSeconds + Math.max(0, leadSeconds)) * 1000);
-  const timer = setTimeout(() => {
-    synthEndTimers.delete(timer);
-    activeSynthCount = Math.max(0, activeSynthCount - 1);
-    updateSynthBusGain();
-  }, ms);
-  synthEndTimers.add(timer);
+/**
+ * Enrol a synth voice that falls silent on its own at `endsAt`, and wrap its
+ * oscillators' stop so that ending it early also takes it out of the count.
+ */
+function trackSynthVoice(
+  endsAt: number,
+  stopOscillators: (when?: number) => void,
+): { stop: (when?: number) => void } {
+  const endEarly = synthVoices.add(endsAt);
+  return {
+    stop: (when?: number) => {
+      // Counted down before stopping: stop() can throw on an oscillator that
+      // has already ended, and the count must not get stuck on it.
+      endEarly(when);
+      stopOscillators(when);
+    },
+  };
 }
 
 function resetSynthBus(): void {
-  for (const timer of synthEndTimers) clearTimeout(timer);
-  synthEndTimers.clear();
-  activeSynthCount = 0;
+  synthVoices.reset();
   if (synthBusNode) {
     try { synthBusNode.disconnect(); } catch { /* already disconnected */ }
     synthBusNode = null;
@@ -142,6 +155,14 @@ function resetSynthBus(): void {
 
 export function setPianoToneOffset(semitones: number): void {
   toneOffsetSemitones = semitones;
+}
+
+/**
+ * The tone slider's transposition the keyboard is sounding at — what a
+ * recording has to remember, since a take stores written keys, not pitches.
+ */
+export function getPianoToneOffset(): number {
+  return toneOffsetSemitones;
 }
 
 export function setPianoVoice(voice: PianoVoiceId): void {
@@ -389,21 +410,16 @@ function playOrgan(
   noteGain.gain.setValueAtTime(peak, releaseStart);
   noteGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
 
-  const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration, now - context.currentTime);
-
   for (const osc of oscillators) {
     osc.stop(endsAt + 0.05);
   }
 
   registerActiveVoice(
-    {
-      stop: (when?: number) => {
-        for (const osc of oscillators) {
-          osc.stop(when);
-        }
-      },
-    },
+    trackSynthVoice(endsAt + 0.05, (when) => {
+      for (const osc of oscillators) {
+        osc.stop(when);
+      }
+    }),
     stealGain,
     endsAt + 0.05,
     tag,
@@ -474,16 +490,11 @@ function playRhodes(
   bell.start(now);
   bell.stop(endsAt + 0.05);
 
-  const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration, now - context.currentTime);
-
   registerActiveVoice(
-    {
-      stop: (when?: number) => {
-        body.stop(when);
-        bell.stop(when);
-      },
-    },
+    trackSynthVoice(endsAt + 0.05, (when) => {
+      body.stop(when);
+      bell.stop(when);
+    }),
     stealGain,
     endsAt + 0.05,
     tag,
@@ -539,10 +550,13 @@ function playSynthLead(
   osc.start(now);
   osc.stop(endsAt + 0.05);
 
-  const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration, now - context.currentTime);
-
-  registerActiveVoice(osc, stealGain, endsAt + 0.05, tag, now);
+  registerActiveVoice(
+    trackSynthVoice(endsAt + 0.05, (when) => osc.stop(when)),
+    stealGain,
+    endsAt + 0.05,
+    tag,
+    now,
+  );
 }
 
 function dryVoiceTag(voice: PianoVoiceId, noteId: NoteId): string {
@@ -653,10 +667,7 @@ export function playNote(
   }
 
   // Modal / OS audio focus can suspend the context; resume on first note.
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   // Repitching an anchor sample covers pitches below the keyboard fine, so an
   // accompaniment can sit an octave under the tune it supports.
@@ -697,7 +708,7 @@ export function playNote(
       false,
       tapScheduling(delayMs),
     );
-  }, aheadOfClock);
+  }, aheadOfClock, PIANO_FX_OWNER);
 
   // 3) Echo: quieter spaced repeats — leave echo path unchanged (full tail).
   schedulePianoEchoRepeats((tapScale, delayMs) => {
@@ -711,7 +722,7 @@ export function playNote(
       false,
       tapScheduling(delayMs),
     );
-  }, aheadOfClock);
+  }, aheadOfClock, PIANO_FX_OWNER);
 }
 
 /**
@@ -727,10 +738,7 @@ export function noteOn(
     return;
   }
 
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   fingerHeldNotes.set(noteId, voice);
   pedalHeldNotes.delete(noteId);
@@ -740,10 +748,10 @@ export function noteOn(
 
   schedulePianoReverbTaps((gainScale, tapIndex) => {
     triggerVoice(noteId, shiftedMidi, voice, gainScale, `:reverb:${tapIndex}`, true);
-  });
+  }, false, PIANO_FX_OWNER);
   schedulePianoEchoRepeats((gainScale) => {
     triggerVoice(noteId, shiftedMidi, voice, gainScale, ':echo');
-  });
+  }, false, PIANO_FX_OWNER);
 }
 
 function releaseDryNote(
@@ -790,10 +798,12 @@ export function setSustainPedal(on: boolean): void {
 }
 
 export function releasePianoEngine(): void {
-  stopMetronome();
-  stopAllVoices();
+  // Only the piano's own sound goes. The metronome, the shared FX bus and its
+  // settings, and voices of other instruments (a Studio mix, a saved take)
+  // all outlive this engine — the screens that own them stop them.
+  clearPianoFxTimersFor(PIANO_FX_OWNER);
+  stopVoicesByTagPrefix(PIANO_TAG_PREFIXES);
   resetPianoVoiceFilters();
-  resetPianoFx();
   fingerHeldNotes.clear();
   pedalHeldNotes.clear();
   sustainPedalOn = false;

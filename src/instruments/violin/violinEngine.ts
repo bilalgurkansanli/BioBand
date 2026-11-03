@@ -1,19 +1,22 @@
 import type { AudioBuffer, GainNode } from '../../audio/audioApi';
 
 import {
+  getCurrentVoiceOwner,
   getSharedAudioContext,
   loadSample,
   playSample,
   prepareSamplePlayback,
-  stopAllVoices,
+  resumeAudioContextIfSuspended,
+  stopVoicesByTagPrefix,
+  withVoiceOwner,
 } from '../../audio/sampleBank';
+import { startSongScheduler } from '../../audio/songScheduler';
 import {
+  clearPianoFxTimersFor,
   getPianoFxInput,
-  resetPianoFx,
   schedulePianoEchoRepeats,
   schedulePianoReverbTaps,
 } from '../piano/pianoFx';
-import { stopMetronome } from '../piano/pianoMetronome';
 import { getMidi } from './violinNotes';
 import { getPhraseById, isPhraseId, type PhraseId } from './violinPhrases';
 import {
@@ -37,51 +40,65 @@ const PHRASE_STAGGER_MS = 220;
 const NOTE_GAIN = 0.36;
 /** Bow lift at the end of a written note — long enough to stay legato. */
 const VIOLIN_RELEASE_SECONDS = 0.28;
+/** Names this engine's pending echo/reverb re-triggers in the shared FX bus. */
+const VIOLIN_OWNER = 'violin';
 
 type BiquadFilterNode = ReturnType<
   ReturnType<typeof getSharedAudioContext>['createBiquadFilter']
 >;
 
 const buffers = new Map<ViolinSampleId, AudioBuffer>();
-const phraseTimers = new Set<ReturnType<typeof setTimeout>>();
+
+/**
+ * A phrase preset being played: its notes are queued on the audio clock by a
+ * lookahead scheduler, like a song. `owner` is the voice owner it was started
+ * under (a saved take, the Studio mix), so stopping one player's phrases
+ * leaves the others' alone.
+ */
+type PhraseRun = { stop: () => void; owner: string | undefined };
+const phraseRuns = new Set<PhraseRun>();
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 let currentVoiceId: ViolinVoiceId = 'classic';
 /** Per-hit tag serial — same-tag voices steal each other in sampleBank. */
 let hitSerial = 0;
 
-let voiceGain: GainNode | null = null;
-let voiceFilter: BiquadFilterNode | null = null;
+/**
+ * One bus per voice (gain → tone filter → FX input), built the first time
+ * that voice plays. A single shared bus could only wear one voice's tone at a
+ * time, so a Studio mix had to put every violin track on the first track's
+ * voice — and an overdub's beds re-voiced the violin under the user's bow.
+ */
+type VoiceBus = { gain: GainNode; filter: BiquadFilterNode };
+const voiceBuses = new Map<ViolinVoiceId, VoiceBus>();
 
-function applyVoiceToBus(): void {
-  if (!voiceGain || !voiceFilter) {
-    return;
-  }
-  const audio = getViolinVoice(currentVoiceId).audio;
-  voiceGain.gain.value = audio.gainScale;
-  voiceFilter.type = audio.filterType;
-  voiceFilter.frequency.value = audio.filterFrequency;
-  voiceFilter.Q.value = audio.filterQ;
+function applyVoiceToBus(bus: VoiceBus, voiceId: ViolinVoiceId): void {
+  const audio = getViolinVoice(voiceId).audio;
+  bus.gain.gain.value = audio.gainScale;
+  bus.filter.type = audio.filterType;
+  bus.filter.frequency.value = audio.filterFrequency;
+  bus.filter.Q.value = audio.filterQ;
   if (audio.filterType === 'lowshelf') {
-    voiceFilter.gain.value = audio.filterGainDb ?? 3;
+    bus.filter.gain.value = audio.filterGainDb ?? 3;
   } else if (audio.filterType === 'peaking') {
-    voiceFilter.gain.value = audio.filterGainDb ?? 0;
+    bus.filter.gain.value = audio.filterGainDb ?? 0;
   } else {
-    voiceFilter.gain.value = 0;
+    bus.filter.gain.value = 0;
   }
 }
 
-function ensureVoiceBus(): GainNode {
-  if (voiceGain && voiceFilter) {
-    return voiceGain;
+function ensureVoiceBus(voiceId: ViolinVoiceId = currentVoiceId): GainNode {
+  const existing = voiceBuses.get(voiceId);
+  if (existing) {
+    return existing.gain;
   }
   const context = getSharedAudioContext();
-  voiceGain = context.createGain();
-  voiceFilter = context.createBiquadFilter();
-  voiceGain.connect(voiceFilter);
-  voiceFilter.connect(getPianoFxInput());
-  applyVoiceToBus();
-  return voiceGain;
+  const bus: VoiceBus = { gain: context.createGain(), filter: context.createBiquadFilter() };
+  bus.gain.connect(bus.filter);
+  bus.filter.connect(getPianoFxInput());
+  applyVoiceToBus(bus, voiceId);
+  voiceBuses.set(voiceId, bus);
+  return bus.gain;
 }
 
 export async function initViolinEngine(): Promise<void> {
@@ -113,9 +130,9 @@ async function loadViolinEngine(): Promise<void> {
   initialized = true;
 }
 
+/** The voice hand-played notes use. Every voice keeps its own bus, so nothing to re-tune. */
 export function setViolinVoice(id: ViolinVoiceId): void {
   currentVoiceId = id;
-  applyVoiceToBus();
 }
 
 export function getCurrentViolinVoiceId(): ViolinVoiceId {
@@ -132,9 +149,12 @@ function triggerNote(
     startAtSeconds?: number;
     /** Written note length — the bow stroke is carved to match. */
     sustainSeconds?: number;
+    /** Voice to sound with; defaults to the one selected for hand playing. */
+    voiceId?: ViolinVoiceId;
   },
 ): void {
-  const voice = getViolinVoice(currentVoiceId);
+  const voiceId = options?.voiceId ?? currentVoiceId;
+  const voice = getViolinVoice(voiceId);
   const midi = getMidi(stringId, position);
   const config = getViolinNoteSampleConfig(midi);
   const buffer = buffers.get(config.anchorId);
@@ -145,7 +165,7 @@ function triggerNote(
   const rate = config.playbackRate * voice.audio.playbackRate;
   const gain = NOTE_GAIN * config.gainTrim * (options?.gainScale ?? 1);
   const shortTail = options?.shortTail ?? false;
-  const output = ensureVoiceBus();
+  const output = ensureVoiceBus(voiceId);
 
   // Every note used to be the same fixed stroke, so a whole note and a
   // sixteenth came out identical — on a sustaining instrument that flattens a
@@ -185,17 +205,17 @@ function triggerNote(
 /**
  * @param gainScale Extra output multiplier — used by Studio mix playback.
  * @param performance Song playback supplies the moment, length and strength.
+ * @param voiceId A take or Studio track replays on its own voice; defaults to
+ * the one selected for hand playing.
  */
 export function playNote(
   stringId: ViolinStringId,
   position: number,
   gainScale = 1,
   performance?: NotePerformance,
+  voiceId: ViolinVoiceId = currentVoiceId,
 ): void {
-  const context = getSharedAudioContext();
-  if (context.state === 'suspended') {
-    void context.resume();
-  }
+  resumeAudioContextIfSuspended();
 
   hitSerial += 1;
   const dryTag = `violin:${stringId}:${position}#${hitSerial}`;
@@ -211,6 +231,7 @@ export function playNote(
     gainScale: dynamics,
     startAtSeconds: atTime,
     sustainSeconds,
+    voiceId,
   });
 
   schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
@@ -218,8 +239,9 @@ export function playNote(
       shortTail: true,
       gainScale: dynamics * tapScale,
       startAtSeconds: tapStart(delayMs),
+      voiceId,
     });
-  }, aheadOfClock);
+  }, aheadOfClock, VIOLIN_OWNER);
 
   // Each repeat needs its own tag — same-tag voices steal each other.
   let echoIndex = 0;
@@ -228,64 +250,111 @@ export function playNote(
       gainScale: dynamics * tapScale,
       startAtSeconds: tapStart(delayMs),
       sustainSeconds,
+      voiceId,
     });
-  }, aheadOfClock);
+  }, aheadOfClock, VIOLIN_OWNER);
 }
 
-export function playPhrase(phraseId: PhraseId, gainScale = 1): void {
+/**
+ * Play a phrase preset: its notes, PHRASE_STAGGER_MS apart.
+ *
+ * The notes ride the audio clock through the same lookahead scheduler as a
+ * song. They used to be fired from setTimeouts started when the phrase was
+ * triggered — which, for a phrase in a take or a Studio track, was up to a
+ * lookahead (120 ms) BEFORE its written time, since playback hands notes over
+ * early; the phrase also ignored the playback tempo.
+ *
+ * @param atTime Audio-context time the first note sounds at (default: now).
+ * @param tempoRate Playback tempo multiplier — 2 plays the phrase twice as fast.
+ */
+export function playPhrase(
+  phraseId: PhraseId,
+  gainScale = 1,
+  voiceId: ViolinVoiceId = currentVoiceId,
+  atTime?: number,
+  tempoRate = 1,
+): void {
   const phrase = getPhraseById(phraseId);
   if (!phrase) {
     return;
   }
 
-  for (let i = 0; i < phrase.notes.length; i++) {
-    const { stringId, position } = phrase.notes[i];
-    const timer = setTimeout(() => {
-      phraseTimers.delete(timer);
-      playNote(stringId, position, gainScale);
-    }, i * PHRASE_STAGGER_MS);
-    phraseTimers.add(timer);
+  // Notes queued later by the scheduler keep the owner the phrase started under.
+  const owner = getCurrentVoiceOwner();
+  const run: PhraseRun = { stop: () => {}, owner };
+  phraseRuns.add(run);
+  const handle = startSongScheduler({
+    events: phrase.notes.map((note, index) => ({ ...note, atMs: index * PHRASE_STAGGER_MS })),
+    rate: tempoRate,
+    startAtContextTime: atTime,
+    tailMs: 0,
+    onEvent: (note, _index, atContextTime) => {
+      const play = () =>
+        playNote(note.stringId, note.position, gainScale, { atTime: atContextTime }, voiceId);
+      if (owner === undefined) {
+        play();
+      } else {
+        withVoiceOwner(owner, play);
+      }
+    },
+    onDone: () => {
+      phraseRuns.delete(run);
+    },
+  });
+  run.stop = handle.stop;
+}
+
+/**
+ * Stop phrase presets still unfolding — a playback stop must silence the
+ * rest. With `owner`, only the phrases that owner started (see
+ * withVoiceOwner); notes already queued on the clock belong to the same
+ * owner and go with its voices.
+ */
+export function stopViolinPhrases(owner?: string): void {
+  for (const run of phraseRuns) {
+    if (owner === undefined || run.owner === owner) {
+      run.stop();
+      phraseRuns.delete(run);
+    }
   }
 }
 
-/** Cancel scheduled phrase notes — a playback stop must silence the rest. */
-export function stopViolinPhrases(): void {
-  for (const timer of phraseTimers) {
-    clearTimeout(timer);
-  }
-  phraseTimers.clear();
-}
-
+/**
+ * `voiceId` replays a take or Studio track on its own voice; `tempoRate` is
+ * that playback's tempo, which spaces out a phrase preset's notes.
+ */
 export function playViolinSoundId(
   soundId: string,
   gainScale = 1,
   performance?: NotePerformance,
+  voiceId: ViolinVoiceId = currentVoiceId,
+  tempoRate = 1,
 ): void {
   const parsed = parseViolinSoundId(soundId);
   if (!parsed) {
     if (soundId.startsWith('phrase:')) {
       const phraseId = soundId.slice('phrase:'.length);
       if (isPhraseId(phraseId)) {
-        playPhrase(phraseId, gainScale);
+        playPhrase(phraseId, gainScale, voiceId, performance?.atTime, tempoRate);
       }
     }
     return;
   }
 
   if (parsed.kind === 'phrase') {
-    playPhrase(parsed.phraseId, gainScale);
+    playPhrase(parsed.phraseId, gainScale, voiceId, performance?.atTime, tempoRate);
     return;
   }
 
-  playNote(parsed.stringId, parsed.position, gainScale, performance);
+  playNote(parsed.stringId, parsed.position, gainScale, performance, voiceId);
 }
 
 export function releaseViolinEngine(): void {
-  stopMetronome();
   stopViolinPhrases();
-  stopAllVoices();
   // Cancels pending echo/reverb re-triggers — without this, taps keep
-  // sounding after leaving the screen (buffers stay decoded).
-  resetPianoFx();
+  // sounding after leaving the screen (buffers stay decoded). Only the
+  // violin's own: the FX bus, its settings and the metronome are shared.
+  clearPianoFxTimersFor(VIOLIN_OWNER);
+  stopVoicesByTagPrefix(['violin:']);
   initialized = false;
 }

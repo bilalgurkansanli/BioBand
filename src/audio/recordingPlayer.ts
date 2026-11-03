@@ -2,25 +2,12 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
-import { stopAllVoices } from './sampleBank';
+import { playInstrumentEvent, resolveEventVoice } from './playInstrumentEvent';
+import { getSharedAudioContext, stopVoicesOwnedBy, withVoiceOwner } from './sampleBank';
+import { MIN_LOOP_PASS_MS, passEndContextTime, passTailMs } from './schedulerTiming';
 import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
-import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
-import { isDrumKitId } from '../instruments/drums/drumsKits';
-import type { DrumSoundId } from '../instruments/drums/drumsSounds';
-import { playGuitarSoundId, setGuitarVoice } from '../instruments/guitar/guitarEngine';
-import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
-import { triggerPadForBank } from '../instruments/pads/padsEngine';
-import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
-import type { PadSoundId } from '../instruments/pads/padsSounds';
-import { playNote as playPianoNote } from '../instruments/piano/pianoEngine';
-import type { NoteId } from '../instruments/piano/pianoNotes';
-import type { NotePerformance } from '../instruments/shared/songPerformance';
-import {
-  playViolinSoundId,
-  setViolinVoice,
-  stopViolinPhrases,
-} from '../instruments/violin/violinEngine';
-import { isViolinVoiceId } from '../instruments/violin/violinVoices';
+import { getPianoVoice } from '../instruments/piano/pianoEngine';
+import { stopViolinPhrases } from '../instruments/violin/violinEngine';
 import type { InstrumentId, SavedRecording } from '../types/recording';
 
 export type RecordingPlaybackHandle = {
@@ -59,6 +46,12 @@ let heldInstrument: InstrumentId | null = null;
 // state.
 let playbackGeneration = 0;
 
+/**
+ * Voices this player schedules carry this owner, so stopping a take silences
+ * only the take — not the instrument the user is playing, nor a Studio mix.
+ */
+const VOICE_OWNER = 'recording';
+
 async function ensureInstrumentEngine(instrument: InstrumentId): Promise<void> {
   if (heldInstrument === instrument) {
     return;
@@ -77,38 +70,6 @@ async function ensureInstrumentEngine(instrument: InstrumentId): Promise<void> {
   await acquireEngine(instrument);
 }
 
-function playInstrumentEvent(
-  instrument: InstrumentId,
-  soundId: string,
-  velocity: number | undefined,
-  padBankId: PadBankId,
-  atContextTime: number,
-): void {
-  // The onset is handed to the engine as an absolute audio-context time, so the
-  // audio thread owns it from here. That is the whole point of scheduling this
-  // way: a JS thread busy rendering the scrubber can no longer move the beat.
-  const performance: NotePerformance = { atTime: atContextTime };
-  switch (instrument) {
-    case 'piano':
-      playPianoNote(soundId as NoteId, undefined, undefined, 1, performance);
-      return;
-    case 'drums':
-      playHit(soundId as DrumSoundId, velocity, 1, performance);
-      return;
-    case 'pads':
-      triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, 1, performance);
-      return;
-    case 'guitar': {
-      playGuitarSoundId(soundId, velocity, 1, performance);
-      return;
-    }
-    case 'violin': {
-      playViolinSoundId(soundId, 1, performance);
-      return;
-    }
-  }
-}
-
 function stopActivePlayback(): void {
   if (activeCancel) {
     activeCancel();
@@ -125,15 +86,19 @@ function stopActivePlayback(): void {
   }
   // Phrase presets schedule their notes inside the violin engine — cancel
   // them too, or a stop mid-phrase keeps sounding the rest.
-  stopViolinPhrases();
-  stopAllVoices();
+  stopViolinPhrases(VOICE_OWNER);
+  stopVoicesOwnedBy(VOICE_OWNER);
 }
 
 export function stopRecordingPlayback(): void {
+  // A stop is also a "newer call": a playSavedRecording still awaiting its
+  // engine must not start sounding once it resumes.
+  playbackGeneration += 1;
   stopActivePlayback();
 }
 
 export function releaseRecordingPlaybackResources(): void {
+  playbackGeneration += 1;
   stopActivePlayback();
   if (heldInstrument) {
     releaseEngine(heldInstrument);
@@ -255,27 +220,21 @@ export async function playSavedRecording(
   }
 
   // Replay with the kit/voice the take was performed on — not whatever the
-  // engine happens to be left on. Older takes without one default to the base.
-  if (recording.instrument === 'drums') {
-    setDrumKit(isDrumKitId(recording.drumKitId) ? recording.drumKitId : 'acoustic');
-  }
-  if (recording.instrument === 'guitar') {
-    setGuitarVoice(
-      isGuitarVoiceId(recording.guitarVoiceId) ? recording.guitarVoiceId : 'nylon',
-    );
-  }
-  if (recording.instrument === 'violin') {
-    setViolinVoice(
-      isViolinVoiceId(recording.violinVoiceId) ? recording.violinVoiceId : 'classic',
-    );
-  }
-  const padBankId: PadBankId = isPadBankId(recording.padBankId)
-    ? recording.padBankId
-    : 'drums';
+  // engine happens to be left on — passed per note, so the instrument the user
+  // plays by hand keeps its own. Older takes without one default to the base
+  // voice; a piano take without one keeps the current piano voice, as before.
+  const voice = resolveEventVoice(recording, getPianoVoice());
 
   let scheduler: SongSchedulerHandle | null = null;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
   let finished = false;
+  /** Bumped per pass, so a pass whose onDone fired synchronously cannot clobber its successor. */
+  let passSerial = 0;
+  /** The running pass: where it started on the take, its length and its clock anchor. */
+  let pass = { startAtMs: 0, remainingMs: 0, startContextTime: 0 };
+  // A take shorter than this cannot loop — it would hand over before it began.
+  const canLoop = recording.durationMs >= MIN_LOOP_PASS_MS;
+  const looping = () => loopEnabled && canLoop;
 
   const clearScheduled = () => {
     scheduler?.stop();
@@ -290,27 +249,34 @@ export async function playSavedRecording(
     if (finished) {
       return;
     }
-    if (loopEnabled) {
+    if (looping()) {
       // Straight back to the top: the take never "ends", so the screen keeps
-      // its playing state and the scrubber simply starts over.
-      stopViolinPhrases();
-      stopAllVoices();
-      schedule(0);
+      // its playing state and the scrubber simply starts over. This runs one
+      // lookahead before the pass ends, so the next pass is anchored to the
+      // exact end time on the audio clock — no tick of lateness, no drift
+      // accumulating lap after lap. The ringing tail is cut at that same
+      // boundary, not now.
+      const boundary = passEndContextTime(pass.startContextTime, pass.remainingMs, rate);
+      stopViolinPhrases(VOICE_OWNER);
+      stopVoicesOwnedBy(VOICE_OWNER, { at: boundary });
+      schedule(0, boundary);
       return;
     }
     finished = true;
     clearScheduled();
-    stopViolinPhrases();
-    stopAllVoices();
+    stopViolinPhrases(VOICE_OWNER);
+    stopVoicesOwnedBy(VOICE_OWNER);
     activeCancel = null;
     onEnded();
   };
 
-  // Schedules remaining events/finish from `startAtMs` — reused by seek to
-  // reschedule playback from a new position instead of the start.
-  const schedule = (startAtMs: number) => {
+  // Schedules remaining events/finish from `startAtMs`, anchored at audio-clock
+  // time `startContextTime` (default: now) — reused by seek to reschedule from
+  // a new position, and by the loop to queue the next pass.
+  const schedule = (startAtMs: number, startContextTime?: number) => {
     clearScheduled();
     finished = false;
+    const serial = ++passSerial;
 
     // Rebased onto the new start so the scheduler's clock can begin at zero;
     // it sorts internally, so a take whose events were stored out of order
@@ -321,35 +287,45 @@ export async function playSavedRecording(
 
     const remainingMs = Math.max(recording.durationMs - startAtMs, 0);
     const lastAtMs = pending.reduce((latest, event) => Math.max(latest, event.atMs), 0);
+    pass = {
+      startAtMs,
+      remainingMs,
+      startContextTime: startContextTime ?? getSharedAudioContext().currentTime,
+    };
 
     const handle = startSongScheduler({
       events: pending,
       onEvent: (event, _index, atContextTime) => {
-        playInstrumentEvent(
-          recording.instrument,
-          event.soundId,
-          event.velocity,
-          padBankId,
-          atContextTime,
+        withVoiceOwner(VOICE_OWNER, () =>
+          playInstrumentEvent(recording.instrument, event, voice, 1, atContextTime, rate),
         );
       },
       onDone: finish,
       rate,
+      startAtContextTime: pass.startContextTime,
       // A take runs to its recorded length, not to its last note: trailing
-      // silence someone deliberately left in is part of the performance.
-      //
-      // The extra 50 ms lets the final note ring before playback tears down —
-      // but a loop tears nothing down, so there it would just be 50 ms of
-      // silence added to every pass, dragging the take out of time with itself.
-      tailMs: Math.max(remainingMs - lastAtMs, 0) + (loopEnabled ? 0 : 50),
+      // silence someone deliberately left in is part of the performance. A
+      // looping pass hands over a lookahead early instead (see passTailMs).
+      tailMs: passTailMs(remainingMs, lastAtMs, looping()),
     });
+    if (serial !== passSerial || finished) {
+      // The pass was over by its first tick and finish() already queued the
+      // next one (or ended playback) — leave that state alone.
+      handle.stop();
+      return;
+    }
     scheduler = handle;
 
     if (onProgress) {
       progressInterval = setInterval(() => {
         // Read off the audio clock the notes are on, so the scrubber cannot
-        // drift away from what is actually sounding.
-        const elapsed = Math.min(startAtMs + handle.getElapsedMs(), recording.durationMs);
+        // drift away from what is actually sounding. A queued loop pass reads
+        // negative until it starts — the previous pass is still finishing.
+        const passElapsed = handle.getElapsedMs();
+        const elapsed =
+          passElapsed < 0
+            ? recording.durationMs
+            : Math.min(startAtMs + passElapsed, recording.durationMs);
         onProgress(elapsed, recording.durationMs);
       }, 100);
     }
@@ -372,12 +348,26 @@ export async function playSavedRecording(
       if (finished || isSuperseded()) {
         return;
       }
-      stopAllVoices();
+      stopViolinPhrases(VOICE_OWNER);
+      stopVoicesOwnedBy(VOICE_OWNER);
       schedule(Math.max(0, Math.min(positionMs, recording.durationMs)));
       onProgress?.(Math.max(0, Math.min(positionMs, recording.durationMs)), recording.durationMs);
     },
     setLoop: (value: boolean) => {
       loopEnabled = value;
+      // The running pass decides when to hand over from its tail — move it,
+      // so arming the loop mid-take wraps on time and disarming it lets the
+      // take end normally.
+      if (scheduler) {
+        const lastAtMs = events.reduce(
+          (latest, event) =>
+            event.atMs >= pass.startAtMs && event.atMs <= recording.durationMs
+              ? Math.max(latest, event.atMs - pass.startAtMs)
+              : latest,
+          0,
+        );
+        scheduler.setTailMs(passTailMs(pass.remainingMs, lastAtMs, looping()));
+      }
     },
   };
 }

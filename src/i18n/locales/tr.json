@@ -439,7 +439,8 @@
     "saveError": "Bu kayıt kaydedilemedi. Cihazının depolama alanı dolmuş olabilir — yer açıp tekrar dene.",
     "savedTitle": "Kayıt kaydedildi",
     "savedDetail": "Kayıtlarım'da bulabilirsin.",
-    "countIn": "Hazır ol…"
+    "countIn": "Hazır ol…",
+    "startError": "Kayıt başlatılamadı. Lütfen tekrar dene."
   },
   "drums": {
     "pads": {

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { getSharedAudioContext, prepareSamplePlayback } from '../audio/sampleBank';
+import {
+  getSharedAudioContext,
+  prepareSamplePlayback,
+  stopVoicesOwnedBy,
+  withVoiceOwner,
+} from '../audio/sampleBank';
 import type { PadBankId } from '../instruments/pads/padsBanks';
 import { triggerPadForBank } from '../instruments/pads/padsEngine';
 import type { PadSoundId } from '../instruments/pads/padsSounds';
@@ -46,6 +51,8 @@ const MAX_EVENTS_PER_LAYER = 512;
 const MAX_LAYERS = 8;
 /** Studio export writes this many passes of the loop. */
 const EXPORT_REPEATS = 4;
+/** Loop hits carry this voice owner, so a stop can cancel the queued ones. */
+const LOOPER_VOICE_OWNER = 'padsLooper';
 
 let layerSerial = 0;
 
@@ -79,10 +86,9 @@ function quantizeMs(
  * different timebase.
  *
  * Timing: the loop is anchored to the audio clock. A coarse JS timer wakes
- * every 25 ms and schedules the hits inside the next 90 ms window with
- * per-hit setTimeout remainders — jitter stays a few ms and never accumulates
- * (the drums step-sequencer's chained-setTimeout drift bug is what this
- * design avoids).
+ * every 25 ms and hands the hits inside the next 90 ms window to the engine
+ * with their exact audio-clock time — no per-hit timer, so no jitter at all,
+ * and nothing accumulates from pass to pass.
  */
 export function usePadsLooper(options: {
   getBankId: () => PadBankId;
@@ -156,6 +162,9 @@ export function usePadsLooper(options: {
     }
     clearPendingTimers();
     cancelCountInClicks();
+    // Hits already queued on the audio clock (up to one lookahead ahead) must
+    // not sound after a stop; hits already ringing finish, as they always did.
+    stopVoicesOwnedBy(LOOPER_VOICE_OWNER, { pendingOnly: true });
   }, [cancelCountInClicks, clearPendingTimers]);
 
   const gridSeconds = useCallback((): number => {
@@ -164,7 +173,17 @@ export function usePadsLooper(options: {
     return dur > 0 ? dur / (lockedBars * GRID_PER_BAR) : 0;
   }, []);
 
-  const scheduleHit = useCallback((layer: LooperLayer, event: LooperEvent, delayMs: number) => {
+  /**
+   * Queue one loop hit at audio-clock time `at`. The sound goes straight to
+   * the engine with that absolute time — a setTimeout per hit (the old way)
+   * put every repeat at the mercy of the JS thread, a few ms early or late
+   * each pass. Only the UI flash still waits on a timer.
+   */
+  const scheduleHit = useCallback((layer: LooperLayer, event: LooperEvent, at: number) => {
+    withVoiceOwner(LOOPER_VOICE_OWNER, () => {
+      triggerPadForBank(layer.bankId, event.padId, event.velocity, 1, { atTime: at });
+    });
+    const delayMs = Math.max(0, (at - getSharedAudioContext().currentTime) * 1000);
     const timer = setTimeout(() => {
       pendingTimersRef.current.delete(timer);
       // 'idle' means stopped; count-in phase may linger one frame past the
@@ -172,9 +191,8 @@ export function usePadsLooper(options: {
       if (phaseRef.current === 'idle') {
         return;
       }
-      triggerPadForBank(layer.bankId, event.padId, event.velocity);
       optionsRef.current.onScheduledHit?.(event.padId);
-    }, Math.max(0, delayMs));
+    }, delayMs);
     pendingTimersRef.current.add(timer);
   }, []);
 
@@ -224,7 +242,7 @@ export function usePadsLooper(options: {
           if (event.notBeforeSec !== undefined && at < event.notBeforeSec) {
             continue;
           }
-          scheduleHit(layer, event, (at - now) * 1000);
+          scheduleHit(layer, event, at);
         }
       }
     }

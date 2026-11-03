@@ -439,7 +439,8 @@
     "saveError": "Diese Aufnahme konnte nicht gespeichert werden. Möglicherweise ist der Speicher deines Geräts voll — schaffe Platz und versuche es erneut.",
     "savedTitle": "Aufnahme gespeichert",
     "savedDetail": "Du findest sie unter „Meine Aufnahmen“.",
-    "countIn": "Gleich geht's los…"
+    "countIn": "Gleich geht's los…",
+    "startError": "Die Aufnahme konnte nicht gestartet werden. Bitte versuche es erneut."
   },
   "drums": {
     "pads": {

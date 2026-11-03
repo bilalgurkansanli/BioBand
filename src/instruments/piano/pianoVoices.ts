@@ -183,3 +183,7 @@ export const PIANO_VOICES: PianoVoiceDefinition[] = [
 export function getPianoVoice(id: PianoVoiceId): PianoVoiceDefinition {
   return PIANO_VOICES.find((voice) => voice.id === id) ?? PIANO_VOICES[0];
 }
+
+export function isPianoVoiceId(value: unknown): value is PianoVoiceId {
+  return PIANO_VOICES.some((voice) => voice.id === value);
+}
