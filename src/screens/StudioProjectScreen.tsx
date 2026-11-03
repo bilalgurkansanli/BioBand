@@ -33,7 +33,7 @@ import { useRecordingPlayback } from '../hooks/useRecordingPlayback';
 import { useRecordings } from '../hooks/useRecordings';
 import { useStudioPlayback } from '../hooks/useStudioPlayback';
 import { useStudioProject } from '../hooks/useStudioProject';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { deleteStudioProject } from '../storage/studioProjectsStorage';
 import {
   clearStudioOverdubSession,
@@ -140,7 +140,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
 }: EditorProps) {
   const { projectId } = route.params;
   const { t } = useTranslation();
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const {
     project,
     loading,

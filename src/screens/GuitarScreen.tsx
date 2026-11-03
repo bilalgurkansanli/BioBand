@@ -22,7 +22,7 @@ import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { useGuitarEngine } from '../hooks/useGuitarEngine';
 import { useGuitarPlayAlong } from '../hooks/useGuitarPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserGuitarSongs } from '../hooks/useUserGuitarSongs';
 import {
@@ -175,7 +175,7 @@ export function GuitarScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('guitar');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('guitar');
   const userSongs = useUserGuitarSongs();
   const playAlong = useGuitarPlayAlong(playSoundId, userSongs.songs);

@@ -17,7 +17,7 @@ import { CoachTour } from './src/components/CoachTour';
 import { LaunchScreen } from './src/components/LaunchScreen';
 import { installGlobalErrorHandlers } from './src/diagnostics/errorReporter';
 import { initI18n } from './src/i18n';
-import { lockPortraitOrientation } from './src/hooks/usePianoOrientation';
+import { lockPortraitOrientation } from './src/hooks/useLandscapeOrientation';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { configureNotificationHandler } from './src/notifications/practiceReminder';
 import { AuthPromptScreen } from './src/screens/AuthPromptScreen';

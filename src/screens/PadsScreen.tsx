@@ -37,7 +37,7 @@ import { usePadsEngine } from '../hooks/usePadsEngine';
 import { usePadsLooper } from '../hooks/usePadsLooper';
 import { usePadsPlayAlong } from '../hooks/usePadsPlayAlong';
 import type { NoteRepeatRate } from '../hooks/usePadNoteRepeat';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserPadSongs } from '../hooks/useUserPadSongs';
 import {
@@ -217,7 +217,7 @@ export function PadsScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('pads');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('pads');
 
   const userSongs = useUserPadSongs();

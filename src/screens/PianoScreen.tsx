@@ -30,7 +30,7 @@ import { PlayAlongModal } from '../components/piano/PlayAlongModal';
 import { createNoteOnsetSignal, PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
@@ -386,7 +386,7 @@ export function PianoScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('piano');
 
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
 
   const { notePlayed } = useFreePlayPractice('piano');
 

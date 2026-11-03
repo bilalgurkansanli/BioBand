@@ -22,7 +22,19 @@ export async function lockPortraitOrientation(): Promise<void> {
   await ScreenOrientation.lockAsync(PORTRAIT_LOCK);
 }
 
-export function usePianoOrientation(
+/**
+ * Locks the focused screen to landscape and reports whether the window is
+ * nonetheless portrait.
+ *
+ * Every instrument screen and the Studio editor use it — it began life on the
+ * piano, hence the old name, `usePianoOrientation`.
+ *
+ * The lock is a request, not a guarantee: Android 16 ignores orientation locks
+ * on large screens (tablets, foldables, desktop windows), and a split-screen
+ * window can be any shape. Callers must handle `isPortrait` — hide what cannot
+ * fit and leave the user a way out (see `LandscapeOverlay`).
+ */
+export function useLandscapeOrientation(
   _navigation: NavigationProp<Record<string, object | undefined>>,
 ) {
   const { width, height } = useWindowDimensions();

@@ -31,7 +31,7 @@ import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { useDrumsEngine } from '../hooks/useDrumsEngine';
 import { useDrumsPlayAlong } from '../hooks/useDrumsPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserDrumSongs } from '../hooks/useUserDrumSongs';
 import { chokePad } from '../instruments/drums/drumsEngine';
@@ -163,7 +163,7 @@ export function DrumsScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('drums');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('drums');
 
   const userSongs = useUserDrumSongs();

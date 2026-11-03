@@ -36,7 +36,7 @@ import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { OptionListModal } from '../components/studio/OptionListModal';
 import { useDrumMachine, type SongChainEntry } from '../hooks/useDrumMachine';
 import { useDrumMachineEngine } from '../hooks/useDrumMachineEngine';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation as usePianoOrientation } from '../hooks/useLandscapeOrientation';
 import type { DrumMachineTypeId } from '../instruments/drumMachine/drumMachineBanks';
 import {
   DRUM_MACHINE_PRESETS,

@@ -20,7 +20,7 @@ import { ViolinSettingsModal } from '../components/violin/ViolinSettingsModal';
 import { ViolinToolbar } from '../components/violin/ViolinToolbar';
 import { ViolinVoiceModal } from '../components/violin/ViolinVoiceModal';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserViolinSongs } from '../hooks/useUserViolinSongs';
 import { useViolinEngine } from '../hooks/useViolinEngine';
@@ -100,7 +100,7 @@ export function ViolinScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('violin');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('violin');
   const userSongs = useUserViolinSongs();
   const playAlong = useViolinPlayAlong(playSoundId, userSongs.songs);
