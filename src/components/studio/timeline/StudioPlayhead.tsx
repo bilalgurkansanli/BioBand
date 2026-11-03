@@ -2,10 +2,11 @@ import { useEffect, useMemo, useRef } from 'react';
 import { Animated, Easing, PanResponder, StyleSheet, View } from 'react-native';
 
 import { colors } from '../../../theme/colors';
+import { type PlaybackPosition, usePlaybackPositionMs } from './playbackPosition';
 import { RULER_HEIGHT } from './timelineGeometry';
 
 type Props = {
-  positionMs: number;
+  position: PlaybackPosition;
   durationMs: number;
   pxPerMs: number;
   isPlaying: boolean;
@@ -14,13 +15,16 @@ type Props = {
 };
 
 export function StudioPlayhead({
-  positionMs,
+  position,
   durationMs,
   pxPerMs,
   isPlaying,
   scrollX,
   onSeek,
 }: Props) {
+  // Subscribed here, at the leaf, so a progress tick redraws the playhead and
+  // nothing above it.
+  const positionMs = usePlaybackPositionMs(position);
   const playheadPx = useRef(new Animated.Value(positionMs * pxPerMs)).current;
   const positionRef = useRef(positionMs);
   positionRef.current = positionMs;
