@@ -81,6 +81,7 @@ import {
 } from '../storage/padsSettingsStorage';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList, RootTabParamList } from '../types/navigation';
+import { formatDate } from '../utils/formatDateTime';
 
 const FX_APPLY_DEBOUNCE_MS = 80;
 const XY_PANEL_WIDTH = 170;
@@ -88,7 +89,7 @@ const XY_PANEL_WIDTH = 170;
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'Pads'>;
 
 export function PadsScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const rootNavigation = useNavigation<NavigationProp<RootTabParamList>>();
   const [bankId, setBankId] = useState<PadBankId>('drums');
@@ -505,7 +506,7 @@ export function PadsScreen({ navigation }: Props) {
 
   const handleLooperExport = useCallback(() => {
     const title = t('pads.looper.exportTitle', {
-      date: new Date().toLocaleDateString(),
+      date: formatDate(Date.now(), i18n.language),
     });
     void looperRef.current.exportToStudio(title).then((projectId) => {
       if (!projectId) {
@@ -526,7 +527,7 @@ export function PadsScreen({ navigation }: Props) {
         },
       ]);
     });
-  }, [rootNavigation, t]);
+  }, [i18n, rootNavigation, t]);
 
   const bankIconFor = useCallback((id: PadBankId) => getPadBank(id).icon, []);
 

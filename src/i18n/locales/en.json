@@ -9,6 +9,7 @@
     "promptSubtitle": "Sign in with Google or Apple to keep your recordings, streaks, and settings across launches. As a guest, everything resets each time you open the app.",
     "signInWithGoogle": "Sign in with Google",
     "signInWithApple": "Sign in with Apple",
+    "or": "or",
     "continueAsGuest": "Continue as guest",
     "guestHint": "You can sign in later from Profile settings.",
     "signOut": "Sign out",
@@ -150,7 +151,6 @@
     "subtitle": "Pick an instrument and start playing.",
     "piano": "Piano",
     "pianoDescription": "Tap the keys to play.",
-    "open": "Open",
     "pianoLoading": "Loading piano sounds...",
     "pianoLoadError": "Could not load sounds. Go back and try again.",
     "pianoLandscapeRequired": "Piano works in landscape only",
@@ -250,6 +250,8 @@
     "trackCount": "{{count}} tracks",
     "trackCount_one": "{{count}} track",
     "trackCount_other": "{{count}} tracks",
+    "projectCount_one": "{{count}} project",
+    "projectCount_other": "{{count}} projects",
     "play": "Play mix",
     "stop": "Stop",
     "playbackError": "Could not play this studio project.",
@@ -299,7 +301,6 @@
     "title": "Drum Machine",
     "loading": "Loading sounds...",
     "start": "Start",
-    "play": "Play",
     "stop": "Stop",
     "random": "Random",
     "settings": "Settings",
@@ -414,16 +415,6 @@
       "pad15": "Pad 15",
       "pad16": "Pad 16"
     },
-    "short": {
-      "kick": "Kick",
-      "snare": "Snare",
-      "tomLow": "Tom L",
-      "tomMid": "Tom M",
-      "tomHi": "Tom H",
-      "hihatClosed": "HH",
-      "hihatOpen": "OH",
-      "crash": "Crash"
-    },
     "clearConfirmTitle": "Clear the grid?",
     "clearConfirmBody": "Every step will be erased and this cannot be undone. Save it first?",
     "randomConfirmTitle": "Roll a random pattern?",
@@ -509,7 +500,6 @@
       "scopePartialHint": "A short excerpt from the song",
       "scopeFull": "Go with the full song",
       "scopeFullHint": "Play every hit from start to end",
-      "pickMode": "How do you want to continue?",
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play drums over it.",
       "pickAudioButton": "Choose audio file",
@@ -573,7 +563,6 @@
         "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
         "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Add",
-        "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
           "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
@@ -644,7 +633,6 @@
       "scopePartialHint": "A short excerpt from the song",
       "scopeFull": "Go with the full song",
       "scopeFullHint": "Play every note from start to end",
-      "pickMode": "How do you want to continue?",
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play violin over it.",
       "pickAudioButton": "Choose audio file",
@@ -708,7 +696,6 @@
         "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
         "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"soundId\": \"v2:3\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Add",
-        "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
           "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
@@ -833,7 +820,6 @@
       "scopePartialHint": "A short excerpt from the song",
       "scopeFull": "Go with the full song",
       "scopeFullHint": "Play every note from start to end",
-      "pickMode": "How do you want to continue?",
       "pickAudio": "Add the original track",
       "pickAudioHint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A so you can play guitar over it.",
       "pickAudioButton": "Choose audio file",
@@ -897,7 +883,6 @@
         "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
         "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"soundId\": \"s5:f7\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Add",
-        "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
           "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
@@ -1052,7 +1037,6 @@
         "hard": "Hard",
         "empty": "No songs in this difficulty"
       },
-      "pickMode": "How do you want to continue?",
       "pickScope": "How much do you want to play?",
       "scopePartial": "Continue with a part",
       "scopePartialHint": "A short excerpt from the song",
@@ -1121,7 +1105,6 @@
         "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
         "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"padId\": \"pad01\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Add",
-        "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
           "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
@@ -1146,6 +1129,7 @@
       "stop": "Stop loop",
       "record": "Capture on/off",
       "barsShort": "bars",
+      "bpm": "{{value}} BPM",
       "newLayer": "Layer",
       "export": "Send to Studio",
       "exportTitle": "Pad Loop {{date}}",
@@ -1234,8 +1218,6 @@
       "auto": "Auto"
     },
     "scale": {
-      "off": "Off",
-      "close": "Close",
       "names": {
         "cMajor": "C major",
         "gMajor": "G major",
@@ -1340,9 +1322,6 @@
         "hint": "BioBand does not ship copyrighted songs. Pick your own MP3/M4A of this track so you can play piano over it.",
         "button": "Choose audio file",
         "errors": {
-          "canceled": "No file selected.",
-          "pickerUnavailable": "File picker unavailable in this build.",
-          "readFailed": "Could not save the audio file. Try again.",
           "unsupported": "Pick an MP3, M4A, MP4 or WAV file."
         }
       },
@@ -1399,7 +1378,6 @@
         "pasteHint": "Paste JSON with title and events (used when the file picker is unavailable).",
         "pastePlaceholder": "{\n  \"title\": \"Example\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Add",
-        "pickerUnavailable": "No file picker — paste JSON to add a song.",
         "errors": {
           "unsupported": "Unsupported file. Import JSON or MIDI (.mid).",
           "invalidJson": "Could not read the JSON file.",
@@ -1417,8 +1395,6 @@
     }
   },
   "tutorial": {
-    "pickSong": "Choose a song",
-    "close": "Close",
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m groove + chorus + keyboard section."

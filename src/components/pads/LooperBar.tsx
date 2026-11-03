@@ -180,7 +180,7 @@ export function LooperBar({
             />
           )}
           <Text style={styles.bpmLabel}>
-            {bpm} BPM · {bars} {t('pads.looper.barsShort')}
+            {t('pads.looper.bpm', { value: bpm })} · {bars} {t('pads.looper.barsShort')}
           </Text>
         </View>
 

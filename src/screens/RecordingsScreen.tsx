@@ -360,7 +360,7 @@ export function RecordingsScreen({ navigation }: Props) {
         <>
           <View style={styles.studioHeader}>
             <Text style={styles.subtitle}>
-              {projects.length} {t('studio.title')}
+              {t('studio.projectCount', { count: projects.length })}
             </Text>
             <Pressable onPress={() => setCreateVisible(true)} style={styles.newButton}>
               <Ionicons color="#FFFFFF" name="add" size={18} />

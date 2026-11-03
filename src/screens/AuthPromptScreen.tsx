@@ -199,7 +199,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
+          <Text style={styles.dividerText}>{t('auth.or')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
