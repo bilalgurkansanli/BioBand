@@ -2,7 +2,55 @@
 
 All notable changes to this project are documented here. Versions follow the app's release history rather than strict [SemVer](https://semver.org/), since this is a mobile app rather than a published library.
 
-## Unreleased
+## v2.1 — store version 1.1.0 (2026-11-03)
+
+**Platform.** Expo SDK 57 (React Native 0.86, React 19.2, TypeScript 6). iOS now
+needs 16.4 or later. Android system bars follow the edge-to-edge rules, and
+expo-audio no longer declares background playback the app never uses.
+
+**Your data is safer.**
+- Opening the app offline while signed in no longer erases the library. A
+  session that ends without a sign-out keeps the data and asks you to sign in.
+- Sync pulls before it pushes and never overwrites the cloud after a failed
+  pull; progress from two devices is merged instead of last-write-wins.
+- A failed or corrupt read no longer gets written back as an empty list.
+- Restoring a backup treats the file as untrusted: safe file names, no external
+  paths, a size cap.
+- Sign-out and account deletion remove every audio folder and cancel the
+  practice reminder; Apple tokens from the Android sign-in are revoked too.
+
+**Tutorials play fairer.**
+- One missed note in a fast passage costs one miss, not every note after it.
+- Chords and stacked drum/pad hits can be played in any order.
+- Letting a Band Mode track run out counts the unplayed notes.
+- Practice time is real time, counted once — no more double credit during
+  tutorials or recordings — and free play completes the daily practice goal.
+- Piano excerpts pick the right section after calibration.
+- MIDI import ignores the drum channel for melodic instruments and uses only it
+  for drums and pads; malformed or huge files are refused instead of freezing
+  the app.
+
+**Sound.**
+- Exports match live playback in pitch, tempo and loudness (they used to come
+  out about a semitone and a half flat on 48 kHz phones).
+- Studio plays every track with its own voice; mic tracks keep their pitch in
+  tempo-changed exports; overdubs line up with the backing.
+- Piano takes remember their voice and transposition.
+- Loops, the drum machine, violin phrases and the pad looper run on the audio
+  clock; organ, rhodes and synth no longer fade with repeated playing.
+
+**Interface.** Smoother instrument surfaces and Studio playback, buttons kept
+clear of the navigation bar and home indicator, dialogs above the keyboard, a
+Back button on the rotate prompt for tablets, screen-reader support for every
+instrument and slider, and wording fixes in Turkish and German.
+
+**New song.** Great Fairy's Fountain (Koji Kondo) on the piano: harp-like
+arpeggios over a slowly falling bass.
+
+**Repository.** 820+ Jest tests (scoring, MIDI, import validation, sync,
+launch), the five tutorial hooks folded into one session core, CI on Node 22.
+
+## v2 — store version 1.0.0 (2026-08-15)
 
 **Recordings — export rebuilt.** Download and Share are now two direct buttons
 instead of a format-picker sheet. The MP3 encoder runs sliced and awaited rather
