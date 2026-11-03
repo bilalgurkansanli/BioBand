@@ -22,7 +22,7 @@ import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { useGuitarEngine } from '../hooks/useGuitarEngine';
 import { useGuitarPlayAlong } from '../hooks/useGuitarPlayAlong';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useUserGuitarSongs } from '../hooks/useUserGuitarSongs';
 import {
@@ -175,7 +175,7 @@ export function GuitarScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('guitar');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('guitar');
   const userSongs = useUserGuitarSongs();
   const playAlong = useGuitarPlayAlong(playSoundId, userSongs.songs);
@@ -355,9 +355,15 @@ export function GuitarScreen({ navigation }: Props) {
     setMetronomeBpmState(bpm);
   }, []);
 
+  // Depend on the fields the string handlers actually read, not on the whole
+  // play-along object — that is new on every render, and the fretboard would
+  // redraw with it on every progress tick.
+  const playAlongIsActive = playAlong.isActive;
+  const playAlongIsDemo = playAlong.phase === 'demo';
+  const playAlongHandleSoundPress = playAlong.handleSoundPress;
+
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
-      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -365,40 +371,52 @@ export function GuitarScreen({ navigation }: Props) {
       const soundId = formatPluckSoundId(stringId, fret);
       captureEvent(soundId, velocity);
 
-      if (playAlong.isActive) {
-        if (playAlong.phase === 'demo') {
+      if (playAlongIsActive) {
+        if (playAlongIsDemo) {
           return;
         }
         // One-shot with touch dynamics; scoring still matches `sN:fF`.
         pluckString(stringId, fret, velocity);
-        playAlong.handleSoundPress(soundId, { skipPlayback: true });
+        playAlongHandleSoundPress(soundId, { skipPlayback: true });
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its notes here as well billed that time twice.
+      notePlayed();
       noteOn(stringId, fret, velocity);
     },
-    [captureEvent, haptics, noteOn, playAlong, pluckString, notePlayed],
+    [
+      captureEvent,
+      haptics,
+      noteOn,
+      notePlayed,
+      playAlongHandleSoundPress,
+      playAlongIsActive,
+      playAlongIsDemo,
+      pluckString,
+    ],
   );
 
   const onPluckOut = useCallback(
     (stringId: GuitarStringId, fret: number) => {
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         return;
       }
       noteOff(stringId, fret);
     },
-    [noteOff, playAlong.isActive],
+    [noteOff, playAlongIsActive],
   );
 
   const onBend = useCallback(
     (stringId: GuitarStringId, fret: number, semitones: number) => {
       // Play-along plucks are one-shots — nothing held to bend.
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         return;
       }
       bendNote(stringId, fret, semitones);
     },
-    [bendNote, playAlong.isActive],
+    [bendNote, playAlongIsActive],
   );
 
   const onSelectChord = useCallback(
@@ -415,23 +433,24 @@ export function GuitarScreen({ navigation }: Props) {
         return;
       }
 
-      notePlayed();
       if (haptics) {
         hapticNote();
       }
 
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         const soundId = formatChordSoundId(chordId);
         captureEvent(soundId);
-        if (playAlong.phase === 'demo') {
+        if (playAlongIsDemo) {
           return;
         }
         // Tutorial scoring uses `chord:Id`; hear current play mode.
         playChord(chordId, { mode: chordPlayMode, direction, gesture });
-        playAlong.handleSoundPress(soundId, { skipPlayback: true });
+        playAlongHandleSoundPress(soundId, { skipPlayback: true });
         return;
       }
 
+      // Free play only — see onPluckIn.
+      notePlayed();
       setSelectedChordId(chordId);
       // Record the performance form so playback keeps mode + strum direction.
       captureEvent(
@@ -439,7 +458,17 @@ export function GuitarScreen({ navigation }: Props) {
       );
       playChord(chordId, { mode: chordPlayMode, direction, gesture });
     },
-    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId, notePlayed],
+    [
+      captureEvent,
+      chordPlayMode,
+      haptics,
+      notePlayed,
+      playAlongHandleSoundPress,
+      playAlongIsActive,
+      playAlongIsDemo,
+      playChord,
+      selectedChordId,
+    ],
   );
 
   const isPlayAlongModalVisible =
@@ -453,7 +482,9 @@ export function GuitarScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -549,13 +580,13 @@ export function GuitarScreen({ navigation }: Props) {
         onChangeBpm={handleMetronomeBpmChange}
         onClose={() => setMetronomeModalVisible(false)}
         showSubdivision
-        visible={metronomeModalVisible}
+        visible={metronomeModalVisible && !isPortrait}
       />
 
       <PianoVolumeModal
         onChange={handleVolumeChange}
         onClose={() => setVolumeModalVisible(false)}
-        visible={volumeModalVisible}
+        visible={volumeModalVisible && !isPortrait}
         volume={volume}
       />
 
@@ -566,14 +597,14 @@ export function GuitarScreen({ navigation }: Props) {
           setVoiceModalVisible(false);
         }}
         selectedVoiceId={voiceId}
-        visible={voiceModalVisible}
+        visible={voiceModalVisible && !isPortrait}
       />
 
       <PianoFxModal
         onChange={handleFxSettingsChange}
         onClose={() => setFxModalVisible(false)}
         settings={fxSettings}
-        visible={fxModalVisible}
+        visible={fxModalVisible && !isPortrait}
       />
 
       <GuitarSettingsModal
@@ -605,7 +636,7 @@ export function GuitarScreen({ navigation }: Props) {
         strumTightness={strumTightness}
         sustainLength={sustainLength}
         velocityCurve={velocityCurve}
-        visible={settingsModalVisible}
+        visible={settingsModalVisible && !isPortrait}
         visibleChordIds={visibleChordIds}
         visiblePlayModes={visiblePlayModes}
       />
@@ -651,10 +682,10 @@ export function GuitarScreen({ navigation }: Props) {
         selectedSong={playAlong.selectedSong}
         tempo={playAlong.tempo}
         userSongs={userSongs.songs}
-        visible={isPlayAlongModalVisible}
+        visible={isPlayAlongModalVisible && !isPortrait}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={() => navigation.goBack()} visible={isPortrait} />
     </View>
   );
 }

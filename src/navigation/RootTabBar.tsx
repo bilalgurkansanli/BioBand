@@ -30,7 +30,7 @@ export function RootTabBar(props: BottomTabBarProps) {
   // The Studio timeline is a full-screen landscape editor — hide the tab bar
   // there too, like the instrument play screens.
   if (focusedTab?.name === 'Recordings') {
-    const nested = getFocusedRouteNameFromRoute(focusedTab) ?? 'RecordingsList';
+    const nested = getFocusedRouteNameFromRoute(focusedTab) ?? 'RecordingsHome';
     if (nested === 'StudioProject') {
       return null;
     }

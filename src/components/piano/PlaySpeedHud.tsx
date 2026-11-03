@@ -1,10 +1,42 @@
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { usePlaySpeed } from '../../hooks/usePlaySpeed';
 import { colors } from '../../theme/colors';
 
+/**
+ * How a screen tells the HUD that a note was played, without owning the
+ * play-speed state itself.
+ *
+ * The rolling rate ticks every 80 ms while someone plays. Held by the screen,
+ * each tick re-rendered the whole instrument screen — toolbar, banners, every
+ * modal — to move one bar. The HUD owns that state now; the screen only fires
+ * this signal, which costs no render at all.
+ */
+export type NoteOnsetSignal = {
+  emit: () => void;
+  subscribe: (listener: () => void) => () => void;
+};
+
+export function createNoteOnsetSignal(): NoteOnsetSignal {
+  const listeners = new Set<() => void>();
+  return {
+    emit: () => {
+      for (const listener of listeners) {
+        listener();
+      }
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
 type PlaySpeedHudProps = {
-  notesPerSec: number;
-  maxNotesPerSec?: number;
+  onsets: NoteOnsetSignal;
   visible?: boolean;
 };
 
@@ -18,11 +50,13 @@ function barColor(ratio: number): string {
   return '#FF8A65';
 }
 
-export function PlaySpeedHud({
-  notesPerSec,
-  maxNotesPerSec = 8,
-  visible = true,
-}: PlaySpeedHudProps) {
+export function PlaySpeedHud({ onsets, visible = true }: PlaySpeedHudProps) {
+  // Hidden means idle: no tick interval and no onsets kept while the bar is
+  // not on screen (usePlaySpeed's `enabled`).
+  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed(visible);
+
+  useEffect(() => onsets.subscribe(recordNoteOn), [onsets, recordNoteOn]);
+
   if (!visible) {
     return null;
   }

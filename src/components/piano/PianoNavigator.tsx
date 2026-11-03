@@ -14,6 +14,7 @@ import {
   BLACK_PIANO_NOTES,
   WHITE_PIANO_NOTES,
 } from '../../instruments/piano/pianoNotes';
+import { colors } from '../../theme/colors';
 
 type PianoNavigatorProps = {
   tonePosition: number;
@@ -235,7 +236,7 @@ export function PianoNavigator({
           </View>
         </View>
 
-        <Pressable hitSlop={8} onPress={onJumpCenter} style={styles.resetWrap}>
+        <Pressable accessibilityRole="button" hitSlop={8} onPress={onJumpCenter} style={styles.resetWrap}>
           <Text style={styles.resetHint}>{t('piano.tone.dragHint')}</Text>
         </Pressable>
       </View>
@@ -273,7 +274,7 @@ const styles = StyleSheet.create({
   navButton: {
     alignItems: 'center',
     backgroundColor: '#2C2C2E',
-    borderColor: '#3A3A3C',
+    borderColor: colors.controlTrack,
     borderRadius: NAV_BUTTON_SIZE / 2,
     borderWidth: 1,
     height: NAV_BUTTON_SIZE,
@@ -300,13 +301,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   toneLabel: {
-    color: '#6C5CE7',
+    color: colors.accent,
     fontSize: 10,
     fontWeight: '700',
     textAlign: 'center',
   },
   track: {
-    borderColor: '#3A3A3C',
+    borderColor: colors.controlTrack,
     borderRadius: 4,
     borderWidth: 1,
     height: TRACK_HEIGHT,
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
   },
   thumb: {
     backgroundColor: 'rgba(108, 92, 231, 0.4)',
-    borderColor: '#6C5CE7',
+    borderColor: colors.accent,
     borderRadius: 3,
     borderWidth: 1.5,
     position: 'absolute',

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { RequestSongPrompt } from '../instrument/RequestSongPrompt';
@@ -41,12 +42,13 @@ export function ViolinSettingsModal({
   onStartTutorial,
   onClose,
 }: ViolinSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           onPress={onClose}
@@ -75,6 +77,7 @@ export function ViolinSettingsModal({
                 const on = noteLabelMode === mode;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={mode}
                     onPress={() => onChangeNoteLabelMode(mode)}
                     style={[
@@ -98,9 +101,10 @@ export function ViolinSettingsModal({
                 {t('violin.settings.strongGuideHighlight')}
               </Text>
               <Switch
+                accessibilityLabel={t('violin.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
-                thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={strongGuideHighlight ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={strongGuideHighlight}
               />
             </View>
@@ -108,14 +112,16 @@ export function ViolinSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('violin.settings.haptics')}</Text>
               <Switch
+                accessibilityLabel={t('violin.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();
@@ -145,7 +151,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
   },
   card: {
     backgroundColor: colors.surface,
@@ -194,7 +200,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: colors.surfaceLight,
-    borderColor: '#3A3A3C',
+    borderColor: colors.controlTrack,
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
@@ -213,7 +219,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tutorialText: {
-    color: '#FFD54F',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '700',
   },

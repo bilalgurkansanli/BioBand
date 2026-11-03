@@ -178,7 +178,6 @@ export function InstrumentsListScreen({ navigation }: Props) {
       supportedOrientations={MODAL_ORIENTATIONS}
         animationType="none"
         onRequestClose={() => {}}
-        statusBarTranslucent
         transparent
         visible={introActive}
       >

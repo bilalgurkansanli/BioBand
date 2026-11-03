@@ -9,6 +9,7 @@
     "promptSubtitle": "Kayıtlarını, serilerini ve ayarlarını her açılışta korumak için Google ya da Apple ile giriş yap. Konuk olarak devam edersen her açılışta her şey sıfırlanır.",
     "signInWithGoogle": "Google ile giriş yap",
     "signInWithApple": "Apple ile giriş yap",
+    "or": "veya",
     "continueAsGuest": "Konuk olarak devam et",
     "guestHint": "Daha sonra Profil ayarlarından giriş yapabilirsin.",
     "signOut": "Çıkış yap",
@@ -56,6 +57,7 @@
     "minutesShort": "{{count}} dk",
     "hoursShort": "{{count}} saat",
     "percent": "%{{percent}}",
+    "bpmValue": "{{value}} BPM",
     "about": "Hakkında",
     "privacyPolicy": "Gizlilik Politikası"
   },
@@ -150,7 +152,6 @@
     "subtitle": "Bir enstrüman seç ve çalmaya başla.",
     "piano": "Piyano",
     "pianoDescription": "Tuşlara basarak çal.",
-    "open": "Aç",
     "pianoLoading": "Piyano sesleri yükleniyor...",
     "pianoLoadError": "Sesler yüklenemedi. Geri dönüp tekrar dene.",
     "pianoLandscapeRequired": "Piyano yatay modda çalışır",
@@ -231,7 +232,9 @@
     "noResultsTitle": "Eşleşen kayıt yok",
     "noResultsDescription": "Aramayı değiştir ya da filtreyi Tümü'ne al.",
     "playbackSpeed": "Oynatma hızı",
-    "loop": "Döngü"
+    "loop": "Döngü",
+    "playbackPosition": "Çalma konumu",
+    "positionValue": "{{position}} / {{duration}}"
   },
   "studio": {
     "title": "Studio",
@@ -250,6 +253,8 @@
     "trackCount": "{{count}} track",
     "trackCount_one": "{{count}} track",
     "trackCount_other": "{{count}} track",
+    "projectCount_one": "{{count}} proje",
+    "projectCount_other": "{{count}} proje",
     "play": "Mix'i çal",
     "stop": "Durdur",
     "playbackError": "Bu studio projesi çalınamadı.",
@@ -293,13 +298,13 @@
     "loop": "Döngüde çal",
     "grid": "Beat ızgarası",
     "snap": "Izgaraya yapıştır",
-    "snapResolution": "Izgara çözünürlüğü"
+    "snapResolution": "Izgara çözünürlüğü",
+    "playhead": "Çalma imleci"
   },
   "drumMachine": {
     "title": "Bateri Makinesi",
     "loading": "Sesler yükleniyor...",
     "start": "Başlat",
-    "play": "Çal",
     "stop": "Durdur",
     "random": "Rastgele",
     "settings": "Ayarlar",
@@ -330,7 +335,7 @@
     "hapticsHint": "Hücrelere dokununca kısa bir titreşim verir.",
     "kitTitle": "Bateri kiti",
     "kitHint": "Drums bankasının sesi — kaydedilen take de aynı kitle çalınır.",
-    "tapTempo": "Tap tempo",
+    "tapTempo": "Dokunarak tempo belirle",
     "resetDefaults": "Varsayılana dön",
     "recordTitle": "Kayıt",
     "recordHint": "Nasıl kaydetmek istersin?",
@@ -413,16 +418,6 @@
       "pad14": "Pad 14",
       "pad15": "Pad 15",
       "pad16": "Pad 16"
-    },
-    "short": {
-      "kick": "Kick",
-      "snare": "Snare",
-      "tomLow": "Tom A",
-      "tomMid": "Tom O",
-      "tomHi": "Tom Ü",
-      "hihatClosed": "HH",
-      "hihatOpen": "OH",
-      "crash": "Crash"
     },
     "clearConfirmTitle": "Grid sıfırlansın mı?",
     "clearConfirmBody": "Tüm adımlar silinecek ve bu geri alınamaz. Önce kaydetmek ister misin?",
@@ -509,7 +504,6 @@
       "scopePartialHint": "Şarkıdan kısa bir kesit",
       "scopeFull": "Tüm şarkıyla ilerle",
       "scopeFullHint": "Tüm vuruşları baştan sona çal",
-      "pickMode": "Nasıl devam etmek istersin?",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Davulla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
@@ -573,7 +567,6 @@
         "pasteHint": "Başlık ve events içeren JSON yapıştır (dosya seçici yoksa kullanılır).",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) içe aktar.",
           "invalidJson": "JSON dosyası okunamadı.",
@@ -644,7 +637,6 @@
       "scopePartialHint": "Şarkıdan kısa bir kesit",
       "scopeFull": "Tüm şarkıyla ilerle",
       "scopeFullHint": "Tüm notaları baştan sona çal",
-      "pickMode": "Nasıl devam etmek istersin?",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Kemanla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
@@ -708,7 +700,6 @@
         "pasteHint": "Başlık ve events içeren JSON yapıştır (dosya seçici yoksa kullanılır).",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"soundId\": \"v2:3\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
           "invalidJson": "JSON dosyası okunamadı.",
@@ -723,6 +714,9 @@
       },
       "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
+    },
+    "a11y": {
+      "note": "{{string}} telinde {{note}}"
     }
   },
   "guitar": {
@@ -833,7 +827,6 @@
       "scopePartialHint": "Şarkıdan kısa bir kesit",
       "scopeFull": "Tüm şarkıyla ilerle",
       "scopeFullHint": "Tüm notaları baştan sona çal",
-      "pickMode": "Nasıl devam etmek istersin?",
       "pickAudio": "Orijinal parçayı ekle",
       "pickAudioHint": "BioBand telifli şarkı göndermez. Gitarla üstüne çalmak için kendi MP3/M4A dosyanı seç.",
       "pickAudioButton": "Ses dosyası seç",
@@ -897,7 +890,6 @@
         "pasteHint": "Başlık ve events içeren JSON yapıştır (dosya seçici yoksa kullanılır).",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"soundId\": \"s5:f7\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
           "invalidJson": "JSON dosyası okunamadı.",
@@ -912,6 +904,10 @@
       },
       "requestSong": "Aradığın şarkıyı bulamıyor musun? Yorumuna şarkı adını yaz, sonraki sürümde ekleyelim.",
       "requestSongOpenFailed": "Mağaza sayfası açılamadı. Daha sonra tekrar dene."
+    },
+    "a11y": {
+      "string": "{{string}} teli",
+      "stringHint": "Teli boş ya da seçili akordun perdesinde çalar."
     }
   },
   "pads": {
@@ -1052,7 +1048,6 @@
         "hard": "Zor",
         "empty": "Bu zorlukta şarkı yok"
       },
-      "pickMode": "Nasıl devam etmek istersin?",
       "pickScope": "Ne kadarını çalmak istersin?",
       "scopePartial": "Bir kısmı ile devam et",
       "scopePartialHint": "Şarkıdan kısa bir kesit",
@@ -1121,7 +1116,6 @@
         "pasteHint": "Dosya seçici yoksa title ve events içeren JSON yapıştır.",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"padId\": \"pad01\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — şarkı eklemek için JSON yapıştır.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) içe aktar.",
           "invalidJson": "JSON dosyası okunamadı.",
@@ -1139,7 +1133,8 @@
     },
     "xy": {
       "filter": "Filtre",
-      "resonance": "Rezonans"
+      "resonance": "Rezonans",
+      "a11yHint": "Filtreyi açmak ya da kısmak için yukarı veya aşağı kaydır."
     },
     "looper": {
       "play": "Loop başlat",
@@ -1234,8 +1229,6 @@
       "auto": "Otomatik"
     },
     "scale": {
-      "off": "Kapalı",
-      "close": "Kapat",
       "names": {
         "cMajor": "Do majör",
         "gMajor": "Sol majör",
@@ -1340,9 +1333,6 @@
         "hint": "BioBand telifli şarkı dosyası gömmez. Bu parçanın kendi MP3/M4A kaydını seç; piyanoyu onun üstünde çalarsın.",
         "button": "Ses dosyası seç",
         "errors": {
-          "canceled": "Dosya seçilmedi.",
-          "pickerUnavailable": "Dosya seçici bu kurulumda yok.",
-          "readFailed": "Ses dosyası kaydedilemedi. Tekrar dene.",
           "unsupported": "MP3, M4A, MP4 veya WAV dosyası seç."
         }
       },
@@ -1399,7 +1389,6 @@
         "pasteHint": "title ve events içeren JSON yapıştır (dosya seçici yoksa bu yol kullanılır).",
         "pastePlaceholder": "{\n  \"title\": \"Örnek\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Ekle",
-        "pickerUnavailable": "Dosya seçici yok — JSON yapıştır ile şarkı ekleyebilirsin.",
         "errors": {
           "unsupported": "Desteklenmeyen dosya. JSON veya MIDI (.mid) yükle.",
           "invalidJson": "JSON dosyası okunamadı.",
@@ -1417,8 +1406,6 @@
     }
   },
   "tutorial": {
-    "pickSong": "Bir şarkı seç",
-    "close": "Kapat",
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m groove + nakarat + klavye bölümü."

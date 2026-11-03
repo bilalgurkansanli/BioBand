@@ -25,6 +25,7 @@ function StudioTimelineRulerBase({ timelineWidth, pxPerMs, pixelsPerSecond, onSe
 
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={(event) => onSeek(Math.max(0, event.nativeEvent.locationX / pxPerMs))}
       style={[styles.ruler, { width: timelineWidth }]}
     >

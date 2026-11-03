@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../components/modalOrientations';
+import { useCenteredModalPadding } from '../components/modalSafeArea';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -39,6 +40,7 @@ function weekdayIndex(dayKey: string): number {
 
 export function ProfileScreen() {
   const { t } = useTranslation();
+  const breakdownPadding = useCenteredModalPadding(24);
   const navigation =
     useNavigation<NativeStackNavigationProp<ProfileStackParamList>>();
   const {
@@ -100,6 +102,7 @@ export function ProfileScreen() {
         title={t('profile.title')}
         right={
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('profile.settingsTitle')}
             hitSlop={8}
             onPress={() => navigation.navigate('ProfileSettings')}
@@ -153,7 +156,7 @@ export function ProfileScreen() {
                   ]}
                 >
                   {dot.active ? (
-                    <Ionicons color="#FFFFFF" name="checkmark" size={14} />
+                    <Ionicons color={colors.white} name="checkmark" size={14} />
                   ) : null}
                 </View>
               </View>
@@ -170,6 +173,7 @@ export function ProfileScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           onPress={() => setShowTodayBreakdown(true)}
           style={({ pressed }) => [styles.card, pressed && styles.pressed]}
         >
@@ -243,10 +247,11 @@ export function ProfileScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           onPress={goPractice}
           style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
         >
-          <Ionicons color="#FFFFFF" name="musical-notes" size={18} />
+          <Ionicons color={colors.white} name="musical-notes" size={18} />
           <Text style={styles.ctaText}>{t('profile.goPractice')}</Text>
         </Pressable>
       </ScrollView>
@@ -259,17 +264,19 @@ export function ProfileScreen() {
         visible={showTodayBreakdown}
       >
         <Pressable
+          accessible={false}
           onPress={() => setShowTodayBreakdown(false)}
-          style={styles.backdrop}
+          style={[styles.backdrop, breakdownPadding]}
         >
-          <Pressable onPress={() => {}} style={styles.sheet}>
+          <Pressable accessible={false} onPress={() => {}} style={styles.sheet}>
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel={t('common.close')}
               hitSlop={8}
               onPress={() => setShowTodayBreakdown(false)}
               style={({ pressed }) => [styles.sheetCloseX, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="close" size={18} />
+              <Ionicons color={colors.white} name="close" size={18} />
             </Pressable>
             <Text style={styles.sheetTitle}>{t('profile.todayTitle')}</Text>
             <Text style={styles.sheetTotal}>{formatPracticeDuration(todayTotalMs, t)}</Text>
@@ -697,7 +704,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -765,7 +772,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

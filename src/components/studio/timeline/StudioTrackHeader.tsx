@@ -39,25 +39,27 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
       </View>
       <View style={styles.toggles}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.trackMute')}
           hitSlop={4}
           onPress={handleToggleMute}
           style={[styles.toggle, track.muted && { backgroundColor: colors.error, borderColor: colors.error }]}
         >
           <Ionicons
-            color={track.muted ? '#FFFFFF' : colors.textSecondary}
+            color={track.muted ? colors.white : colors.textSecondary}
             name={track.muted ? 'volume-mute' : 'volume-mute-outline'}
             size={14}
           />
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.trackSolo')}
           hitSlop={4}
           onPress={handleToggleSolo}
           style={[styles.toggle, track.solo && { backgroundColor: SOLO_COLOR, borderColor: SOLO_COLOR }]}
         >
           <Ionicons
-            color={track.solo ? '#FFFFFF' : colors.textSecondary}
+            color={track.solo ? colors.white : colors.textSecondary}
             name={track.solo ? 'headset' : 'headset-outline'}
             size={14}
           />

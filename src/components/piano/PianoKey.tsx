@@ -1,10 +1,11 @@
 import { memo, useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { type AccessibilityActionEvent, StyleSheet, Text, View } from 'react-native';
 
 import type { NoteId } from '../../instruments/piano/pianoNotes';
 import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
 import type { PianoLabelMode } from '../../storage/pianoSettingsStorage';
 import { colors } from '../../theme/colors';
+import { ACTIVATE_ACTIONS, isActivateAction } from '../../utils/accessibility';
 
 const DEFAULT_KEY_COLORS: PianoKeyColors = {
   white: '#F4F4F4',
@@ -100,9 +101,16 @@ export const PianoKey = memo(function PianoKey({
   keyColors = DEFAULT_KEY_COLORS,
   onAccessibilityTap,
 }: PianoKeyProps) {
-  const handleAccessibilityTap = useCallback(() => {
-    onAccessibilityTap?.(noteId);
-  }, [noteId, onAccessibilityTap]);
+  // The `activate` action rather than `onAccessibilityTap`, which only iOS
+  // ever calls — a TalkBack double-tap on a key used to do nothing at all.
+  const handleAccessibilityAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      if (isActivateAction(event)) {
+        onAccessibilityTap?.(noteId);
+      }
+    },
+    [noteId, onAccessibilityTap],
+  );
 
   const octave = getOctave(noteId);
   const showScaleTint = isInScale && !isGuide && !isDemo && !isActive;
@@ -117,8 +125,9 @@ export const PianoKey = memo(function PianoKey({
       // can be switched off entirely, but the key still has to say what it is.
       accessibilityLabel={`${solfegeLabel} ${letterLabel}`}
       accessibilityRole="button"
+      accessibilityActions={ACTIVATE_ACTIONS}
       accessibilityState={{ selected: isActive }}
-      onAccessibilityTap={handleAccessibilityTap}
+      onAccessibilityAction={handleAccessibilityAction}
       pointerEvents="none"
       style={[
         styles.key,
@@ -192,7 +201,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F4',
     borderBottomColor: '#B8B8B8',
     borderBottomWidth: 3,
-    borderLeftColor: '#FFFFFF',
+    borderLeftColor: colors.white,
     borderLeftWidth: 1,
     borderRadius: 0,
     borderRightColor: '#C8C8C8',
@@ -201,24 +210,24 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     elevation: 2,
     marginRight: 2,
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.18,
     shadowRadius: 2,
   },
   blackKey: {
     backgroundColor: '#141414',
-    borderBottomColor: '#000000',
+    borderBottomColor: colors.black,
     borderBottomWidth: 2,
     borderLeftColor: '#2A2A2A',
     borderLeftWidth: 1,
     borderRadius: 0,
-    borderRightColor: '#000000',
+    borderRightColor: colors.black,
     borderRightWidth: 1,
     borderTopColor: '#3A3A3A',
     borderTopWidth: 2,
     elevation: 6,
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
@@ -292,7 +301,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   labelText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 9,
     fontWeight: '700',
     textAlign: 'center',

@@ -11,6 +11,7 @@ import {
   getTabBarHeight,
 } from '../navigation/tabBarStyles';
 import { colors } from '../theme/colors';
+import { SCREEN_READER_HIDDEN } from '../utils/accessibility';
 
 type Props = {
   onDone: () => void;
@@ -79,13 +80,21 @@ export function CoachTour({ onDone }: Props) {
       {/* Stops at the top of the tab bar. Dimming the bar too would hide the
           very thing each step points at — the highlighted tab has to stay as
           bright as it will be a moment later. */}
-      <Pressable style={[styles.scrim, { bottom: barHeight }]} onPress={advance} />
+      {/* Both tap targets below are shortcuts for a sighted finger; a screen
+          reader gets the bubble's own Next/Done button instead of two huge
+          unnamed ones. */}
+      <Pressable
+        style={[styles.scrim, { bottom: barHeight }]}
+        onPress={advance}
+        {...SCREEN_READER_HIDDEN}
+      />
 
       {/* Invisible, but still catches taps: the bar underneath is untouched,
           and without this a tap there would navigate away mid-tour. */}
       <Pressable
         style={[styles.barBlocker, { height: barHeight }]}
         onPress={advance}
+        {...SCREEN_READER_HIDDEN}
       />
 
       {step.tabIndex !== null ? (
@@ -151,7 +160,7 @@ export function CoachTour({ onDone }: Props) {
                 {isLast ? t('onboarding.start') : t('onboarding.next')}
               </Text>
               <Ionicons
-                color="#FFFFFF"
+                color={colors.white}
                 name={isLast ? 'checkmark' : 'arrow-forward'}
                 size={16}
               />
@@ -306,7 +315,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   nextText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

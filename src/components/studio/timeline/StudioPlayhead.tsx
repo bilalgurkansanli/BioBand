@@ -1,11 +1,25 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, PanResponder, StyleSheet, View } from 'react-native';
+import {
+  type AccessibilityActionEvent,
+  Animated,
+  Easing,
+  PanResponder,
+  StyleSheet,
+  View,
+} from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../../theme/colors';
+import { ADJUSTABLE_ACTIONS, adjustmentDirection } from '../../../utils/accessibility';
+import { formatDuration } from '../../../utils/formatDuration';
+import { type PlaybackPosition, usePlaybackPositionMs } from './playbackPosition';
 import { RULER_HEIGHT } from './timelineGeometry';
 
+/** One swipe up/down with a screen reader moves the playhead this far. */
+const ACCESSIBILITY_SEEK_STEP_MS = 5000;
+
 type Props = {
-  positionMs: number;
+  position: PlaybackPosition;
   durationMs: number;
   pxPerMs: number;
   isPlaying: boolean;
@@ -14,13 +28,17 @@ type Props = {
 };
 
 export function StudioPlayhead({
-  positionMs,
+  position,
   durationMs,
   pxPerMs,
   isPlaying,
   scrollX,
   onSeek,
 }: Props) {
+  const { t } = useTranslation();
+  // Subscribed here, at the leaf, so a progress tick redraws the playhead and
+  // nothing above it.
+  const positionMs = usePlaybackPositionMs(position);
   const playheadPx = useRef(new Animated.Value(positionMs * pxPerMs)).current;
   const positionRef = useRef(positionMs);
   positionRef.current = positionMs;
@@ -68,6 +86,18 @@ export function StudioPlayhead({
     [durationMs, onSeek, pxPerMs],
   );
 
+  // The knob is dragged; a screen reader swipes up/down instead, which moves
+  // the playhead a few seconds at a time.
+  const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
+    const direction = adjustmentDirection(event);
+    if (direction === 0) {
+      return;
+    }
+    onSeek(
+      Math.max(0, Math.min(durationMs, positionMs + direction * ACCESSIBILITY_SEEK_STEP_MS)),
+    );
+  };
+
   return (
     <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
       <Animated.View
@@ -75,7 +105,21 @@ export function StudioPlayhead({
         style={[styles.group, { transform: [{ translateX }] }]}
       >
         <View style={styles.line} pointerEvents="none" />
-        <View {...panResponder.panHandlers} style={styles.knobHit}>
+        <View
+          {...panResponder.panHandlers}
+          accessible
+          accessibilityActions={ADJUSTABLE_ACTIONS}
+          accessibilityLabel={t('studio.playhead')}
+          accessibilityRole="adjustable"
+          accessibilityValue={{
+            text: t('recordings.positionValue', {
+              duration: formatDuration(durationMs),
+              position: formatDuration(positionMs),
+            }),
+          }}
+          onAccessibilityAction={handleAccessibilityAction}
+          style={styles.knobHit}
+        >
           <View style={styles.knob} />
         </View>
       </Animated.View>
@@ -112,7 +156,7 @@ const styles = StyleSheet.create({
   },
   knob: {
     backgroundColor: colors.accent,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderRadius: KNOB_SIZE / 2,
     borderWidth: 2,
     height: KNOB_SIZE,

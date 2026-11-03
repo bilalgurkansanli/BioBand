@@ -27,14 +27,13 @@ import { PianoVoiceModal } from '../components/piano/PianoVoiceModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { PlayAlongHud } from '../components/piano/PlayAlongHud';
 import { PlayAlongModal } from '../components/piano/PlayAlongModal';
-import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
+import { createNoteOnsetSignal, PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
-import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserSongs } from '../hooks/useUserSongs';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import {
@@ -118,7 +117,9 @@ export function PianoScreen({ navigation }: Props) {
   const [chordMode, setChordMode] = useState<PianoChordMode>(
     DEFAULT_PIANO_UI_SETTINGS.chordMode,
   );
-  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed();
+  // The speed HUD owns its own ticking state; the screen only signals onsets,
+  // so playing with the HUD on no longer re-renders this whole screen.
+  const [noteOnsets] = useState(createNoteOnsetSignal);
 
   const scaleNoteIds = useMemo(
     () => (scaleId ? getScaleNoteIds(scaleId) : null),
@@ -385,7 +386,7 @@ export function PianoScreen({ navigation }: Props) {
     recordSavedToast,
   } = useInstrumentRecording('piano');
 
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
 
   const { notePlayed } = useFreePlayPractice('piano');
 
@@ -432,7 +433,6 @@ export function PianoScreen({ navigation }: Props) {
 
   const onNotePressIn = useCallback(
     (noteId: NoteId) => {
-      notePlayed();
       if (haptics) {
         hapticNote();
       }
@@ -443,13 +443,16 @@ export function PianoScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its notes here as well billed that time twice.
+      notePlayed();
       const sounded = resolveSoundedNotes(noteId);
       activePressRef.current.set(noteId, sounded);
       if (sounded.length === 0) {
         return;
       }
 
-      recordNoteOn();
+      noteOnsets.emit();
       for (const id of sounded) {
         let holders = soundedNoteHoldersRef.current.get(id);
         if (!holders) {
@@ -467,10 +470,10 @@ export function PianoScreen({ navigation }: Props) {
       captureEvent,
       haptics,
       noteOn,
+      noteOnsets,
       notePlayed,
       playAlongHandleNotePress,
       playAlongIsActive,
-      recordNoteOn,
       resolveSoundedNotes,
     ],
   );
@@ -527,7 +530,9 @@ export function PianoScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -577,11 +582,7 @@ export function PianoScreen({ navigation }: Props) {
       ) : null}
 
       {showSpeedHud ? (
-        <PlaySpeedHud
-          maxNotesPerSec={maxNotesPerSec}
-          notesPerSec={notesPerSec}
-          visible={!hideSpeedHud}
-        />
+        <PlaySpeedHud onsets={noteOnsets} visible={!hideSpeedHud} />
       ) : null}
 
       {studioArmed && studioProjectTitle ? (
@@ -732,6 +733,7 @@ export function PianoScreen({ navigation }: Props) {
 
       <LandscapeOverlay
         hintKey="instruments.pianoLandscapeHint"
+        onBack={() => navigation.goBack()}
         titleKey="instruments.pianoLandscapeRequired"
         visible={isPortrait}
       />

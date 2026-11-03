@@ -64,7 +64,7 @@ export function ModalChromeHeader({
       >
         <View style={styles.closeIconSlot} pointerEvents="none">
           <Ionicons
-            color="#FFFFFF"
+            color={colors.white}
             name="close"
             size={20}
             style={styles.closeIcon}

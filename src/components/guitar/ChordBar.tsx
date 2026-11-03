@@ -1,4 +1,4 @@
-import { Fragment, useRef } from 'react';
+import { Fragment, memo, useRef } from 'react';
 import {
   type GestureResponderEvent,
   StyleSheet,
@@ -48,7 +48,7 @@ function isRockFamily(family: ChordFamily): boolean {
   return family === 'power' || family === 'barre';
 }
 
-export function ChordBar({
+function ChordBarBase({
   chords,
   selectedChordId = null,
   onSelectChord,
@@ -166,6 +166,9 @@ export function ChordBar({
     </View>
   );
 }
+
+/** Memoised so a pluck or a bend on the fretboard below does not redraw it. */
+export const ChordBar = memo(ChordBarBase);
 
 const styles = StyleSheet.create({
   bar: {

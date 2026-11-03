@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -63,6 +64,8 @@ const FxSlider = React.memo(function FxSlider({
       </View>
       <HorizontalSlider
         accentColor={accent}
+        accessibilityLabel={label}
+        accessibilityValueText={formatValue(value)}
         disabled={disabled}
         max={max}
         min={min}
@@ -102,9 +105,10 @@ function FxSection({
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <Switch
+          accessibilityLabel={title}
           onValueChange={onToggle}
-          thumbColor={enabled ? accent : '#7A7A7E'}
-          trackColor={{ false: '#3A3A3C', true: `${accent}55` }}
+          thumbColor={enabled ? accent : colors.controlThumbOff}
+          trackColor={{ false: colors.controlTrack, true: `${accent}55` }}
           value={enabled}
         />
       </View>
@@ -112,6 +116,7 @@ function FxSection({
       <View style={styles.sectionBody}>{children}</View>
 
       <Pressable
+        accessibilityRole="button"
         onPress={onReset}
         style={({ pressed }) => [styles.resetButton, pressed && styles.pressed]}
       >
@@ -131,6 +136,7 @@ export function PianoFxModal({
   onChange,
   onClose,
 }: PianoFxModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(16);
   const { t } = useTranslation();
   const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const draftRef = useRef(settings);
@@ -204,8 +210,8 @@ export function PianoFxModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
-      <Pressable style={styles.overlay} onPress={handleClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={handleClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.fx.close')}
             onClose={handleClose}

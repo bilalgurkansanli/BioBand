@@ -265,6 +265,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
     <ScreenContainer style={styles.container}>
       <View style={styles.topBar}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('common.back')}
           hitSlop={8}
           onPress={() => navigation.goBack()}
@@ -298,6 +299,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
                 </View>
               </View>
               <Pressable
+                accessibilityRole="button"
                 onPress={() => setSignOutConfirmVisible(true)}
                 style={({ pressed }) => [styles.signOutRow, pressed && styles.pressed]}
               >
@@ -326,6 +328,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <>
               <Text style={styles.hint}>{t('auth.signInSettingsHint')}</Text>
               <Pressable
+                accessibilityRole="button"
                 disabled={signingIn}
                 onPress={() => void handleSignIn()}
                 style={({ pressed }) => [
@@ -428,11 +431,12 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               <Text style={styles.hint}>{t('profile.countInHint')}</Text>
             </View>
             <Switch
+              accessibilityLabel={t('profile.countInEnable')}
               onValueChange={(value) => {
                 setCountInEnabled(value);
                 void saveRecordingSettings({ countInEnabled: value });
               }}
-              thumbColor="#FFFFFF"
+              thumbColor={colors.white}
               trackColor={{ false: colors.surfaceLight, true: colors.accent }}
               value={countInEnabled}
             />
@@ -447,8 +451,9 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               <Text style={styles.hint}>{t('profile.reminderHint')}</Text>
             </View>
             <Switch
+              accessibilityLabel={t('profile.reminderEnable')}
               onValueChange={(value) => void onToggleReminder(value)}
-              thumbColor="#FFFFFF"
+              thumbColor={colors.white}
               trackColor={{ false: colors.surfaceLight, true: colors.accent }}
               value={reminder.enabled}
             />
@@ -544,6 +549,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
         <Text style={styles.sectionLabel}>{t('common.about')}</Text>
         <View style={styles.card}>
           <Pressable
+            accessibilityRole="button"
             onPress={() => setPrivacyVisible(true)}
             style={({ pressed }) => [styles.privacyRow, pressed && styles.pressed]}
           >
@@ -556,6 +562,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               requires the credit to ship with the app, not just sit in the
               repository. See CreditsModal. */}
           <Pressable
+            accessibilityRole="button"
             onPress={() => setCreditsVisible(true)}
             style={({ pressed }) => [styles.privacyRow, pressed && styles.pressed]}
           >
@@ -568,6 +575,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
               visible "error log" invites people to go looking for trouble. */}
           {crashCount > 0 ? (
             <Pressable
+              accessibilityRole="button"
               onPress={() => setCrashLogVisible(true)}
               style={({ pressed }) => [
                 styles.privacyRow,
@@ -667,6 +675,7 @@ function LangChip({
 }) {
   return (
     <Pressable
+      accessibilityRole="button"
       onPress={onPress}
       style={[styles.langChip, active && styles.langChipActive]}
     >
@@ -685,7 +694,7 @@ function Chip({
   onPress: () => void;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
     </Pressable>
   );
@@ -723,7 +732,7 @@ const styles = StyleSheet.create({
   },
   googleSignInBtn: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 10,
     flexDirection: 'row',
     gap: 8,
@@ -918,7 +927,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   langChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   fieldLabel: {
     color: colors.text,
@@ -992,6 +1001,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
 });

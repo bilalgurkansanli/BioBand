@@ -31,15 +31,14 @@ import { XYPad } from '../components/pads/XYPad';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
-import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
+import { createNoteOnsetSignal, PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePadsEngine } from '../hooks/usePadsEngine';
 import { usePadsLooper } from '../hooks/usePadsLooper';
 import { usePadsPlayAlong } from '../hooks/usePadsPlayAlong';
 import type { NoteRepeatRate } from '../hooks/usePadNoteRepeat';
-import { usePianoOrientation } from '../hooks/usePianoOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
-import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserPadSongs } from '../hooks/useUserPadSongs';
 import {
   getPadBank,
@@ -82,6 +81,7 @@ import {
 } from '../storage/padsSettingsStorage';
 import { colors } from '../theme/colors';
 import type { InstrumentsStackParamList, RootTabParamList } from '../types/navigation';
+import { formatDate } from '../utils/formatDateTime';
 
 const FX_APPLY_DEBOUNCE_MS = 80;
 const XY_PANEL_WIDTH = 170;
@@ -89,7 +89,7 @@ const XY_PANEL_WIDTH = 170;
 type Props = NativeStackScreenProps<InstrumentsStackParamList, 'Pads'>;
 
 export function PadsScreen({ navigation }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const insets = useSafeAreaInsets();
   const rootNavigation = useNavigation<NavigationProp<RootTabParamList>>();
   const [bankId, setBankId] = useState<PadBankId>('drums');
@@ -201,7 +201,9 @@ export function PadsScreen({ navigation }: Props) {
   const looperRef = useRef(looper);
   looperRef.current = looper;
 
-  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed(showSpeedHud);
+  // The speed HUD owns its own ticking state; the screen only signals onsets,
+  // so drumming with the HUD on no longer re-renders this whole screen.
+  const [noteOnsets] = useState(createNoteOnsetSignal);
 
   const {
     isRecording,
@@ -216,7 +218,7 @@ export function PadsScreen({ navigation }: Props) {
     recordModePicker,
     recordSavedToast,
   } = useInstrumentRecording('pads');
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const { notePlayed } = useFreePlayPractice('pads');
 
   const userSongs = useUserPadSongs();
@@ -413,8 +415,7 @@ export function PadsScreen({ navigation }: Props) {
   const onTrigger = useCallback(
     (id: PadSoundId, velocity: number) => {
       captureEventRef.current(id, velocity);
-      recordNoteOn();
-      notePlayed();
+      noteOnsets.emit();
       if (hapticsRef.current) {
         hapticSoft();
       }
@@ -425,11 +426,14 @@ export function PadsScreen({ navigation }: Props) {
         return;
       }
 
+      // Free play only: a play-along session is credited in one piece when it
+      // finishes, so counting its hits here as well billed that time twice.
+      notePlayed();
       looperRef.current.captureHit(id, velocity);
       pulseStageLight();
       triggerPad(id, velocity);
     },
-    [pulseStageLight, recordNoteOn, triggerPad, notePlayed],
+    [noteOnsets, notePlayed, pulseStageLight, triggerPad],
   );
 
   // --- Custom bank editing ---------------------------------------------------
@@ -502,7 +506,7 @@ export function PadsScreen({ navigation }: Props) {
 
   const handleLooperExport = useCallback(() => {
     const title = t('pads.looper.exportTitle', {
-      date: new Date().toLocaleDateString(),
+      date: formatDate(Date.now(), i18n.language),
     });
     void looperRef.current.exportToStudio(title).then((projectId) => {
       if (!projectId) {
@@ -523,7 +527,7 @@ export function PadsScreen({ navigation }: Props) {
         },
       ]);
     });
-  }, [rootNavigation, t]);
+  }, [i18n, rootNavigation, t]);
 
   const bankIconFor = useCallback((id: PadBankId) => getPadBank(id).icon, []);
 
@@ -565,7 +569,9 @@ export function PadsScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -654,7 +660,7 @@ export function PadsScreen({ navigation }: Props) {
       ) : null}
 
       {showSpeedHud ? (
-        <PlaySpeedHud maxNotesPerSec={maxNotesPerSec} notesPerSec={notesPerSec} />
+        <PlaySpeedHud onsets={noteOnsets} />
       ) : null}
 
       {editMode && bankId === 'custom' ? (
@@ -728,13 +734,13 @@ export function PadsScreen({ navigation }: Props) {
         onChangeBpm={handleMetronomeBpmChange}
         onClose={() => setMetronomeModalVisible(false)}
         showSubdivision
-        visible={metronomeModalVisible}
+        visible={metronomeModalVisible && !isPortrait}
       />
 
       <PianoVolumeModal
         onChange={handleVolumeChange}
         onClose={() => setVolumeModalVisible(false)}
-        visible={volumeModalVisible}
+        visible={volumeModalVisible && !isPortrait}
         volume={volume}
       />
 
@@ -745,14 +751,14 @@ export function PadsScreen({ navigation }: Props) {
           setKitModalVisible(false);
         }}
         selectedBankId={bankId}
-        visible={kitModalVisible}
+        visible={kitModalVisible && !isPortrait}
       />
 
       <PianoFxModal
         onChange={handleFxSettingsChange}
         onClose={() => setFxModalVisible(false)}
         settings={fxSettings}
-        visible={fxModalVisible}
+        visible={fxModalVisible && !isPortrait}
       />
 
       <PadsSettingsModal
@@ -780,7 +786,7 @@ export function PadsScreen({ navigation }: Props) {
         strongGuideHighlight={strongGuideHighlight}
         velocityCurve={velocityCurve}
         velocityMode={velocityMode}
-        visible={settingsModalVisible}
+        visible={settingsModalVisible && !isPortrait}
       />
 
       <PadEditModal
@@ -789,7 +795,7 @@ export function PadsScreen({ navigation }: Props) {
         onSave={handleSaveSlot}
         slot={editingSlot}
         slotIndex={editingSlotIndex ?? 0}
-        visible={editingSlotIndex !== null}
+        visible={editingSlotIndex !== null && !isPortrait}
       />
 
       <PadsPlayAlongModal
@@ -828,10 +834,10 @@ export function PadsScreen({ navigation }: Props) {
         selectedSong={playAlong.selectedSong}
         tempo={playAlong.tempo}
         userSongs={userSongs.songs}
-        visible={isPlayAlongModalVisible}
+        visible={isPlayAlongModalVisible && !isPortrait}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={() => navigation.goBack()} visible={isPortrait} />
     </View>
   );
 }

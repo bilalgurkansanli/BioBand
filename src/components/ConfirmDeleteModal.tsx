@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from './modalOrientations';
+import { useCenteredModalPadding } from './modalSafeArea';
 
 import { colors } from '../theme/colors';
 
@@ -25,24 +26,27 @@ export function ConfirmDeleteModal({
   onConfirm,
   icon = 'trash',
 }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
-      <Pressable style={styles.backdrop} onPress={onCancel}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.iconWrap}>
-            <Ionicons color="#FFFFFF" name={icon} size={24} />
+            <Ionicons color={colors.white} name={icon} size={24} />
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               onPress={onCancel}
               style={({ pressed }) => [styles.btn, styles.cancelBtn, pressed && styles.pressed]}
             >
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               onPress={onConfirm}
               style={({ pressed }) => [styles.btn, styles.confirmBtn, pressed && styles.pressed]}
             >
@@ -58,7 +62,7 @@ export function ConfirmDeleteModal({
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,
@@ -124,7 +128,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

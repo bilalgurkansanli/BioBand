@@ -111,6 +111,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
           <View style={styles.languageList}>
             {LANGUAGES.map((language) => (
               <Pressable
+                accessibilityRole="button"
                 key={language.code}
                 onPress={() => void selectLanguage(language.code)}
                 style={({ pressed }) => [styles.languageCard, pressed && styles.pressed]}
@@ -160,7 +161,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
             onPress={() => setPrivacyAccepted((prev) => !prev)}
             style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}
           >
-            {privacyAccepted ? <Ionicons color="#FFFFFF" name="checkmark" size={13} /> : null}
+            {privacyAccepted ? <Ionicons color={colors.white} name="checkmark" size={13} /> : null}
           </Pressable>
           <Text style={styles.acceptText}>
             {t('auth.acceptPrivacyPrefix')}
@@ -172,6 +173,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           disabled={signingIn || !isSupabaseConfigured || !privacyAccepted}
           onPress={() => void handleGoogleSignIn()}
           style={({ pressed }) => [
@@ -199,11 +201,12 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
+          <Text style={styles.dividerText}>{t('auth.or')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
         <Pressable
+          accessibilityRole="button"
           disabled={signingIn || !privacyAccepted}
           onPress={handleContinueAsGuest}
           style={({ pressed }) => [
@@ -302,7 +305,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderColor: '#E4E4E7',
     borderRadius: 14,
     borderWidth: 1,

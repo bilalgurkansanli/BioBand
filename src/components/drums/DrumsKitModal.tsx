@@ -1,5 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { DRUM_KITS, type DrumKitId } from '../../instruments/drums/drumsKits';
@@ -19,13 +20,14 @@ export function DrumsKitModal({
   onSelect,
   onClose,
 }: DrumsKitModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('drums.kits.close')}
             onClose={onClose}
@@ -38,6 +40,7 @@ export function DrumsKitModal({
 
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={kit.id}
                   onPress={() => onSelect(kit.id)}
                   style={({ pressed }) => [
@@ -76,7 +79,7 @@ export function DrumsKitModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

@@ -9,6 +9,7 @@
     "promptSubtitle": "Melde dich mit Google oder Apple an, um deine Aufnahmen, Serien und Einstellungen geräteübergreifend zu behalten. Als Gast wird beim Öffnen der App alles zurückgesetzt.",
     "signInWithGoogle": "Mit Google anmelden",
     "signInWithApple": "Mit Apple anmelden",
+    "or": "oder",
     "continueAsGuest": "Als Gast fortfahren",
     "guestHint": "Du kannst dich später in den Profileinstellungen anmelden.",
     "signOut": "Abmelden",
@@ -56,6 +57,7 @@
     "minutesShort": "{{count}} Min.",
     "hoursShort": "{{count}} Std.",
     "percent": "{{percent}}%",
+    "bpmValue": "{{value}} BPM",
     "about": "Über",
     "privacyPolicy": "Datenschutzrichtlinie"
   },
@@ -150,7 +152,6 @@
     "subtitle": "Wähle ein Instrument und leg los.",
     "piano": "Klavier",
     "pianoDescription": "Tippe die Tasten zum Spielen.",
-    "open": "Öffnen",
     "pianoLoading": "Klavierklänge werden geladen...",
     "pianoLoadError": "Klänge konnten nicht geladen werden. Geh zurück und versuch es erneut.",
     "pianoLandscapeRequired": "Klavier funktioniert nur im Querformat",
@@ -231,7 +232,9 @@
     "noResultsTitle": "Keine Treffer",
     "noResultsDescription": "Ändere die Suche oder setze den Filter auf „Alle“.",
     "playbackSpeed": "Wiedergabegeschwindigkeit",
-    "loop": "Schleife"
+    "loop": "Schleife",
+    "playbackPosition": "Wiedergabeposition",
+    "positionValue": "{{position}} von {{duration}}"
   },
   "studio": {
     "title": "Studio",
@@ -250,6 +253,8 @@
     "trackCount": "{{count}} Spuren",
     "trackCount_one": "{{count}} Spur",
     "trackCount_other": "{{count}} Spuren",
+    "projectCount_one": "{{count}} Projekt",
+    "projectCount_other": "{{count}} Projekte",
     "play": "Mix abspielen",
     "stop": "Stopp",
     "playbackError": "Dieses Studio-Projekt konnte nicht abgespielt werden.",
@@ -293,13 +298,13 @@
     "loop": "Wiedergabe wiederholen",
     "grid": "Beat-Raster",
     "snap": "Am Raster einrasten",
-    "snapResolution": "Raster-Auflösung"
+    "snapResolution": "Raster-Auflösung",
+    "playhead": "Abspielmarke"
   },
   "drumMachine": {
     "title": "Drum Machine",
     "loading": "Klänge werden geladen...",
     "start": "Start",
-    "play": "Abspielen",
     "stop": "Stopp",
     "random": "Zufällig",
     "settings": "Einstellungen",
@@ -414,16 +419,6 @@
       "pad15": "Pad 15",
       "pad16": "Pad 16"
     },
-    "short": {
-      "kick": "Kick",
-      "snare": "Snare",
-      "tomLow": "Tom T",
-      "tomMid": "Tom M",
-      "tomHi": "Tom H",
-      "hihatClosed": "HH",
-      "hihatOpen": "OH",
-      "crash": "Crash"
-    },
     "clearConfirmTitle": "Grid leeren?",
     "clearConfirmBody": "Alle Steps werden gelöscht, das lässt sich nicht rückgängig machen. Vorher speichern?",
     "randomConfirmTitle": "Zufälliges Pattern würfeln?",
@@ -509,7 +504,6 @@
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jeden Schlag von Anfang bis Ende spielen",
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Schlagzeug dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -573,7 +567,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"padId\": \"kick\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -644,7 +637,6 @@
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jede Note von Anfang bis Ende spielen",
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Geige dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -708,7 +700,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"soundId\": \"v2:3\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -723,6 +714,9 @@
       },
       "requestSong": "Findest du das gesuchte Lied nicht? Schreib den Liednamen in eine Rezension — wir fügen es in der nächsten Version hinzu.",
       "requestSongOpenFailed": "Die Store-Seite konnte nicht geöffnet werden. Versuch es später erneut."
+    },
+    "a11y": {
+      "note": "{{note}} auf der {{string}}-Saite"
     }
   },
   "guitar": {
@@ -833,7 +827,6 @@
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
       "scopeFull": "Das ganze Lied spielen",
       "scopeFullHint": "Jede Note von Anfang bis Ende spielen",
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickAudio": "Originaltrack hinzufügen",
       "pickAudioHint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A, um Gitarre dazu zu spielen.",
       "pickAudioButton": "Audiodatei wählen",
@@ -897,7 +890,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"soundId\": \"s5:f7\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -912,6 +904,10 @@
       },
       "requestSong": "Findest du das gesuchte Lied nicht? Schreib den Liednamen in eine Rezension — wir fügen es in der nächsten Version hinzu.",
       "requestSongOpenFailed": "Die Store-Seite konnte nicht geöffnet werden. Versuch es später erneut."
+    },
+    "a11y": {
+      "string": "{{string}}-Saite",
+      "stringHint": "Zupft die leere Saite oder den Ton des gewählten Akkords."
     }
   },
   "pads": {
@@ -1052,7 +1048,6 @@
         "hard": "Schwer",
         "empty": "Keine Lieder in dieser Schwierigkeit"
       },
-      "pickMode": "Wie möchtest du fortfahren?",
       "pickScope": "Wie viel möchtest du spielen?",
       "scopePartial": "Mit einem Teil fortfahren",
       "scopePartialHint": "Ein kurzer Ausschnitt des Liedes",
@@ -1121,7 +1116,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"padId\": \"pad01\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -1139,7 +1133,8 @@
     },
     "xy": {
       "filter": "Filter",
-      "resonance": "Resonanz"
+      "resonance": "Resonanz",
+      "a11yHint": "Nach oben oder unten wischen, um den Filter zu öffnen oder zu schließen."
     },
     "looper": {
       "play": "Loop starten",
@@ -1234,8 +1229,6 @@
       "auto": "Automatisch"
     },
     "scale": {
-      "off": "Aus",
-      "close": "Schließen",
       "names": {
         "cMajor": "C-Dur",
         "gMajor": "G-Dur",
@@ -1340,9 +1333,6 @@
         "hint": "BioBand liefert keine urheberrechtlich geschützten Lieder mit. Wähle deine eigene MP3/M4A dieses Tracks, um Klavier dazu zu spielen.",
         "button": "Audiodatei wählen",
         "errors": {
-          "canceled": "Keine Datei ausgewählt.",
-          "pickerUnavailable": "Dateiauswahl in diesem Build nicht verfügbar.",
-          "readFailed": "Die Audiodatei konnte nicht gespeichert werden. Versuch es erneut.",
           "unsupported": "Wähle eine MP3-, M4A-, MP4- oder WAV-Datei."
         }
       },
@@ -1399,7 +1389,6 @@
         "pasteHint": "Füge JSON mit Titel und Events ein (wird verwendet, wenn die Dateiauswahl nicht verfügbar ist).",
         "pastePlaceholder": "{\n  \"title\": \"Beispiel\",\n  \"events\": [{ \"noteId\": \"C4\", \"atMs\": 0 }]\n}",
         "pasteSubmit": "Hinzufügen",
-        "pickerUnavailable": "Keine Dateiauswahl — füge JSON ein, um ein Lied hinzuzufügen.",
         "errors": {
           "unsupported": "Nicht unterstützte Datei. Importiere JSON oder MIDI (.mid).",
           "invalidJson": "Die JSON-Datei konnte nicht gelesen werden.",
@@ -1417,8 +1406,6 @@
     }
   },
   "tutorial": {
-    "pickSong": "Wähle ein Lied",
-    "close": "Schließen",
     "songs": {
       "billieJean": {
         "description": "Michael Jackson — F#m-Groove + Refrain + Keyboard-Teil."

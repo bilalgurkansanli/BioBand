@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
@@ -29,6 +30,7 @@ type Props = {
  * reported.
  */
 export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
+  const safeAreaPadding = useCenteredModalPadding(24);
   const { t } = useTranslation();
   const percent = Math.round(Math.min(1, Math.max(0, job?.progress ?? 0)) * 100);
 
@@ -40,11 +42,11 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
       visible={job !== null}
       onDismiss={onDismissed}
       onRequestClose={onCancel}>
-      <View style={styles.backdrop}>
+      <View style={[styles.backdrop, safeAreaPadding]}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
             <Ionicons
-              color="#FFFFFF"
+              color={colors.white}
               name={job?.kind === 'share' ? 'share-outline' : 'download-outline'}
               size={24}
             />
@@ -58,6 +60,7 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
           <Text style={styles.percent}>{t('common.percent', { percent })}</Text>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onCancel}
             style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
           >
@@ -72,7 +75,7 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

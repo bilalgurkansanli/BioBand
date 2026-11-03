@@ -10,7 +10,16 @@ type ScreenContainerProps = ViewProps & {
    * the Studio timeline shows more of the arrangement the wider it is.
    */
   wide?: boolean;
+  /**
+   * Also keep clear of the bottom edge. Only for screens that hide the tab
+   * bar — everywhere else the bar already sits above the home indicator and
+   * the navigation bar, and padding again would leave a gap.
+   */
+  bottomInset?: boolean;
 };
+
+const EDGES_ABOVE_TAB_BAR = ['top', 'left', 'right'] as const;
+const ALL_EDGES = ['top', 'left', 'right', 'bottom'] as const;
 
 /**
  * Without a cap, a 12.9" iPad stretched every card to the full ~1300pt: title
@@ -20,9 +29,19 @@ type ScreenContainerProps = ViewProps & {
  */
 const MAX_CONTENT_WIDTH = 760;
 
-export function ScreenContainer({ children, style, wide = false, ...rest }: ScreenContainerProps) {
+export function ScreenContainer({
+  children,
+  style,
+  wide = false,
+  bottomInset = false,
+  ...rest
+}: ScreenContainerProps) {
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.container} {...rest}>
+    <SafeAreaView
+      edges={bottomInset ? ALL_EDGES : EDGES_ABOVE_TAB_BAR}
+      style={styles.container}
+      {...rest}
+    >
       {/* The caller's style lands here rather than on the safe-area view, so a
           screen's own padding applies to the column while the background stays
           edge to edge. */}

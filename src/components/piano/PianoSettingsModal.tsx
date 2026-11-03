@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -51,6 +52,7 @@ function ChipGroup<T extends string>({
           const selected = option.id === value;
           return (
             <Pressable
+              accessibilityRole="button"
               key={option.id}
               onPress={() => onSelect(option.id)}
               style={({ pressed }) => [
@@ -119,14 +121,15 @@ export function PianoSettingsModal({
   onStartTutorial,
   onClose,
 }: PianoSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
   const scaleLightsOn = scaleId !== null;
 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.settings.close')}
             onClose={onClose}
@@ -143,9 +146,10 @@ export function PianoSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('piano.settings.tonePanel')}</Text>
               <Switch
+                accessibilityLabel={t('piano.settings.tonePanel')}
                 onValueChange={onChangeShowTonePanel}
-                thumbColor={showTonePanel ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showTonePanel ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showTonePanel}
               />
             </View>
@@ -153,9 +157,10 @@ export function PianoSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('piano.settings.speedHud')}</Text>
               <Switch
+                accessibilityLabel={t('piano.settings.speedHud')}
                 onValueChange={onChangeShowSpeedHud}
-                thumbColor={showSpeedHud ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showSpeedHud ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showSpeedHud}
               />
             </View>
@@ -163,9 +168,10 @@ export function PianoSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('piano.settings.haptics')}</Text>
               <Switch
+                accessibilityLabel={t('piano.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
@@ -201,11 +207,12 @@ export function PianoSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('piano.settings.scaleLights')}</Text>
               <Switch
+                accessibilityLabel={t('piano.settings.scaleLights')}
                 onValueChange={(on) => {
                   onChangeScaleId(on ? lastScaleId : null);
                 }}
-                thumbColor={scaleLightsOn ? SCALE_ACCENT : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${SCALE_ACCENT}55` }}
+                thumbColor={scaleLightsOn ? SCALE_ACCENT : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${SCALE_ACCENT}55` }}
                 value={scaleLightsOn}
               />
             </View>
@@ -218,6 +225,7 @@ export function PianoSettingsModal({
                     const isSelected = scale.id === scaleId;
                     return (
                       <Pressable
+                        accessibilityRole="button"
                         key={scale.id}
                         onPress={() => onChangeScaleId(scale.id)}
                         style={({ pressed }) => [
@@ -255,6 +263,7 @@ export function PianoSettingsModal({
             ) : null}
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();
@@ -280,7 +289,7 @@ export function PianoSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,

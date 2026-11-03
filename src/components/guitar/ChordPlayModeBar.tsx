@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -21,7 +22,7 @@ const MODE_LABEL_KEY: Record<GuitarChordPlayMode, string> = {
   rasgueado: 'guitar.playModes.rasgueado',
 };
 
-export function ChordPlayModeBar({
+function ChordPlayModeBarBase({
   mode,
   onChange,
   visibleModes = GUITAR_CHORD_PLAY_MODES,
@@ -68,6 +69,9 @@ export function ChordPlayModeBar({
     </View>
   );
 }
+
+/** Memoised alongside the chord bar — neither changes while strings are played. */
+export const ChordPlayModeBar = memo(ChordPlayModeBarBase);
 
 const styles = StyleSheet.create({
   bar: {

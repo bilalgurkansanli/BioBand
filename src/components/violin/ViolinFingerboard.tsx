@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -17,6 +17,8 @@ import {
 } from '../../instruments/violin/violinSounds';
 import type { ViolinVoiceTheme } from '../../instruments/violin/violinVoices';
 import type { ViolinNoteLabelMode } from '../../storage/violinSettingsStorage';
+import { ACTIVATE_ACTIONS, isActivateAction } from '../../utils/accessibility';
+import { hasSameMembers } from '../instrument/sameMembers';
 import { ViolinNoteCell } from './ViolinNoteCell';
 
 /** G thickest → E thinnest (player view: E on top). */
@@ -113,7 +115,7 @@ type ViolinFingerboardProps = {
   strongGuide?: boolean;
 };
 
-export function ViolinFingerboard({
+function ViolinFingerboardBase({
   onPlayNote,
   theme,
   noteLabelMode = 'note',
@@ -220,7 +222,13 @@ export function ViolinFingerboard({
       }
 
       touchCellsRef.current = nextTouchMap;
-      setActiveKeys(new Set([...nextTouchMap.values()].map((cell) => cellKey(cell))));
+      // Touch-move fires every frame — only redraw when a different set of
+      // cells is held, not on every twitch of a finger resting on its note.
+      const nextActive = new Set([...nextTouchMap.values()].map((cell) => cellKey(cell)));
+      const previousActive = new Set([...previousTouchMap.values()].map((cell) => cellKey(cell)));
+      if (!hasSameMembers(previousActive, nextActive)) {
+        setActiveKeys(nextActive);
+      }
 
       for (const { cell, delayMs } of cellsToTrigger) {
         if (delayMs <= 0) {
@@ -430,6 +438,22 @@ export function ViolinFingerboard({
                         return (
                           <View
                             key={key}
+                            // Each note is its own screen-reader button: the
+                            // board's raw multi-touch is out of reach with a
+                            // reader running, so this is the way in.
+                            accessible
+                            accessibilityActions={ACTIVATE_ACTIONS}
+                            accessibilityLabel={t('violin.a11y.note', {
+                              note: getNoteLabel(string.id, position),
+                              string: t(string.labelKey),
+                            })}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: activeKeys.has(key) }}
+                            onAccessibilityAction={(event) => {
+                              if (isActivateAction(event)) {
+                                onPlayNote(string.id, position);
+                              }
+                            }}
                             style={[
                               isOpen && styles.nutColumn,
                               isOpen && {
@@ -488,6 +512,12 @@ export function ViolinFingerboard({
     </View>
   );
 }
+
+/**
+ * Memoised: the violin screen re-renders on play-along progress and every
+ * toolbar/modal change, none of which reach the fingerboard's own props.
+ */
+export const ViolinFingerboard = memo(ViolinFingerboardBase);
 
 const styles = StyleSheet.create({
   container: {

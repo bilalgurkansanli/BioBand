@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MODAL_ORIENTATIONS } from '../modalOrientations';
+import { useCenteredModalPadding } from '../modalSafeArea';
 import { useTranslation } from 'react-i18next';
 
 import type { NoteRepeatRate } from '../../hooks/usePadNoteRepeat';
@@ -70,6 +71,7 @@ function ChipRow<T extends string>({ options, selected, onSelect, labelFor }: Ch
         const isSelected = option === selected;
         return (
           <Pressable
+            accessibilityRole="button"
             key={option}
             onPress={() => onSelect(option)}
             style={({ pressed }) => [
@@ -101,9 +103,10 @@ function SwitchRow({
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Switch
+        accessibilityLabel={label}
         onValueChange={onValueChange}
-        thumbColor={value ? colors.accent : '#7A7A7E'}
-        trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+        thumbColor={value ? colors.accent : colors.controlThumbOff}
+        trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
         value={value}
       />
     </View>
@@ -137,6 +140,7 @@ export function PadsSettingsModal({
   onStartTutorial,
   onClose,
 }: PadsSettingsModalProps) {
+  const safeAreaPadding = useCenteredModalPadding(20);
   const { t } = useTranslation();
 
   return (
@@ -145,7 +149,7 @@ export function PadsSettingsModal({
       {/* The card must NOT be a Pressable: a Pressable ancestor can claim the
           gesture and block the ScrollView's drag. The dismiss area is an
           absolute-fill sibling behind the card instead. */}
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, safeAreaPadding]}>
         <Pressable
           {...SCREEN_READER_HIDDEN}
           style={StyleSheet.absoluteFill}
@@ -243,6 +247,7 @@ export function PadsSettingsModal({
             <Text style={styles.sectionHint}>{t('pads.settings.quantizeHint')}</Text>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();
@@ -268,7 +273,7 @@ export function PadsSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -361,7 +366,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tutorialButtonText: {
-    color: '#FFD54F',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '700',
   },
