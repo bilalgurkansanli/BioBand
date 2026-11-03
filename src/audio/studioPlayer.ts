@@ -154,7 +154,7 @@ function stopActivePlayback(): void {
   }
   stopMicPlayers();
   // Cancel violin phrase notes still scheduled inside the engine.
-  stopViolinPhrases();
+  stopViolinPhrases(VOICE_OWNER);
   stopVoicesOwnedBy(VOICE_OWNER);
 }
 
@@ -336,7 +336,7 @@ function startPreparedMix(params: {
       // noticed — the loop no longer drifts lap after lap. The ending pass's
       // notes and mic clips are cut at that same boundary.
       const boundary = passEndContextTime(pass.startContextTime, pass.remainingMs, rate);
-      stopViolinPhrases();
+      stopViolinPhrases(VOICE_OWNER);
       stopVoicesOwnedBy(VOICE_OWNER, { at: boundary });
       retireMicPlayersAt(boundary);
       schedule(0, boundary, true);
@@ -345,7 +345,7 @@ function startPreparedMix(params: {
     finished = true;
     clearScheduled();
     stopMicPlayers();
-    stopViolinPhrases();
+    stopViolinPhrases(VOICE_OWNER);
     stopVoicesOwnedBy(VOICE_OWNER);
     activeCancel = null;
     onProgress?.(durationMs, durationMs);
@@ -460,6 +460,7 @@ function startPreparedMix(params: {
             note.voice,
             note.gainScale,
             atContextTime,
+            rate,
           ),
         );
       },
@@ -514,7 +515,7 @@ function startPreparedMix(params: {
         return;
       }
       stopMicPlayers();
-      stopViolinPhrases();
+      stopViolinPhrases(VOICE_OWNER);
       stopVoicesOwnedBy(VOICE_OWNER);
       schedule(Math.max(0, Math.min(positionMs, durationMs)));
     },

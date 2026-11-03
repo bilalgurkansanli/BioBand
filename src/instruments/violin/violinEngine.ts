@@ -1,13 +1,16 @@
 import type { AudioBuffer, GainNode } from '../../audio/audioApi';
 
 import {
+  getCurrentVoiceOwner,
   getSharedAudioContext,
   loadSample,
   playSample,
   prepareSamplePlayback,
   resumeAudioContextIfSuspended,
   stopVoicesByTagPrefix,
+  withVoiceOwner,
 } from '../../audio/sampleBank';
+import { startSongScheduler } from '../../audio/songScheduler';
 import {
   clearPianoFxTimersFor,
   getPianoFxInput,
@@ -45,7 +48,15 @@ type BiquadFilterNode = ReturnType<
 >;
 
 const buffers = new Map<ViolinSampleId, AudioBuffer>();
-const phraseTimers = new Set<ReturnType<typeof setTimeout>>();
+
+/**
+ * A phrase preset being played: its notes are queued on the audio clock by a
+ * lookahead scheduler, like a song. `owner` is the voice owner it was started
+ * under (a saved take, the Studio mix), so stopping one player's phrases
+ * leaves the others' alone.
+ */
+type PhraseRun = { stop: () => void; owner: string | undefined };
+const phraseRuns = new Set<PhraseRun>();
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 let currentVoiceId: ViolinVoiceId = 'classic';
@@ -244,54 +255,94 @@ export function playNote(
   }, aheadOfClock, VIOLIN_OWNER);
 }
 
+/**
+ * Play a phrase preset: its notes, PHRASE_STAGGER_MS apart.
+ *
+ * The notes ride the audio clock through the same lookahead scheduler as a
+ * song. They used to be fired from setTimeouts started when the phrase was
+ * triggered — which, for a phrase in a take or a Studio track, was up to a
+ * lookahead (120 ms) BEFORE its written time, since playback hands notes over
+ * early; the phrase also ignored the playback tempo.
+ *
+ * @param atTime Audio-context time the first note sounds at (default: now).
+ * @param tempoRate Playback tempo multiplier — 2 plays the phrase twice as fast.
+ */
 export function playPhrase(
   phraseId: PhraseId,
   gainScale = 1,
   voiceId: ViolinVoiceId = currentVoiceId,
+  atTime?: number,
+  tempoRate = 1,
 ): void {
   const phrase = getPhraseById(phraseId);
   if (!phrase) {
     return;
   }
 
-  for (let i = 0; i < phrase.notes.length; i++) {
-    const { stringId, position } = phrase.notes[i];
-    const timer = setTimeout(() => {
-      phraseTimers.delete(timer);
-      playNote(stringId, position, gainScale, undefined, voiceId);
-    }, i * PHRASE_STAGGER_MS);
-    phraseTimers.add(timer);
+  // Notes queued later by the scheduler keep the owner the phrase started under.
+  const owner = getCurrentVoiceOwner();
+  const run: PhraseRun = { stop: () => {}, owner };
+  phraseRuns.add(run);
+  const handle = startSongScheduler({
+    events: phrase.notes.map((note, index) => ({ ...note, atMs: index * PHRASE_STAGGER_MS })),
+    rate: tempoRate,
+    startAtContextTime: atTime,
+    tailMs: 0,
+    onEvent: (note, _index, atContextTime) => {
+      const play = () =>
+        playNote(note.stringId, note.position, gainScale, { atTime: atContextTime }, voiceId);
+      if (owner === undefined) {
+        play();
+      } else {
+        withVoiceOwner(owner, play);
+      }
+    },
+    onDone: () => {
+      phraseRuns.delete(run);
+    },
+  });
+  run.stop = handle.stop;
+}
+
+/**
+ * Stop phrase presets still unfolding — a playback stop must silence the
+ * rest. With `owner`, only the phrases that owner started (see
+ * withVoiceOwner); notes already queued on the clock belong to the same
+ * owner and go with its voices.
+ */
+export function stopViolinPhrases(owner?: string): void {
+  for (const run of phraseRuns) {
+    if (owner === undefined || run.owner === owner) {
+      run.stop();
+      phraseRuns.delete(run);
+    }
   }
 }
 
-/** Cancel scheduled phrase notes — a playback stop must silence the rest. */
-export function stopViolinPhrases(): void {
-  for (const timer of phraseTimers) {
-    clearTimeout(timer);
-  }
-  phraseTimers.clear();
-}
-
-/** `voiceId` replays a take or Studio track on its own voice. */
+/**
+ * `voiceId` replays a take or Studio track on its own voice; `tempoRate` is
+ * that playback's tempo, which spaces out a phrase preset's notes.
+ */
 export function playViolinSoundId(
   soundId: string,
   gainScale = 1,
   performance?: NotePerformance,
   voiceId: ViolinVoiceId = currentVoiceId,
+  tempoRate = 1,
 ): void {
   const parsed = parseViolinSoundId(soundId);
   if (!parsed) {
     if (soundId.startsWith('phrase:')) {
       const phraseId = soundId.slice('phrase:'.length);
       if (isPhraseId(phraseId)) {
-        playPhrase(phraseId, gainScale, voiceId);
+        playPhrase(phraseId, gainScale, voiceId, performance?.atTime, tempoRate);
       }
     }
     return;
   }
 
   if (parsed.kind === 'phrase') {
-    playPhrase(parsed.phraseId, gainScale, voiceId);
+    playPhrase(parsed.phraseId, gainScale, voiceId, performance?.atTime, tempoRate);
     return;
   }
 

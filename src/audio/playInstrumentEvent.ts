@@ -59,7 +59,8 @@ export function resolveEventVoice(
 
 /**
  * Sound one recorded event at absolute audio-context time `atContextTime`.
- * `gainScale` is a Studio track's fader (1 for a saved take).
+ * `gainScale` is a Studio track's fader (1 for a saved take); `tempoRate` the
+ * playback tempo, which spaces out a violin phrase preset's notes.
  */
 export function playInstrumentEvent(
   instrument: InstrumentId,
@@ -67,6 +68,7 @@ export function playInstrumentEvent(
   voice: EventVoice,
   gainScale: number,
   atContextTime: number,
+  tempoRate = 1,
 ): void {
   // The onset goes to the engine as an absolute audio-context time, so the
   // audio thread owns it from here — a JS thread busy drawing cannot move it.
@@ -94,7 +96,7 @@ export function playInstrumentEvent(
       playGuitarSoundId(soundId, velocity, gainScale, performance, voice.guitarVoiceId);
       return;
     case 'violin':
-      playViolinSoundId(soundId, gainScale, performance, voice.violinVoiceId);
+      playViolinSoundId(soundId, gainScale, performance, voice.violinVoiceId, tempoRate);
       return;
   }
 }

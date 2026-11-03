@@ -32,6 +32,12 @@ export async function renderRecordingPcm(
   options: {
     /** Instrument takes: gain ahead of the master chain (Studio track volume). */
     gainScale?: number;
+    /**
+     * Tempo the events' times were already scaled to (Studio BPM). Only what
+     * the events cannot carry themselves follows it — a violin phrase
+     * preset's note spacing.
+     */
+    tempoRate?: number;
     shouldCancel?: () => boolean;
   } = {},
 ): Promise<RenderedPcm> {
@@ -61,7 +67,7 @@ export async function renderRecordingPcm(
       case 'guitar':
         return resolveGuitarDryEvents(events, recording.guitarVoiceId);
       case 'violin':
-        return resolveViolinDryEvents(events, recording.violinVoiceId);
+        return resolveViolinDryEvents(events, recording.violinVoiceId, options.tempoRate);
       case 'pads':
         return resolvePadsDryEvents(events, recording.padBankId);
     }

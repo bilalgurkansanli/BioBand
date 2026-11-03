@@ -86,7 +86,7 @@ function stopActivePlayback(): void {
   }
   // Phrase presets schedule their notes inside the violin engine — cancel
   // them too, or a stop mid-phrase keeps sounding the rest.
-  stopViolinPhrases();
+  stopViolinPhrases(VOICE_OWNER);
   stopVoicesOwnedBy(VOICE_OWNER);
 }
 
@@ -257,14 +257,14 @@ export async function playSavedRecording(
       // accumulating lap after lap. The ringing tail is cut at that same
       // boundary, not now.
       const boundary = passEndContextTime(pass.startContextTime, pass.remainingMs, rate);
-      stopViolinPhrases();
+      stopViolinPhrases(VOICE_OWNER);
       stopVoicesOwnedBy(VOICE_OWNER, { at: boundary });
       schedule(0, boundary);
       return;
     }
     finished = true;
     clearScheduled();
-    stopViolinPhrases();
+    stopViolinPhrases(VOICE_OWNER);
     stopVoicesOwnedBy(VOICE_OWNER);
     activeCancel = null;
     onEnded();
@@ -297,7 +297,7 @@ export async function playSavedRecording(
       events: pending,
       onEvent: (event, _index, atContextTime) => {
         withVoiceOwner(VOICE_OWNER, () =>
-          playInstrumentEvent(recording.instrument, event, voice, 1, atContextTime),
+          playInstrumentEvent(recording.instrument, event, voice, 1, atContextTime, rate),
         );
       },
       onDone: finish,
@@ -348,7 +348,7 @@ export async function playSavedRecording(
       if (finished || isSuperseded()) {
         return;
       }
-      stopViolinPhrases();
+      stopViolinPhrases(VOICE_OWNER);
       stopVoicesOwnedBy(VOICE_OWNER);
       schedule(Math.max(0, Math.min(positionMs, recording.durationMs)));
       onProgress?.(Math.max(0, Math.min(positionMs, recording.durationMs)), recording.durationMs);

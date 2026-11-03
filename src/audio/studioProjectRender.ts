@@ -170,6 +170,7 @@ export async function renderProjectPcm(
           // Live playback applies an instrument track's fader to every note,
           // ahead of the master clipper — the render does the same.
           gainScale: track.volume,
+          tempoRate: rate,
           shouldCancel: options.shouldCancel,
         });
       }
