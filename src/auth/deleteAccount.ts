@@ -136,7 +136,10 @@ export async function deleteAccount(
     // The account is already gone and that cannot be undone, so this is still
     // a success — reporting failure would invite the user to retry a delete
     // that has already happened. The next launch wipes guest data anyway
-    // (see auth/bootstrap.ts).
+    // (see auth/bootstrap.ts) once the wipe gets as far as the data-owner
+    // record; if storage is too broken even for that, the data is kept and
+    // the sign-in prompt shown instead, which errs on the side of not
+    // deleting.
     console.warn('[deleteAccount] Local teardown failed after server deletion', teardownError);
   }
   return { ok: true };

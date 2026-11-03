@@ -17,18 +17,28 @@ if (!isSupabaseConfigured) {
 
 // A harmless placeholder so `createClient` never throws when unconfigured —
 // every call site checks `isSupabaseConfigured` before actually using this.
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-anon-key',
-  {
-    auth: {
-      storage: AsyncStorage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
+const clientUrl = supabaseUrl || 'https://placeholder.supabase.co';
+
+/**
+ * The AsyncStorage key supabase-js keeps the session under.
+ *
+ * Named here, rather than left implicit, because launch has to look at it
+ * directly: `getSession()` answers "no session" both when there is none and
+ * when a stored one could not be refreshed offline, and only the second must
+ * keep the user's data. The value is supabase-js's own default for this URL,
+ * so sessions saved before it was spelled out are still found.
+ */
+export const AUTH_STORAGE_KEY = `sb-${new URL(clientUrl).hostname.split('.')[0]}-auth-token`;
+
+export const supabase = createClient(clientUrl, supabaseAnonKey || 'placeholder-anon-key', {
+  auth: {
+    storage: AsyncStorage,
+    storageKey: AUTH_STORAGE_KEY,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
   },
-);
+});
 
 // Supabase's token auto-refresh timer needs an explicit nudge to pause/resume
 // with the app's foreground state on native platforms (see Supabase RN docs).

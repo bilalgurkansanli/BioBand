@@ -1,21 +1,40 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
-import { wipeGuestAppData } from '../storage/appDataKeys';
 import {
   readStoredProfileSettings,
   saveProfileSettings,
   type ProfileSettings,
 } from '../storage/profileSettingsStorage';
+import { rememberSessionOwner } from '../storage/sessionOwnerStorage';
 import { cancelAppDataSync, syncAppData } from '../supabase/appDataSync';
 import { isSupabaseConfigured, supabase } from '../supabase/client';
 import { triggerAuthReset } from './authResetSignal';
 import { signOutEverywhere } from './googleAuth';
+import { wipeLocalUserData } from './localAccountData';
+import { readStoredSession } from './storedSession';
 
 type SignInProfile = {
   name: string | null;
   photoUrl?: string | null;
 };
+
+/**
+ * The session to show at mount. When the access token has expired and the
+ * refresh cannot reach the server, `getSession()` reports no session even
+ * though supabase-js keeps it stored and will refresh it once the network is
+ * back. That user is still signed in — their edits must keep being recorded
+ * against their account — so the stored copy stands in until the refresh
+ * lands.
+ */
+async function resolveInitialSession(): Promise<Session | null> {
+  const { data, error } = await supabase.auth.getSession();
+  if (data.session || !error) {
+    return data.session;
+  }
+  const stored = await readStoredSession();
+  return stored.status === 'present' ? stored.session : null;
+}
 
 export function useAuthSession() {
   const [session, setSession] = useState<Session | null>(null);
@@ -29,18 +48,28 @@ export function useAuthSession() {
     }
 
     let cancelled = false;
-    void supabase.auth.getSession().then(({ data }) => {
+    void resolveInitialSession().then((initial) => {
       if (cancelled) {
         return;
       }
-      sessionRef.current = data.session;
-      setSession(data.session);
+      sessionRef.current = initial;
+      setSession(initial);
       setLoading(false);
     });
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data: subscription } = supabase.auth.onAuthStateChange((event, next) => {
+      // INITIAL_SESSION repeats what resolveInitialSession works out, minus
+      // the offline fallback: on a failed refresh it reports null for a
+      // session that is still stored, and letting it through would flip a
+      // signed-in-but-offline user to signed out.
+      if (event === 'INITIAL_SESSION') {
+        return;
+      }
       sessionRef.current = next;
       setSession(next);
+      if (next) {
+        void rememberSessionOwner(next.user.id);
+      }
     });
 
     return () => {
@@ -58,7 +87,7 @@ export function useAuthSession() {
     // instead of leaving the signed-out user's recordings/progress visible
     // and editable until the next cold launch, then remount the app so
     // every screen re-reads its (now empty) state from storage.
-    await wipeGuestAppData();
+    await wipeLocalUserData();
     triggerAuthReset();
   }, []);
 
@@ -91,6 +120,7 @@ export async function syncAfterSignIn(
   userId: string,
   profile?: SignInProfile,
 ): Promise<void> {
+  await rememberSessionOwner(userId);
   await syncAppData(userId);
 
   if (profile && (profile.name || profile.photoUrl)) {

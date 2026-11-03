@@ -1,7 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 import type { Session } from '@supabase/supabase-js';
 
-import { isSupabaseConfigured, supabase } from '../supabase/client';
+import { AUTH_STORAGE_KEY, isSupabaseConfigured, supabase } from '../supabase/client';
 
 let configured = false;
 
@@ -76,11 +77,34 @@ export async function signInWithGoogle(): Promise<GoogleSignInResult> {
   }
 }
 
+/**
+ * Ends the session on this device, whatever the network is doing.
+ *
+ * `supabase.auth.signOut()` loads the session before revoking it, and when the
+ * access token has expired and the refresh cannot get through it returns that
+ * error without touching storage. The caller wipes local data next, so a
+ * sign-out that left the session behind would hand the next launch a signed-in
+ * user with an emptied app. With the stored copy removed first, a local
+ * sign-out has nothing left to load and goes straight to clearing state and
+ * telling every listener the user is gone. The server-side refresh token is
+ * then simply left to expire.
+ */
 export async function signOutEverywhere(): Promise<void> {
   try {
     await GoogleSignin.signOut();
   } catch {
     // Not signed in with Google (e.g. session restored without the native SDK) — fine.
   }
-  await supabase.auth.signOut();
+  let failure: unknown = null;
+  try {
+    failure = (await supabase.auth.signOut()).error;
+  } catch (thrown) {
+    failure = thrown;
+  }
+  if (!failure) {
+    return;
+  }
+  console.warn('[auth] Sign-out could not reach the server; ending the session locally', failure);
+  await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, `${AUTH_STORAGE_KEY}-user`]);
+  await supabase.auth.signOut({ scope: 'local' });
 }

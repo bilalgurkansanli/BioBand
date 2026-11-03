@@ -39,6 +39,9 @@ export const ALL_APP_DATA_KEYS: string[] = [
   '@bioband/profile-settings.v1',
   '@bioband/recording-settings.v1',
   '@bioband/recordings',
+  // Cleared only here, so only an explicit sign-out or account deletion
+  // releases the data (see sessionOwnerStorage).
+  '@bioband/session-owner.v1',
   '@bioband/song-audio-bindings.v1',
   '@bioband/studio-projects.v1',
   '@bioband/user-drum-songs.v1',
