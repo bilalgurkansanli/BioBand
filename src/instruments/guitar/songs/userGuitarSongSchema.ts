@@ -24,6 +24,7 @@ export type UserGuitarSongParseErrorCode =
   | 'tooManyNotes'
   | 'midiParseFailed'
   | 'readFailed'
+  | 'fileTooLarge'
   | 'unsupported';
 
 export class UserGuitarSongParseError extends Error {

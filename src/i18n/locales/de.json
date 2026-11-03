@@ -583,6 +583,7 @@
           "tooManyNotes": "Zu viele Schläge (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -718,6 +719,7 @@
           "tooManyNotes": "Zu viele Noten (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -907,6 +909,7 @@
           "tooManyNotes": "Zu viele Noten (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -1131,6 +1134,7 @@
           "tooManyNotes": "Zu viele Schläge (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },
@@ -1409,6 +1413,7 @@
           "tooManyNotes": "Zu viele Noten (max. 800).",
           "midiParseFailed": "Die MIDI-Datei konnte nicht gelesen werden.",
           "readFailed": "Die Datei konnte nicht gelesen werden. Versuch es erneut.",
+          "fileTooLarge": "Die Datei ist für ein Lied zu groß (max. 2 MB).",
           "pickerUnavailable": "Keine Dateiauswahl — füge stattdessen JSON ein."
         }
       },

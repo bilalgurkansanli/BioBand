@@ -25,6 +25,7 @@ export type UserViolinSongParseErrorCode =
   | 'tooManyNotes'
   | 'midiParseFailed'
   | 'readFailed'
+  | 'fileTooLarge'
   | 'unsupported';
 
 export class UserViolinSongParseError extends Error {

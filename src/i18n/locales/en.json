@@ -583,6 +583,7 @@
           "tooManyNotes": "Too many hits (max 800).",
           "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
+          "fileTooLarge": "That file is too big for a song chart (max 2 MB).",
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
@@ -718,6 +719,7 @@
           "tooManyNotes": "Too many notes (max 800).",
           "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
+          "fileTooLarge": "That file is too big for a song chart (max 2 MB).",
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
@@ -907,6 +909,7 @@
           "tooManyNotes": "Too many notes (max 800).",
           "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
+          "fileTooLarge": "That file is too big for a song chart (max 2 MB).",
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
@@ -1131,6 +1134,7 @@
           "tooManyNotes": "Too many hits (max 800).",
           "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
+          "fileTooLarge": "That file is too big for a song chart (max 2 MB).",
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
@@ -1409,6 +1413,7 @@
           "tooManyNotes": "Too many notes (max 800).",
           "midiParseFailed": "Could not read the MIDI file.",
           "readFailed": "Could not read the file. Try again.",
+          "fileTooLarge": "That file is too big for a song chart (max 2 MB).",
           "pickerUnavailable": "No file picker — paste JSON instead."
         }
       },
