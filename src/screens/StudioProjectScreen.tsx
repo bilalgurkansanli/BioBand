@@ -406,7 +406,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
 
   if (loading) {
     return (
-      <ScreenContainer style={styles.container} wide>
+      <ScreenContainer bottomInset style={styles.container} wide>
         <View style={styles.centered}>
           <ActivityIndicator color={colors.accent} size="large" />
         </View>
@@ -416,7 +416,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
 
   if (!project) {
     return (
-      <ScreenContainer style={styles.container} wide>
+      <ScreenContainer bottomInset style={styles.container} wide>
         <View style={styles.topBar}>
           <Pressable
             accessibilityLabel={t('common.back')}
@@ -442,8 +442,13 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
       ? null
       : project.tracks.find((track) => track.id === clipMenuTrackId) ?? null;
 
+  // `wide`: the timeline shows more of the arrangement the wider it is, which
+  // is the case ScreenContainer's width cap makes an exception for — the
+  // loading and empty states above already had it. `bottomInset`: the tab bar
+  // is hidden here, so nothing else keeps the footer hint off the home
+  // indicator or the navigation bar.
   return (
-    <ScreenContainer style={styles.container}>
+    <ScreenContainer bottomInset style={styles.container} wide>
       <View style={styles.topBar}>
         <Pressable
           accessibilityLabel={t('common.back')}
