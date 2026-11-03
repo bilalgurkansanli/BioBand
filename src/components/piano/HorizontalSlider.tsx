@@ -7,6 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { colors } from '../../theme/colors';
 import { ADJUSTABLE_ACTIONS, adjustmentDirection } from '../../utils/accessibility';
 
 export const SLIDER_THUMB_SIZE = 24;
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   track: {
-    backgroundColor: '#3A3A3C',
+    backgroundColor: colors.controlTrack,
     borderRadius: 3,
     height: TRACK_HEIGHT,
   },
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     elevation: 4,
     height: SLIDER_THUMB_SIZE,
     position: 'absolute',
-    shadowColor: '#000000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.45,
     shadowRadius: 3,

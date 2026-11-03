@@ -341,7 +341,7 @@ export function PadEditModal({
                 ]}
               >
                 <Ionicons
-                  color={recording ? '#FFFFFF' : '#FF3B30'}
+                  color={recording ? colors.white : colors.record}
                   name={recording ? 'stop' : 'mic'}
                   size={18}
                 />
@@ -471,7 +471,7 @@ export function PadEditModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -574,8 +574,8 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
   },
   micButtonActive: {
-    backgroundColor: '#FF3B30',
-    borderColor: '#FF3B30',
+    backgroundColor: colors.record,
+    borderColor: colors.record,
   },
   micButtonText: {
     color: '#FF6B62',
@@ -583,7 +583,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   micButtonTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   micBadge: {
     alignItems: 'center',
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
     width: 28,
   },
   colorDotSelected: {
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
   },
   sliderHeader: {
     alignItems: 'center',

@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 
 import type { PadSoundId } from '../../instruments/pads/padsSounds';
+import { colors } from '../../theme/colors';
 import { ACTIVATE_ACTIONS, isActivateAction } from '../../utils/accessibility';
 
 type LaunchPadProps = {
@@ -219,7 +220,7 @@ function LaunchPadBase({
               style={[
                 styles.guideRing,
                 {
-                  borderColor: strongGuide ? '#FFFFFF' : color,
+                  borderColor: strongGuide ? colors.white : color,
                   borderRadius: radius,
                   borderWidth: strongGuide ? 3 : 2.5,
                   opacity: guidePulse,

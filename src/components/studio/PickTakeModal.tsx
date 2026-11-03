@@ -38,7 +38,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
               onPress={onClose}
               style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="close" size={18} />
+              <Ionicons color={colors.white} name="close" size={18} />
             </Pressable>
           </View>
           {takes.length === 0 ? (
@@ -50,7 +50,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
                   onPress={onRecordInstead}
                   style={({ pressed }) => [styles.recordCta, pressed && styles.pressed]}
                 >
-                  <Ionicons color="#FFFFFF" name="mic" size={18} />
+                  <Ionicons color={colors.white} name="mic" size={18} />
                   <Text style={styles.recordCtaText}>{t('studio.pickTakeRecord')}</Text>
                 </Pressable>
               ) : null}
@@ -103,7 +103,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   recordCtaText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

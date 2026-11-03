@@ -131,7 +131,7 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
               onPress={share}
               style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="share-outline" size={16} />
+              <Ionicons color={colors.white} name="share-outline" size={16} />
               <Text style={styles.btnPrimaryText}>{t('errors.diagnosticsShare')}</Text>
             </Pressable>
           </View>
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   btnPrimaryText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

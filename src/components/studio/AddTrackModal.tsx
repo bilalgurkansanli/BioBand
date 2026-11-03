@@ -31,7 +31,7 @@ export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdu
               onPress={onClose}
               style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="close" size={18} />
+              <Ionicons color={colors.white} name="close" size={18} />
             </Pressable>
           </View>
 
@@ -75,7 +75,7 @@ export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdu
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

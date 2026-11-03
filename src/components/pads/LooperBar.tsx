@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { LooperBars, LooperLayer, LooperPhase } from '../../hooks/usePadsLooper';
 import type { PadBankId } from '../../instruments/pads/padsBanks';
+import { colors } from '../../theme/colors';
 
 type LooperBarProps = {
   phase: LooperPhase;
@@ -198,7 +199,7 @@ export function LooperBar({
             pressed && styles.pressed,
           ]}
         >
-          <Ionicons color={hasEvents ? '#FFD54F' : '#5A5A5E'} name="albums-outline" size={18} />
+          <Ionicons color={hasEvents ? colors.gold : '#5A5A5E'} name="albums-outline" size={18} />
         </Pressable>
 
         <Pressable
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
     width: 10,
   },
   recDotArmed: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.record,
   },
   barsGroup: {
     flexDirection: 'row',

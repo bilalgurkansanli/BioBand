@@ -46,7 +46,7 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
         <View style={styles.card}>
           <View style={styles.iconWrap}>
             <Ionicons
-              color="#FFFFFF"
+              color={colors.white}
               name={job?.kind === 'share' ? 'share-outline' : 'download-outline'}
               size={24}
             />
@@ -75,7 +75,7 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

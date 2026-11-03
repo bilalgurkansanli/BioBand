@@ -1,6 +1,8 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
+import { colors } from '../theme/colors';
+
 type Props = {
   displayName: string;
   size?: number;
@@ -32,7 +34,7 @@ export function ProfileAvatar({ displayName, size = 48, photoUrl }: Props) {
       {initial ? (
         <Text style={[styles.letter, { fontSize: size * 0.42 }]}>{initial}</Text>
       ) : (
-        <Ionicons color="#FFFFFF" name="person" size={size * 0.5} />
+        <Ionicons color={colors.white} name="person" size={size * 0.5} />
       )}
     </View>
   );
@@ -44,7 +46,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   letter: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '800',
   },
 });

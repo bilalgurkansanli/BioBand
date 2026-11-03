@@ -46,7 +46,7 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
           style={[styles.toggle, track.muted && { backgroundColor: colors.error, borderColor: colors.error }]}
         >
           <Ionicons
-            color={track.muted ? '#FFFFFF' : colors.textSecondary}
+            color={track.muted ? colors.white : colors.textSecondary}
             name={track.muted ? 'volume-mute' : 'volume-mute-outline'}
             size={14}
           />
@@ -59,7 +59,7 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
           style={[styles.toggle, track.solo && { backgroundColor: SOLO_COLOR, borderColor: SOLO_COLOR }]}
         >
           <Ionicons
-            color={track.solo ? '#FFFFFF' : colors.textSecondary}
+            color={track.solo ? colors.white : colors.textSecondary}
             name={track.solo ? 'headset' : 'headset-outline'}
             size={14}
           />

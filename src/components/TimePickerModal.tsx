@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

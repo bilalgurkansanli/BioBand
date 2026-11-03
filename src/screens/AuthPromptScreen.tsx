@@ -161,7 +161,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
             onPress={() => setPrivacyAccepted((prev) => !prev)}
             style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}
           >
-            {privacyAccepted ? <Ionicons color="#FFFFFF" name="checkmark" size={13} /> : null}
+            {privacyAccepted ? <Ionicons color={colors.white} name="checkmark" size={13} /> : null}
           </Pressable>
           <Text style={styles.acceptText}>
             {t('auth.acceptPrivacyPrefix')}
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderColor: '#E4E4E7',
     borderRadius: 14,
     borderWidth: 1,

@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   // The dim lives here rather than on the backdrop, so the strip the keyboard
   // padding opens up is dimmed along with everything else.
   keyboardAvoider: {
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
   },
   backdrop: {
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

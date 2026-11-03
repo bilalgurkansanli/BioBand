@@ -160,7 +160,7 @@ export function CoachTour({ onDone }: Props) {
                 {isLast ? t('onboarding.start') : t('onboarding.next')}
               </Text>
               <Ionicons
-                color="#FFFFFF"
+                color={colors.white}
                 name={isLast ? 'checkmark' : 'arrow-forward'}
                 size={16}
               />
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   nextText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 14,
     fontWeight: '700',
   },

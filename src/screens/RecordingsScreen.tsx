@@ -266,9 +266,9 @@ export function RecordingsScreen({ navigation }: Props) {
               style={[styles.newButton, importing && styles.disabled]}
             >
               {importing ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.white} size="small" />
               ) : (
-                <Ionicons color="#FFFFFF" name="folder-open-outline" size={16} />
+                <Ionicons color={colors.white} name="folder-open-outline" size={16} />
               )}
               <Text style={styles.newButtonText}>{t('recordings.import.button')}</Text>
             </Pressable>
@@ -364,7 +364,7 @@ export function RecordingsScreen({ navigation }: Props) {
               {t('studio.projectCount', { count: projects.length })}
             </Text>
             <Pressable accessibilityRole="button" onPress={() => setCreateVisible(true)} style={styles.newButton}>
-              <Ionicons color="#FFFFFF" name="add" size={18} />
+              <Ionicons color={colors.white} name="add" size={18} />
               <Text style={styles.newButtonText}>{t('studio.newProject')}</Text>
             </Pressable>
           </View>
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   container: {
     padding: 20,
@@ -630,7 +630,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   newButtonText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 13,
     fontWeight: '700',
   },

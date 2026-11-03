@@ -33,7 +33,7 @@ export function ConfirmDeleteModal({
       <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
         <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.iconWrap}>
-            <Ionicons color="#FFFFFF" name={icon} size={24} />
+            <Ionicons color={colors.white} name={icon} size={24} />
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
@@ -62,7 +62,7 @@ export function ConfirmDeleteModal({
 const styles = StyleSheet.create({
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

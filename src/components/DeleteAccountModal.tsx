@@ -60,7 +60,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
       <View style={[styles.backdrop, safeAreaPadding]}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
-            <Ionicons color="#FFFFFF" name="trash" size={24} />
+            <Ionicons color={colors.white} name="trash" size={24} />
           </View>
           <Text style={styles.title}>{t('auth.deleteAccountConfirmTitle')}</Text>
           <Text style={styles.message}>{t('auth.deleteAccountConfirmMessage')}</Text>
@@ -84,7 +84,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
             style={styles.acknowledgeRow}
           >
             <View style={[styles.checkbox, acknowledged && styles.checkboxChecked]}>
-              {acknowledged ? <Ionicons color="#FFFFFF" name="checkmark" size={13} /> : null}
+              {acknowledged ? <Ionicons color={colors.white} name="checkmark" size={13} /> : null}
             </View>
             <Text style={styles.acknowledgeText}>{t('auth.deleteAccountAcknowledge')}</Text>
           </Pressable>
@@ -117,7 +117,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
               ]}
             >
               {busy ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
+                <ActivityIndicator color={colors.white} size="small" />
               ) : (
                 <Text style={styles.confirmText}>{t('auth.deleteAccountConfirm')}</Text>
               )}
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   confirmText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

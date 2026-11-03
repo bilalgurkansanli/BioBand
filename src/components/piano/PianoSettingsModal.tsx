@@ -148,8 +148,8 @@ export function PianoSettingsModal({
               <Switch
                 accessibilityLabel={t('piano.settings.tonePanel')}
                 onValueChange={onChangeShowTonePanel}
-                thumbColor={showTonePanel ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showTonePanel ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showTonePanel}
               />
             </View>
@@ -159,8 +159,8 @@ export function PianoSettingsModal({
               <Switch
                 accessibilityLabel={t('piano.settings.speedHud')}
                 onValueChange={onChangeShowSpeedHud}
-                thumbColor={showSpeedHud ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showSpeedHud ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showSpeedHud}
               />
             </View>
@@ -170,8 +170,8 @@ export function PianoSettingsModal({
               <Switch
                 accessibilityLabel={t('piano.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
@@ -211,8 +211,8 @@ export function PianoSettingsModal({
                 onValueChange={(on) => {
                   onChangeScaleId(on ? lastScaleId : null);
                 }}
-                thumbColor={scaleLightsOn ? SCALE_ACCENT : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${SCALE_ACCENT}55` }}
+                thumbColor={scaleLightsOn ? SCALE_ACCENT : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${SCALE_ACCENT}55` }}
                 value={scaleLightsOn}
               />
             </View>
@@ -289,7 +289,7 @@ export function PianoSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,

@@ -225,8 +225,8 @@ export function GuitarSettingsModal({
               <Switch
                 accessibilityLabel={t('guitar.settings.showFretNumbers')}
                 onValueChange={onChangeShowFretNumbers}
-                thumbColor={showFretNumbers ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showFretNumbers ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showFretNumbers}
               />
             </View>
@@ -238,8 +238,8 @@ export function GuitarSettingsModal({
               <Switch
                 accessibilityLabel={t('guitar.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
-                thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={strongGuideHighlight ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={strongGuideHighlight}
               />
             </View>
@@ -249,8 +249,8 @@ export function GuitarSettingsModal({
               <Switch
                 accessibilityLabel={t('guitar.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
@@ -262,8 +262,8 @@ export function GuitarSettingsModal({
               <Switch
                 accessibilityLabel={t('guitar.settings.stringAnimation')}
                 onValueChange={onChangeStringAnimation}
-                thumbColor={stringAnimation ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={stringAnimation ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={stringAnimation}
               />
             </View>
@@ -278,8 +278,8 @@ export function GuitarSettingsModal({
                 <Switch
                   accessibilityLabel={t('guitar.settings.bend')}
                   onValueChange={onChangeBendEnabled}
-                  thumbColor={bendEnabled ? colors.accent : '#7A7A7E'}
-                  trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                  thumbColor={bendEnabled ? colors.accent : colors.controlThumbOff}
+                  trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                   value={bendEnabled}
                 />
               </View>
@@ -345,8 +345,8 @@ export function GuitarSettingsModal({
                 <Switch
                   accessibilityLabel={t('guitar.settings.showPlayModeBar')}
                   onValueChange={onChangeShowChordPlayModeBar}
-                  thumbColor={showChordPlayModeBar ? colors.accent : '#7A7A7E'}
-                  trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                  thumbColor={showChordPlayModeBar ? colors.accent : colors.controlThumbOff}
+                  trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                   value={showChordPlayModeBar}
                 />
               </View>
@@ -483,7 +483,7 @@ export function GuitarSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -620,7 +620,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tutorialButtonText: {
-    color: '#FFD54F',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '700',
   },

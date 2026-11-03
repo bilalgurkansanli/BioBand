@@ -55,11 +55,11 @@ function IconButton({
   const iconColor =
     colorOverride ??
     (accent === 'record' && active
-      ? '#FFFFFF'
+      ? colors.white
       : accent === 'record'
-        ? '#FF3B30'
+        ? colors.record
         : accent === 'game'
-          ? '#FFD54F'
+          ? colors.gold
           : active
             ? colors.accent
             : '#C8C8C8');
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
     backgroundColor: '#1C1C1E',
-    borderBottomColor: '#3A3A3C',
+    borderBottomColor: colors.controlTrack,
     borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -229,10 +229,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2540',
   },
   recordActive: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.record,
   },
   recordDot: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.record,
     borderRadius: 3,
     bottom: 4,
     height: 6,
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     width: 6,
   },
   recordDotActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   pressed: {
     opacity: 0.7,

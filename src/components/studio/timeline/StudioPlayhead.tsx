@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   knob: {
     backgroundColor: colors.accent,
-    borderColor: '#FFFFFF',
+    borderColor: colors.white,
     borderRadius: KNOB_SIZE / 2,
     borderWidth: 2,
     height: KNOB_SIZE,

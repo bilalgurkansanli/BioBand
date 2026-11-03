@@ -69,7 +69,7 @@ export function StudioProjectCard({
             isBusy && styles.disabled,
           ]}
         >
-          <Ionicons color="#FFFFFF" name="trash-outline" size={18} />
+          <Ionicons color={colors.white} name="trash-outline" size={18} />
         </Pressable>
         <Pressable
           accessibilityRole="button"

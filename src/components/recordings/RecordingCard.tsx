@@ -185,7 +185,7 @@ function RecordingCardBase({
               <ActivityIndicator color={colors.accent} size="small" />
             ) : (
               <Ionicons
-                color={isPlaying ? '#FFFFFF' : colors.accent}
+                color={isPlaying ? colors.white : colors.accent}
                 name={isPlaying ? 'stop' : 'play'}
                 size={22}
               />
@@ -235,7 +235,7 @@ function RecordingCardBase({
                 pressed && styles.pressed,
               ]}
             >
-              <Ionicons color={loop ? '#FFFFFF' : colors.textSecondary} name="repeat" size={14} />
+              <Ionicons color={loop ? colors.white : colors.textSecondary} name="repeat" size={14} />
               <Text style={[styles.speedText, loop && styles.speedTextActive]}>
                 {t('recordings.loop')}
               </Text>
@@ -254,7 +254,7 @@ function RecordingCardBase({
             ]}
           >
             <Ionicons
-              color={rate !== 1 ? '#FFFFFF' : colors.textSecondary}
+              color={rate !== 1 ? colors.white : colors.textSecondary}
               name="speedometer-outline"
               size={13}
             />
@@ -300,7 +300,7 @@ function ActionButton({ icon, label, onPress, disabled, variant = 'default' }: A
         disabled && styles.disabled,
       ]}
     >
-      <Ionicons color={isDanger ? '#FFFFFF' : colors.text} name={icon} size={18} />
+      <Ionicons color={isDanger ? colors.white : colors.text} name={icon} size={18} />
     </Pressable>
   );
 }
@@ -486,7 +486,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   speedTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   pressed: {
     opacity: 0.75,

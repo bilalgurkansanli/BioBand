@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../theme/colors';
 
 /** Shared accent for the tutorial (play-along) wizard across instruments. */
-export const TUTORIAL_ACCENT = '#FFD54F';
+export const TUTORIAL_ACCENT = colors.gold;
 
 type TutorialSongChipProps = {
   title: string;

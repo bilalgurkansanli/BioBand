@@ -81,7 +81,7 @@ export class AppErrorBoundary extends Component<Props, State> {
       <View style={styles.root}>
         <View style={styles.card}>
           <View style={styles.iconWrap}>
-            <Ionicons color="#FFFFFF" name="warning-outline" size={26} />
+            <Ionicons color={colors.white} name="warning-outline" size={26} />
           </View>
           <Text style={styles.title}>{this.label('errors.crashTitle', 'Something went wrong')}</Text>
           <Text style={styles.message}>
@@ -96,7 +96,7 @@ export class AppErrorBoundary extends Component<Props, State> {
             onPress={this.reset}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
-            <Ionicons color="#FFFFFF" name="refresh" size={18} />
+            <Ionicons color={colors.white} name="refresh" size={18} />
             <Text style={styles.primaryText}>{this.label('errors.crashRetry', 'Try again')}</Text>
           </Pressable>
 
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },

@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { colors } from '../theme/colors';
+
 type Props = {
   onPress: () => void;
   disabled?: boolean;
@@ -60,7 +62,7 @@ export function AppleSignInButton({ onPress, disabled = false, cornerRadius = 12
         disabled && styles.disabled,
       ]}
     >
-      <Ionicons color="#000000" name="logo-apple" size={19} style={styles.icon} />
+      <Ionicons color={colors.black} name="logo-apple" size={19} style={styles.icon} />
       <Text maxFontSizeMultiplier={1.3} style={styles.label}>
         {t('auth.signInWithApple')}
       </Text>
@@ -71,7 +73,7 @@ export function AppleSignInButton({ onPress, disabled = false, cornerRadius = 12
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     flexDirection: 'row',
     gap: 8,
     justifyContent: 'center',
@@ -82,7 +84,7 @@ const styles = StyleSheet.create({
     marginTop: -2,
   },
   label: {
-    color: '#000000',
+    color: colors.black,
     fontSize: 15,
     fontWeight: '600',
   },

@@ -13,6 +13,7 @@ import {
 import type { DrumPieceKind } from '../../instruments/drums/drumKitLayout';
 import type { DrumSoundId } from '../../instruments/drums/drumsSounds';
 import { getMetronomeBpm } from '../../instruments/piano/pianoMetronome';
+import { colors } from '../../theme/colors';
 import { shade, tint } from '../../utils/colorMix';
 import {
   ACTIVATE_ACTIONS,
@@ -73,7 +74,7 @@ const HOOP = '#8E949E';
 
 function pieceShadow(size: number): ViewStyle {
   return {
-    shadowColor: '#000',
+    shadowColor: colors.black,
     shadowOffset: { width: 0, height: size * 0.06 },
     shadowOpacity: 0.45,
     shadowRadius: size * 0.12,
@@ -663,16 +664,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   guideRing: {
-    borderColor: '#FFD54F',
+    borderColor: colors.gold,
     position: 'absolute',
     zIndex: 2,
   },
   hitGlow: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     position: 'absolute',
   },
   shine: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     opacity: 0.16,
     position: 'absolute',
   },

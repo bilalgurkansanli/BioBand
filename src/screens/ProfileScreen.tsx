@@ -156,7 +156,7 @@ export function ProfileScreen() {
                   ]}
                 >
                   {dot.active ? (
-                    <Ionicons color="#FFFFFF" name="checkmark" size={14} />
+                    <Ionicons color={colors.white} name="checkmark" size={14} />
                   ) : null}
                 </View>
               </View>
@@ -251,7 +251,7 @@ export function ProfileScreen() {
           onPress={goPractice}
           style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
         >
-          <Ionicons color="#FFFFFF" name="musical-notes" size={18} />
+          <Ionicons color={colors.white} name="musical-notes" size={18} />
           <Text style={styles.ctaText}>{t('profile.goPractice')}</Text>
         </Pressable>
       </ScrollView>
@@ -276,7 +276,7 @@ export function ProfileScreen() {
               onPress={() => setShowTodayBreakdown(false)}
               style={({ pressed }) => [styles.sheetCloseX, pressed && styles.pressed]}
             >
-              <Ionicons color="#FFFFFF" name="close" size={18} />
+              <Ionicons color={colors.white} name="close" size={18} />
             </Pressable>
             <Text style={styles.sheetTitle}>{t('profile.todayTitle')}</Text>
             <Text style={styles.sheetTotal}>{formatPracticeDuration(todayTotalMs, t)}</Text>
@@ -704,7 +704,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   ctaText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 15,
     fontWeight: '700',
   },
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: colors.backdropSoft,
     flex: 1,
     justifyContent: 'center',
     padding: 24,

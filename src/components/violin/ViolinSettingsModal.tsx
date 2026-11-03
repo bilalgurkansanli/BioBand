@@ -103,8 +103,8 @@ export function ViolinSettingsModal({
               <Switch
                 accessibilityLabel={t('violin.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
-                thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={strongGuideHighlight ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={strongGuideHighlight}
               />
             </View>
@@ -114,8 +114,8 @@ export function ViolinSettingsModal({
               <Switch
                 accessibilityLabel={t('violin.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
   },
   card: {
     backgroundColor: colors.surface,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     backgroundColor: colors.surfaceLight,
-    borderColor: '#3A3A3C',
+    borderColor: colors.controlTrack,
     borderRadius: 8,
     borderWidth: 1,
     paddingHorizontal: 12,
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tutorialText: {
-    color: '#FFD54F',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '700',
   },

@@ -436,7 +436,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
                 setCountInEnabled(value);
                 void saveRecordingSettings({ countInEnabled: value });
               }}
-              thumbColor="#FFFFFF"
+              thumbColor={colors.white}
               trackColor={{ false: colors.surfaceLight, true: colors.accent }}
               value={countInEnabled}
             />
@@ -453,7 +453,7 @@ export function ProfileSettingsScreen({ navigation }: Props) {
             <Switch
               accessibilityLabel={t('profile.reminderEnable')}
               onValueChange={(value) => void onToggleReminder(value)}
-              thumbColor="#FFFFFF"
+              thumbColor={colors.white}
               trackColor={{ false: colors.surfaceLight, true: colors.accent }}
               value={reminder.enabled}
             />
@@ -732,7 +732,7 @@ const styles = StyleSheet.create({
   },
   googleSignInBtn: {
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
     borderRadius: 10,
     flexDirection: 'row',
     gap: 8,
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   langChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   fieldLabel: {
     color: colors.text,
@@ -1001,6 +1001,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextActive: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
 });

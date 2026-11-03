@@ -96,8 +96,8 @@ export function DrumsSettingsModal({
               <Switch
                 accessibilityLabel={t('drums.settings.showPadLabels')}
                 onValueChange={onChangeShowPadLabels}
-                thumbColor={showPadLabels ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={showPadLabels ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={showPadLabels}
               />
             </View>
@@ -109,8 +109,8 @@ export function DrumsSettingsModal({
               <Switch
                 accessibilityLabel={t('drums.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
-                thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={strongGuideHighlight ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={strongGuideHighlight}
               />
             </View>
@@ -120,8 +120,8 @@ export function DrumsSettingsModal({
               <Switch
                 accessibilityLabel={t('drums.settings.haptics')}
                 onValueChange={onChangeHaptics}
-                thumbColor={haptics ? colors.accent : '#7A7A7E'}
-                trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
+                thumbColor={haptics ? colors.accent : colors.controlThumbOff}
+                trackColor={{ false: colors.controlTrack, true: `${colors.accent}55` }}
                 value={haptics}
               />
             </View>
@@ -199,7 +199,7 @@ export function DrumsSettingsModal({
 const styles = StyleSheet.create({
   overlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.65)',
+    backgroundColor: colors.backdrop,
     flex: 1,
     justifyContent: 'center',
     padding: 20,
@@ -247,7 +247,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   tutorialButtonText: {
-    color: '#FFD54F',
+    color: colors.gold,
     fontSize: 15,
     fontWeight: '700',
   },

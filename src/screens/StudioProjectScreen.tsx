@@ -563,9 +563,9 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
           style={[styles.playBtn, playingThis && styles.playBtnActive, !hasTracks && styles.disabled]}
         >
           {playLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
+            <ActivityIndicator color={colors.white} />
           ) : (
-            <Ionicons color="#FFFFFF" name={playingThis ? 'stop' : 'play'} size={20} />
+            <Ionicons color={colors.white} name={playingThis ? 'stop' : 'play'} size={20} />
           )}
         </Pressable>
       </View>

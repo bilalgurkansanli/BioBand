@@ -107,8 +107,8 @@ function FxSection({
         <Switch
           accessibilityLabel={title}
           onValueChange={onToggle}
-          thumbColor={enabled ? accent : '#7A7A7E'}
-          trackColor={{ false: '#3A3A3C', true: `${accent}55` }}
+          thumbColor={enabled ? accent : colors.controlThumbOff}
+          trackColor={{ false: colors.controlTrack, true: `${accent}55` }}
           value={enabled}
         />
       </View>
