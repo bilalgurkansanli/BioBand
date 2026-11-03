@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import type { GuitarFretboardColors } from '../../instruments/guitar/guitarVoices';
@@ -46,7 +46,7 @@ const WOBBLE_STEP_MS = 36;
 
 const FRET_MARKERS = new Set([3, 5, 7, 9, 12]);
 
-export function GuitarStringRow({
+function GuitarStringRowBase({
   stringId,
   label,
   stringThickness,
@@ -220,6 +220,12 @@ export function GuitarStringRow({
     </View>
   );
 }
+
+/**
+ * Memoised: the fretboard redraws whenever the held cells change, and only the
+ * string a finger actually moved on has new props (see `activeByString`).
+ */
+export const GuitarStringRow = memo(GuitarStringRowBase);
 
 const styles = StyleSheet.create({
   row: {

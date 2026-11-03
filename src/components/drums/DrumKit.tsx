@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { memo, useCallback, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
@@ -177,7 +177,7 @@ function HardwareStands({
   );
 }
 
-export function DrumKit({
+function DrumKitBase({
   width,
   height,
   onHit,
@@ -292,6 +292,12 @@ export function DrumKit({
     </View>
   );
 }
+
+/**
+ * Memoised: the drums screen re-renders on play-along progress and every
+ * toolbar/modal change, none of which reach the kit's own props.
+ */
+export const DrumKit = memo(DrumKitBase);
 
 const styles = StyleSheet.create({
   stage: {

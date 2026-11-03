@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
@@ -43,6 +43,7 @@ import {
 import type { GuitarVoiceTheme } from '../../instruments/guitar/guitarVoices';
 import { getGuitarVoice } from '../../instruments/guitar/guitarVoices';
 import { colors } from '../../theme/colors';
+import { hasSameMembers } from '../instrument/sameMembers';
 
 const DEFAULT_THEME = getGuitarVoice('nylon').theme;
 
@@ -170,7 +171,11 @@ function resolveCellAtPoint(
   return { stringId, fret, velocity };
 }
 
-export function Fretboard({
+/**
+ * Memoised: the guitar screen re-renders on play-along progress and every
+ * toolbar/modal change, none of which reach the board's own props.
+ */
+export const Fretboard = memo(function Fretboard({
   onPluckIn,
   onPluckOut,
   onBend,
@@ -303,6 +308,9 @@ export function Fretboard({
 
   const fretHeaders = Array.from({ length: effectiveMaxFret + 1 }, (_, i) => i);
 
+  // A row keeps the very same Set while its own frets are unchanged, so its
+  // memo holds — a finger sliding along one string redraws that row, not six.
+  const activeByStringRef = useRef<Map<GuitarStringId, ReadonlySet<number>>>(new Map());
   const activeByString = useMemo(() => {
     const map = new Map<GuitarStringId, Set<number>>();
     for (const key of activeKeys) {
@@ -319,7 +327,14 @@ export function Fretboard({
       }
       set.add(fret);
     }
-    return map;
+    const previous = activeByStringRef.current;
+    const stable = new Map<GuitarStringId, ReadonlySet<number>>();
+    for (const [stringId, frets] of map) {
+      const kept = previous.get(stringId);
+      stable.set(stringId, kept && hasSameMembers(kept, frets) ? kept : frets);
+    }
+    activeByStringRef.current = stable;
+    return stable;
   }, [activeKeys]);
 
   const syncTouches = useCallback(
@@ -385,7 +400,11 @@ export function Fretboard({
       }
 
       touchCellsRef.current = nextTouchMap;
-      setActiveKeys(nextActive);
+      // Touch-move fires every frame, and a bend keeps the finger on its cell
+      // the whole time — only redraw when a different set of cells is held.
+      if (!hasSameMembers(previousActive, nextActive)) {
+        setActiveKeys(nextActive);
+      }
 
       for (const cell of cellsToTrigger) {
         onPluckIn(cell.stringId, cell.fret, cell.velocity);
@@ -432,6 +451,16 @@ export function Fretboard({
     setBoardSize({ width, height });
   };
 
+  // A stable handler keeps the memoised chord bar out of every touch redraw.
+  const onSelectChordRef = useRef(onSelectChord);
+  onSelectChordRef.current = onSelectChord;
+  const handleSelectChord = useCallback(
+    (id: string, direction: GuitarStrumDirection | null, gesture: GuitarChordGesture) => {
+      onSelectChordRef.current(id as ChordId, direction, gesture);
+    },
+    [],
+  );
+
   return (
     <View style={[styles.container, { backgroundColor: stageBg }]}>
       <View
@@ -452,9 +481,7 @@ export function Fretboard({
             accent={accent}
             chords={chords}
             guideChordId={guideChordId}
-            onSelectChord={(id, direction, gesture) =>
-              onSelectChord(id as ChordId, direction, gesture)
-            }
+            onSelectChord={handleSelectChord}
             selectedChordId={selectedChordId}
             strongGuide={strongGuide}
           />
@@ -509,7 +536,7 @@ export function Fretboard({
       </View>
     </View>
   );
-}
+});
 
 const EMPTY_FRETS: ReadonlySet<number> = new Set();
 

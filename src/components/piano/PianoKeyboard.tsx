@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type GestureResponderEvent, type NativeTouchEvent, StyleSheet, View } from 'react-native';
 
 import {
@@ -8,6 +8,7 @@ import {
 } from '../../instruments/piano/pianoNotes';
 import type { PianoKeyColors } from '../../instruments/piano/pianoVoices';
 import type { PianoLabelMode } from '../../storage/pianoSettingsStorage';
+import { hasSameMembers } from '../instrument/sameMembers';
 import { PianoKey } from './PianoKey';
 
 const KEY_GAP = 2;
@@ -82,7 +83,11 @@ type PianoKeyboardProps = {
   labelMode?: PianoLabelMode;
 };
 
-export function PianoKeyboard({
+/**
+ * Memoised: the piano screen re-renders on progress ticks and every settings
+ * change, and none of those touch the keyboard's own props.
+ */
+export const PianoKeyboard = memo(function PianoKeyboard({
   width,
   height,
   onNotePressIn,
@@ -159,7 +164,11 @@ export function PianoKeyboard({
       }
 
       touchNotesRef.current = nextTouchMap;
-      setActiveNotes(nextActiveNotes);
+      // Touch-move fires every frame; a finger resting on its key must not
+      // redraw the keyboard each time.
+      if (!hasSameMembers(previousActiveNotes, nextActiveNotes)) {
+        setActiveNotes(nextActiveNotes);
+      }
 
       if (enableSound) {
         for (const noteId of notesToTrigger) {
@@ -267,7 +276,7 @@ export function PianoKeyboard({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrapper: {
