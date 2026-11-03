@@ -24,6 +24,7 @@ import {
 } from './pianoSamples';
 import { PIANO_NOTES, type NoteId } from './pianoNotes';
 import type { PianoVoiceId } from './pianoVoices';
+import { createSynthVoiceCounter } from './synthVoiceCount';
 import {
   velocityGain,
   type NotePerformance,
@@ -80,8 +81,6 @@ function startTimeFor(
 type GainNodeT = ReturnType<ReturnType<typeof getSharedAudioContext>['createGain']>;
 
 let synthBusNode: GainNodeT | null = null;
-let activeSynthCount = 0;
-const synthEndTimers = new Set<ReturnType<typeof setTimeout>>();
 
 function getSynthBus(): GainNodeT {
   if (!synthBusNode) {
@@ -93,7 +92,7 @@ function getSynthBus(): GainNodeT {
   return synthBusNode;
 }
 
-function updateSynthBusGain(): void {
+function updateSynthBusGain(activeSynthCount: number): void {
   const bus = synthBusNode;
   if (!bus) return;
   const ctx = getSharedAudioContext();
@@ -110,30 +109,37 @@ function updateSynthBusGain(): void {
 }
 
 /**
- * Register a synth voice in the polyphony-compensation budget.  The counter
- * is decremented automatically when the voice's lifetime expires.  Early
- * voice stealing may cause the counter to stay briefly high, which is safe
- * (results in slightly more ducking — never in clipping).
+ * The synth voices actually sounding. A voice leaves the count when it falls
+ * silent — at its natural end, or as soon as it is released or stolen — not
+ * when its worst-case scheduled lifetime runs out (a held note is scheduled
+ * for ~24 s, and counting it that long kept ducking every later note).
  */
-function registerSynthLifetime(durationSeconds: number, leadSeconds = 0): void {
-  activeSynthCount++;
-  updateSynthBusGain();
+const synthVoices = createSynthVoiceCounter({
+  now: () => getSharedAudioContext().currentTime,
+  onChange: updateSynthBusGain,
+});
 
-  // Voices placed ahead of the clock are still ringing for `leadSeconds`
-  // longer in wall time — decrementing early would under-duck the bus.
-  const ms = Math.max(50, (durationSeconds + Math.max(0, leadSeconds)) * 1000);
-  const timer = setTimeout(() => {
-    synthEndTimers.delete(timer);
-    activeSynthCount = Math.max(0, activeSynthCount - 1);
-    updateSynthBusGain();
-  }, ms);
-  synthEndTimers.add(timer);
+/**
+ * Enrol a synth voice that falls silent on its own at `endsAt`, and wrap its
+ * oscillators' stop so that ending it early also takes it out of the count.
+ */
+function trackSynthVoice(
+  endsAt: number,
+  stopOscillators: (when?: number) => void,
+): { stop: (when?: number) => void } {
+  const endEarly = synthVoices.add(endsAt);
+  return {
+    stop: (when?: number) => {
+      // Counted down before stopping: stop() can throw on an oscillator that
+      // has already ended, and the count must not get stuck on it.
+      endEarly(when);
+      stopOscillators(when);
+    },
+  };
 }
 
 function resetSynthBus(): void {
-  for (const timer of synthEndTimers) clearTimeout(timer);
-  synthEndTimers.clear();
-  activeSynthCount = 0;
+  synthVoices.reset();
   if (synthBusNode) {
     try { synthBusNode.disconnect(); } catch { /* already disconnected */ }
     synthBusNode = null;
@@ -389,21 +395,16 @@ function playOrgan(
   noteGain.gain.setValueAtTime(peak, releaseStart);
   noteGain.gain.exponentialRampToValueAtTime(0.001, endsAt);
 
-  const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration, now - context.currentTime);
-
   for (const osc of oscillators) {
     osc.stop(endsAt + 0.05);
   }
 
   registerActiveVoice(
-    {
-      stop: (when?: number) => {
-        for (const osc of oscillators) {
-          osc.stop(when);
-        }
-      },
-    },
+    trackSynthVoice(endsAt + 0.05, (when) => {
+      for (const osc of oscillators) {
+        osc.stop(when);
+      }
+    }),
     stealGain,
     endsAt + 0.05,
     tag,
@@ -474,16 +475,11 @@ function playRhodes(
   bell.start(now);
   bell.stop(endsAt + 0.05);
 
-  const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration, now - context.currentTime);
-
   registerActiveVoice(
-    {
-      stop: (when?: number) => {
-        body.stop(when);
-        bell.stop(when);
-      },
-    },
+    trackSynthVoice(endsAt + 0.05, (when) => {
+      body.stop(when);
+      bell.stop(when);
+    }),
     stealGain,
     endsAt + 0.05,
     tag,
@@ -539,10 +535,13 @@ function playSynthLead(
   osc.start(now);
   osc.stop(endsAt + 0.05);
 
-  const voiceDuration = endsAt - now + 0.05;
-  registerSynthLifetime(voiceDuration, now - context.currentTime);
-
-  registerActiveVoice(osc, stealGain, endsAt + 0.05, tag, now);
+  registerActiveVoice(
+    trackSynthVoice(endsAt + 0.05, (when) => osc.stop(when)),
+    stealGain,
+    endsAt + 0.05,
+    tag,
+    now,
+  );
 }
 
 function dryVoiceTag(voice: PianoVoiceId, noteId: NoteId): string {
