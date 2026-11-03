@@ -21,8 +21,12 @@ export function useStudioPlayback() {
   const playingIdRef = useRef<string | null>(null);
   const positionRef = useRef(0);
   positionRef.current = positionMs;
+  // Bumped by every play and stop: a play that resolves after a newer play
+  // or a stop must not claim the "playing" state for itself.
+  const playTokenRef = useRef(0);
 
   const stop = useCallback((rewind = true) => {
+    playTokenRef.current += 1;
     handleRef.current?.stop();
     handleRef.current = null;
     stopStudioPlayback();
@@ -60,7 +64,11 @@ export function useStudioPlayback() {
 
       // Leave the playhead where it is so a fresh play resumes from it.
       stop(false);
+      const token = ++playTokenRef.current;
       setLoading(true);
+      // A project with nothing audible reports its end synchronously, before
+      // the code below marks it as playing — remembered so it never is.
+      let endedEarly = false;
 
       const total = getProjectDurationMs(project);
       setDurationMs(total);
@@ -80,6 +88,9 @@ export function useStudioPlayback() {
             setDurationMs(dur);
           },
           onEnded: () => {
+            if (playingIdRef.current === null && playTokenRef.current === token) {
+              endedEarly = true;
+            }
             if (playingIdRef.current === project.id) {
               playingIdRef.current = null;
               handleRef.current = null;
@@ -88,16 +99,29 @@ export function useStudioPlayback() {
             }
           },
         });
+        if (playTokenRef.current !== token) {
+          // Stopped or replaced while the mix was loading.
+          return;
+        }
+        if (endedEarly) {
+          setPositionMs(0);
+          return;
+        }
         handleRef.current = handle;
         playingIdRef.current = project.id;
         setPlayingProjectId(project.id);
       } catch {
+        if (playTokenRef.current !== token) {
+          return;
+        }
         Alert.alert(t('studio.playbackError'));
         playingIdRef.current = null;
         handleRef.current = null;
         setPlayingProjectId(null);
       } finally {
-        setLoading(false);
+        if (playTokenRef.current === token) {
+          setLoading(false);
+        }
       }
     },
     [stop, t],

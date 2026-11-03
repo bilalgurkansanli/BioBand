@@ -1,4 +1,9 @@
 import { getSharedAudioContext } from './sampleBank';
+import {
+  isStaleEvent,
+  SCHEDULER_LOOKAHEAD_MS,
+  SCHEDULER_TICK_MS,
+} from './schedulerTiming';
 
 // Song playback used to hand every note to its own setTimeout up front. JS
 // timers only promise "not before" — under render load they fire late, and by
@@ -14,9 +19,6 @@ import { getSharedAudioContext } from './sampleBank';
 
 export type TimedEvent = { atMs: number };
 
-const TICK_MS = 25;
-/** How far ahead of the audio clock notes are handed to the engine. */
-const LOOKAHEAD_MS = 120;
 /** Silence after the final onset before the session is considered over. */
 const DEFAULT_TAIL_MS = 1500;
 
@@ -31,6 +33,16 @@ export type SongSchedulerOptions<T extends TimedEvent> = {
    */
   getElapsedMs?: () => number;
   /**
+   * Audio-context time (seconds) that song time 0 lands on. Defaults to now.
+   * A later time is fine — the scheduler simply waits, queueing the opening
+   * notes a lookahead early — which is how a loop's next pass is placed
+   * exactly where the previous one ends. Ignored with `getElapsedMs`.
+   *
+   * Note that `onDone` can fire synchronously, from inside this call, when
+   * the session is already over by the first tick.
+   */
+  startAtContextTime?: number;
+  /**
    * Sound the event. `atContextTime` is the absolute audio-context time (in
    * seconds) the note must sound at — pass it straight through to the engine.
    */
@@ -41,15 +53,23 @@ export type SongSchedulerOptions<T extends TimedEvent> = {
    * driving React state from here cannot back up the audio scheduling.
    */
   onAdvance?: (index: number, event: T) => void;
-  /** Fires once, `tailMs` after the final onset. */
+  /**
+   * Fires once, `tailMs` after the final onset — and only once every event
+   * has been handed over. A negative tail fires before the final onset has
+   * sounded (see passTailMs).
+   */
   onDone?: () => void;
   tailMs?: number;
 };
 
 export type SongSchedulerHandle = {
   stop: () => void;
-  /** Current position on the song timeline (ms). */
+  /** Current position on the song timeline (ms). Negative before the start. */
   getElapsedMs: () => number;
+  /** Audio-context time song time 0 is anchored to. */
+  startContextTime: number;
+  /** Move the end-of-session point while playing (e.g. loop switched on). */
+  setTailMs: (tailMs: number) => void;
 };
 
 export function startSongScheduler<T extends TimedEvent>(
@@ -57,11 +77,13 @@ export function startSongScheduler<T extends TimedEvent>(
 ): SongSchedulerHandle {
   const context = getSharedAudioContext();
   const rate = options.rate && options.rate > 0 ? options.rate : 1;
-  const tailMs = options.tailMs ?? DEFAULT_TAIL_MS;
+  let tailMs = options.tailMs ?? DEFAULT_TAIL_MS;
   const events = [...options.events].sort((a, b) => a.atMs - b.atMs);
   const externalClock = options.getElapsedMs;
 
-  const startContextTime = context.currentTime;
+  // Honoured exactly, even a hair in the past: a caller anchoring a loop pass
+  // to the previous pass's end needs that very time, not "now".
+  const startContextTime = options.startAtContextTime ?? context.currentTime;
   const lastAtMs = events.length > 0 ? events[events.length - 1].atMs : 0;
 
   /** Next event not yet handed to the engine. */
@@ -90,9 +112,19 @@ export function startSongScheduler<T extends TimedEvent>(
 
     while (
       scheduleIndex < events.length &&
-      events[scheduleIndex].atMs <= nowMs + LOOKAHEAD_MS
+      events[scheduleIndex].atMs <= nowMs + SCHEDULER_LOOKAHEAD_MS
     ) {
       const event = events[scheduleIndex];
+      const index = scheduleIndex;
+      scheduleIndex += 1;
+
+      // The JS thread stalled past the lookahead (a heavy render, a return
+      // from the background). Playing what was missed would fire it all at
+      // once, so it is skipped and the song resumes in time.
+      if (isStaleEvent(event.atMs, nowMs, rate)) {
+        continue;
+      }
+
       // Anchoring to the scheduler's own start keeps onsets exact. Following a
       // backing track means the anchor can drift, so the offset is measured
       // from the clock reading we just took.
@@ -100,8 +132,7 @@ export function startSongScheduler<T extends TimedEvent>(
         ? context.currentTime + Math.max(0, event.atMs - nowMs) / rate / 1000
         : startContextTime + event.atMs / rate / 1000;
 
-      options.onEvent(event, scheduleIndex, atContextTime);
-      scheduleIndex += 1;
+      options.onEvent(event, index, atContextTime);
     }
 
     // One UI update per tick regardless of how many onsets were crossed —
@@ -122,9 +153,16 @@ export function startSongScheduler<T extends TimedEvent>(
     }
   };
 
-  timer = setInterval(tick, TICK_MS);
+  timer = setInterval(tick, SCHEDULER_TICK_MS);
   // Run one pass immediately so a note written at 0 ms is not a tick late.
   tick();
 
-  return { stop, getElapsedMs: elapsedMs };
+  return {
+    stop,
+    getElapsedMs: elapsedMs,
+    startContextTime,
+    setTailMs: (next: number) => {
+      tailMs = next;
+    },
+  };
 }
