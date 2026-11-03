@@ -1491,7 +1491,7 @@
   },
   "privacy": {
     "screenTitle": "Datenschutzrichtlinie",
-    "lastUpdated": "Zuletzt aktualisiert: 26. Juli 2026",
+    "lastUpdated": "Zuletzt aktualisiert: 3. November 2026",
     "contactLabel": "Fragen zu dieser Richtlinie oder deinen Daten? E-Mail:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "Vollständige Richtlinie auf GitHub ansehen",
@@ -1522,7 +1522,7 @@
       },
       {
         "title": "Deine Wahlmöglichkeiten",
-        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten und setzt die App in einen neuen Gast-Zustand zurück.\n• Konto endgültig löschen: Profil → Einstellungen → Konto löschen. Damit werden dein Konto und alle Fortschritts-/Einstellungsdaten in der Cloud dauerhaft entfernt, anschließend werden die Daten auf diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.\n• Wenn du die Löschung lieber ohne Installation der App beantragen möchtest, kontaktiere uns unter der unten stehenden E-Mail-Adresse."
+        "body": "• Melde dich jederzeit unter Profil → Einstellungen ab. Dies löscht sofort alle auf diesem Gerät gespeicherten Daten — einschließlich Aufnahmen, Studio-Projekten, importierter Songs und ihrer Audiodateien —, beendet die Übungserinnerung und setzt die App in einen neuen Gast-Zustand zurück.\n• Wirst du abgemeldet, ohne es selbst zu wählen — weil deine Sitzung abgelaufen ist oder dein Konto auf einem anderen Gerät gelöscht wurde —, behandelt BioBand dich nicht als Gast: Die Daten auf diesem Gerät bleiben erhalten, weil es deine Aufnahmen nirgendwo sonst gibt, und du wirst gebeten, dich erneut anzumelden. Erneutes Anmelden und anschließendes Abmelden oder das Deinstallieren der App entfernt sie.\n• Konto endgültig löschen: Profil → Einstellungen → Konto löschen. Damit werden dein Konto und alle Fortschritts-/Einstellungsdaten in der Cloud dauerhaft entfernt, anschließend werden die Daten auf diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen.\n• Wenn du die Löschung lieber ohne Installation der App beantragen möchtest, kontaktiere uns unter der unten stehenden E-Mail-Adresse."
       },
       {
         "title": "Änderungen an dieser Richtlinie",

@@ -1491,7 +1491,7 @@
   },
   "privacy": {
     "screenTitle": "Gizlilik Politikası",
-    "lastUpdated": "Son güncelleme: 26 Temmuz 2026",
+    "lastUpdated": "Son güncelleme: 3 Kasım 2026",
     "contactLabel": "Bu politika veya verilerinle ilgili sorunuz mu var? E-posta:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "Tam metni GitHub'da görüntüle",
@@ -1522,7 +1522,7 @@
       },
       {
         "title": "Seçeneklerin",
-        "body": "• Profil → Ayarlar kısmından istediğin zaman çıkış yapabilirsin. Bu, o cihazda saklanan tüm verileri anında temizler ve uygulamayı yeni bir konuk durumuna döndürür.\n• Hesabını kalıcı olarak silmek için: Profil → Ayarlar → Hesabı sil. Bu, hesabını ve buluttaki tüm ilerleme/ayar verilerini kalıcı olarak siler, ardından bu cihazdaki verileri temizler. Geri alınamaz.\n• Uygulamayı kurmadan silme talebinde bulunmak istersen aşağıdaki e-postadan bize ulaşabilirsin."
+        "body": "• Profil → Ayarlar kısmından istediğin zaman çıkış yapabilirsin. Bu, o cihazda saklanan tüm verileri — kayıtlar, Stüdyo projeleri, içe aktarılan şarkılar ve ses dosyaları dahil — anında temizler, pratik hatırlatıcısını iptal eder ve uygulamayı yeni bir konuk durumuna döndürür.\n• Kendi isteğin dışında çıkış yapılmış olursan — oturumunun süresi dolduysa ya da hesabın başka bir cihazdan silindiyse — BioBand seni konuk saymaz: kayıtların başka hiçbir yerde olmadığı için o cihazdaki verileri korur ve yeniden giriş yapmanı ister. Tekrar giriş yapıp ardından çıkış yapmak ya da uygulamayı kaldırmak bu verileri siler.\n• Hesabını kalıcı olarak silmek için: Profil → Ayarlar → Hesabı sil. Bu, hesabını ve buluttaki tüm ilerleme/ayar verilerini kalıcı olarak siler, ardından bu cihazdaki verileri temizler. Geri alınamaz.\n• Uygulamayı kurmadan silme talebinde bulunmak istersen aşağıdaki e-postadan bize ulaşabilirsin."
       },
       {
         "title": "Bu politikadaki değişiklikler",

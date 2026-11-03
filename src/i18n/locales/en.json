@@ -1491,7 +1491,7 @@
   },
   "privacy": {
     "screenTitle": "Privacy Policy",
-    "lastUpdated": "Last updated: July 26, 2026",
+    "lastUpdated": "Last updated: November 3, 2026",
     "contactLabel": "Questions about this policy or your data? Email:",
     "contactEmail": "bilalsanli129@gmail.com",
     "viewOnGithub": "View full policy on GitHub",
@@ -1522,7 +1522,7 @@
       },
       {
         "title": "Your choices",
-        "body": "• Sign out at any time from Profile → Settings. This immediately clears all data stored on that device and returns the app to a fresh guest state.\n• Delete your account permanently: Profile → Settings → Delete account. This permanently removes your account and all progress/settings data in the cloud, then clears the data on this device. It cannot be undone.\n• If you would rather request deletion without installing the app, contact us at the e-mail below."
+        "body": "• Sign out at any time from Profile → Settings. This immediately clears all data stored on that device — recordings, Studio projects, imported songs and their audio files included — cancels the practice reminder, and returns the app to a fresh guest state.\n• If you are signed out without choosing to — your session expired, or your account was deleted from another device — BioBand does not treat you as a guest: it keeps the data on that device, because your recordings exist nowhere else, and asks you to sign in again. Signing back in and then signing out, or uninstalling the app, removes it.\n• Delete your account permanently: Profile → Settings → Delete account. This permanently removes your account and all progress/settings data in the cloud, then clears the data on this device. It cannot be undone.\n• If you would rather request deletion without installing the app, contact us at the e-mail below."
       },
       {
         "title": "Changes to this policy",
