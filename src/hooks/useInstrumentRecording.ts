@@ -324,7 +324,8 @@ export function useInstrumentRecording(instrument: InstrumentId) {
         };
         await saveRecording(take);
         void recordFeatureUse('recordingSaved');
-        void awardRecordingPractice(instrument, durationMs);
+        // Every note of this take already earned its time through free play.
+        void awardRecordingPractice(instrument, durationMs, { timeAlreadyCounted: true });
         if (session?.active && session.instrument === instrument) {
           await appendRecordedTrack(session.projectId, take);
           clearStudioOverdubSession();

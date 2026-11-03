@@ -29,7 +29,13 @@ async function ensureMixableAudio(): Promise<void> {
   await restorePlaybackAudioMode();
   const ctx = getSharedAudioContext();
   if (ctx.state === 'suspended') {
-    await ctx.resume();
+    try {
+      await ctx.resume();
+    } catch (error) {
+      // The backing is an expo-audio player and plays regardless; only the
+      // piano notes over it need the context, and they retry on every note.
+      console.warn('Audio: could not resume the audio context', error);
+    }
   }
 }
 

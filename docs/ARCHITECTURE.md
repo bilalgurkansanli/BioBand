@@ -69,6 +69,13 @@ has not arrived yet.
 The same tick coalesces UI updates into a single `onAdvance` callback per frame,
 so a dense passage does not fire one React render per note.
 
+Two rules keep it honest after a stall. An event more than 50 ms late is
+dropped rather than played — after a background pause, "catching up" meant every
+missed note sounding at once ([`schedulerTiming.ts`](../src/audio/schedulerTiming.ts)).
+And a loop's next pass is anchored to the exact end of the last one on the audio
+clock, not restarted from a timer, so it does not drift. Loops, violin phrases,
+the pad looper and the drum machine's step clock all ride this clock now.
+
 ### Instruments are nearest-anchor samplers
 
 Each instrument ships a handful of real recordings and repitches with
@@ -109,6 +116,18 @@ An instrument take is stored as note events, not audio. Exporting it means:
 The render is *dry*: reverb and echo are scheduled with wall-clock timers in the
 live engines and cannot be fast-forwarded, so they are left out rather than
 smeared.
+
+It runs at the **live context's sample rate**
+([`renderSampleRate.ts`](../src/audio/renderSampleRate.ts)). Buffers are decoded
+at that rate and the library's buffer source does not resample by
+`buffer.sampleRate`, so a fixed 44.1 kHz render of 48 kHz buffers came out about
+a semitone and a half flat and 9% slow. The mix then goes through the same
+master stage as live playback — 0.55 headroom and the `tanh` soft-clip in
+[`masterChain.ts`](../src/audio/masterChain.ts) — so an export is as loud as what
+was heard and saturates instead of clipping. In Studio exports, mic tracks are
+time-stretched to the project tempo with a pitch-correcting source
+([`timeStretch.ts`](../src/audio/timeStretch.ts)) and fall back to native speed
+if that fails.
 
 The buffer is sized to the longest-ringing note's actual decay, not a fixed
 tail — a long-sustain guitar preset holds 3+ seconds and would otherwise be

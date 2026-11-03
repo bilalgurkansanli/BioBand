@@ -78,8 +78,33 @@ export async function awardPlayAlongCompletion(input: PlayAlongAwardInput): Prom
   }
 }
 
-/** After a recording save — practice + maybe daily 2min challenge. */
+/**
+ * After a recording save — practice + maybe daily 2min challenge.
+ *
+ * `timeAlreadyCounted` is for takes played on the app's own instrument: free
+ * play has already credited the time between those notes as they were played,
+ * so adding the take's length again would count the same minutes twice.
+ */
 export async function awardRecordingPractice(
+  instrument: InstrumentId,
+  durationMs: number,
+  { timeAlreadyCounted = false }: { timeAlreadyCounted?: boolean } = {},
+): Promise<void> {
+  if (durationMs <= 0) {
+    return;
+  }
+  if (!timeAlreadyCounted) {
+    await addPracticeMs(instrument, durationMs);
+  }
+  await maybeCompletePracticeChallenge(instrument);
+}
+
+/**
+ * Time credited by free play. It also settles the daily practice challenge,
+ * which otherwise waited for a recording or a finished tutorial even when the
+ * minutes had already been played.
+ */
+export async function awardFreePlayPractice(
   instrument: InstrumentId,
   durationMs: number,
 ): Promise<void> {

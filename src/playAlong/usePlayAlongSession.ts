@@ -1083,7 +1083,12 @@ export function usePlayAlongSession<
       if (current.pressAlwaysSounds) {
         const ctx = getSharedAudioContext();
         if (ctx.state === 'suspended') {
-          void ctx.resume().then(sound);
+          // A failed resume must not swallow the note: sound it anyway, the
+          // engine retries the resume on every press.
+          ctx.resume().then(sound, (error: unknown) => {
+            console.warn('Audio: could not resume the audio context', error);
+            sound();
+          });
         } else {
           sound();
         }

@@ -42,7 +42,7 @@ import { LandscapeOverlay } from '../components/instrument/LandscapeOverlay';
 import { OptionListModal } from '../components/studio/OptionListModal';
 import { useDrumMachine, type SongChainEntry } from '../hooks/useDrumMachine';
 import { useDrumMachineEngine } from '../hooks/useDrumMachineEngine';
-import { useLandscapeOrientation as usePianoOrientation } from '../hooks/useLandscapeOrientation';
+import { useLandscapeOrientation } from '../hooks/useLandscapeOrientation';
 import type { DrumMachineTypeId } from '../instruments/drumMachine/drumMachineBanks';
 import {
   DRUM_MACHINE_PRESETS,
@@ -89,7 +89,7 @@ export function DrumMachineScreen({ navigation }: Props) {
 
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { isPortrait } = usePianoOrientation(navigation);
+  const { isPortrait } = useLandscapeOrientation(navigation);
   const {
     settingsReady,
     machineType,
@@ -699,7 +699,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       ) : null}
 
       <LoadPatternModal
-        visible={loadOpen}
+        visible={loadOpen && !isPortrait}
         accent={accent}
         patterns={patterns}
         onClose={() => setLoadOpen(false)}
@@ -711,7 +711,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <SongModeModal
-        visible={songOpen}
+        visible={songOpen && !isPortrait}
         accent={accent}
         entries={resolvedSong}
         patterns={patterns}
@@ -727,14 +727,14 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <MachineTypeModal
-        visible={typeOpen}
+        visible={typeOpen && !isPortrait}
         machineType={machineType}
         onClose={() => setTypeOpen(false)}
         onSelectType={handleSelectType}
       />
 
       <DrumMachineSettingsModal
-        visible={settingsOpen}
+        visible={settingsOpen && !isPortrait}
         accent={accent}
         showKit={machineType === 'drums'}
         previewOnToggle={previewOnToggle}
@@ -758,7 +758,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <ConfirmDeleteModal
-        visible={confirmAction !== null}
+        visible={confirmAction !== null && !isPortrait}
         title={confirmCopy.title}
         message={confirmCopy.message}
         confirmLabel={confirmCopy.confirmLabel}
@@ -769,7 +769,7 @@ export function DrumMachineScreen({ navigation }: Props) {
       />
 
       <OptionListModal
-        visible={recordModeOpen}
+        visible={recordModeOpen && !isPortrait}
         title={t('drumMachine.recordTitle')}
         message={t('drumMachine.recordHint')}
         options={[
@@ -780,7 +780,7 @@ export function DrumMachineScreen({ navigation }: Props) {
         onClose={() => setRecordModeOpen(false)}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={handleBack} visible={isPortrait} />
     </View>
   );
 }
