@@ -472,7 +472,7 @@ function startPreparedMix(params: {
       // looping pass hands over a lookahead early instead (see passTailMs).
       tailMs: passTailMs(remainingMs, lastAtMs, loop),
     });
-    if (serial !== passSerial) {
+    if (serial !== passSerial || finished) {
       // Over by its first tick, and finish() already moved on.
       handle.stop();
       return;

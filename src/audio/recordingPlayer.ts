@@ -308,7 +308,7 @@ export async function playSavedRecording(
       // looping pass hands over a lookahead early instead (see passTailMs).
       tailMs: passTailMs(remainingMs, lastAtMs, looping()),
     });
-    if (serial !== passSerial) {
+    if (serial !== passSerial || finished) {
       // The pass was over by its first tick and finish() already queued the
       // next one (or ended playback) — leave that state alone.
       handle.stop();
