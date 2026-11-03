@@ -32,6 +32,25 @@ import { colors } from './src/theme/colors';
 // have set the handlers up.
 installGlobalErrorHandlers();
 
+/**
+ * Runs one launch step and logs a failure instead of passing it on, so the
+ * returned promise always resolves.
+ *
+ * Takes a function rather than a promise: a step that throws synchronously
+ * before it returns its promise is caught here too, instead of escaping the
+ * effect and leaving the app on the launch screen.
+ */
+function runLaunchStep(name: string, step: () => Promise<unknown>): Promise<void> {
+  return Promise.resolve()
+    .then(step)
+    .then(
+      () => undefined,
+      (error: unknown) => {
+        console.error(`App initialization: ${name} failed:`, error);
+      },
+    );
+}
+
 const navigationTheme = {
   ...DarkTheme,
   colors: {
@@ -87,11 +106,16 @@ function AppRoot() {
       console.warn('Notification handler setup failed:', error);
     }
 
-    Promise.all([
-      configureSystemUi(),
-      initI18n().then(() => setTextReady(true)),
-      initAudioMode(),
-      lockPortraitOrientation(),
+    // Every step settles on its own (see runLaunchStep). This used to be one
+    // chain, so a single rejection — the orientation lock, say — skipped the
+    // whole second stage while the app still went on to open: a first-run
+    // user never saw the sign-in/language step, takes were not migrated and
+    // the tour never appeared.
+    void Promise.all([
+      runLaunchStep('system UI', configureSystemUi),
+      runLaunchStep('i18n', () => initI18n().then(() => setTextReady(true))),
+      runLaunchStep('audio mode', initAudioMode),
+      runLaunchStep('orientation lock', lockPortraitOrientation),
     ])
       // The first screen is the instrument list, so the instruments have to be
       // playable by the time it appears. Their samples decode alongside the
@@ -99,21 +123,28 @@ function AppRoot() {
       // each other, and overlapping them keeps the launch screen short.
       .then(() =>
         Promise.all([
-          bootstrapAuthAndData().then((result) => {
-            setShowAuthPrompt(result.showAuthPrompt);
+          runLaunchStep('auth bootstrap', () =>
+            bootstrapAuthAndData().then((result) => {
+              setShowAuthPrompt(result.showAuthPrompt);
+            }),
+          )
             // Takes recorded before mic audio was copied into Documents still
             // point at the OS cache. Runs after the bootstrap (which may pull
             // cloud data over local storage) and while the launch screen is
-            // up, so nothing else is writing the takes list.
-            return migrateRecordingAudioToDocuments();
-          }),
-          hasSeenOnboarding().then((seen) => setShowOnboarding(!seen)),
-          preloadInstruments((progress) => setInstrumentsLoaded(progress.loaded)),
+            // up, so nothing else is writing the takes list. It waits for the
+            // bootstrap to settle, not to succeed: an offline sign-in check
+            // is no reason to leave the takes pointing at a cache.
+            .then(() =>
+              runLaunchStep('recording migration', migrateRecordingAudioToDocuments),
+            ),
+          runLaunchStep('onboarding check', () =>
+            hasSeenOnboarding().then((seen) => setShowOnboarding(!seen)),
+          ),
+          runLaunchStep('instrument preload', () =>
+            preloadInstruments((progress) => setInstrumentsLoaded(progress.loaded)),
+          ),
         ]),
       )
-      .catch((error) => {
-        console.error('App initialization failed:', error);
-      })
       .finally(() => setIsReady(true));
 
     return stopSystemUiSync;
