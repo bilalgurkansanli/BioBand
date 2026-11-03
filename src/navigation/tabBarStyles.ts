@@ -2,13 +2,12 @@ import type { EdgeInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../theme/colors';
 
-export const ROOT_TABS_ID = 'RootTabs';
-
 export const TAB_BAR_CONTENT_HEIGHT = 56;
 
-// insets.bottom'un üzerine eklenen sabit tampon: dokunma hedefleri sistem
-// gesture-nav şeridine yapışık durmasın diye. insets.bottom'un yerine değil,
-// üzerine eklenir — asıl cihaza-özgü safe-area hesabı hâlâ inset'ten gelir.
+// A fixed buffer added on top of insets.bottom, so the tab targets do not sit
+// flush against the system gesture-navigation strip. It is added to the inset,
+// not used instead of it — the device-specific safe area still comes from the
+// inset itself.
 export const EXTRA_BOTTOM_SPACING = 12;
 
 /** Gap above the icons inside the bar. */

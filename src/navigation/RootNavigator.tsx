@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { InstrumentsStack } from './InstrumentsStack';
 import { RecordingsStack } from './RecordingsStack';
 import { RootTabBar } from './RootTabBar';
-import { getTabBarStyle, ROOT_TABS_ID } from './tabBarStyles';
+import { getTabBarStyle } from './tabBarStyles';
 import { ProfileStack } from './ProfileStack';
 import { colors } from '../theme/colors';
 import type { RootTabParamList } from '../types/navigation';
@@ -37,7 +37,6 @@ export function RootNavigator() {
 
   return (
     <Tab.Navigator
-      id={ROOT_TABS_ID}
       initialRouteName="Instruments"
       tabBar={(props) => <RootTabBar {...props} />}
       screenOptions={{
