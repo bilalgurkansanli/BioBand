@@ -192,12 +192,28 @@ export function usePianoPlayAlong(
     void stopBackingTrack();
   }, []);
 
+  /**
+   * Stop whatever is running or about to run. The starters await audio
+   * loading before they install timers or start the backing track; bumping
+   * the run id makes any of them still in flight bail out, instead of
+   * starting a session nobody is in (Stop during a band demo load used to
+   * start the track anyway and leave a tick interval running for good).
+   */
+  const cancelSession = useCallback(() => {
+    runIdRef.current += 1;
+    clearTimers();
+    stopSessionAudio();
+  }, [clearTimers, stopSessionAudio]);
+
   const clearGuides = useCallback(() => {
     setGuideNoteId(null);
   }, []);
 
   useEffect(() => {
+    const runId = runIdRef;
     return () => {
+      // Leaving the screen mid-load must not start the session afterwards.
+      runId.current += 1;
       clearTimers();
       void stopBackingTrack();
     };
@@ -641,8 +657,7 @@ export function usePianoPlayAlong(
   }, [buildSession, clearGuides, clearTimers, ensureBackingReady, startPlaying]);
 
   const resetWizardSong = useCallback(() => {
-    clearTimers();
-    stopSessionAudio();
+    cancelSession();
     setSelectedSong(null);
     songRef.current = null;
     sessionRef.current = null;
@@ -658,7 +673,7 @@ export function usePianoPlayAlong(
     setCalibrateOffsetMs(0);
     setCalibratePreviewing(false);
     hadSavedBindingRef.current = false;
-  }, [clearGuides, clearTimers, stopSessionAudio]);
+  }, [cancelSession, clearGuides]);
 
   const open = useCallback(() => {
     resetWizardSong();
@@ -842,6 +857,7 @@ export function usePianoPlayAlong(
     }
 
     clearTimers();
+    const runId = ++runIdRef.current;
     setCalibratePreviewing(true);
     const offset = clampOffset(calibrateOffsetMs);
     const previewTrack = {
@@ -853,6 +869,9 @@ export function usePianoPlayAlong(
       await prepareSamplePlayback();
       await prepareBackingTrack(previewTrack);
       await playBackingFrom(Math.max(0, offset));
+      if (runIdRef.current !== runId) {
+        return;
+      }
 
       // Light first few chart notes against wall clock for a rough feel.
       const firstNotes = song!.events.slice(0, 8);
@@ -880,6 +899,8 @@ export function usePianoPlayAlong(
   }, [calibrateOffsetMs, clearGuides, clearTimers, playNote]);
 
   const stopCalibratePreview = useCallback(() => {
+    // An in-flight preview must not install its note timers after this.
+    runIdRef.current += 1;
     clearTimers();
     void stopBackingTrack();
     clearGuides();
@@ -961,12 +982,11 @@ export function usePianoPlayAlong(
   }, []);
 
   const backToSongList = useCallback(() => {
-    clearTimers();
-    stopSessionAudio();
+    cancelSession();
     setPlayMode(null);
     setSongScope(null);
     setPhase('pickSong');
-  }, [clearTimers, stopSessionAudio]);
+  }, [cancelSession]);
 
   const goBack = useCallback(() => {
     if (phase === 'pickScope') {
@@ -991,15 +1011,14 @@ export function usePianoPlayAlong(
     }
     if (phase === 'pickLevel' || phase === 'results') {
       setDemoJustFinished(false);
-      clearTimers();
-      stopSessionAudio();
+      cancelSession();
       if (phase === 'results') {
         setPhase('pickLevel');
         return;
       }
       setPhase('pickScope');
     }
-  }, [clearTimers, phase, stopCalibratePreview, stopSessionAudio]);
+  }, [cancelSession, phase, stopCalibratePreview]);
 
   const replay = useCallback(() => {
     if (!songRef.current) {

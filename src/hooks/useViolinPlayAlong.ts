@@ -183,8 +183,24 @@ export function useViolinPlayAlong(
     void stopBackingTrack();
   }, []);
 
+  /**
+   * Stop whatever is running or about to run. The starters await audio
+   * loading before they install timers or start the backing track; bumping
+   * the run id makes any of them still in flight bail out, instead of
+   * starting a session nobody is in (Stop during a band demo load used to
+   * start the track anyway and leave a tick interval running for good).
+   */
+  const cancelSession = useCallback(() => {
+    runIdRef.current += 1;
+    clearTimers();
+    stopSessionAudio();
+  }, [clearTimers, stopSessionAudio]);
+
   useEffect(() => {
+    const runId = runIdRef;
     return () => {
+      // Leaving the screen mid-load must not start the session afterwards.
+      runId.current += 1;
       clearTimers();
       void stopBackingTrack();
     };
@@ -621,8 +637,7 @@ export function useViolinPlayAlong(
   }, [buildSession, clearTimers, ensureBackingReady, startPlaying]);
 
   const resetWizard = useCallback(() => {
-    clearTimers();
-    stopSessionAudio();
+    cancelSession();
     setSelectedSong(null);
     songRef.current = null;
     sessionRef.current = null;
@@ -638,7 +653,7 @@ export function useViolinPlayAlong(
     setCalibrateOffsetMs(0);
     setCalibratePreviewing(false);
     hadSavedBindingRef.current = false;
-  }, [clearTimers, stopSessionAudio]);
+  }, [cancelSession]);
 
   const open = useCallback(() => {
     resetWizard();
@@ -766,6 +781,7 @@ export function useViolinPlayAlong(
     }
 
     clearTimers();
+    const runId = ++runIdRef.current;
     setCalibratePreviewing(true);
     const offset = clampOffset(calibrateOffsetMs);
     const previewTrack = {
@@ -777,6 +793,9 @@ export function useViolinPlayAlong(
       await prepareSamplePlayback();
       await prepareBackingTrack(previewTrack);
       await playBackingFrom(Math.max(0, offset));
+      if (runIdRef.current !== runId) {
+        return;
+      }
 
       const firstNotes = song!.events.slice(0, 8);
       firstNotes.forEach((event) => {
@@ -803,6 +822,8 @@ export function useViolinPlayAlong(
   }, [calibrateOffsetMs, clearTimers, playSoundId]);
 
   const stopCalibratePreview = useCallback(() => {
+    // An in-flight preview must not install its note timers after this.
+    runIdRef.current += 1;
     clearTimers();
     void stopBackingTrack();
     setGuideSoundId(null);
@@ -893,19 +914,17 @@ export function useViolinPlayAlong(
     if (phase === 'pickLevel') {
       setPhase('pickScope');
       setDemoJustFinished(false);
-      clearTimers();
-      stopSessionAudio();
+      cancelSession();
       return;
     }
     if (phase === 'results') {
       setPhase('pickLevel');
       setResults(null);
     }
-  }, [clearTimers, phase, stopCalibratePreview, stopSessionAudio]);
+  }, [cancelSession, phase, stopCalibratePreview]);
 
   const backToSongList = useCallback(() => {
-    clearTimers();
-    stopSessionAudio();
+    cancelSession();
     setSelectedSong(null);
     songRef.current = null;
     sessionRef.current = null;
@@ -919,7 +938,7 @@ export function useViolinPlayAlong(
     setGuideSoundId(null);
     setDemoJustFinished(false);
     setPhase('pickSong');
-  }, [clearTimers, stopSessionAudio]);
+  }, [cancelSession]);
 
   const replay = useCallback(() => {
     setResults(null);

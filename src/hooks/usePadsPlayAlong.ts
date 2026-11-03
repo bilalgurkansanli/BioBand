@@ -190,8 +190,24 @@ export function usePadsPlayAlong(
     void stopBackingTrack();
   }, []);
 
+  /**
+   * Stop whatever is running or about to run. The starters await audio
+   * loading before they install timers or start the backing track; bumping
+   * the run id makes any of them still in flight bail out, instead of
+   * starting a session nobody is in (Stop during a band demo load used to
+   * start the track anyway and leave a tick interval running for good).
+   */
+  const cancelSession = useCallback(() => {
+    runIdRef.current += 1;
+    clearTimers();
+    stopSessionAudio();
+  }, [clearTimers, stopSessionAudio]);
+
   useEffect(() => {
+    const runId = runIdRef;
     return () => {
+      // Leaving the screen mid-load must not start the session afterwards.
+      runId.current += 1;
       clearTimers();
       void stopBackingTrack();
     };
@@ -637,8 +653,7 @@ export function usePadsPlayAlong(
   }, [buildSession, clearTimers, ensureBackingReady, startPlaying]);
 
   const resetWizardSong = useCallback(() => {
-    clearTimers();
-    stopSessionAudio();
+    cancelSession();
     setSelectedSong(null);
     songRef.current = null;
     sessionRef.current = null;
@@ -654,7 +669,7 @@ export function usePadsPlayAlong(
     setCalibrateOffsetMs(0);
     setCalibratePreviewing(false);
     hadSavedBindingRef.current = false;
-  }, [clearTimers, stopSessionAudio]);
+  }, [cancelSession]);
 
   const open = useCallback(() => {
     resetWizardSong();
@@ -826,6 +841,7 @@ export function usePadsPlayAlong(
     }
 
     clearTimers();
+    const runId = ++runIdRef.current;
     setCalibratePreviewing(true);
     const offset = clampOffset(calibrateOffsetMs);
     const previewTrack = {
@@ -837,6 +853,9 @@ export function usePadsPlayAlong(
       await prepareSamplePlayback();
       await prepareBackingTrack(previewTrack);
       await playBackingFrom(Math.max(0, offset));
+      if (runIdRef.current !== runId) {
+        return;
+      }
 
       const firstNotes = song!.events.slice(0, 8);
       firstNotes.forEach((event) => {
@@ -863,6 +882,8 @@ export function usePadsPlayAlong(
   }, [calibrateOffsetMs, clearTimers, triggerPad]);
 
   const stopCalibratePreview = useCallback(() => {
+    // An in-flight preview must not install its note timers after this.
+    runIdRef.current += 1;
     clearTimers();
     void stopBackingTrack();
     setGuidePadId(null);
@@ -943,12 +964,11 @@ export function usePadsPlayAlong(
   }, []);
 
   const backToSongList = useCallback(() => {
-    clearTimers();
-    stopSessionAudio();
+    cancelSession();
     setPlayMode(null);
     setSongScope(null);
     setPhase('pickSong');
-  }, [clearTimers, stopSessionAudio]);
+  }, [cancelSession]);
 
   const goBack = useCallback(() => {
     if (phase === 'pickScope') {
@@ -975,15 +995,14 @@ export function usePadsPlayAlong(
     }
     if (phase === 'pickLevel' || phase === 'results') {
       setDemoJustFinished(false);
-      clearTimers();
-      stopSessionAudio();
+      cancelSession();
       if (phase === 'results') {
         setPhase('pickLevel');
         return;
       }
       setPhase('pickScope');
     }
-  }, [clearTimers, phase, stopCalibratePreview, stopSessionAudio]);
+  }, [cancelSession, phase, stopCalibratePreview]);
 
   const replay = useCallback(() => {
     if (!songRef.current) {
