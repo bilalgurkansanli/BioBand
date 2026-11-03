@@ -239,7 +239,7 @@ memory. See *Known trade-offs* in the [README](../README.md).
 
 ## Conventions
 
-- **TypeScript strict.** `any` appears once in the whole codebase.
+- **TypeScript strict.** No `any` in app code.
 - **Static `require()` for assets.** Metro cannot resolve a computed path; a
   dynamic require silently ships nothing.
 - **Comments explain *why*.** The what is in the code. If a constant looks
