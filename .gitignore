@@ -60,3 +60,6 @@ docs/screenshots/graphics/
 docs/screenshots/play-en/
 docs/screenshots/play-tr/
 docs/screenshots/play-de/
+
+# Claude Code agent worktrees — full checkouts of this repo, never content.
+.claude/worktrees/

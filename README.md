@@ -16,8 +16,8 @@ Works fully offline.
 [![Get it on Google Play](https://img.shields.io/badge/Google%20Play-Download-3DDC84?style=for-the-badge&logo=googleplay&logoColor=black)](https://play.google.com/store/apps/details?id=com.bioband.app)
 
 [![CI](https://github.com/bilalgurkansanli/BioBand/actions/workflows/ci.yml/badge.svg)](https://github.com/bilalgurkansanli/BioBand/actions/workflows/ci.yml)
-[![Expo SDK 54](https://img.shields.io/badge/Expo%20SDK-54-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v54.0.0/)
-[![React Native 0.81](https://img.shields.io/badge/React%20Native-0.81-61DAFB?logo=react&logoColor=black)](https://reactnative.dev)
+[![Expo SDK 57](https://img.shields.io/badge/Expo%20SDK-57-000020?logo=expo&logoColor=white)](https://docs.expo.dev/versions/v57.0.0/)
+[![React Native 0.86](https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react&logoColor=black)](https://reactnative.dev)
 [![TypeScript strict](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](tsconfig.json)
 [![License: MIT](https://img.shields.io/badge/License-MIT-6D4AD6.svg)](LICENSE)
 
@@ -146,7 +146,7 @@ rather than on first focus.
 
 ### Requirements
 
-- Node.js 20+
+- Node.js 22.13+
 - Android Studio or Xcode for the platform you target
 - BioBand uses native audio modules, so it needs a **dev client build** — it
   does not run in Expo Go
@@ -211,7 +211,8 @@ supabase/schema.sql   database schema and RLS policies
 | `npm run android` / `npm run ios` | Build and launch a dev client |
 | `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm run check` | Typecheck + lint — the same pair CI runs |
+| `npm test` | Jest unit tests |
+| `npm run check` | Typecheck + lint + tests — what CI runs |
 | `npm run doctor` | `expo-doctor` project health check |
 
 ## Known trade-offs
@@ -355,7 +356,7 @@ için, bir enstrümana dokunulduğunda anında ses çıkması gerekiyor. Her mot
 
 ### Başlarken
 
-**Gerekenler:** Node.js 20+, hedeflediğin platform için Android Studio veya
+**Gerekenler:** Node.js 22.13+, hedeflediğin platform için Android Studio veya
 Xcode. BioBand yerel ses modülleri kullanıyor, bu yüzden **dev client build**
 gerekiyor — Expo Go'da çalışmaz. Supabase projesi isteğe bağlı; sadece giriş ve
 bulut senkronu için.
@@ -510,7 +511,7 @@ ihre Samples hinter dem Startbildschirm statt beim ersten Fokus.
 
 ### Erste Schritte
 
-**Voraussetzungen:** Node.js 20+, Android Studio oder Xcode für die Zielplattform.
+**Voraussetzungen:** Node.js 22.13+, Android Studio oder Xcode für die Zielplattform.
 BioBand nutzt native Audio-Module und braucht daher einen **Dev-Client-Build** —
 in Expo Go läuft es nicht. Ein [Supabase](https://supabase.com)-Projekt ist
 optional und nur für Anmeldung und Cloud-Sync nötig.

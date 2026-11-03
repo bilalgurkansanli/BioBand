@@ -15,6 +15,8 @@ module.exports = defineConfig([
       // Deno code running on Supabase's Edge runtime — different globals and
       // module resolution than the app.
       'supabase/functions/*',
+      // Agent worktrees are whole copies of the repo.
+      '.claude/**',
     ],
   },
   {
