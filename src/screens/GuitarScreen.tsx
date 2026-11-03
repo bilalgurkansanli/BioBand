@@ -482,7 +482,9 @@ export function GuitarScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -578,13 +580,13 @@ export function GuitarScreen({ navigation }: Props) {
         onChangeBpm={handleMetronomeBpmChange}
         onClose={() => setMetronomeModalVisible(false)}
         showSubdivision
-        visible={metronomeModalVisible}
+        visible={metronomeModalVisible && !isPortrait}
       />
 
       <PianoVolumeModal
         onChange={handleVolumeChange}
         onClose={() => setVolumeModalVisible(false)}
-        visible={volumeModalVisible}
+        visible={volumeModalVisible && !isPortrait}
         volume={volume}
       />
 
@@ -595,14 +597,14 @@ export function GuitarScreen({ navigation }: Props) {
           setVoiceModalVisible(false);
         }}
         selectedVoiceId={voiceId}
-        visible={voiceModalVisible}
+        visible={voiceModalVisible && !isPortrait}
       />
 
       <PianoFxModal
         onChange={handleFxSettingsChange}
         onClose={() => setFxModalVisible(false)}
         settings={fxSettings}
-        visible={fxModalVisible}
+        visible={fxModalVisible && !isPortrait}
       />
 
       <GuitarSettingsModal
@@ -634,7 +636,7 @@ export function GuitarScreen({ navigation }: Props) {
         strumTightness={strumTightness}
         sustainLength={sustainLength}
         velocityCurve={velocityCurve}
-        visible={settingsModalVisible}
+        visible={settingsModalVisible && !isPortrait}
         visibleChordIds={visibleChordIds}
         visiblePlayModes={visiblePlayModes}
       />
@@ -680,10 +682,10 @@ export function GuitarScreen({ navigation }: Props) {
         selectedSong={playAlong.selectedSong}
         tempo={playAlong.tempo}
         userSongs={userSongs.songs}
-        visible={isPlayAlongModalVisible}
+        visible={isPlayAlongModalVisible && !isPortrait}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={() => navigation.goBack()} visible={isPortrait} />
     </View>
   );
 }

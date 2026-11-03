@@ -568,7 +568,9 @@ export function PadsScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -731,13 +733,13 @@ export function PadsScreen({ navigation }: Props) {
         onChangeBpm={handleMetronomeBpmChange}
         onClose={() => setMetronomeModalVisible(false)}
         showSubdivision
-        visible={metronomeModalVisible}
+        visible={metronomeModalVisible && !isPortrait}
       />
 
       <PianoVolumeModal
         onChange={handleVolumeChange}
         onClose={() => setVolumeModalVisible(false)}
-        visible={volumeModalVisible}
+        visible={volumeModalVisible && !isPortrait}
         volume={volume}
       />
 
@@ -748,14 +750,14 @@ export function PadsScreen({ navigation }: Props) {
           setKitModalVisible(false);
         }}
         selectedBankId={bankId}
-        visible={kitModalVisible}
+        visible={kitModalVisible && !isPortrait}
       />
 
       <PianoFxModal
         onChange={handleFxSettingsChange}
         onClose={() => setFxModalVisible(false)}
         settings={fxSettings}
-        visible={fxModalVisible}
+        visible={fxModalVisible && !isPortrait}
       />
 
       <PadsSettingsModal
@@ -783,7 +785,7 @@ export function PadsScreen({ navigation }: Props) {
         strongGuideHighlight={strongGuideHighlight}
         velocityCurve={velocityCurve}
         velocityMode={velocityMode}
-        visible={settingsModalVisible}
+        visible={settingsModalVisible && !isPortrait}
       />
 
       <PadEditModal
@@ -792,7 +794,7 @@ export function PadsScreen({ navigation }: Props) {
         onSave={handleSaveSlot}
         slot={editingSlot}
         slotIndex={editingSlotIndex ?? 0}
-        visible={editingSlotIndex !== null}
+        visible={editingSlotIndex !== null && !isPortrait}
       />
 
       <PadsPlayAlongModal
@@ -831,10 +833,10 @@ export function PadsScreen({ navigation }: Props) {
         selectedSong={playAlong.selectedSong}
         tempo={playAlong.tempo}
         userSongs={userSongs.songs}
-        visible={isPlayAlongModalVisible}
+        visible={isPlayAlongModalVisible && !isPortrait}
       />
 
-      <LandscapeOverlay visible={isPortrait} />
+      <LandscapeOverlay onBack={() => navigation.goBack()} visible={isPortrait} />
     </View>
   );
 }

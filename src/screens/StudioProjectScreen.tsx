@@ -506,11 +506,16 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
           <Ionicons color={colors.text} name="add-circle-outline" size={22} />
         </Pressable>
 
+        {/* Both open modals, and modals stay hidden while the window is
+            portrait — so these wait for landscape rather than look dead. */}
         <Pressable
           accessibilityLabel={t('studio.addTrack')}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isPortrait }}
+          disabled={isPortrait}
           hitSlop={6}
           onPress={() => setAddTrackVisible(true)}
-          style={styles.addBtn}
+          style={[styles.addBtn, isPortrait && styles.disabled]}
         >
           <Ionicons color={colors.accent} name="add" size={18} />
           <Text style={styles.addBtnText}>{t('studio.addTrack')}</Text>
@@ -518,9 +523,12 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
 
         <Pressable
           accessibilityLabel={t('studio.settingsTitle')}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isPortrait }}
+          disabled={isPortrait}
           hitSlop={6}
           onPress={() => setSettingsVisible(true)}
-          style={styles.iconBtn}
+          style={[styles.iconBtn, isPortrait && styles.disabled]}
         >
           <Ionicons color={colors.text} name="settings-outline" size={20} />
         </Pressable>
@@ -585,7 +593,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
 
       <PickTakeModal
         takes={pickableTakes}
-        visible={pickTakeVisible}
+        visible={pickTakeVisible && !isPortrait}
         onClose={() => setPickTakeVisible(false)}
         onRecordInstead={() => {
           setPickTakeVisible(false);
@@ -604,7 +612,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
         confirmLabel={t('studio.rename')}
         initialValue={project.title}
         title={t('studio.renameTitle')}
-        visible={renameVisible}
+        visible={renameVisible && !isPortrait}
         onCancel={() => setRenameVisible(false)}
         onConfirm={(value) => {
           setRenameVisible(false);
@@ -615,7 +623,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
       />
 
       <AddTrackModal
-        visible={addTrackVisible}
+        visible={addTrackVisible && !isPortrait}
         onClose={() => setAddTrackVisible(false)}
         onPickFromTake={() => {
           setAddTrackVisible(false);
@@ -632,7 +640,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
         confirmLabel={t('recordings.deleteConfirm')}
         message={t('studio.deleteProjectConfirm')}
         title={t('studio.deleteProject')}
-        visible={deleteProjectVisible}
+        visible={deleteProjectVisible && !isPortrait}
         onCancel={() => setDeleteProjectVisible(false)}
         onConfirm={() => {
           setDeleteProjectVisible(false);
@@ -647,7 +655,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
           icon: INSTRUMENT_ICONS[instrument],
         }))}
         title={t('studio.pickInstrumentTitle')}
-        visible={overdubInstrumentVisible}
+        visible={overdubInstrumentVisible && !isPortrait}
         onClose={() => setOverdubInstrumentVisible(false)}
         onSelect={(key) => {
           setOverdubInstrumentVisible(false);
@@ -662,7 +670,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
           { key: 'microphone', label: t('recording.modeMicrophone'), icon: 'mic-outline' },
         ]}
         title={t('recording.chooseModeTitle')}
-        visible={overdubModeInstrument !== null}
+        visible={overdubModeInstrument !== null && !isPortrait}
         onClose={() => setOverdubModeInstrument(null)}
         onSelect={(key) => {
           const instrument = overdubModeInstrument;
@@ -676,7 +684,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
       <TrackSettingsModal
         isPreviewPlaying={playingTrackId === clipMenuTrack?.id}
         track={clipMenuTrack}
-        visible={clipMenuTrack !== null}
+        visible={clipMenuTrack !== null && !isPortrait}
         onClose={() => setClipMenuTrackId(null)}
         onCommitVolume={(volume) => {
           if (!clipMenuTrack) {
@@ -742,7 +750,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
         confirmLabel={t('recordings.deleteConfirm')}
         message={t('studio.trackDeleteConfirm')}
         title={t('studio.trackDelete')}
-        visible={trackDeleteTarget !== null}
+        visible={trackDeleteTarget !== null && !isPortrait}
         onCancel={() => setTrackDeleteTarget(null)}
         onConfirm={() => {
           if (trackDeleteTarget) {
@@ -761,7 +769,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
         metronome={metronomeEnabled}
         snap={snapEnabled}
         snapDivision={snapDivision}
-        visible={settingsVisible}
+        visible={settingsVisible && !isPortrait}
         onChangeSnapDivision={setSnapDivision}
         onClose={() => setSettingsVisible(false)}
         onDelete={() => {

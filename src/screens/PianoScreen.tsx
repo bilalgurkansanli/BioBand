@@ -530,7 +530,9 @@ export function PianoScreen({ navigation }: Props) {
 
   return (
     <View
-      pointerEvents={isPortrait ? 'none' : 'auto'}
+      // box-none rather than none: in portrait the overlay covers everything
+      // below it, and its back button still has to take a tap.
+      pointerEvents={isPortrait ? 'box-none' : 'auto'}
       style={[
         styles.container,
         {
@@ -731,6 +733,7 @@ export function PianoScreen({ navigation }: Props) {
 
       <LandscapeOverlay
         hintKey="instruments.pianoLandscapeHint"
+        onBack={() => navigation.goBack()}
         titleKey="instruments.pianoLandscapeRequired"
         visible={isPortrait}
       />
