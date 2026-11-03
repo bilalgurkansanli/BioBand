@@ -1,8 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, File, Paths } from 'expo-file-system';
 
 import type { SongBackingTrack, SongDefinition } from '../instruments/piano/songs/types';
 import { songHasBackingAudio } from '../instruments/piano/songs/types';
+import { emptyList, listOf, readJsonOrFallback, updateJson } from './jsonStorage';
 
 const STORAGE_KEY = '@bioband/song-audio-bindings.v1';
 
@@ -76,20 +76,19 @@ export function deleteSongAudioFile(localUri: string): void {
   }
 }
 
-export async function loadSongAudioBindings(): Promise<SongAudioBinding[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isSongAudioBinding);
-  } catch {
-    return [];
-  }
+const parseBindings = listOf(isSongAudioBinding);
+
+function updateBindings(
+  update: (existing: SongAudioBinding[]) => SongAudioBinding[],
+): Promise<SongAudioBinding[]> {
+  return updateJson(STORAGE_KEY, parseBindings, emptyList<SongAudioBinding>, (existing) => {
+    const next = update(existing);
+    return { next, result: next };
+  });
+}
+
+export function loadSongAudioBindings(): Promise<SongAudioBinding[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseBindings, emptyList<SongAudioBinding>);
 }
 
 export async function getSongAudioBinding(
@@ -99,37 +98,32 @@ export async function getSongAudioBinding(
   return all.find((entry) => entry.songId === songId) ?? null;
 }
 
-export async function saveSongAudioBinding(
+export function saveSongAudioBinding(
   binding: SongAudioBinding,
 ): Promise<SongAudioBinding[]> {
-  const existing = await loadSongAudioBindings();
-  const prev = existing.find((entry) => entry.songId === binding.songId);
-  if (prev && prev.localUri !== binding.localUri) {
-    deleteSongAudioFile(prev.localUri);
-  }
-  if (prev?.pianoLessLocalUri && prev.pianoLessLocalUri !== binding.pianoLessLocalUri) {
-    deleteSongAudioFile(prev.pianoLessLocalUri);
-  }
-  const next = [
-    binding,
-    ...existing.filter((entry) => entry.songId !== binding.songId),
-  ];
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
-}
-
-export async function deleteSongAudioBinding(songId: string): Promise<SongAudioBinding[]> {
-  const existing = await loadSongAudioBindings();
-  const prev = existing.find((entry) => entry.songId === songId);
-  if (prev) {
-    deleteSongAudioFile(prev.localUri);
-    if (prev.pianoLessLocalUri) {
+  return updateBindings((existing) => {
+    const prev = existing.find((entry) => entry.songId === binding.songId);
+    if (prev && prev.localUri !== binding.localUri) {
+      deleteSongAudioFile(prev.localUri);
+    }
+    if (prev?.pianoLessLocalUri && prev.pianoLessLocalUri !== binding.pianoLessLocalUri) {
       deleteSongAudioFile(prev.pianoLessLocalUri);
     }
-  }
-  const next = existing.filter((entry) => entry.songId !== songId);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+    return [binding, ...existing.filter((entry) => entry.songId !== binding.songId)];
+  });
+}
+
+export function deleteSongAudioBinding(songId: string): Promise<SongAudioBinding[]> {
+  return updateBindings((existing) => {
+    const prev = existing.find((entry) => entry.songId === songId);
+    if (prev) {
+      deleteSongAudioFile(prev.localUri);
+      if (prev.pianoLessLocalUri) {
+        deleteSongAudioFile(prev.pianoLessLocalUri);
+      }
+    }
+    return existing.filter((entry) => entry.songId !== songId);
+  });
 }
 
 /**

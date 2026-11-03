@@ -1,7 +1,10 @@
 import { Platform } from 'react-native';
 
 import i18n from '../i18n';
-import { loadPracticeReminderSettings } from '../storage/practiceReminderStorage';
+import {
+  loadPracticeReminderSettings,
+  type PracticeReminderSettings,
+} from '../storage/practiceReminderStorage';
 
 const REMINDER_IDENTIFIER = 'bioband-practice-reminder';
 const ANDROID_CHANNEL_ID = 'practice-reminders';
@@ -115,6 +118,39 @@ export async function cancelDailyPracticeReminder(): Promise<void> {
     return;
   }
   await Notifications.cancelScheduledNotificationAsync(REMINDER_IDENTIFIER).catch(() => {});
+}
+
+/**
+ * Brings the OS schedule in line with reminder settings that arrived from
+ * somewhere other than the settings toggle — the cloud copy restored on a new
+ * device, or changed on another one. The settings are only data; without this
+ * the switch reads "on" and nothing ever fires.
+ *
+ * Never asks for permission: a system prompt appearing out of nowhere during a
+ * background sync would be baffling. Without it the reminder stays unscheduled
+ * here until the user turns the switch on again, which asks properly.
+ */
+export async function applyPracticeReminderSettings(
+  settings: PracticeReminderSettings,
+): Promise<void> {
+  const Notifications = getNotificationsModule();
+  if (!Notifications) {
+    return;
+  }
+  if (!settings.enabled) {
+    await cancelDailyPracticeReminder();
+    return;
+  }
+  const permission = await Notifications.getPermissionsAsync();
+  if (!permission.granted) {
+    return;
+  }
+  await scheduleDailyPracticeReminder(
+    settings.hour,
+    settings.minute,
+    i18n.t('profile.reminderNotifTitle'),
+    i18n.t('profile.reminderNotifBody'),
+  );
 }
 
 const LANGUAGE_SYNC_FLAG = Symbol.for('bioband.practiceReminder.languageSync');

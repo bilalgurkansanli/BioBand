@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { ViolinSongDefinition } from '../instruments/violin/songs/types';
+import { emptyList, listOf, readJsonOrFallback, updateJson } from './jsonStorage';
 
 const STORAGE_KEY = '@bioband/user-violin-songs.v1';
 
@@ -12,34 +11,24 @@ export type UserViolinSong = ViolinSongDefinition & {
   artist?: string;
 };
 
-export async function loadUserViolinSongs(): Promise<UserViolinSong[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isUserViolinSong);
-  } catch {
-    return [];
-  }
+const parseUserViolinSongs = listOf(isUserViolinSong);
+
+export function loadUserViolinSongs(): Promise<UserViolinSong[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseUserViolinSongs, emptyList<UserViolinSong>);
 }
 
-export async function saveUserViolinSong(song: UserViolinSong): Promise<UserViolinSong[]> {
-  const existing = await loadUserViolinSongs();
-  const next = [song, ...existing.filter((item) => item.id !== song.id)];
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function saveUserViolinSong(song: UserViolinSong): Promise<UserViolinSong[]> {
+  return updateJson(STORAGE_KEY, parseUserViolinSongs, emptyList<UserViolinSong>, (existing) => {
+    const next = [song, ...existing.filter((item) => item.id !== song.id)];
+    return { next, result: next };
+  });
 }
 
-export async function deleteUserViolinSong(songId: string): Promise<UserViolinSong[]> {
-  const existing = await loadUserViolinSongs();
-  const next = existing.filter((item) => item.id !== songId);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function deleteUserViolinSong(songId: string): Promise<UserViolinSong[]> {
+  return updateJson(STORAGE_KEY, parseUserViolinSongs, emptyList<UserViolinSong>, (existing) => {
+    const next = existing.filter((item) => item.id !== songId);
+    return { next, result: next };
+  });
 }
 
 function isUserViolinSong(value: unknown): value is UserViolinSong {

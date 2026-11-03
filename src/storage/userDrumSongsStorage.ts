@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { DrumSongDefinition } from '../instruments/drums/songs/types';
+import { emptyList, listOf, readJsonOrFallback, updateJson } from './jsonStorage';
 
 const STORAGE_KEY = '@bioband/user-drum-songs.v1';
 
@@ -12,34 +11,24 @@ export type UserDrumSong = DrumSongDefinition & {
   artist?: string;
 };
 
-export async function loadUserDrumSongs(): Promise<UserDrumSong[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isUserDrumSong);
-  } catch {
-    return [];
-  }
+const parseUserDrumSongs = listOf(isUserDrumSong);
+
+export function loadUserDrumSongs(): Promise<UserDrumSong[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseUserDrumSongs, emptyList<UserDrumSong>);
 }
 
-export async function saveUserDrumSong(song: UserDrumSong): Promise<UserDrumSong[]> {
-  const existing = await loadUserDrumSongs();
-  const next = [song, ...existing.filter((item) => item.id !== song.id)];
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function saveUserDrumSong(song: UserDrumSong): Promise<UserDrumSong[]> {
+  return updateJson(STORAGE_KEY, parseUserDrumSongs, emptyList<UserDrumSong>, (existing) => {
+    const next = [song, ...existing.filter((item) => item.id !== song.id)];
+    return { next, result: next };
+  });
 }
 
-export async function deleteUserDrumSong(songId: string): Promise<UserDrumSong[]> {
-  const existing = await loadUserDrumSongs();
-  const next = existing.filter((item) => item.id !== songId);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function deleteUserDrumSong(songId: string): Promise<UserDrumSong[]> {
+  return updateJson(STORAGE_KEY, parseUserDrumSongs, emptyList<UserDrumSong>, (existing) => {
+    const next = existing.filter((item) => item.id !== songId);
+    return { next, result: next };
+  });
 }
 
 function isUserDrumSong(value: unknown): value is UserDrumSong {

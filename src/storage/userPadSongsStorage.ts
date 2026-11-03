@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { PadSongDefinition } from '../instruments/pads/songs/types';
+import { emptyList, listOf, readJsonOrFallback, updateJson } from './jsonStorage';
 
 const STORAGE_KEY = '@bioband/user-pad-songs.v1';
 
@@ -12,34 +11,24 @@ export type UserPadSong = PadSongDefinition & {
   artist?: string;
 };
 
-export async function loadUserPadSongs(): Promise<UserPadSong[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isUserPadSong);
-  } catch {
-    return [];
-  }
+const parseUserPadSongs = listOf(isUserPadSong);
+
+export function loadUserPadSongs(): Promise<UserPadSong[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseUserPadSongs, emptyList<UserPadSong>);
 }
 
-export async function saveUserPadSong(song: UserPadSong): Promise<UserPadSong[]> {
-  const existing = await loadUserPadSongs();
-  const next = [song, ...existing.filter((item) => item.id !== song.id)];
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function saveUserPadSong(song: UserPadSong): Promise<UserPadSong[]> {
+  return updateJson(STORAGE_KEY, parseUserPadSongs, emptyList<UserPadSong>, (existing) => {
+    const next = [song, ...existing.filter((item) => item.id !== song.id)];
+    return { next, result: next };
+  });
 }
 
-export async function deleteUserPadSong(songId: string): Promise<UserPadSong[]> {
-  const existing = await loadUserPadSongs();
-  const next = existing.filter((item) => item.id !== songId);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function deleteUserPadSong(songId: string): Promise<UserPadSong[]> {
+  return updateJson(STORAGE_KEY, parseUserPadSongs, emptyList<UserPadSong>, (existing) => {
+    const next = existing.filter((item) => item.id !== songId);
+    return { next, result: next };
+  });
 }
 
 function isUserPadSong(value: unknown): value is UserPadSong {

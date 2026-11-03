@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { SongDefinition } from '../instruments/piano/songs/types';
+import { emptyList, listOf, readJsonOrFallback, updateJson } from './jsonStorage';
 import { deleteSongAudioBinding } from './songAudioBindingsStorage';
 
 const STORAGE_KEY = '@bioband/user-songs.v1';
@@ -12,33 +11,29 @@ export type UserSong = SongDefinition & {
   importedAt: number;
 };
 
-export async function loadUserSongs(): Promise<UserSong[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isUserSong);
-  } catch {
-    return [];
-  }
+const parseUserSongs = listOf(isUserSong);
+
+export function loadUserSongs(): Promise<UserSong[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseUserSongs, emptyList<UserSong>);
 }
 
-export async function saveUserSong(song: UserSong): Promise<UserSong[]> {
-  const existing = await loadUserSongs();
-  const next = [song, ...existing.filter((item) => item.id !== song.id)];
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function saveUserSong(song: UserSong): Promise<UserSong[]> {
+  return updateJson(STORAGE_KEY, parseUserSongs, emptyList<UserSong>, (existing) => {
+    const next = [song, ...existing.filter((item) => item.id !== song.id)];
+    return { next, result: next };
+  });
 }
 
 export async function deleteUserSong(songId: string): Promise<UserSong[]> {
-  const existing = await loadUserSongs();
-  const next = existing.filter((item) => item.id !== songId);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  const next = await updateJson(
+    STORAGE_KEY,
+    parseUserSongs,
+    emptyList<UserSong>,
+    (existing) => {
+      const remaining = existing.filter((item) => item.id !== songId);
+      return { next: remaining, result: remaining };
+    },
+  );
   await deleteSongAudioBinding(songId);
   return next;
 }

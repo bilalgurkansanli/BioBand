@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { notifyAppDataChanged } from './appDataChangeSignal';
+import { readJson } from './jsonStorage';
 import type { InstrumentId } from '../types/recording';
 
 const STORAGE_KEY = '@bioband/profile-settings.v1';
@@ -34,41 +35,44 @@ function isInstrumentId(value: unknown): value is InstrumentId {
   );
 }
 
-function isProfileSettings(value: unknown): value is ProfileSettings {
-  if (!value || typeof value !== 'object') {
-    return false;
+/**
+ * Turns anything — stored JSON, a cloud blob — into valid settings, or null
+ * when it is not settings at all.
+ *
+ * The display name is the one field every saved copy has always carried, so
+ * its absence marks the value as not ours (a stray `{}` is "no settings", not
+ * "reset everything to defaults"). Every other field is repaired on its own.
+ */
+export function coerceProfileSettings(value: unknown): ProfileSettings | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
   }
-  const entry = value as ProfileSettings;
-  return (
-    typeof entry.displayName === 'string' &&
-    (entry.favoriteInstrument === null || isInstrumentId(entry.favoriteInstrument)) &&
-    (entry.avatarPhotoUrl === null ||
-      entry.avatarPhotoUrl === undefined ||
-      typeof entry.avatarPhotoUrl === 'string')
-  );
+  const entry = value as Record<string, unknown>;
+  if (typeof entry.displayName !== 'string') {
+    return null;
+  }
+  return {
+    displayName: entry.displayName.trim().slice(0, 40),
+    favoriteInstrument: isInstrumentId(entry.favoriteInstrument) ? entry.favoriteInstrument : null,
+    avatarPhotoUrl: typeof entry.avatarPhotoUrl === 'string' ? entry.avatarPhotoUrl : null,
+    // Settings saved before the goal existed have no value here — fall back
+    // rather than storing NaN and rendering an empty ring.
+    weeklyGoalMinutes: WEEKLY_GOAL_OPTIONS.includes(
+      entry.weeklyGoalMinutes as (typeof WEEKLY_GOAL_OPTIONS)[number],
+    )
+      ? (entry.weeklyGoalMinutes as number)
+      : DEFAULT_PROFILE_SETTINGS.weeklyGoalMinutes,
+  };
+}
+
+/** Rejects when storage cannot be read — for callers that send the result on. */
+export function readStoredProfileSettings(): Promise<ProfileSettings> {
+  return readJson(STORAGE_KEY, coerceProfileSettings, () => ({ ...DEFAULT_PROFILE_SETTINGS }));
 }
 
 export async function loadProfileSettings(): Promise<ProfileSettings> {
   try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return { ...DEFAULT_PROFILE_SETTINGS };
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isProfileSettings(parsed)) {
-      return { ...DEFAULT_PROFILE_SETTINGS };
-    }
-    return {
-      displayName: parsed.displayName.trim(),
-      favoriteInstrument: parsed.favoriteInstrument,
-      avatarPhotoUrl: parsed.avatarPhotoUrl ?? null,
-      // Settings saved before the goal existed have no value here — fall back
-      // rather than storing NaN and rendering an empty ring.
-      weeklyGoalMinutes:
-        typeof parsed.weeklyGoalMinutes === 'number'
-          ? parsed.weeklyGoalMinutes
-          : DEFAULT_PROFILE_SETTINGS.weeklyGoalMinutes,
-    };
+    return await readStoredProfileSettings();
   } catch {
     return { ...DEFAULT_PROFILE_SETTINGS };
   }
@@ -77,17 +81,16 @@ export async function loadProfileSettings(): Promise<ProfileSettings> {
 export async function saveProfileSettings(
   settings: ProfileSettings,
 ): Promise<ProfileSettings> {
-  const next: ProfileSettings = {
-    displayName: settings.displayName.trim().slice(0, 40),
-    favoriteInstrument: settings.favoriteInstrument,
-    avatarPhotoUrl: settings.avatarPhotoUrl ?? null,
-    weeklyGoalMinutes: WEEKLY_GOAL_OPTIONS.includes(
-      settings.weeklyGoalMinutes as (typeof WEEKLY_GOAL_OPTIONS)[number],
-    )
-      ? settings.weeklyGoalMinutes
-      : DEFAULT_PROFILE_SETTINGS.weeklyGoalMinutes,
-  };
+  const next = coerceProfileSettings(settings) ?? { ...DEFAULT_PROFILE_SETTINGS };
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   notifyAppDataChanged();
   return next;
+}
+
+/**
+ * Replaces local settings with the cloud copy. No change signal: this is the
+ * sync writing, not the user editing.
+ */
+export async function restoreProfileSettings(settings: ProfileSettings): Promise<void> {
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }

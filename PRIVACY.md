@@ -1,6 +1,6 @@
 # BioBand Privacy Policy
 
-**Last updated: July 26, 2026**
+**Last updated: November 3, 2026**
 
 BioBand ("the app") is a music practice app for Piano, Drums, Guitar, Violin, and Pads. This policy explains what data the app collects, how it's used, and your choices.
 
@@ -45,7 +45,8 @@ Depending on your country's law — including Turkey's Personal Data Protection 
 
 ## Your choices
 
-- **Sign out** at any time from Profile → Settings. This immediately clears all data stored on that device and returns the app to a fresh guest state.
+- **Sign out** at any time from Profile → Settings. This immediately clears all data stored on that device — recordings, Studio projects, imported songs and their audio files included — cancels the practice reminder, and returns the app to a fresh guest state.
+- If you are signed out **without choosing to** — your session expired, or your account was deleted from another device — BioBand does not treat you as a guest: it keeps the data on that device, because your recordings exist nowhere else, and asks you to sign in again. Signing back in and then signing out, or uninstalling the app, removes it.
 - **Delete your account** from Profile → Settings. This permanently removes the account itself and everything stored under it — the progress, settings and reminder data listed above — and then wipes the copy on your device. It cannot be undone.
 - **Delete without the app installed**: see [Account deletion](docs/account-deletion.md), which also lists exactly what is deleted, what is kept, and for how long.
 

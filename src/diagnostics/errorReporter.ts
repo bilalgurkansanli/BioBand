@@ -87,32 +87,52 @@ export function installGlobalErrorHandlers(): void {
   installPromiseRejectionCapture();
 }
 
+type RejectionTrackingOptions = {
+  allRejections: boolean;
+  onUnhandled: (id: number, error: unknown) => void;
+  onHandled: () => void;
+};
+
+type HermesInternal = {
+  hasPromise?: () => boolean;
+  enablePromiseRejectionTracker?: (options: RejectionTrackingOptions) => void;
+};
+
 /**
  * Unhandled promise rejections, in release builds only.
  *
  * React Native installs its own tracker in development that prints a warning
  * with a usable stack; replacing that would make debugging worse. In release
  * there is no tracker at all, so a `void somePromise()` that rejects is
- * currently invisible.
+ * otherwise invisible.
  */
 function installPromiseRejectionCapture(): void {
   if (__DEV__) {
     return;
   }
+  const options: RejectionTrackingOptions = {
+    allRejections: true,
+    onUnhandled: (_id, error) => reportCrash(error, 'promise'),
+    onHandled: () => undefined,
+  };
+
+  // Under Hermes, `Promise` is the engine's own, not the `promise` package
+  // React Native polyfills elsewhere, so enabling that package's tracker
+  // watches promises nobody creates. Hermes has its own switch with the same
+  // options — the one React Native itself flips in development
+  // (Libraries/Core/polyfillPromise.js).
+  const hermes = (globalThis as { HermesInternal?: HermesInternal }).HermesInternal;
+  if (hermes?.hasPromise?.() && hermes.enablePromiseRejectionTracker) {
+    hermes.enablePromiseRejectionTracker(options);
+    return;
+  }
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const tracking = require('promise/setimmediate/rejection-tracking') as {
-      enable: (options: {
-        allRejections: boolean;
-        onUnhandled: (id: number, error: unknown) => void;
-        onHandled: () => void;
-      }) => void;
+      enable: (options: RejectionTrackingOptions) => void;
     };
-    tracking.enable({
-      allRejections: true,
-      onUnhandled: (_id, error) => reportCrash(error, 'promise'),
-      onHandled: () => undefined,
-    });
+    tracking.enable(options);
   } catch (error) {
     // Bundled promise internals are not a public API — if they move, the app
     // simply keeps the boundary and the global handler.

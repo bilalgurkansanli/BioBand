@@ -1,5 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import {
   getDrumMachineBank,
   isDrumMachineTypeId,
@@ -14,6 +12,7 @@ import {
 } from '../instruments/drumMachine/drumMachineRows';
 import { patternToSavedRecording } from '../instruments/drumMachine/patternToRecording';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
+import { emptyList, readJsonOrFallback, updateJson } from './jsonStorage';
 import {
   deleteRecording,
   loadRecordings,
@@ -55,33 +54,33 @@ function isPattern(value: unknown): value is DrumMachinePattern {
   );
 }
 
-async function persist(patterns: DrumMachinePattern[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(patterns));
+function parsePatterns(value: unknown): DrumMachinePattern[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  return value
+    .filter(isPattern)
+    .map((pattern) => ({
+      ...pattern,
+      machineType: pattern.machineType ?? 'drums',
+      bpm: clampBpm(pattern.bpm),
+      // Legacy boolean grids from older versions become velocity grids.
+      grid: normalizeGrid(pattern.grid),
+    }))
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export async function loadDrumMachinePatterns(): Promise<DrumMachinePattern[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .filter(isPattern)
-      .map((pattern) => ({
-        ...pattern,
-        machineType: pattern.machineType ?? 'drums',
-        bpm: clampBpm(pattern.bpm),
-        // Legacy boolean grids from older versions become velocity grids.
-        grid: normalizeGrid(pattern.grid),
-      }))
-      .sort((a, b) => b.createdAt - a.createdAt);
-  } catch {
-    return [];
-  }
+function updatePatterns(
+  update: (all: DrumMachinePattern[]) => DrumMachinePattern[],
+): Promise<void> {
+  return updateJson(STORAGE_KEY, parsePatterns, emptyList<DrumMachinePattern>, (all) => ({
+    next: update(all),
+    result: undefined,
+  }));
+}
+
+export function loadDrumMachinePatterns(): Promise<DrumMachinePattern[]> {
+  return readJsonOrFallback(STORAGE_KEY, parsePatterns, emptyList<DrumMachinePattern>);
 }
 
 export async function saveDrumMachinePattern(input: {
@@ -102,9 +101,7 @@ export async function saveDrumMachinePattern(input: {
     grid: normalizeGrid(input.grid),
     createdAt: Date.now(),
   };
-  const all = await loadDrumMachinePatterns();
-  all.unshift(pattern);
-  await persist(all);
+  await updatePatterns((all) => [pattern, ...all]);
 
   // Mirror into Kayıtlarım so patterns show up with other takes.
   const take = patternToSavedRecording(pattern, input.loops, input.drumKitId);
@@ -114,9 +111,8 @@ export async function saveDrumMachinePattern(input: {
   return pattern;
 }
 
-export async function deleteDrumMachinePattern(id: string): Promise<void> {
-  const all = await loadDrumMachinePatterns();
-  await persist(all.filter((pattern) => pattern.id !== id));
+export function deleteDrumMachinePattern(id: string): Promise<void> {
+  return updatePatterns((all) => all.filter((pattern) => pattern.id !== id));
 }
 
 /** Removes both the pattern store entry and the mirrored Kayıtlarım take. */
@@ -127,9 +123,9 @@ export async function deleteDrumMachineTake(id: string): Promise<void> {
 
 /** Renames both the pattern store entry and the mirrored Kayıtlarım take. */
 export async function renameDrumMachineTake(id: string, title: string): Promise<void> {
-  const all = await loadDrumMachinePatterns();
-  const next = all.map((pattern) => (pattern.id === id ? { ...pattern, title } : pattern));
-  await persist(next);
+  await updatePatterns((all) =>
+    all.map((pattern) => (pattern.id === id ? { ...pattern, title } : pattern)),
+  );
   await renameRecording(id, title);
 }
 
