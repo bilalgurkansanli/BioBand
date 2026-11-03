@@ -6,6 +6,7 @@ import {
 } from './audioApi';
 
 import { restorePlaybackAudioMode } from './initAudio';
+import { buildSoftClipCurve, MASTER_HEADROOM } from './masterChain';
 
 // One shared AudioContext for the whole app. Web Audio buffer sources are
 // single-use and self-cleaning, so playing a sample never needs a pool of
@@ -25,26 +26,26 @@ type AudioNodeT = AudioNode;
 type StoppableNode = { stop: (when?: number) => void };
 
 // All samples route through a shared master gain that leaves headroom, then
-// a tanh soft-clipper. When overlapping notes sum past the ceiling anyway,
-// the waveshaper rounds the peaks off smoothly instead of letting the DAC
-// hard-clip them into harsh digital crackle.
+// a tanh soft-clipper, then the user's output volume (see masterChain.ts —
+// the export renders through the same chain). When overlapping notes sum
+// past the ceiling anyway, the waveshaper rounds the peaks off smoothly
+// instead of letting the DAC hard-clip them into harsh digital crackle.
 //
-// IMPORTANT: Web Audio WaveShaper maps input [-1, 1] to curve values.  Any
-// signal above 1.0 hard-clips to the last curve sample.  Using tanh(3x)
-// instead of tanh(x) means the curve is nearly flat (saturated) well before
-// ±1 — so the transition at the boundary is imperceptible even if the
-// signal slightly exceeds the range.
-const MASTER_HEADROOM = 0.55;
+// The volume sits AFTER the shaper on purpose. In front of it, turning the
+// volume down also turned the saturation drive down, so the slider changed
+// the tone as well as the level. Below the ceiling the two orders are the
+// same signal; only the saturated peaks differ.
 const DEFAULT_SAMPLE_GAIN = 0.55;
 const ATTACK_SECONDS = 0.004;
 let masterGain: GainNodeT | null = null;
+let outputVolume: GainNodeT | null = null;
 let masterVolume = 1;
 
-/** User-facing output volume (0..1); multiplied under the fixed headroom. */
+/** User-facing output volume (0..1), applied after the soft-clipper. */
 export function setMasterVolume(volume: number): void {
   masterVolume = Math.max(0, Math.min(1, volume));
-  if (masterGain) {
-    masterGain.gain.value = MASTER_HEADROOM * masterVolume;
+  if (outputVolume) {
+    outputVolume.gain.value = masterVolume;
   }
 }
 
@@ -52,33 +53,24 @@ export function getMasterVolume(): number {
   return masterVolume;
 }
 
-function buildSoftClipCurve(): Float32Array {
-  const resolution = 4096;
-  const curve = new Float32Array(resolution);
-  for (let i = 0; i < resolution; i++) {
-    const x = (i / (resolution - 1)) * 2 - 1;
-    // tanh(3x) saturates at ≈ ±0.995 by x = ±1, leaving almost no
-    // amplitude step at the [-1, 1] boundary → no audible hard clip.
-    curve[i] = Math.tanh(3 * x);
-  }
-  return curve;
-}
-
 function getMasterGain(context: AudioContext): GainNodeT {
   if (!masterGain) {
     masterGain = context.createGain();
-    masterGain.gain.value = MASTER_HEADROOM * masterVolume;
+    masterGain.gain.value = MASTER_HEADROOM;
+    outputVolume = context.createGain();
+    outputVolume.gain.value = masterVolume;
+    outputVolume.connect(context.destination);
 
     // The limiter is an enhancement — if the backend cannot build it, the
-    // master connects straight to the speakers so sound always works.
+    // master connects straight to the volume stage so sound always works.
     try {
       const limiter = context.createWaveShaper();
       limiter.curve = buildSoftClipCurve();
-      limiter.connect(context.destination);
+      limiter.connect(outputVolume);
       masterGain.connect(limiter);
     } catch (error) {
       console.warn('Audio: soft-clip limiter unavailable', error);
-      masterGain.connect(context.destination);
+      masterGain.connect(outputVolume);
     }
   }
   return masterGain;

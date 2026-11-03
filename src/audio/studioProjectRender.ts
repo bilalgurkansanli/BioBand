@@ -98,7 +98,11 @@ export async function renderProjectPcm(project: StudioProject): Promise<Rendered
 
     let pcm: RenderedPcm;
     try {
-      pcm = await renderRecordingPcm(scaled as unknown as SavedRecording);
+      pcm = await renderRecordingPcm(scaled as unknown as SavedRecording, {
+        // Live playback applies an instrument track's fader to every note,
+        // ahead of the master clipper — the render does the same.
+        gainScale: track.mode === 'instrument' ? track.volume : undefined,
+      });
     } catch (error) {
       if (error instanceof UnrenderableRecordingError) {
         continue;
@@ -113,7 +117,9 @@ export async function renderProjectPcm(project: StudioProject): Promise<Rendered
       trackRight = resampleLinear(trackRight, 1 / rate);
     }
     const offset = Math.round((getTrackStartMs(track) / rate / 1000) * targetRate);
-    const volume = track.volume;
+    // Instrument tracks already carry their fader (see above); a mic track is
+    // a file player, which live playback simply sets to the track's volume.
+    const volume = track.mode === 'instrument' ? 1 : track.volume;
 
     for (let i = 0; i < trackLeft.length; i += 1) {
       const j = offset + i;
