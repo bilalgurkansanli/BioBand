@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cellFlash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: tint(ACCENT, 0.55),
   },
   playhead: {

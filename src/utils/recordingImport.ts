@@ -74,7 +74,7 @@ export async function importAudioRecording(): Promise<ImportAudioResult> {
     if (destination.exists) {
       destination.delete();
     }
-    new File(picked.asset.uri).copy(destination);
+    new File(picked.asset.uri).copySync(destination);
 
     const recording: SavedRecording = {
       id: `${Date.now()}`,

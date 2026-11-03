@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   stageWash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.55,
     top: '28%',
   },

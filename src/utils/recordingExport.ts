@@ -181,7 +181,7 @@ export async function prepareRecordingExport(
     const extension = MP4_EXTENSIONS.has(sourceExt) ? 'mp4' : sourceExt;
     const fileName = `${baseName}.${extension}`;
     const destination = freshExportFile(fileName);
-    new File(recording.audioUri).copy(destination);
+    new File(recording.audioUri).copySync(destination);
 
     options.onProgress?.(1);
     return {
@@ -290,7 +290,7 @@ async function saveExport(exported: RecordingExport): Promise<DownloadResult> {
     if (destination.exists) {
       destination.delete();
     }
-    new File(exported.uri).copy(destination);
+    new File(exported.uri).copySync(destination);
     return {
       status: 'saved',
       fileName: exported.fileName,
@@ -321,7 +321,7 @@ async function saveExport(exported: RecordingExport): Promise<DownloadResult> {
   if (destination.exists) {
     destination.delete();
   }
-  new File(exported.uri).copy(destination);
+  new File(exported.uri).copySync(destination);
   return { status: 'saved', fileName: exported.fileName, location: 'documents' };
 }
 

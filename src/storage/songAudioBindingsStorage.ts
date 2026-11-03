@@ -44,7 +44,7 @@ export function copySongAudioFile(
   if (destination.exists) {
     destination.delete();
   }
-  new File(sourceUri).copy(destination);
+  new File(sourceUri).copySync(destination);
   return destination.uri;
 }
 
@@ -61,7 +61,7 @@ export function copySongPianoLessFile(
   if (destination.exists) {
     destination.delete();
   }
-  new File(sourceUri).copy(destination);
+  new File(sourceUri).copySync(destination);
   return destination.uri;
 }
 

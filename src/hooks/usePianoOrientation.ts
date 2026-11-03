@@ -63,7 +63,7 @@ export function usePianoOrientation(
 
       return () => {
         isActive = false;
-        ScreenOrientation.removeOrientationChangeListener(subscription);
+        subscription.remove();
         appState.remove();
 
         void ScreenOrientation.lockAsync(PORTRAIT_LOCK).then(() => {

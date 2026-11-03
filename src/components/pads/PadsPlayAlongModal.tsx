@@ -258,7 +258,7 @@ export function PadsPlayAlongModal({
         <Pressable
           {...SCREEN_READER_HIDDEN}
           onPress={onClose}
-          style={StyleSheet.absoluteFillObject}
+          style={StyleSheet.absoluteFill}
         />
         <View style={styles.card}>
           <ModalChromeHeader

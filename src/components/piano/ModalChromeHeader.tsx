@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   closeIconSlot: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   card: {
     backgroundColor: colors.surface,

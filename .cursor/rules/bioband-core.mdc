@@ -6,36 +6,38 @@ alwaysApply: true
 # BioBand Core Rules
 
 ## Stack
-- Expo managed workflow (Expo Go first)
+- Expo SDK 57 (React Native 0.86, React 19.2), development builds via EAS —
+  not Expo Go: `react-native-audio-api` is a native module Expo Go cannot load
+- Read the versioned docs at https://docs.expo.dev/versions/v57.0.0/ before
+  touching an Expo API (see AGENTS.md)
 - TypeScript strict mode
-- React Navigation (bottom tabs)
-- i18next for all UI strings (tr + en)
+- React Navigation (bottom tabs → native stacks)
+- i18next for all UI strings (en, tr, de — keep the three locale files in step)
 - Dark theme via `src/theme/colors.ts`
 
 ## Development Workflow
-- Build in small, testable phases; one feature at a time
-- Ask the user before assuming on unclear requirements
-- Warn before requiring native modules or expo-dev-client
-- Explain decisions briefly — this is a learning project
+- `npm run check` (typecheck, lint, Jest) must pass before a commit
+- Prefer a pure, unit-tested function over logic buried in a hook
+- Read docs/ARCHITECTURE.md before changing `src/audio/` or `src/instruments/`
 
 ## Code Style
 - Functional components only
-- No hardcoded UI strings — use `useTranslation()` and locale JSON files
+- No hardcoded UI strings — use `useTranslation()` and the locale JSON files
 - Reuse existing components and theme tokens
-- Keep comments short and in English; explain non-obvious logic only
+- Comments explain *why*, in English
 
 ## File Organization
 ```
 src/
-  components/   # Shared UI
+  audio/        # Shared AudioContext, scheduler, offline render, encoding
+  instruments/  # Engines, samples and song charts per instrument
+  hooks/        # Screen-facing hooks over engines and storage
+  components/   # Shared UI, grouped by instrument
   screens/      # Screen components
   navigation/   # Navigators
+  storage/      # AsyncStorage + expo-file-system persistence
+  supabase/     # Optional cloud sync
   i18n/         # Translations
-  theme/        # Colors and shared styles
+  theme/        # Colors
   types/        # TypeScript types
 ```
-
-## Expo Go Compatibility
-- Prefer packages that work in Expo Go
-- Use `expo-audio` (not `expo-av`) for audio features
-- Use event-based recording for multi-track (not microphone capture)

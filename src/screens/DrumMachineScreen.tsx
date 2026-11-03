@@ -1034,7 +1034,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   countInOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.35)',
     borderRadius: 12,
@@ -1100,7 +1100,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   nameOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',

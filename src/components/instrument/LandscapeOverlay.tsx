@@ -31,7 +31,7 @@ export function LandscapeOverlay({
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     backgroundColor: colors.background,
     justifyContent: 'center',

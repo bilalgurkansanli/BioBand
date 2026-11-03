@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   stageWash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.35,
   },
   chassis: {

@@ -48,7 +48,7 @@ export function persistRecordingAudio(recordingId: string, sourceUri: string): s
     if (destination.exists) {
       destination.delete();
     }
-    new File(sourceUri).copy(destination);
+    new File(sourceUri).copySync(destination);
     return destination.uri;
   } catch (error) {
     console.warn('[persistRecordingAudio]', error);

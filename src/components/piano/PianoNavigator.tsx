@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   gradientTrack: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#2A2A2A',
   },
   centerDetent: {

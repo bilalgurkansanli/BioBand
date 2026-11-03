@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   woodWash: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.35,
   },
   neckRow: {
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   tapeRow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   tapeMark: {
     bottom: 4,

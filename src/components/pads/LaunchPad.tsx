@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glow: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     margin: 1,
   },
   shell: {
@@ -264,13 +264,13 @@ const styles = StyleSheet.create({
     right: 1,
   },
   pressedOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderColor: 'rgba(255,255,255,0.9)',
     borderWidth: 1.5,
     margin: 1,
   },
   guideRing: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   led: {
     borderRadius: 2,
