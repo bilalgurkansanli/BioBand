@@ -326,6 +326,16 @@ export function PadGrid({
     [syncTouches],
   );
 
+  // Screen-reader double-tap on a pad: the same as a tap in its centre — the
+  // editor in edit mode, otherwise a hit at the fixed velocity.
+  const handleAccessibilityActivate = useCallback((padId: PadSoundId) => {
+    if (editModeRef.current) {
+      onEditPadRef.current?.(padId);
+      return;
+    }
+    onTriggerRef.current(padId, applyVelocityCurve(FIXED_VELOCITY, velocityCurveRef.current));
+  }, []);
+
   const labelFor = useCallback(
     (pad: { labelKey: string; rawLabel?: string }, index: number): string => {
       if (labelMode === 'off') {
@@ -391,11 +401,15 @@ export function PadGrid({
           {launchPads.map((pad, index) => (
             <LaunchPad
               key={`${bankId}-${pad.id}`}
+              // The sound's name whatever the label setting shows on the pad.
+              accessibilityLabel={pad.rawLabel ?? t(pad.labelKey)}
               color={pad.color}
               ghostStamp={ghost && ghost.id === pad.id ? ghost.stamp : 0}
               height={padH}
               highlighted={guidePadId === pad.id}
               label={labelFor(pad, index)}
+              onAccessibilityActivate={handleAccessibilityActivate}
+              padId={pad.id}
               pressed={pressedPads.has(pad.id)}
               showLabel={labelMode !== 'off'}
               strongGuide={strongGuide}

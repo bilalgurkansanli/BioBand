@@ -1,5 +1,11 @@
 import { memo, useCallback, useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text, View } from 'react-native';
+import {
+  type AccessibilityActionEvent,
+  Animated,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import type { GuitarFretboardColors } from '../../instruments/guitar/guitarVoices';
 import {
@@ -7,6 +13,7 @@ import {
   type GuitarStringId,
 } from '../../instruments/guitar/guitarSounds';
 import { colors } from '../../theme/colors';
+import { ACTIVATE_ACTIONS, isActivateAction } from '../../utils/accessibility';
 
 /** Imperative wobble trigger — called straight from the engine pluck signal. */
 export type StringPulseHandler = (velocity: number, fret: number) => void;
@@ -38,6 +45,15 @@ type GuitarStringRowProps = {
   strongGuide: boolean;
   accent: string;
   fretboard: GuitarFretboardColors;
+  /** "E string" — the row is one screen-reader element. */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  /**
+   * Plucks this string for a screen-reader double-tap. The board is a raw
+   * multi-touch surface the readers cannot use, so each string stands in for
+   * it. Takes the string back so one stable handler serves all six rows.
+   */
+  onAccessibilityPluck?: (stringId: GuitarStringId) => void;
 };
 
 /** Decaying wobble offsets (× amplitude) — one shot per pluck, no loop. */
@@ -61,6 +77,9 @@ function GuitarStringRowBase({
   strongGuide,
   accent,
   fretboard,
+  accessibilityLabel,
+  accessibilityHint,
+  onAccessibilityPluck,
 }: GuitarStringRowProps) {
   const frets = Array.from({ length: maxFret + 1 }, (_, i) => i);
   const wobble = useRef(new Animated.Value(0)).current;
@@ -124,8 +143,28 @@ function GuitarStringRowBase({
     return registerPulse(stringId, triggerPulse);
   }, [registerPulse, stringId, triggerPulse]);
 
+  const handleAccessibilityAction = useCallback(
+    (event: AccessibilityActionEvent) => {
+      if (isActivateAction(event) && !chordMuted) {
+        onAccessibilityPluck?.(stringId);
+      }
+    },
+    [chordMuted, onAccessibilityPluck, stringId],
+  );
+
   return (
-    <View pointerEvents="none" style={[styles.row, chordMuted && styles.rowMuted]}>
+    <View
+      accessible={accessibilityLabel !== undefined}
+      accessibilityActions={ACTIVATE_ACTIONS}
+      accessibilityHint={accessibilityHint}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityRole="button"
+      // A string the armed chord mutes does not sound.
+      accessibilityState={{ disabled: chordMuted }}
+      onAccessibilityAction={handleAccessibilityAction}
+      pointerEvents="none"
+      style={[styles.row, chordMuted && styles.rowMuted]}
+    >
       <Text style={[styles.label, { color: accent }, chordMuted && styles.labelMuted]}>
         {label}
       </Text>

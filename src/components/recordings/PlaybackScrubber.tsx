@@ -9,12 +9,11 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../theme/colors';
+import { ADJUSTABLE_ACTIONS, adjustmentDirection } from '../../utils/accessibility';
 import { formatDuration } from '../../utils/formatDuration';
 
 /** One swipe up/down with a screen reader skips this far. */
 const ACCESSIBILITY_SEEK_STEP_MS = 5000;
-
-const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 type Props = {
   positionMs: number;
@@ -66,12 +65,7 @@ export function PlaybackScrubber({ positionMs, durationMs, onSeek }: Props) {
   // Dragging is out of reach with a screen reader running; swipe up/down
   // arrives here instead and skips a few seconds either way.
   const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
-    const direction =
-      event.nativeEvent.actionName === 'increment'
-        ? 1
-        : event.nativeEvent.actionName === 'decrement'
-          ? -1
-          : 0;
+    const direction = adjustmentDirection(event);
     if (direction === 0 || durationMs <= 0) {
       return;
     }

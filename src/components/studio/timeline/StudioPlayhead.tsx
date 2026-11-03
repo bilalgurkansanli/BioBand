@@ -10,14 +10,13 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { colors } from '../../../theme/colors';
+import { ADJUSTABLE_ACTIONS, adjustmentDirection } from '../../../utils/accessibility';
 import { formatDuration } from '../../../utils/formatDuration';
 import { type PlaybackPosition, usePlaybackPositionMs } from './playbackPosition';
 import { RULER_HEIGHT } from './timelineGeometry';
 
 /** One swipe up/down with a screen reader moves the playhead this far. */
 const ACCESSIBILITY_SEEK_STEP_MS = 5000;
-
-const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 type Props = {
   position: PlaybackPosition;
@@ -90,12 +89,7 @@ export function StudioPlayhead({
   // The knob is dragged; a screen reader swipes up/down instead, which moves
   // the playhead a few seconds at a time.
   const handleAccessibilityAction = (event: AccessibilityActionEvent) => {
-    const direction =
-      event.nativeEvent.actionName === 'increment'
-        ? 1
-        : event.nativeEvent.actionName === 'decrement'
-          ? -1
-          : 0;
+    const direction = adjustmentDirection(event);
     if (direction === 0) {
       return;
     }

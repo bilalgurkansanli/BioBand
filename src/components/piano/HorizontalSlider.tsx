@@ -7,7 +7,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
+import { ADJUSTABLE_ACTIONS, adjustmentDirection } from '../../utils/accessibility';
 
 export const SLIDER_THUMB_SIZE = 24;
 const TRACK_HEIGHT = 6;
@@ -177,12 +177,7 @@ export const HorizontalSlider = React.memo(function HorizontalSlider({
       if (disabled) {
         return;
       }
-      const direction =
-        event.nativeEvent.actionName === 'increment'
-          ? 1
-          : event.nativeEvent.actionName === 'decrement'
-            ? -1
-            : 0;
+      const direction = adjustmentDirection(event);
       if (direction === 0) {
         return;
       }

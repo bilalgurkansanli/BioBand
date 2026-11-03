@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { ADJUSTABLE_ACTIONS, adjustmentDirection } from '../../utils/accessibility';
+
 type XYPadProps = {
   width: number;
   height: number;
@@ -19,8 +21,6 @@ type XYPadProps = {
 };
 
 const DOT_SIZE = 26;
-
-const ADJUSTABLE_ACTIONS = [{ name: 'increment' }, { name: 'decrement' }] as const;
 
 /**
  * One-finger performance surface: drag to bend the filter (X = cutoff,
@@ -80,12 +80,7 @@ export function XYPad({ width, height, accent, onChange, onRelease }: XYPadProps
   const [a11yCutoff, setA11yCutoff] = useState(1);
   const handleAccessibilityAction = useCallback(
     (event: AccessibilityActionEvent) => {
-      const direction =
-        event.nativeEvent.actionName === 'increment'
-          ? 1
-          : event.nativeEvent.actionName === 'decrement'
-            ? -1
-            : 0;
+      const direction = adjustmentDirection(event);
       if (direction === 0) {
         return;
       }

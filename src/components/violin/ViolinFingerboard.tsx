@@ -17,6 +17,7 @@ import {
 } from '../../instruments/violin/violinSounds';
 import type { ViolinVoiceTheme } from '../../instruments/violin/violinVoices';
 import type { ViolinNoteLabelMode } from '../../storage/violinSettingsStorage';
+import { ACTIVATE_ACTIONS, isActivateAction } from '../../utils/accessibility';
 import { hasSameMembers } from '../instrument/sameMembers';
 import { ViolinNoteCell } from './ViolinNoteCell';
 
@@ -437,6 +438,22 @@ function ViolinFingerboardBase({
                         return (
                           <View
                             key={key}
+                            // Each note is its own screen-reader button: the
+                            // board's raw multi-touch is out of reach with a
+                            // reader running, so this is the way in.
+                            accessible
+                            accessibilityActions={ACTIVATE_ACTIONS}
+                            accessibilityLabel={t('violin.a11y.note', {
+                              note: getNoteLabel(string.id, position),
+                              string: t(string.labelKey),
+                            })}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: activeKeys.has(key) }}
+                            onAccessibilityAction={(event) => {
+                              if (isActivateAction(event)) {
+                                onPlayNote(string.id, position);
+                              }
+                            }}
                             style={[
                               isOpen && styles.nutColumn,
                               isOpen && {

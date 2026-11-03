@@ -118,6 +118,11 @@ const STRING_THICKNESS: Record<GuitarStringId, number> = {
 const LABEL_WIDTH = 18;
 const LABEL_GAP = 6;
 
+/** A firm, mid-band pluck — what a tap in the middle of a string gives. */
+const ACCESSIBILITY_PLUCK_VELOCITY = 0.8;
+/** How long a screen-reader pluck is "held" before its finger lifts. */
+const ACCESSIBILITY_PLUCK_HOLD_MS = 700;
+
 function cellKey(cell: FretCell): string {
   return `${cell.stringId}:f${cell.fret}`;
 }
@@ -451,6 +456,35 @@ export const Fretboard = memo(function Fretboard({
     setBoardSize({ width, height });
   };
 
+  // Screen-reader double-tap on a string row: pluck it where a finger would —
+  // at the armed chord's fret, or open — and let go shortly after, as a lifted
+  // finger would, so a held note does not ring on forever. Reads everything
+  // through refs so one handler identity serves all six memoised rows.
+  const onPluckInRef = useRef(onPluckIn);
+  onPluckInRef.current = onPluckIn;
+  const chordFrettingRef = useRef(chordFretting);
+  chordFrettingRef.current = chordFretting;
+  const accessibilityReleaseTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  useEffect(() => {
+    const timers = accessibilityReleaseTimersRef.current;
+    return () => {
+      for (const timer of timers) {
+        clearTimeout(timer);
+      }
+      timers.clear();
+    };
+  }, []);
+  const handleAccessibilityPluck = useCallback((stringId: GuitarStringId) => {
+    const fret = chordFrettingRef.current?.[stringId] ?? 0;
+    onPluckInRef.current(stringId, fret, ACCESSIBILITY_PLUCK_VELOCITY);
+    const timer = setTimeout(() => {
+      accessibilityReleaseTimersRef.current.delete(timer);
+      onPluckOutRef.current?.(stringId, fret);
+    }, ACCESSIBILITY_PLUCK_HOLD_MS);
+    accessibilityReleaseTimersRef.current.add(timer);
+  }, []);
+  const stringHint = t('guitar.a11y.stringHint');
+
   // A stable handler keeps the memoised chord bar out of every touch redraw.
   const onSelectChordRef = useRef(onSelectChord);
   onSelectChordRef.current = onSelectChord;
@@ -515,6 +549,9 @@ export const Fretboard = memo(function Fretboard({
                 <GuitarStringRow
                   key={string.id}
                   accent={accent}
+                  accessibilityHint={stringHint}
+                  accessibilityLabel={t('guitar.a11y.string', { string: string.label })}
+                  onAccessibilityPluck={handleAccessibilityPluck}
                   activeFrets={activeByString.get(string.id) ?? EMPTY_FRETS}
                   barreFret={barreFret}
                   chordFret={shapeFret === undefined ? undefined : shapeFret}
