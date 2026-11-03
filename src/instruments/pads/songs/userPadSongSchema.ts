@@ -1,7 +1,17 @@
+import {
+  createUserSongId,
+  finalizeEvents,
+  parseJsonObject,
+  readArtist,
+  readAtMs,
+  readEventArray,
+  readPartialCount,
+  readTitle,
+  SongDocumentError,
+} from '../../shared/userSongDocument';
 import { PAD_SOUND_IDS, type PadSoundId } from '../padsSounds';
 import type { PadSongDefinition, PadSongDifficulty, PadSongEvent } from './types';
 
-export const MAX_USER_PAD_EVENTS = 800;
 export const DEFAULT_PARTIAL_COUNT = 12;
 
 const VALID_PAD_IDS = new Set<string>(PAD_SOUND_IDS);
@@ -27,38 +37,39 @@ export class UserPadSongParseError extends Error {
   }
 }
 
+/** Run a shared validation step, reporting its failure as this instrument's error. */
+function asPadError<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof SongDocumentError) {
+      throw new UserPadSongParseError(error.code);
+    }
+    throw error;
+  }
+}
+
 export function isValidPadId(value: unknown): value is PadSoundId {
   return typeof value === 'string' && VALID_PAD_IDS.has(value);
 }
 
 export function createUserPadSongId(): string {
-  return `pad-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createUserSongId('pad-user');
 }
 
-function parseEvents(raw: unknown): PadSongEvent[] {
-  if (!Array.isArray(raw)) {
-    throw new UserPadSongParseError('invalidSchema');
-  }
-  if (raw.length === 0) {
-    throw new UserPadSongParseError('emptySong');
-  }
-  if (raw.length > MAX_USER_PAD_EVENTS) {
-    throw new UserPadSongParseError('tooManyNotes');
-  }
+function parseEvents(doc: Record<string, unknown>): PadSongEvent[] {
+  const raw = asPadError(() => readEventArray(doc));
 
   const events: PadSongEvent[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') {
-      throw new UserPadSongParseError('invalidSchema');
-    }
-    const entry = item as Record<string, unknown>;
+  for (const entry of raw) {
     if (!isValidPadId(entry.padId)) {
       throw new UserPadSongParseError('invalidPad');
     }
-    if (typeof entry.atMs !== 'number' || !Number.isFinite(entry.atMs) || entry.atMs < 0) {
+    const atMs = readAtMs(entry.atMs);
+    if (atMs === null) {
       throw new UserPadSongParseError('invalidSchema');
     }
-    events.push({ padId: entry.padId, atMs: Math.round(entry.atMs) });
+    events.push({ padId: entry.padId, atMs });
   }
 
   events.sort((a, b) => a.atMs - b.atMs);
@@ -80,49 +91,16 @@ export function parseUserPadSongJson(
   text: string,
   options?: { fallbackTitle?: string },
 ): PadSongDefinition & { artist?: string } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    throw new UserPadSongParseError('invalidJson');
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new UserPadSongParseError('invalidSchema');
-  }
-
-  const doc = parsed as Record<string, unknown>;
-  const title =
-    typeof doc.title === 'string' && doc.title.trim().length > 0
-      ? doc.title.trim()
-      : options?.fallbackTitle?.trim() || 'Untitled';
-
-  const artist =
-    typeof doc.artist === 'string' && doc.artist.trim().length > 0
-      ? doc.artist.trim()
-      : undefined;
-
-  if (!('events' in doc) || !Array.isArray(doc.events)) {
-    throw new UserPadSongParseError('invalidSchema');
-  }
-
-  const events = parseEvents(doc.events);
-  const difficulty = parseDifficulty(doc.difficulty);
-
-  const partialCount =
-    typeof doc.partialCount === 'number' &&
-    Number.isFinite(doc.partialCount) &&
-    doc.partialCount > 0
-      ? Math.min(Math.round(doc.partialCount), events.length)
-      : Math.min(DEFAULT_PARTIAL_COUNT, events.length);
+  const doc = asPadError(() => parseJsonObject(text));
+  const events = parseEvents(doc);
 
   return {
     id: createUserPadSongId(),
-    title,
-    artist,
-    difficulty,
+    title: readTitle(doc.title, options?.fallbackTitle),
+    artist: readArtist(doc.artist),
+    difficulty: parseDifficulty(doc.difficulty),
     events,
-    partialCount,
+    partialCount: readPartialCount(doc.partialCount, events.length, DEFAULT_PARTIAL_COUNT),
   };
 }
 
@@ -133,25 +111,14 @@ export function buildUserPadSongDefinition(input: {
   difficulty?: PadSongDifficulty;
   partialCount?: number;
 }): PadSongDefinition & { artist?: string } {
-  if (input.events.length === 0) {
-    throw new UserPadSongParseError('emptySong');
-  }
-  if (input.events.length > MAX_USER_PAD_EVENTS) {
-    throw new UserPadSongParseError('tooManyNotes');
-  }
-
-  const events = [...input.events].sort((a, b) => a.atMs - b.atMs);
-  const partialCount =
-    input.partialCount && input.partialCount > 0
-      ? Math.min(input.partialCount, events.length)
-      : Math.min(DEFAULT_PARTIAL_COUNT, events.length);
+  const events = asPadError(() => finalizeEvents(input.events));
 
   return {
     id: createUserPadSongId(),
-    title: input.title.trim() || 'Untitled',
-    artist: input.artist?.trim() || undefined,
+    title: readTitle(input.title),
+    artist: readArtist(input.artist),
     difficulty: input.difficulty ?? 'medium',
     events,
-    partialCount,
+    partialCount: readPartialCount(input.partialCount, events.length, DEFAULT_PARTIAL_COUNT),
   };
 }

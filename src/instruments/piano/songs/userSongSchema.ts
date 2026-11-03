@@ -6,13 +6,28 @@ import {
   MIN_PITCH_OCTAVE,
 } from '../../shared/midiPitch';
 import type { SongRole } from '../../shared/songPerformance';
+import {
+  createUserSongId as createPrefixedId,
+  finalizeEvents,
+  parseJsonObject,
+  readArtist,
+  readAtMs,
+  readDurationMs,
+  readEventArray,
+  readTitle,
+  readVelocity,
+  SongDocumentError,
+} from '../../shared/userSongDocument';
 import type { SongDefinition, SongEvent, SongMeter } from './types';
 
-export const MAX_USER_SONG_EVENTS = 800;
 export const DEFAULT_PREVIEW_DURATION_MS = 5000;
 
 const MIDI_C4 = 60;
 const MIDI_B5 = 83;
+
+/** A beat outside this is a typo, not a tempo — the meter is then ignored. */
+const MAX_METER_BEAT_MS = 10_000;
+const MAX_METER_BEATS_PER_BAR = 32;
 
 const VALID_NOTE_IDS = new Set<string>(PIANO_NOTES.map((note) => note.id));
 const NOTE_ID_BY_MIDI = new Map<number, NoteId>(
@@ -55,6 +70,18 @@ export class UserSongParseError extends Error {
     super(message ?? code);
     this.name = 'UserSongParseError';
     this.code = code;
+  }
+}
+
+/** Run a shared validation step, reporting its failure as this instrument's error. */
+function asPianoError<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof SongDocumentError) {
+      throw new UserSongParseError(error.code);
+    }
+    throw error;
   }
 }
 
@@ -120,13 +147,19 @@ function parseMeter(raw: unknown): SongMeter | undefined {
   }
   const entry = raw as Record<string, unknown>;
   const beatMs = entry.beatMs;
-  if (typeof beatMs !== 'number' || !Number.isFinite(beatMs) || beatMs <= 0) {
+  if (
+    typeof beatMs !== 'number' ||
+    !Number.isFinite(beatMs) ||
+    beatMs <= 0 ||
+    beatMs > MAX_METER_BEAT_MS
+  ) {
     return undefined;
   }
   const beatsPerBar =
     typeof entry.beatsPerBar === 'number' &&
     Number.isFinite(entry.beatsPerBar) &&
-    entry.beatsPerBar >= 1
+    entry.beatsPerBar >= 1 &&
+    entry.beatsPerBar <= MAX_METER_BEATS_PER_BAR
       ? Math.round(entry.beatsPerBar)
       : undefined;
 
@@ -137,19 +170,11 @@ function parseMeter(raw: unknown): SongMeter | undefined {
 }
 
 export function createUserSongId(): string {
-  return `user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createPrefixedId('user');
 }
 
-function parseEvents(raw: unknown): SongEvent[] {
-  if (!Array.isArray(raw)) {
-    throw new UserSongParseError('invalidSchema');
-  }
-  if (raw.length === 0) {
-    throw new UserSongParseError('emptySong');
-  }
-  if (raw.length > MAX_USER_SONG_EVENTS) {
-    throw new UserSongParseError('tooManyNotes');
-  }
+function parseEvents(doc: Record<string, unknown>): SongEvent[] {
+  const raw = asPianoError(() => readEventArray(doc));
 
   type Parsed = {
     midi: number;
@@ -160,12 +185,7 @@ function parseEvents(raw: unknown): SongEvent[] {
   };
 
   const parsed: Parsed[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') {
-      throw new UserSongParseError('invalidSchema');
-    }
-    const entry = item as Record<string, unknown>;
-
+  for (const entry of raw) {
     // A pitch already on the keyboard resolves directly; anything else is
     // read as a MIDI number so the whole piece can be shifted as one.
     const midi = isValidNoteId(entry.noteId)
@@ -174,25 +194,16 @@ function parseEvents(raw: unknown): SongEvent[] {
     if (midi === undefined) {
       throw new UserSongParseError('invalidNote');
     }
-    if (typeof entry.atMs !== 'number' || !Number.isFinite(entry.atMs) || entry.atMs < 0) {
+    const atMs = readAtMs(entry.atMs);
+    if (atMs === null) {
       throw new UserSongParseError('invalidSchema');
     }
 
-    const durationMs =
-      typeof entry.durationMs === 'number' &&
-      Number.isFinite(entry.durationMs) &&
-      entry.durationMs > 0
-        ? Math.round(entry.durationMs)
-        : undefined;
-    const velocity =
-      typeof entry.velocity === 'number' &&
-      Number.isFinite(entry.velocity) &&
-      entry.velocity > 0
-        ? Math.min(1, entry.velocity)
-        : undefined;
+    const durationMs = readDurationMs(entry.durationMs);
+    const velocity = readVelocity(entry.velocity);
     const role = entry.role === 'accompaniment' ? ('accompaniment' as const) : undefined;
 
-    parsed.push({ midi, atMs: Math.round(entry.atMs), durationMs, velocity, role });
+    parsed.push({ midi, atMs, durationMs, velocity, role });
   }
 
   const shift = chooseOctaveShift(
@@ -220,33 +231,11 @@ export function parseUserSongJson(
   text: string,
   options?: { fallbackTitle?: string },
 ): SongDefinition {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    throw new UserSongParseError('invalidJson');
-  }
+  const doc = asPianoError(() => parseJsonObject(text));
+  const title = readTitle(doc.title, options?.fallbackTitle);
+  const artist = readArtist(doc.artist);
 
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new UserSongParseError('invalidSchema');
-  }
-
-  const doc = parsed as Record<string, unknown>;
-  const title =
-    typeof doc.title === 'string' && doc.title.trim().length > 0
-      ? doc.title.trim()
-      : options?.fallbackTitle?.trim() || 'Untitled';
-
-  const artist =
-    typeof doc.artist === 'string' && doc.artist.trim().length > 0
-      ? doc.artist.trim()
-      : undefined;
-
-  if (!('events' in doc) || !Array.isArray(doc.events)) {
-    throw new UserSongParseError('invalidSchema');
-  }
-
-  const events = parseEvents(doc.events);
+  const events = parseEvents(doc);
   const meter = parseMeter(doc.meter);
   const lastAtMs = events.length > 0 ? events[events.length - 1].atMs : 0;
 
@@ -254,7 +243,7 @@ export function parseUserSongJson(
     typeof doc.previewDurationMs === 'number' &&
     Number.isFinite(doc.previewDurationMs) &&
     doc.previewDurationMs > 0
-      ? Math.round(doc.previewDurationMs)
+      ? Math.min(DEFAULT_PREVIEW_DURATION_MS * 6, Math.round(doc.previewDurationMs))
       : // Preview the opening rather than a fixed five seconds, and never run
         // past the end of a short piece.
         Math.max(
@@ -281,19 +270,12 @@ export function buildUserSongDefinition(input: {
   /** Where the beat falls, so an imported chart gets accents like a built-in one. */
   meter?: SongMeter;
 }): SongDefinition {
-  if (input.events.length === 0) {
-    throw new UserSongParseError('emptySong');
-  }
-  if (input.events.length > MAX_USER_SONG_EVENTS) {
-    throw new UserSongParseError('tooManyNotes');
-  }
-
-  const events = [...input.events].sort((a, b) => a.atMs - b.atMs);
+  const events = asPianoError(() => finalizeEvents(input.events));
 
   return {
     id: createUserSongId(),
-    title: input.title.trim() || 'Untitled',
-    artist: input.artist?.trim() || undefined,
+    title: readTitle(input.title),
+    artist: readArtist(input.artist),
     previewDurationMs: input.previewDurationMs ?? DEFAULT_PREVIEW_DURATION_MS,
     events,
     ...(input.meter ? { meter: input.meter } : {}),
