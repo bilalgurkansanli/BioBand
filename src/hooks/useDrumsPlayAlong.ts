@@ -34,6 +34,13 @@ import {
   type NotePerformance,
 } from '../instruments/shared/songPerformance';
 import {
+  applyHit,
+  HIT_WINDOW_BAND_MS,
+  HIT_WINDOW_MS,
+  judgeStepPress,
+  judgeTimedPress,
+} from '../instruments/shared/playAlongScoring';
+import {
   copySongAudioFile,
   mergeSongWithAudioBinding,
   saveSongAudioBinding,
@@ -77,9 +84,6 @@ export type DrumsPlayAlongProgress = {
   hits: number;
 };
 
-const HIT_WINDOW_MS = 350;
-/** Slightly wider window when playing over a live mix (latency + distraction). */
-const HIT_WINDOW_BAND_MS = 480;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
 const COUNTDOWN_STEP_MS = 800;
@@ -102,6 +106,8 @@ function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   }
   return 0;
 }
+
+const padIdOf = (event: { padId: string }) => event.padId;
 
 function clampOffset(ms: number): number {
   return Math.max(OFFSET_MIN_MS, Math.min(OFFSET_MAX_MS, Math.round(ms)));
@@ -288,8 +294,8 @@ export function useDrumsPlayAlong(
     finishSong();
   }, [finishSong]);
 
-  const advancePointer = useCallback(() => {
-    pointerRef.current += 1;
+  /** Guide, progress and the end-of-chart check, after the pointer moved. */
+  const pointerMoved = useCallback(() => {
     updateGuide();
 
     const events = chartRef.current;
@@ -303,6 +309,27 @@ export function useDrumsPlayAlong(
       maybeFinishAfterNotes();
     }
   }, [maybeFinishAfterNotes, updateGuide]);
+
+  const advancePointer = useCallback(() => {
+    pointerRef.current += 1;
+    pointerMoved();
+  }, [pointerMoved]);
+
+  /** Score a judged hit: notes it passed over become misses, then move on. */
+  const acceptHit = useCallback(
+    (judgement: { index: number; skipped: number }) => {
+      const state = { pointer: pointerRef.current, ...statsRef.current };
+      applyHit(chartRef.current, state, judgement);
+      pointerRef.current = state.pointer;
+      statsRef.current = {
+        hits: state.hits,
+        misses: state.misses,
+        wrongPresses: state.wrongPresses,
+      };
+      pointerMoved();
+    },
+    [pointerMoved],
+  );
 
   const buildSession = useCallback((): ResolvedDrumSession | null => {
     const song = songRef.current;
@@ -918,45 +945,6 @@ export function useDrumsPlayAlong(
     setPhase('pickLevel');
   }, []);
 
-  /**
-   * Charts can stack several pads on the same timestamp (crash + kick on a
-   * downbeat). Those form a "simultaneous group" that may be hit in any
-   * order: if the pressed pad matches any group member, that member is
-   * swapped to the pointer position and counted as the hit.
-   */
-  const matchInSimultaneousGroup = useCallback(
-    (padId: DrumSoundId): number => {
-      const events = chartRef.current;
-      const idx = pointerRef.current;
-      const groupAtMs = events[idx]?.atMs;
-      if (groupAtMs === undefined) {
-        return -1;
-      }
-      for (let i = idx; i < events.length && events[i].atMs === groupAtMs; i++) {
-        if (events[i].padId === padId) {
-          return i;
-        }
-      }
-      return -1;
-    },
-    [],
-  );
-
-  const acceptHit = useCallback(
-    (matchIndex: number) => {
-      const events = chartRef.current;
-      const idx = pointerRef.current;
-      if (matchIndex !== idx) {
-        const tmp = events[matchIndex];
-        events[matchIndex] = events[idx];
-        events[idx] = tmp;
-      }
-      statsRef.current.hits += 1;
-      advancePointer();
-    },
-    [advancePointer],
-  );
-
   const handlePadPress = useCallback(
     (padId: DrumSoundId) => {
       if (phaseRef.current === 'demo') {
@@ -968,38 +956,33 @@ export function useDrumsPlayAlong(
       }
 
       const events = chartRef.current;
-      const idx = pointerRef.current;
-      const expected = events[idx];
-      if (!expected) {
+      if (pointerRef.current >= events.length) {
         return;
       }
-
       playHit(padId);
-      const matchIndex = matchInSimultaneousGroup(padId);
 
-      if (levelRef.current === 'medium') {
-        if (matchIndex >= 0) {
-          acceptHit(matchIndex);
-        } else {
-          statsRef.current.wrongPresses += 1;
-        }
-        return;
-      }
-
-      // free
-      const hitWindow =
-        playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS;
-      const elapsed = getElapsedMs();
-      const delta = Math.abs(elapsed - expected.atMs);
-      if (matchIndex >= 0 && delta <= hitWindow) {
-        acceptHit(matchIndex);
-      } else if (matchIndex < 0) {
+      // A stacked downbeat (crash + kick) may be hit in any order — the
+      // shared judging treats onsets within a millisecond as one group.
+      const judgement =
+        levelRef.current === 'medium'
+          ? judgeStepPress(events, pointerRef.current, padId, padIdOf)
+          : judgeTimedPress(
+              events,
+              pointerRef.current,
+              padId,
+              padIdOf,
+              getElapsedMs(),
+              playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS,
+            );
+      if (judgement.kind === 'hit') {
+        acceptHit(judgement);
+      } else if (judgement.kind === 'wrong') {
         statsRef.current.wrongPresses += 1;
       }
       // Correct pad outside the window: no penalty here — if it stays unhit,
       // the tick loop scores it as a single miss (no double punishment).
     },
-    [acceptHit, getElapsedMs, matchInSimultaneousGroup, playHit],
+    [acceptHit, getElapsedMs, playHit],
   );
 
   const isActive = phase !== 'idle';

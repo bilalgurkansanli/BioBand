@@ -36,6 +36,13 @@ import {
   type NotePerformance,
 } from '../instruments/shared/songPerformance';
 import {
+  applyHit,
+  HIT_WINDOW_BAND_MS,
+  HIT_WINDOW_MS,
+  judgeStepPress,
+  judgeTimedPress,
+} from '../instruments/shared/playAlongScoring';
+import {
   copySongAudioFile,
   copySongPianoLessFile,
   getSongAudioBinding,
@@ -81,10 +88,8 @@ export type PadsPlayAlongProgress = {
   hits: number;
 };
 
-const HIT_WINDOW_MS = 350;
 /** Practice-time award ceiling — a stale clock must not bank hours. */
 const MAX_AWARD_ELAPSED_MS = 30 * 60_000;
-const HIT_WINDOW_BAND_MS = 480;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
 const COUNTDOWN_STEP_MS = 800;
@@ -105,6 +110,8 @@ function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   }
   return 0;
 }
+
+const padIdOf = (event: { padId: string }) => event.padId;
 
 function clampOffset(ms: number): number {
   return Math.max(OFFSET_MIN_MS, Math.min(OFFSET_MAX_MS, Math.round(ms)));
@@ -283,8 +290,8 @@ export function usePadsPlayAlong(
     finishSong();
   }, [finishSong]);
 
-  const advancePointer = useCallback(() => {
-    pointerRef.current += 1;
+  /** Guide, progress and the end-of-chart check, after the pointer moved. */
+  const pointerMoved = useCallback(() => {
     updateGuide();
 
     const events = chartRef.current;
@@ -298,6 +305,27 @@ export function usePadsPlayAlong(
       maybeFinishAfterNotes();
     }
   }, [maybeFinishAfterNotes, updateGuide]);
+
+  const advancePointer = useCallback(() => {
+    pointerRef.current += 1;
+    pointerMoved();
+  }, [pointerMoved]);
+
+  /** Score a judged hit: notes it passed over become misses, then move on. */
+  const acceptHit = useCallback(
+    (judgement: { index: number; skipped: number }) => {
+      const state = { pointer: pointerRef.current, ...statsRef.current };
+      applyHit(chartRef.current, state, judgement);
+      pointerRef.current = state.pointer;
+      statsRef.current = {
+        hits: state.hits,
+        misses: state.misses,
+        wrongPresses: state.wrongPresses,
+      };
+      pointerMoved();
+    },
+    [pointerMoved],
+  );
 
   const buildSession = useCallback((): ResolvedPadSession | null => {
     const song = songRef.current;
@@ -991,35 +1019,30 @@ export function usePadsPlayAlong(
         return;
       }
 
-      const event = events[pointerRef.current];
-
-      if (levelRef.current === 'medium') {
-        if (event && padId === event.padId) {
-          statsRef.current.hits += 1;
-          advancePointer();
-        } else {
-          statsRef.current.wrongPresses += 1;
-        }
+      // Past the last note (a band track playing out) nothing is scored —
+      // noodling along to the outro is not a wrong press.
+      if (pointerRef.current >= events.length) {
         return;
       }
 
-      const elapsed = getElapsedMs();
-      const hitWindow =
-        playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS;
-
-      if (
-        event &&
-        padId === event.padId &&
-        elapsed >= event.atMs - hitWindow &&
-        elapsed <= event.atMs + hitWindow
-      ) {
-        statsRef.current.hits += 1;
-        advancePointer();
+      const judgement =
+        levelRef.current === 'medium'
+          ? judgeStepPress(events, pointerRef.current, padId, padIdOf)
+          : judgeTimedPress(
+              events,
+              pointerRef.current,
+              padId,
+              padIdOf,
+              getElapsedMs(),
+              playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS,
+            );
+      if (judgement.kind === 'hit') {
+        acceptHit(judgement);
       } else {
         statsRef.current.wrongPresses += 1;
       }
     },
-    [advancePointer, getElapsedMs, triggerPad],
+    [acceptHit, getElapsedMs, triggerPad],
   );
 
   const isActive =

@@ -34,6 +34,13 @@ import {
   type NotePerformance,
 } from '../instruments/shared/songPerformance';
 import {
+  applyHit,
+  HIT_WINDOW_BAND_MS,
+  HIT_WINDOW_MS,
+  judgeStepPress,
+  judgeTimedPress,
+} from '../instruments/shared/playAlongScoring';
+import {
   copySongAudioFile,
   mergeSongWithAudioBinding,
   saveSongAudioBinding,
@@ -77,9 +84,6 @@ export type ViolinPlayAlongProgress = {
   hits: number;
 };
 
-const HIT_WINDOW_MS = 350;
-/** Slightly wider window when playing over a live mix (latency + distraction). */
-const HIT_WINDOW_BAND_MS = 480;
 const TICK_MS = 60;
 const COUNTDOWN_START = 3;
 const COUNTDOWN_STEP_MS = 800;
@@ -102,6 +106,8 @@ function computeStars(accuracy: number): 0 | 1 | 2 | 3 {
   }
   return 0;
 }
+
+const soundIdOf = (event: { soundId: string }) => event.soundId;
 
 function clampOffset(ms: number): number {
   return Math.max(OFFSET_MIN_MS, Math.min(OFFSET_MAX_MS, Math.round(ms)));
@@ -280,8 +286,8 @@ export function useViolinPlayAlong(
     finishSong();
   }, [finishSong]);
 
-  const advancePointer = useCallback(() => {
-    pointerRef.current += 1;
+  /** Guide, progress and the end-of-chart check, after the pointer moved. */
+  const pointerMoved = useCallback(() => {
     updateGuide();
 
     const events = chartRef.current;
@@ -295,6 +301,27 @@ export function useViolinPlayAlong(
       maybeFinishAfterNotes();
     }
   }, [maybeFinishAfterNotes, updateGuide]);
+
+  const advancePointer = useCallback(() => {
+    pointerRef.current += 1;
+    pointerMoved();
+  }, [pointerMoved]);
+
+  /** Score a judged hit: notes it passed over become misses, then move on. */
+  const acceptHit = useCallback(
+    (judgement: { index: number; skipped: number }) => {
+      const state = { pointer: pointerRef.current, ...statsRef.current };
+      applyHit(chartRef.current, state, judgement);
+      pointerRef.current = state.pointer;
+      statsRef.current = {
+        hits: state.hits,
+        misses: state.misses,
+        wrongPresses: state.wrongPresses,
+      };
+      pointerMoved();
+    },
+    [pointerMoved],
+  );
 
   const buildSession = useCallback((): ResolvedViolinSession | null => {
     const song = songRef.current;
@@ -930,38 +957,29 @@ export function useViolinPlayAlong(
       }
 
       const events = chartRef.current;
-      const idx = pointerRef.current;
-      const expected = events[idx];
-      if (!expected) {
+      if (pointerRef.current >= events.length) {
         return;
       }
+      play();
 
-      if (levelRef.current === 'medium') {
-        if (soundId === expected.soundId) {
-          play();
-          statsRef.current.hits += 1;
-          advancePointer();
-        } else {
-          play();
-          statsRef.current.wrongPresses += 1;
-        }
-        return;
-      }
-
-      const hitWindow =
-        playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS;
-      const elapsed = getElapsedMs();
-      const delta = Math.abs(elapsed - expected.atMs);
-      if (soundId === expected.soundId && delta <= hitWindow) {
-        play();
-        statsRef.current.hits += 1;
-        advancePointer();
+      const judgement =
+        levelRef.current === 'medium'
+          ? judgeStepPress(events, pointerRef.current, soundId, soundIdOf)
+          : judgeTimedPress(
+              events,
+              pointerRef.current,
+              soundId,
+              soundIdOf,
+              getElapsedMs(),
+              playModeRef.current === 'fullBand' ? HIT_WINDOW_BAND_MS : HIT_WINDOW_MS,
+            );
+      if (judgement.kind === 'hit') {
+        acceptHit(judgement);
       } else {
-        play();
         statsRef.current.wrongPresses += 1;
       }
     },
-    [advancePointer, getElapsedMs, playSoundId],
+    [acceptHit, getElapsedMs, playSoundId],
   );
 
   const isActive = phase !== 'idle';
