@@ -1,4 +1,10 @@
 import { PIANO_NOTES, type NoteId } from '../pianoNotes';
+import {
+  chooseOctaveShift as chooseShiftForRange,
+  foldIntoRange,
+  MAX_PITCH_OCTAVE,
+  MIN_PITCH_OCTAVE,
+} from '../../shared/midiPitch';
 import type { SongRole } from '../../shared/songPerformance';
 import type { SongDefinition, SongEvent, SongMeter } from './types';
 
@@ -56,18 +62,30 @@ export function isValidNoteId(value: unknown): value is NoteId {
   return typeof value === 'string' && VALID_NOTE_IDS.has(value);
 }
 
-/** Pitch name (C4, Bb3, F#-less spelling) → MIDI number, without folding. */
+/**
+ * Pitch name (C4, Bb3, F#-less spelling) → MIDI number, without folding.
+ *
+ * The octave is bounded to the MIDI range (-1…9). An unbounded one
+ * ("C99999999999999999999") used to parse to a number so large that folding it
+ * onto the keyboard never terminated — reachable from both file import and the
+ * paste box.
+ */
 export function parsePitchToMidi(value: unknown): number | null {
   if (typeof value !== 'string') {
     return null;
   }
-  const match = /^([A-G]b?)(-?\d+)$/.exec(value.trim());
+  const match = /^([A-G]b?)(-?\d{1,3})$/.exec(value.trim());
   if (!match) {
     return null;
   }
   const pc = PITCH_CLASS[match[1]];
   const octave = Number(match[2]);
-  if (pc === undefined || !Number.isFinite(octave)) {
+  if (
+    pc === undefined ||
+    !Number.isInteger(octave) ||
+    octave < MIN_PITCH_OCTAVE ||
+    octave > MAX_PITCH_OCTAVE
+  ) {
     return null;
   }
   return (octave + 1) * 12 + pc;
@@ -76,57 +94,18 @@ export function parsePitchToMidi(value: unknown): number | null {
 /**
  * One octave shift for a whole set of pitches — the one leaving the fewest
  * outside the keyboard, breaking ties toward the range's centre.
- *
- * Folding each note into range on its own is what makes an imported tune stop
- * sounding like itself: a descending line suddenly leaps an octave up, and
- * contour is the most recognisable thing a melody has. Moving the whole piece
- * keeps every interval intact.
  */
 export function chooseOctaveShift(midiNumbers: number[]): number {
-  if (midiNumbers.length === 0) {
-    return 0;
-  }
-
-  const centre = (MIDI_C4 + MIDI_B5) / 2;
-  const mean = midiNumbers.reduce((sum, n) => sum + n, 0) / midiNumbers.length;
-
-  let bestShift = 0;
-  let bestOutside = Infinity;
-  let bestDistance = Infinity;
-
-  for (let shift = -72; shift <= 72; shift += 12) {
-    let outside = 0;
-    for (const n of midiNumbers) {
-      const shifted = n + shift;
-      if (shifted < MIDI_C4 || shifted > MIDI_B5) {
-        outside += 1;
-      }
-    }
-    const distance = Math.abs(mean + shift - centre);
-
-    if (
-      outside < bestOutside ||
-      (outside === bestOutside && distance < bestDistance)
-    ) {
-      bestOutside = outside;
-      bestDistance = distance;
-      bestShift = shift;
-    }
-  }
-
-  return bestShift;
+  return chooseShiftForRange(midiNumbers, MIDI_C4, MIDI_B5);
 }
 
-/** Land a MIDI number on the keyboard, folding only what the shift missed. */
+/**
+ * Land a MIDI number on the keyboard, folding only what the shift missed.
+ * Constant time and total: non-finite input lands on C4 instead of hanging.
+ */
 export function fitMidiToKeyboard(midiNumber: number): NoteId {
-  let n = Math.round(midiNumber);
-  while (n < MIDI_C4) {
-    n += 12;
-  }
-  while (n > MIDI_B5) {
-    n -= 12;
-  }
-  return NOTE_ID_BY_MIDI.get(n) ?? 'C4';
+  const folded = foldIntoRange(midiNumber, MIDI_C4, MIDI_B5);
+  return (folded !== null ? NOTE_ID_BY_MIDI.get(folded) : undefined) ?? 'C4';
 }
 
 /**
