@@ -61,7 +61,18 @@ async function sessionFromRedirect(url: string): Promise<Session | null> {
       access_token: accessToken,
       refresh_token: refreshToken,
     });
-    return error ? null : data.session;
+    if (error || !data.session) {
+      return null;
+    }
+    // setSession() rebuilds the session from the two Supabase tokens alone,
+    // so Apple's refresh token — which rides in the same fragment, and which
+    // supabase-js's own URL handler would have picked up — is dropped on the
+    // way. Without it the caller has nothing to park for revocation, and
+    // deleting the account would leave the Apple authorization standing.
+    const providerRefreshToken = params.get('provider_refresh_token');
+    return providerRefreshToken
+      ? { ...data.session, provider_refresh_token: providerRefreshToken }
+      : data.session;
   }
 
   return null;
