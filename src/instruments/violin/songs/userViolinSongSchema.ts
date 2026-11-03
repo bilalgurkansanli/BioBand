@@ -1,7 +1,17 @@
+import {
+  createUserSongId,
+  finalizeEvents,
+  parseJsonObject,
+  readArtist,
+  readAtMs,
+  readEventArray,
+  readPartialCount,
+  readTitle,
+  SongDocumentError,
+} from '../../shared/userSongDocument';
 import { formatNoteSoundId, parseViolinSoundId, type ViolinStringId } from '../violinSounds';
 import type { ViolinSongDefinition, ViolinSongDifficulty, ViolinSongEvent } from './types';
 
-export const MAX_USER_VIOLIN_EVENTS = 800;
 export const DEFAULT_PARTIAL_COUNT = 12;
 
 const DIFFICULTIES = new Set<ViolinSongDifficulty>(['easy', 'medium', 'hard']);
@@ -15,6 +25,7 @@ export type UserViolinSongParseErrorCode =
   | 'tooManyNotes'
   | 'midiParseFailed'
   | 'readFailed'
+  | 'fileTooLarge'
   | 'unsupported';
 
 export class UserViolinSongParseError extends Error {
@@ -27,54 +38,70 @@ export class UserViolinSongParseError extends Error {
   }
 }
 
+/** Run a shared validation step, reporting its failure as this instrument's error. */
+function asViolinError<T>(run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    if (error instanceof SongDocumentError) {
+      throw new UserViolinSongParseError(error.code);
+    }
+    throw error;
+  }
+}
+
+/**
+ * The scoring form of a sound id, or null when it is not one. The parser
+ * clamps a position past the fingerboard (`v1:42` → `v1:9`), but a chart that
+ * kept the raw spelling could never be matched by a press.
+ */
+export function canonicalViolinSoundId(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const parsed = parseViolinSoundId(value);
+  if (!parsed) {
+    return null;
+  }
+  return parsed.kind === 'phrase'
+    ? `phrase:${parsed.phraseId}`
+    : formatNoteSoundId(parsed.stringId, parsed.position);
+}
+
 export function isValidViolinSoundId(value: unknown): value is string {
-  return typeof value === 'string' && parseViolinSoundId(value) !== null;
+  return canonicalViolinSoundId(value) !== null;
 }
 
 export function createUserViolinSongId(): string {
-  return `violin-user-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createUserSongId('violin-user');
 }
 
-function parseEvents(raw: unknown): ViolinSongEvent[] {
-  if (!Array.isArray(raw)) {
-    throw new UserViolinSongParseError('invalidSchema');
-  }
-  if (raw.length === 0) {
-    throw new UserViolinSongParseError('emptySong');
-  }
-  if (raw.length > MAX_USER_VIOLIN_EVENTS) {
-    throw new UserViolinSongParseError('tooManyNotes');
-  }
+function parseEvents(doc: Record<string, unknown>): ViolinSongEvent[] {
+  const raw = asViolinError(() => readEventArray(doc));
 
   const events: ViolinSongEvent[] = [];
-  for (const item of raw) {
-    if (!item || typeof item !== 'object') {
-      throw new UserViolinSongParseError('invalidSchema');
-    }
-    const entry = item as Record<string, unknown>;
-
-    let soundId: string | null = null;
-    if (isValidViolinSoundId(entry.soundId)) {
-      soundId = entry.soundId;
-    } else if (
+  for (const entry of raw) {
+    let soundId = canonicalViolinSoundId(entry.soundId);
+    if (
+      !soundId &&
       typeof entry.stringId === 'string' &&
       STRING_IDS.has(entry.stringId as ViolinStringId) &&
       typeof entry.position === 'number' &&
       Number.isFinite(entry.position)
     ) {
-      const candidate = formatNoteSoundId(entry.stringId as ViolinStringId, entry.position);
-      if (isValidViolinSoundId(candidate)) {
-        soundId = candidate;
-      }
+      soundId = canonicalViolinSoundId(
+        formatNoteSoundId(entry.stringId as ViolinStringId, entry.position),
+      );
     }
 
     if (!soundId) {
       throw new UserViolinSongParseError('invalidSound');
     }
-    if (typeof entry.atMs !== 'number' || !Number.isFinite(entry.atMs) || entry.atMs < 0) {
+    const atMs = readAtMs(entry.atMs);
+    if (atMs === null) {
       throw new UserViolinSongParseError('invalidSchema');
     }
-    events.push({ soundId, atMs: Math.round(entry.atMs) });
+    events.push({ soundId, atMs });
   }
 
   events.sort((a, b) => a.atMs - b.atMs);
@@ -97,49 +124,16 @@ export function parseUserViolinSongJson(
   text: string,
   options?: { fallbackTitle?: string },
 ): ViolinSongDefinition & { artist?: string } {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text) as unknown;
-  } catch {
-    throw new UserViolinSongParseError('invalidJson');
-  }
-
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new UserViolinSongParseError('invalidSchema');
-  }
-
-  const doc = parsed as Record<string, unknown>;
-  const title =
-    typeof doc.title === 'string' && doc.title.trim().length > 0
-      ? doc.title.trim()
-      : options?.fallbackTitle?.trim() || 'Untitled';
-
-  const artist =
-    typeof doc.artist === 'string' && doc.artist.trim().length > 0
-      ? doc.artist.trim()
-      : undefined;
-
-  if (!('events' in doc) || !Array.isArray(doc.events)) {
-    throw new UserViolinSongParseError('invalidSchema');
-  }
-
-  const events = parseEvents(doc.events);
-  const difficulty = parseDifficulty(doc.difficulty);
-
-  const partialCount =
-    typeof doc.partialCount === 'number' &&
-    Number.isFinite(doc.partialCount) &&
-    doc.partialCount > 0
-      ? Math.min(Math.round(doc.partialCount), events.length)
-      : Math.min(DEFAULT_PARTIAL_COUNT, events.length);
+  const doc = asViolinError(() => parseJsonObject(text));
+  const events = parseEvents(doc);
 
   return {
     id: createUserViolinSongId(),
-    title,
-    artist,
-    difficulty,
+    title: readTitle(doc.title, options?.fallbackTitle),
+    artist: readArtist(doc.artist),
+    difficulty: parseDifficulty(doc.difficulty),
     events,
-    partialCount,
+    partialCount: readPartialCount(doc.partialCount, events.length, DEFAULT_PARTIAL_COUNT),
   };
 }
 
@@ -150,25 +144,14 @@ export function buildUserViolinSongDefinition(input: {
   difficulty?: ViolinSongDifficulty;
   partialCount?: number;
 }): ViolinSongDefinition & { artist?: string } {
-  if (input.events.length === 0) {
-    throw new UserViolinSongParseError('emptySong');
-  }
-  if (input.events.length > MAX_USER_VIOLIN_EVENTS) {
-    throw new UserViolinSongParseError('tooManyNotes');
-  }
-
-  const events = [...input.events].sort((a, b) => a.atMs - b.atMs);
-  const partialCount =
-    input.partialCount && input.partialCount > 0
-      ? Math.min(input.partialCount, events.length)
-      : Math.min(DEFAULT_PARTIAL_COUNT, events.length);
+  const events = asViolinError(() => finalizeEvents(input.events));
 
   return {
     id: createUserViolinSongId(),
-    title: input.title.trim() || 'Untitled',
-    artist: input.artist?.trim() || undefined,
+    title: readTitle(input.title),
+    artist: readArtist(input.artist),
     difficulty: input.difficulty ?? 'medium',
     events,
-    partialCount,
+    partialCount: readPartialCount(input.partialCount, events.length, DEFAULT_PARTIAL_COUNT),
   };
 }

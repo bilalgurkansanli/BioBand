@@ -576,6 +576,7 @@
           "tooManyNotes": "Çok fazla vuruş (en fazla 800).",
           "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "fileTooLarge": "Bu dosya bir şarkı için çok büyük (en fazla 2 MB).",
           "pickerUnavailable": "Dosya seçici yok — bunun yerine JSON yapıştır."
         }
       },
@@ -709,6 +710,7 @@
           "tooManyNotes": "Çok fazla nota (en fazla 800).",
           "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "fileTooLarge": "Bu dosya bir şarkı için çok büyük (en fazla 2 MB).",
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır."
         }
       },
@@ -899,6 +901,7 @@
           "tooManyNotes": "Çok fazla nota (en fazla 800).",
           "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "fileTooLarge": "Bu dosya bir şarkı için çok büyük (en fazla 2 MB).",
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır."
         }
       },
@@ -1125,6 +1128,7 @@
           "tooManyNotes": "Çok fazla vuruş (en fazla 800).",
           "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "fileTooLarge": "Bu dosya bir şarkı için çok büyük (en fazla 2 MB).",
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır."
         }
       },
@@ -1398,6 +1402,7 @@
           "tooManyNotes": "Çok fazla nota (en fazla 800).",
           "midiParseFailed": "MIDI dosyası okunamadı.",
           "readFailed": "Dosya okunamadı. Tekrar dene.",
+          "fileTooLarge": "Bu dosya bir şarkı için çok büyük (en fazla 2 MB).",
           "pickerUnavailable": "Dosya seçici yok — JSON yapıştır ile ekleyebilirsin."
         }
       },

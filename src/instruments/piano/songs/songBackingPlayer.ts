@@ -16,6 +16,14 @@ let desiredPlaybackRate = 1;
 
 let activePlayer: AudioPlayer | null = null;
 let statusSub: { remove: () => void } | null = null;
+/**
+ * Bumped by every stop (and so by every prepare). Preparing and starting a
+ * track both await the audio session first; a stop that lands during that
+ * await — the user closing the lesson while the track loads — used to be
+ * undone a moment later when the await resumed and created or started the
+ * player anyway.
+ */
+let generation = 0;
 
 async function ensureMixableAudio(): Promise<void> {
   await restorePlaybackAudioMode();
@@ -30,12 +38,18 @@ async function ensureMixableAudio(): Promise<void> {
  * over `uri` (full mix) so the user's live piano replaces the recording's.
  */
 export async function prepareBackingTrack(source: SongBackingTrack): Promise<void> {
-  await stopBackingTrack();
+  const stopped = stopBackingTrack();
+  // Read after our own stop bumped it: any later stop or prepare supersedes us.
+  const mine = generation;
+  await stopped;
   if (!songHasBackingAudio(source)) {
     return;
   }
 
   await ensureMixableAudio();
+  if (generation !== mine) {
+    return;
+  }
 
   // Piano-less stem gets priority — best "play-along" feel.
   if (typeof source.pianoLessUri === 'string' && source.pianoLessUri.length > 0) {
@@ -67,15 +81,23 @@ export function setBackingPlaybackRate(rate: number): void {
 }
 
 export async function playBackingFrom(startMs: number): Promise<void> {
-  if (!activePlayer) {
+  const player = activePlayer;
+  if (!player) {
     return;
   }
+  const mine = generation;
   await ensureMixableAudio();
-  activePlayer.volume = currentBackingVolume;
-  activePlayer.shouldCorrectPitch = true;
-  activePlayer.playbackRate = desiredPlaybackRate;
-  await activePlayer.seekTo(Math.max(0, startMs) / 1000);
-  activePlayer.play();
+  if (generation !== mine || activePlayer !== player) {
+    return;
+  }
+  player.volume = currentBackingVolume;
+  player.shouldCorrectPitch = true;
+  player.playbackRate = desiredPlaybackRate;
+  await player.seekTo(Math.max(0, startMs) / 1000);
+  if (generation !== mine || activePlayer !== player) {
+    return;
+  }
+  player.play();
 }
 
 export function pauseBackingTrack(): void {
@@ -107,6 +129,7 @@ export function onBackingFinished(callback: () => void): void {
 }
 
 export async function stopBackingTrack(): Promise<void> {
+  generation += 1;
   statusSub?.remove();
   statusSub = null;
   if (activePlayer) {

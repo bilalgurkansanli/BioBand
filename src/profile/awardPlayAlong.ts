@@ -9,6 +9,7 @@ import {
 import type { InstrumentId } from '../types/recording';
 import { CHALLENGE_PRACTICE_MS } from '../types/profile';
 import {
+  completesSongOfWeek,
   dailyChallengeId,
   getDailyChallengeKind,
   getWeeklyChallengeKind,
@@ -71,11 +72,8 @@ export async function awardPlayAlongCompletion(input: PlayAlongAwardInput): Prom
   const weekKey = isoWeekKey();
   if (weeklyKind.type === 'finish-any-song-week') {
     await markChallengeComplete(weeklyChallengeId(weekKey, weeklyKind));
-  } else if (
-    weeklyKind.type === 'song-of-week' &&
-    input.songId &&
-    input.songId === weeklyKind.songId
-  ) {
+  } else if (completesSongOfWeek(weeklyKind, input.instrument, input.songId)) {
+    // The challenge id is unchanged, so a week already completed stays so.
     await markChallengeComplete(weeklyChallengeId(weekKey, weeklyKind));
   }
 }

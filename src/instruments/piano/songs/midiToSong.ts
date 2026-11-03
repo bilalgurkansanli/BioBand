@@ -1,113 +1,26 @@
-import { parseMidi } from 'midi-file';
-
-import { PIANO_NOTES, type NoteId } from '../pianoNotes';
+import {
+  finishImportedEvents,
+  importTitle,
+  selectMelodicParts,
+  splitChords,
+} from '../../shared/midiArrange';
+import { noteTimes, readMidiFile, type MidiFileContent, type MidiNote } from '../../shared/midiReader';
+import { MAX_USER_SONG_EVENTS, readDurationMs } from '../../shared/userSongDocument';
 import {
   UserSongParseError,
   buildUserSongDefinition,
+  chooseOctaveShift,
   DEFAULT_PREVIEW_DURATION_MS,
-  MAX_USER_SONG_EVENTS,
+  fitMidiToKeyboard,
 } from './userSongSchema';
 import type { SongDefinition, SongEvent } from './types';
 
 const MIDI_C4 = 60;
 const MIDI_B5 = 83;
-const DEFAULT_MICROSECONDS_PER_BEAT = 500_000;
-/** Keep at most two strongest melodic tracks from a multi-track MIDI. */
+/** Keep at most two strongest melodic parts from a multi-part MIDI. */
 const MAX_TRACKS_TO_KEEP = 2;
-/** Notes starting within this many ticks count as one chord. */
-const CHORD_TICK_WINDOW = 8;
-
-const NOTE_ID_BY_MIDI = new Map<number, NoteId>(
-  PIANO_NOTES.map((note) => [note.midi, note.id]),
-);
-
-type RawNote = {
-  tick: number;
-  /** Tick the note was released — null when the file never closes it. */
-  endTick: number | null;
-  noteNumber: number;
-  /** 0..1, from the MIDI strike velocity. */
-  velocity: number;
-  trackIndex: number;
-};
-
-/**
- * Map any MIDI pitch into the piano's two-octave range (C4–B5) by octave wrapping.
- */
-export function wrapMidiToPianoRange(midiNumber: number): NoteId {
-  let n = Math.round(midiNumber);
-  while (n < MIDI_C4) {
-    n += 12;
-  }
-  while (n > MIDI_B5) {
-    n -= 12;
-  }
-  const noteId = NOTE_ID_BY_MIDI.get(n);
-  if (!noteId) {
-    return 'C4';
-  }
-  return noteId;
-}
-
-/**
- * One octave shift for the whole piece — the one leaving the fewest notes
- * outside the keyboard, breaking ties toward the range's centre.
- *
- * Folding each note into range on its own is what makes an imported tune stop
- * sounding like itself: a descending line suddenly leaps an octave up, and
- * melodic contour is the most recognisable thing a melody has. Moving the
- * whole piece keeps every interval intact.
- */
-export function chooseOctaveShift(midiNumbers: number[]): number {
-  if (midiNumbers.length === 0) {
-    return 0;
-  }
-
-  const centre = (MIDI_C4 + MIDI_B5) / 2;
-  const mean =
-    midiNumbers.reduce((sum, n) => sum + n, 0) / midiNumbers.length;
-
-  let bestShift = 0;
-  let bestOutside = Infinity;
-  let bestDistance = Infinity;
-
-  for (let shift = -72; shift <= 72; shift += 12) {
-    let outside = 0;
-    for (const n of midiNumbers) {
-      const shifted = n + shift;
-      if (shifted < MIDI_C4 || shifted > MIDI_B5) {
-        outside += 1;
-      }
-    }
-    const distance = Math.abs(mean + shift - centre);
-
-    if (outside < bestOutside || (outside === bestOutside && distance < bestDistance)) {
-      bestOutside = outside;
-      bestDistance = distance;
-      bestShift = shift;
-    }
-  }
-
-  return bestShift;
-}
-
-function titleFromFileName(fileName: string): string {
-  const base = fileName.replace(/\.(mid|midi)$/i, '').trim();
-  return base.length > 0 ? base : 'Imported MIDI';
-}
-
-function scoreTrack(notes: RawNote[]): number {
-  if (notes.length === 0) {
-    return -Infinity;
-  }
-  const avgPitch =
-    notes.reduce((sum, note) => sum + note.noteNumber, 0) / notes.length;
-  // Prefer denser, mid/high melodic lines over sparse bass pads.
-  return notes.length * 2 + avgPitch;
-}
-
-/** Lowest voice must sit this far under the tune to be worth keeping. */
-const BASS_MIN_INTERVAL = 7;
+/** Quarter note assumed when the file has no beat (SMPTE timing). */
+const FALLBACK_QUARTER_MS = 500;
 
 /**
  * How far a note may be nudged onto the sixteenth grid.
@@ -186,190 +99,35 @@ export function chooseBassTranspose(shiftedMidis: number[]): number {
 }
 
 /**
- * Split notes that start nearly together into the tune (top note) and the
- * voice under it (bottom note, when it is far enough below to be a real part
- * rather than a doubling). Keeping only the top line is what strips a song of
- * the thing that identifies it — the bass of Billie Jean, the rocking left
- * hand of Für Elise — leaving a correct but unrecognisable melody.
- */
-function splitChords(notes: RawNote[]): { melody: RawNote[]; bass: RawNote[] } {
-  if (notes.length === 0) {
-    return { melody: [], bass: [] };
-  }
-
-  const sorted = [...notes].sort(
-    (a, b) => a.tick - b.tick || b.noteNumber - a.noteNumber,
-  );
-  const melody: RawNote[] = [];
-  const bass: RawNote[] = [];
-
-  let groupTick = sorted[0].tick;
-  let groupTop = sorted[0];
-  let groupBottom = sorted[0];
-
-  const flush = (): void => {
-    melody.push(groupTop);
-    if (groupTop.noteNumber - groupBottom.noteNumber >= BASS_MIN_INTERVAL) {
-      bass.push(groupBottom);
-    }
-  };
-
-  for (let i = 1; i < sorted.length; i++) {
-    const note = sorted[i];
-    if (note.tick - groupTick <= CHORD_TICK_WINDOW) {
-      if (note.noteNumber > groupTop.noteNumber) {
-        groupTop = note;
-      }
-      if (note.noteNumber < groupBottom.noteNumber) {
-        groupBottom = note;
-      }
-      continue;
-    }
-    flush();
-    groupTick = note.tick;
-    groupTop = note;
-    groupBottom = note;
-  }
-  flush();
-
-  return { melody, bass };
-}
-
-/**
  * Convert a MIDI file buffer into a BioBand SongDefinition.
- * Picks the strongest melodic track(s), thins chords to top notes, wraps range.
+ * Picks the strongest melodic parts, splits chords into tune and under-voice,
+ * shifts the whole piece onto the keyboard.
  */
 export function midiBytesToSong(
   bytes: ArrayLike<number>,
   options?: { fileName?: string },
 ): SongDefinition {
-  let midi;
+  let file: MidiFileContent;
   try {
-    midi = parseMidi(bytes);
+    file = readMidiFile(bytes);
   } catch {
     throw new UserSongParseError('midiParseFailed');
   }
 
-  const ticksPerBeat = midi.header.ticksPerBeat ?? 480;
-  const tempoMap: { tick: number; microsecondsPerBeat: number }[] = [
-    { tick: 0, microsecondsPerBeat: DEFAULT_MICROSECONDS_PER_BEAT },
-  ];
-
-  const notesByTrack = new Map<number, RawNote[]>();
-  let trackName: string | undefined;
-  let timeSignature: { numerator: number; denominator: number } | undefined;
-
-  midi.tracks.forEach((track, trackIndex) => {
-    let absTick = 0;
-    const list: RawNote[] = [];
-    /** Notes sounding right now, so a note-off can give them their length. */
-    const open = new Map<number, RawNote>();
-
-    const close = (noteNumber: number, tick: number): void => {
-      const note = open.get(noteNumber);
-      if (note) {
-        note.endTick = tick;
-        open.delete(noteNumber);
-      }
-    };
-
-    for (const event of track) {
-      absTick += event.deltaTime;
-
-      if (event.type === 'setTempo') {
-        tempoMap.push({
-          tick: absTick,
-          microsecondsPerBeat: event.microsecondsPerBeat,
-        });
-      }
-
-      if (event.type === 'trackName' && !trackName && event.text.trim()) {
-        trackName = event.text.trim();
-      }
-
-      // The bar line the file itself declares — better than assuming 4/4.
-      if (event.type === 'timeSignature' && !timeSignature) {
-        timeSignature = {
-          numerator: event.numerator,
-          denominator: event.denominator,
-        };
-      }
-
-      if (event.type === 'noteOn' && event.velocity > 0) {
-        // A retrigger without an intervening note-off ends the previous one.
-        close(event.noteNumber, absTick);
-        const note: RawNote = {
-          tick: absTick,
-          endTick: null,
-          noteNumber: event.noteNumber,
-          velocity: Math.min(1, Math.max(0.05, event.velocity / 127)),
-          trackIndex,
-        };
-        open.set(event.noteNumber, note);
-        list.push(note);
-      } else if (
-        event.type === 'noteOff' ||
-        (event.type === 'noteOn' && event.velocity === 0)
-      ) {
-        close(event.noteNumber, absTick);
-      }
-    }
-
-    if (list.length > 0) {
-      notesByTrack.set(trackIndex, list);
-    }
-  });
-
-  const ranked = [...notesByTrack.entries()]
-    .map(([trackIndex, notes]) => ({
-      trackIndex,
-      notes,
-      score: scoreTrack(notes),
-    }))
-    .filter((entry) => entry.notes.length > 0)
-    .sort((a, b) => b.score - a.score);
-
-  if (ranked.length === 0) {
+  const combined = selectMelodicParts(file.notes, MAX_TRACKS_TO_KEEP);
+  if (combined.length === 0) {
     throw new UserSongParseError('emptySong');
   }
 
-  const selectedTracks = ranked.slice(0, MAX_TRACKS_TO_KEEP);
-  const combined = selectedTracks.flatMap((entry) => entry.notes);
   const { melody, bass } = splitChords(combined);
   const octaveShift = chooseOctaveShift(melody.map((note) => note.noteNumber));
   const bassTranspose = chooseBassTranspose(
     bass.map((note) => note.noteNumber + octaveShift),
   );
 
-  tempoMap.sort((a, b) => a.tick - b.tick);
-
-  function ticksToMs(tick: number): number {
-    let ms = 0;
-    let prevTick = 0;
-    let tempo = DEFAULT_MICROSECONDS_PER_BEAT;
-
-    for (const point of tempoMap) {
-      if (point.tick > tick) {
-        break;
-      }
-      if (point.tick > prevTick) {
-        ms += ((point.tick - prevTick) / ticksPerBeat) * (tempo / 1000);
-        prevTick = point.tick;
-      }
-      tempo = point.microsecondsPerBeat;
-    }
-
-    if (tick > prevTick) {
-      ms += ((tick - prevTick) / ticksPerBeat) * (tempo / 1000);
-    }
-
-    return Math.round(ms);
-  }
-
-  const toEvent = (note: RawNote, role: 'melody' | 'accompaniment'): SongEvent => {
-    const atMs = ticksToMs(note.tick);
-    const durationMs =
-      note.endTick !== null ? Math.max(1, ticksToMs(note.endTick) - atMs) : undefined;
+  const toEvent = (note: MidiNote, role: 'melody' | 'accompaniment'): SongEvent => {
+    const { atMs, durationMs: rawDuration } = noteTimes(note, file.timing);
+    const durationMs = readDurationMs(rawDuration);
     const shifted = note.noteNumber + octaveShift;
 
     // The shift centres the tune, which leaves the under-voice below the
@@ -380,7 +138,7 @@ export function midiBytesToSong(
     // intact. The melody cannot do this: the user has to press the key that
     // lights up.
     const transpose = role === 'accompaniment' ? bassTranspose : 0;
-    const noteId = wrapMidiToPianoRange(shifted - transpose);
+    const noteId = fitMidiToKeyboard(shifted - transpose);
 
     return {
       noteId,
@@ -399,47 +157,19 @@ export function midiBytesToSong(
     events = events.concat(bass.map((note) => toEvent(note, 'accompaniment')));
   }
 
-  events.sort((a, b) => a.atMs - b.atMs);
-
   // Drop exact same-time duplicates after wrap. Melody and bass are merged by
-  // now, so a clash need not be adjacent within its onset group.
-  const deduped: SongEvent[] = [];
-  const seen = new Set<string>();
-  for (const event of events) {
-    // Transpose is part of the identity: a melody note and an under-voice on
-    // the same key sound an octave apart and are both wanted.
-    const key = `${event.atMs}:${event.noteId}:${event.transpose ?? 0}`;
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    deduped.push(event);
-  }
-  events = deduped;
+  // now, so a clash need not be adjacent within its onset group. Transpose is
+  // part of the identity: a melody note and an under-voice on the same key
+  // sound an octave apart and are both wanted.
+  events = finishImportedEvents(events, {
+    maxEvents: MAX_USER_SONG_EVENTS,
+    keyOf: (event) => `${event.noteId}:${event.transpose ?? 0}`,
+  });
 
-  if (events.length > MAX_USER_SONG_EVENTS) {
-    events = events.slice(0, MAX_USER_SONG_EVENTS);
-  }
-
-  const minAt = events.reduce((min, e) => Math.min(min, e.atMs), Infinity);
-  if (minAt > 0 && Number.isFinite(minAt)) {
-    for (const event of events) {
-      event.atMs -= minAt;
-    }
-  }
-
-  // A quarter note in ms, from the file's own tempo. The map always opens with
-  // a fallback entry at tick 0, so steadiness is about whether anything CHANGES
-  // later — a file that speeds up has no single grid to tidy against and is
-  // left exactly as performed.
-  const openingTempo =
-    [...tempoMap].filter((point) => point.tick <= 0).pop() ?? tempoMap[0];
-  const quarterMs = openingTempo.microsecondsPerBeat / 1000;
-  const steadyTempo = tempoMap.every(
-    (point) =>
-      point.tick <= 0 ||
-      point.microsecondsPerBeat === openingTempo.microsecondsPerBeat,
-  );
+  // A quarter note in ms, from the file's own tempo. A file that speeds up has
+  // no single grid to tidy against and is left exactly as performed.
+  const quarterMs = file.timing.openingQuarterMs ?? FALLBACK_QUARTER_MS;
+  const steadyTempo = file.timing.steadyTempo && file.timing.openingQuarterMs !== null;
 
   if (steadyTempo) {
     events = deJitter(events, quarterMs / 4);
@@ -447,6 +177,7 @@ export function midiBytesToSong(
 
   // 6/8 and 9/8 count in eighths, 2/2 in half notes: the beat is a quarter
   // scaled by the denominator the file declares.
+  const timeSignature = file.timeSignature;
   const meter =
     steadyTempo && timeSignature && timeSignature.denominator > 0
       ? {
@@ -457,12 +188,8 @@ export function midiBytesToSong(
 
   const lastAtMs = events.length > 0 ? events[events.length - 1].atMs : 0;
 
-  const title =
-    trackName ??
-    (options?.fileName ? titleFromFileName(options.fileName) : 'Imported MIDI');
-
   return buildUserSongDefinition({
-    title,
+    title: importTitle(file.trackName, options?.fileName),
     events,
     // Preview the opening rather than a fixed five seconds, and never run past
     // the end of a short piece.
