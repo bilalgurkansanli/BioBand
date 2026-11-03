@@ -311,6 +311,15 @@ export function loadSample(source: number): Promise<AudioBuffer> {
 
   const loading = getAudioContext().decodeAudioData(source);
   bufferCache.set(source, loading);
+  // Only a decoded buffer is worth keeping. A rejected promise left in the
+  // cache would hand the same failure to every later caller, so one transient
+  // decode error (low memory, an interrupted session) would silence that
+  // sample until the app restarts. Dropping it lets the next load retry.
+  loading.catch(() => {
+    if (bufferCache.get(source) === loading) {
+      bufferCache.delete(source);
+    }
+  });
   return loading;
 }
 
