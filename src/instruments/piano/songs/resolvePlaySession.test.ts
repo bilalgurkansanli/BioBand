@@ -1,6 +1,7 @@
 import { HIT_WINDOW_BAND_MS } from '../../shared/playAlongScoring';
 import { PIANO_SONGS } from './catalog';
-import { PARTIAL_TAIL_MS, resolvePlaySession } from './resolvePlaySession';
+import { PARTIAL_TAIL_MS } from '../../shared/countedSession';
+import { resolvePlaySession } from './resolvePlaySession';
 import type { SongDefinition, SongEvent } from './types';
 
 function withBacking(song: SongDefinition, eventsStartMs: number): SongDefinition {

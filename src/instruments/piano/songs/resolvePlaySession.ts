@@ -1,3 +1,6 @@
+// The band excerpt plays on past its last note — stopping exactly on that
+// onset scored the note a miss before its window had fully opened.
+import { PARTIAL_TAIL_MS } from '../../shared/countedSession';
 import {
   songHasBackingAudio,
   type PlayMode,
@@ -18,13 +21,6 @@ export type ResolvedPlaySession = {
 
 /** Notes in the default excerpt when a song does not name one. */
 const DEFAULT_PARTIAL_NOTES = 50;
-
-/**
- * Backing audio kept after the excerpt's last note. Stopping exactly on its
- * onset scored that note a miss before its window had even opened fully; the
- * other instruments already played on for the same two seconds.
- */
-export const PARTIAL_TAIL_MS = 2000;
 
 /**
  * The excerpt is measured in notes the user actually plays. Counting
