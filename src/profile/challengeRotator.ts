@@ -61,6 +61,28 @@ export function getDailyChallengeKind(day: DayKey = todayKey()): DailyChallengeK
   return slot;
 }
 
+/**
+ * The song of the week is drawn from the piano catalog, so only a piano
+ * play-along can complete it. Song ids are only unique within one instrument —
+ * drums have their own `billie-jean` — and matching on the id alone let a
+ * drum lesson tick off the piano challenge.
+ */
+const SONG_OF_WEEK_INSTRUMENT: InstrumentId = 'piano';
+
+/** True when finishing `songId` on `instrument` completes this week's song challenge. */
+export function completesSongOfWeek(
+  kind: WeeklyChallengeKind,
+  instrument: InstrumentId,
+  songId: string | null,
+): boolean {
+  return (
+    kind.type === 'song-of-week' &&
+    instrument === SONG_OF_WEEK_INSTRUMENT &&
+    songId !== null &&
+    songId === kind.songId
+  );
+}
+
 export function getWeeklyChallengeKind(date: Date = new Date()): WeeklyChallengeKind {
   if (PIANO_SONGS.length === 0) {
     return { type: 'finish-any-song-week' };
