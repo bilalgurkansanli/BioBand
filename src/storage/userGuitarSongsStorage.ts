@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { GuitarSongDefinition } from '../instruments/guitar/songs/types';
+import { emptyList, listOf, readJsonOrFallback, updateJson } from './jsonStorage';
 
 const STORAGE_KEY = '@bioband/user-guitar-songs.v1';
 
@@ -12,34 +11,24 @@ export type UserGuitarSong = GuitarSongDefinition & {
   artist?: string;
 };
 
-export async function loadUserGuitarSongs(): Promise<UserGuitarSong[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isUserGuitarSong);
-  } catch {
-    return [];
-  }
+const parseUserGuitarSongs = listOf(isUserGuitarSong);
+
+export function loadUserGuitarSongs(): Promise<UserGuitarSong[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseUserGuitarSongs, emptyList<UserGuitarSong>);
 }
 
-export async function saveUserGuitarSong(song: UserGuitarSong): Promise<UserGuitarSong[]> {
-  const existing = await loadUserGuitarSongs();
-  const next = [song, ...existing.filter((item) => item.id !== song.id)];
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function saveUserGuitarSong(song: UserGuitarSong): Promise<UserGuitarSong[]> {
+  return updateJson(STORAGE_KEY, parseUserGuitarSongs, emptyList<UserGuitarSong>, (existing) => {
+    const next = [song, ...existing.filter((item) => item.id !== song.id)];
+    return { next, result: next };
+  });
 }
 
-export async function deleteUserGuitarSong(songId: string): Promise<UserGuitarSong[]> {
-  const existing = await loadUserGuitarSongs();
-  const next = existing.filter((item) => item.id !== songId);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  return next;
+export function deleteUserGuitarSong(songId: string): Promise<UserGuitarSong[]> {
+  return updateJson(STORAGE_KEY, parseUserGuitarSongs, emptyList<UserGuitarSong>, (existing) => {
+    const next = existing.filter((item) => item.id !== songId);
+    return { next, result: next };
+  });
 }
 
 function isUserGuitarSong(value: unknown): value is UserGuitarSong {

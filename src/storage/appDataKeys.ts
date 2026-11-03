@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Directory, Paths } from 'expo-file-system';
 
+import { corruptBackupKey } from './jsonStorage';
+
 /**
  * Every AsyncStorage key this app writes to, EXCEPT:
  *  - Supabase's own session keys (managed by the supabase-js client itself)
@@ -63,7 +65,11 @@ export const ONBOARDING_SEEN_KEY = '@bioband/onboarding-seen';
 
 /** Wipes every locally-persisted app value and file — guests get a fresh app on every launch. */
 export async function wipeGuestAppData(): Promise<void> {
-  await AsyncStorage.multiRemove(ALL_APP_DATA_KEYS);
+  await AsyncStorage.multiRemove([
+    ...ALL_APP_DATA_KEYS,
+    // A value set aside because it no longer parsed is still the user's data.
+    ...ALL_APP_DATA_KEYS.map(corruptBackupKey),
+  ]);
   for (const { base, name } of GUEST_WIPE_DIRECTORIES) {
     try {
       const dir = new Directory(base, name);

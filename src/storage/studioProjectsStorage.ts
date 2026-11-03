@@ -1,7 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { InstrumentEvent, InstrumentId, RecordingMode, SavedRecording } from '../types/recording';
 import type { StudioProject, StudioTrack } from '../types/studio';
+import { emptyList, readJsonOrFallback, updateJson, type JsonUpdate } from './jsonStorage';
 import {
   copyStudioTrackAudio,
   deleteStudioProjectAudio,
@@ -82,24 +81,55 @@ function isStudioProject(value: unknown): value is StudioProject {
   );
 }
 
-async function persist(projects: StudioProject[]): Promise<void> {
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+function parseProjects(value: unknown): StudioProject[] | null {
+  return Array.isArray(value)
+    ? value.filter(isStudioProject).sort((a, b) => b.updatedAt - a.updatedAt)
+    : null;
 }
 
-export async function loadStudioProjects(): Promise<StudioProject[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter(isStudioProject).sort((a, b) => b.updatedAt - a.updatedAt);
-  } catch {
-    return [];
+/**
+ * Every write goes through here: one locked read-modify-write of the whole
+ * list. Two edits landing together — a BPM change while a track patch is in
+ * flight — used to read the same snapshot and persist over each other.
+ */
+function updateProjects<R>(
+  update: (all: StudioProject[]) => JsonUpdate<StudioProject[], R>,
+): Promise<R> {
+  return updateJson(STORAGE_KEY, parseProjects, emptyList<StudioProject>, update);
+}
+
+/** `project` stamped as just edited, in its slot — or on top if it is new. */
+function withProject(
+  all: StudioProject[],
+  project: StudioProject,
+): { next: StudioProject[]; saved: StudioProject } {
+  const saved = { ...project, updatedAt: Date.now() };
+  const index = all.findIndex((entry) => entry.id === project.id);
+  if (index < 0) {
+    return { next: [saved, ...all], saved };
   }
+  const next = [...all];
+  next[index] = saved;
+  return { next, saved };
+}
+
+/** Applies `edit` to one project and persists it; null when the project is gone. */
+function updateOneProject(
+  projectId: string,
+  edit: (project: StudioProject) => StudioProject,
+): Promise<StudioProject | null> {
+  return updateProjects((all) => {
+    const project = all.find((entry) => entry.id === projectId);
+    if (!project) {
+      return { result: null };
+    }
+    const { next, saved } = withProject(all, edit(project));
+    return { next, result: saved };
+  });
+}
+
+export function loadStudioProjects(): Promise<StudioProject[]> {
+  return readJsonOrFallback(STORAGE_KEY, parseProjects, emptyList<StudioProject>);
 }
 
 export async function getStudioProject(projectId: string): Promise<StudioProject | null> {
@@ -107,7 +137,7 @@ export async function getStudioProject(projectId: string): Promise<StudioProject
   return all.find((project) => project.id === projectId) ?? null;
 }
 
-export async function createStudioProject(title: string): Promise<StudioProject> {
+export function createStudioProject(title: string): Promise<StudioProject> {
   const now = Date.now();
   const project: StudioProject = {
     id: `studio-${now}`,
@@ -116,77 +146,50 @@ export async function createStudioProject(title: string): Promise<StudioProject>
     updatedAt: now,
     tracks: [],
   };
-  const all = await loadStudioProjects();
-  all.unshift(project);
-  await persist(all);
-  return project;
+  return updateProjects((all) => ({ next: [project, ...all], result: project }));
 }
 
-export async function renameStudioProject(
+export function renameStudioProject(
   projectId: string,
   title: string,
 ): Promise<StudioProject | null> {
-  const all = await loadStudioProjects();
-  const index = all.findIndex((project) => project.id === projectId);
-  if (index < 0) {
-    return null;
-  }
-  const next: StudioProject = {
-    ...all[index],
-    title: title.trim() || all[index].title,
-    updatedAt: Date.now(),
-  };
-  all[index] = next;
-  await persist(all);
-  return next;
+  return updateOneProject(projectId, (project) => ({
+    ...project,
+    title: title.trim() || project.title,
+  }));
 }
 
-export async function updateStudioProjectBpm(
+export function updateStudioProjectBpm(
   projectId: string,
   bpm: number,
 ): Promise<StudioProject | null> {
   const clamped = Math.min(240, Math.max(40, Math.round(bpm)));
-  const all = await loadStudioProjects();
-  const index = all.findIndex((project) => project.id === projectId);
-  if (index < 0) {
-    return null;
-  }
-  const next: StudioProject = { ...all[index], bpm: clamped, updatedAt: Date.now() };
-  all[index] = next;
-  await persist(all);
-  return next;
+  return updateOneProject(projectId, (project) => ({ ...project, bpm: clamped }));
 }
 
-export async function deleteStudioProject(projectId: string): Promise<void> {
-  const all = await loadStudioProjects();
-  const project = all.find((entry) => entry.id === projectId);
-  if (project) {
-    for (const track of project.tracks) {
-      if (track.audioUri) {
-        deleteStudioTrackAudio(track.audioUri);
+export function deleteStudioProject(projectId: string): Promise<void> {
+  return updateProjects((all) => {
+    const project = all.find((entry) => entry.id === projectId);
+    if (project) {
+      for (const track of project.tracks) {
+        if (track.audioUri) {
+          deleteStudioTrackAudio(track.audioUri);
+        }
       }
     }
-  }
-  deleteStudioProjectAudio(projectId);
-  await persist(all.filter((entry) => entry.id !== projectId));
+    deleteStudioProjectAudio(projectId);
+    return { next: all.filter((entry) => entry.id !== projectId), result: undefined };
+  });
 }
 
-export async function updateStudioProject(
-  project: StudioProject,
-): Promise<StudioProject> {
-  const all = await loadStudioProjects();
-  const index = all.findIndex((entry) => entry.id === project.id);
-  const next = { ...project, updatedAt: Date.now() };
-  if (index < 0) {
-    all.unshift(next);
-  } else {
-    all[index] = next;
-  }
-  await persist(all);
-  return next;
+export function updateStudioProject(project: StudioProject): Promise<StudioProject> {
+  return updateProjects((all) => {
+    const { next, saved } = withProject(all, project);
+    return { next, result: saved };
+  });
 }
 
-export async function updateStudioTrack(
+export function updateStudioTrack(
   projectId: string,
   trackId: string,
   patch: Partial<
@@ -204,44 +207,37 @@ export async function updateStudioTrack(
     >
   >,
 ): Promise<StudioProject | null> {
-  const project = await getStudioProject(projectId);
-  if (!project) {
-    return null;
-  }
-  const tracks = project.tracks.map((track) =>
-    track.id === trackId
-      ? {
-          ...track,
-          ...patch,
-          volume:
-            patch.volume === undefined
-              ? track.volume
-              : Math.min(1, Math.max(0, patch.volume)),
-          startMs:
-            patch.startMs === undefined
-              ? track.startMs
-              : Math.max(0, Math.round(patch.startMs)),
-        }
-      : track,
-  );
-  return updateStudioProject({ ...project, tracks });
+  return updateOneProject(projectId, (project) => ({
+    ...project,
+    tracks: project.tracks.map((track) =>
+      track.id === trackId
+        ? {
+            ...track,
+            ...patch,
+            volume:
+              patch.volume === undefined
+                ? track.volume
+                : Math.min(1, Math.max(0, patch.volume)),
+            startMs:
+              patch.startMs === undefined
+                ? track.startMs
+                : Math.max(0, Math.round(patch.startMs)),
+          }
+        : track,
+    ),
+  }));
 }
 
-export async function removeStudioTrack(
+export function removeStudioTrack(
   projectId: string,
   trackId: string,
 ): Promise<StudioProject | null> {
-  const project = await getStudioProject(projectId);
-  if (!project) {
-    return null;
-  }
-  const removed = project.tracks.find((track) => track.id === trackId);
-  if (removed?.audioUri) {
-    deleteStudioTrackAudio(removed.audioUri);
-  }
-  return updateStudioProject({
-    ...project,
-    tracks: project.tracks.filter((track) => track.id !== trackId),
+  return updateOneProject(projectId, (project) => {
+    const removed = project.tracks.find((track) => track.id === trackId);
+    if (removed?.audioUri) {
+      deleteStudioTrackAudio(removed.audioUri);
+    }
+    return { ...project, tracks: project.tracks.filter((track) => track.id !== trackId) };
   });
 }
 
@@ -277,67 +273,64 @@ function buildTrackFromTake(
 }
 
 /** Embed a saved take as a new Studio track (copies mic audio into Documents). */
-export async function addTrackFromTake(
+export function addTrackFromTake(
   projectId: string,
   take: SavedRecording,
 ): Promise<StudioProject | null> {
-  const project = await getStudioProject(projectId);
-  if (!project) {
-    return null;
-  }
-
-  if (take.mode === 'instrument' && (!take.events || take.events.length === 0)) {
-    return project;
-  }
-  if (take.mode === 'microphone' && !take.audioUri) {
-    return project;
-  }
-
-  const trackId = newTrackId();
-  const track = buildTrackFromTake(projectId, take, trackId);
-  return updateStudioProject({
-    ...project,
-    tracks: [...project.tracks, track],
+  return updateProjects((all) => {
+    const project = all.find((entry) => entry.id === projectId);
+    if (!project) {
+      return { result: null };
+    }
+    if (take.mode === 'instrument' && (!take.events || take.events.length === 0)) {
+      return { result: project };
+    }
+    if (take.mode === 'microphone' && !take.audioUri) {
+      return { result: project };
+    }
+    const track = buildTrackFromTake(projectId, take, newTrackId());
+    const { next, saved } = withProject(all, { ...project, tracks: [...project.tracks, track] });
+    return { next, result: saved };
   });
 }
 
 /** Clone an existing track (new id, copied mic audio) and append it. */
-export async function duplicateStudioTrack(
+export function duplicateStudioTrack(
   projectId: string,
   trackId: string,
 ): Promise<StudioProject | null> {
-  const project = await getStudioProject(projectId);
-  if (!project) {
-    return null;
-  }
-  const source = project.tracks.find((track) => track.id === trackId);
-  if (!source) {
-    return project;
-  }
+  return updateProjects((all) => {
+    const project = all.find((entry) => entry.id === projectId);
+    if (!project) {
+      return { result: null };
+    }
+    const source = project.tracks.find((track) => track.id === trackId);
+    if (!source) {
+      return { result: project };
+    }
 
-  const newId = newTrackId();
-  let audioUri = source.audioUri;
-  if (source.mode === 'microphone' && source.audioUri) {
-    // Give the copy its own file so deleting one never removes the other's audio.
-    audioUri = copyStudioTrackAudio(projectId, newId, source.audioUri);
-  }
+    const newId = newTrackId();
+    let audioUri = source.audioUri;
+    if (source.mode === 'microphone' && source.audioUri) {
+      // Give the copy its own file so deleting one never removes the other's audio.
+      audioUri = copyStudioTrackAudio(projectId, newId, source.audioUri);
+    }
 
-  const clone: StudioTrack = {
-    ...source,
-    id: newId,
-    createdAt: Date.now(),
-    events: source.events ? source.events.map((event) => ({ ...event })) : undefined,
-    audioUri,
-  };
+    const clone: StudioTrack = {
+      ...source,
+      id: newId,
+      createdAt: Date.now(),
+      events: source.events ? source.events.map((event) => ({ ...event })) : undefined,
+      audioUri,
+    };
 
-  return updateStudioProject({
-    ...project,
-    tracks: [...project.tracks, clone],
+    const { next, saved } = withProject(all, { ...project, tracks: [...project.tracks, clone] });
+    return { next, result: saved };
   });
 }
 
 /** Append a freshly recorded take as a Studio track (and keep the take separately). */
-export async function appendRecordedTrack(
+export function appendRecordedTrack(
   projectId: string,
   take: SavedRecording,
 ): Promise<StudioProject | null> {

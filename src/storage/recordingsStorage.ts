@@ -1,6 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 import type { SavedRecording } from '../types/recording';
+import { emptyList, listOf, readJson, updateJson } from './jsonStorage';
 import {
   deleteRecordingAudio,
   migrateCachedRecordingAudio,
@@ -27,64 +26,60 @@ function isSavedRecording(value: unknown): value is SavedRecording {
   );
 }
 
-export async function saveRecording(recording: SavedRecording): Promise<void> {
-  const existing = await loadRecordings();
-  existing.unshift(recording);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+const parseRecordings = listOf(isSavedRecording);
+
+function updateRecordings<R>(
+  update: (existing: SavedRecording[]) => { next?: SavedRecording[]; result: R },
+): Promise<R> {
+  return updateJson(STORAGE_KEY, parseRecordings, emptyList<SavedRecording>, update);
 }
 
-export async function loadRecordings(): Promise<SavedRecording[]> {
-  const raw = await AsyncStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
+export function saveRecording(recording: SavedRecording): Promise<void> {
+  return updateRecordings((existing) => ({
+    next: [recording, ...existing],
+    result: undefined,
+  }));
+}
 
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      // Corrupt/legacy value — treat as empty instead of crashing every caller
-      // that expects to map/filter over an array.
-      return [];
+/**
+ * Rejects when storage cannot be read rather than answering with an empty
+ * list: this is what a library backup is built from, and an empty backup that
+ * reports success is worse than one that fails.
+ */
+export function loadRecordings(): Promise<SavedRecording[]> {
+  return readJson(STORAGE_KEY, parseRecordings, emptyList<SavedRecording>);
+}
+
+export function deleteRecording(recordingId: string): Promise<void> {
+  return updateRecordings((existing) => {
+    const removed = existing.find((entry) => entry.id === recordingId);
+    if (removed?.audioUri) {
+      // Each take owns its copied audio file (Studio tracks get their own copy),
+      // so dropping the entry without this would leak the file forever.
+      deleteRecordingAudio(removed.audioUri);
     }
-    return parsed.filter(isSavedRecording);
-  } catch {
-    return [];
-  }
-}
-
-export async function deleteRecording(recordingId: string): Promise<void> {
-  const existing = await loadRecordings();
-  const removed = existing.find((entry) => entry.id === recordingId);
-  if (removed?.audioUri) {
-    // Each take owns its copied audio file (Studio tracks get their own copy),
-    // so dropping the entry without this would leak the file forever.
-    deleteRecordingAudio(removed.audioUri);
-  }
-  await AsyncStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify(existing.filter((entry) => entry.id !== recordingId)),
-  );
+    return {
+      next: existing.filter((entry) => entry.id !== recordingId),
+      result: undefined,
+    };
+  });
 }
 
 /**
  * One-shot rescue at startup for takes recorded before mic audio was copied
- * into Documents. Must not run while the takes list is being edited — the
- * read-modify-write below would clobber a concurrent delete.
+ * into Documents. Runs under the same lock as every other write to the list,
+ * so a concurrent save or delete can no longer be clobbered by it.
  */
-export async function migrateRecordingAudioToDocuments(): Promise<void> {
-  const migrated = migrateCachedRecordingAudio(await loadRecordings());
-  if (migrated) {
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
-  }
+export function migrateRecordingAudioToDocuments(): Promise<void> {
+  return updateRecordings((existing) => ({
+    next: migrateCachedRecordingAudio(existing) ?? undefined,
+    result: undefined,
+  }));
 }
 
-export async function renameRecording(
-  recordingId: string,
-  title: string,
-): Promise<void> {
-  const existing = await loadRecordings();
-  const next = existing.map((entry) =>
-    entry.id === recordingId ? { ...entry, title } : entry,
-  );
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+export function renameRecording(recordingId: string, title: string): Promise<void> {
+  return updateRecordings((existing) => ({
+    next: existing.map((entry) => (entry.id === recordingId ? { ...entry, title } : entry)),
+    result: undefined,
+  }));
 }
