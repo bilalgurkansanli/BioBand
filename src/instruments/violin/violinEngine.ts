@@ -52,38 +52,42 @@ let currentVoiceId: ViolinVoiceId = 'classic';
 /** Per-hit tag serial — same-tag voices steal each other in sampleBank. */
 let hitSerial = 0;
 
-let voiceGain: GainNode | null = null;
-let voiceFilter: BiquadFilterNode | null = null;
+/**
+ * One bus per voice (gain → tone filter → FX input), built the first time
+ * that voice plays. A single shared bus could only wear one voice's tone at a
+ * time, so a Studio mix had to put every violin track on the first track's
+ * voice — and an overdub's beds re-voiced the violin under the user's bow.
+ */
+type VoiceBus = { gain: GainNode; filter: BiquadFilterNode };
+const voiceBuses = new Map<ViolinVoiceId, VoiceBus>();
 
-function applyVoiceToBus(): void {
-  if (!voiceGain || !voiceFilter) {
-    return;
-  }
-  const audio = getViolinVoice(currentVoiceId).audio;
-  voiceGain.gain.value = audio.gainScale;
-  voiceFilter.type = audio.filterType;
-  voiceFilter.frequency.value = audio.filterFrequency;
-  voiceFilter.Q.value = audio.filterQ;
+function applyVoiceToBus(bus: VoiceBus, voiceId: ViolinVoiceId): void {
+  const audio = getViolinVoice(voiceId).audio;
+  bus.gain.gain.value = audio.gainScale;
+  bus.filter.type = audio.filterType;
+  bus.filter.frequency.value = audio.filterFrequency;
+  bus.filter.Q.value = audio.filterQ;
   if (audio.filterType === 'lowshelf') {
-    voiceFilter.gain.value = audio.filterGainDb ?? 3;
+    bus.filter.gain.value = audio.filterGainDb ?? 3;
   } else if (audio.filterType === 'peaking') {
-    voiceFilter.gain.value = audio.filterGainDb ?? 0;
+    bus.filter.gain.value = audio.filterGainDb ?? 0;
   } else {
-    voiceFilter.gain.value = 0;
+    bus.filter.gain.value = 0;
   }
 }
 
-function ensureVoiceBus(): GainNode {
-  if (voiceGain && voiceFilter) {
-    return voiceGain;
+function ensureVoiceBus(voiceId: ViolinVoiceId = currentVoiceId): GainNode {
+  const existing = voiceBuses.get(voiceId);
+  if (existing) {
+    return existing.gain;
   }
   const context = getSharedAudioContext();
-  voiceGain = context.createGain();
-  voiceFilter = context.createBiquadFilter();
-  voiceGain.connect(voiceFilter);
-  voiceFilter.connect(getPianoFxInput());
-  applyVoiceToBus();
-  return voiceGain;
+  const bus: VoiceBus = { gain: context.createGain(), filter: context.createBiquadFilter() };
+  bus.gain.connect(bus.filter);
+  bus.filter.connect(getPianoFxInput());
+  applyVoiceToBus(bus, voiceId);
+  voiceBuses.set(voiceId, bus);
+  return bus.gain;
 }
 
 export async function initViolinEngine(): Promise<void> {
@@ -115,9 +119,9 @@ async function loadViolinEngine(): Promise<void> {
   initialized = true;
 }
 
+/** The voice hand-played notes use. Every voice keeps its own bus, so nothing to re-tune. */
 export function setViolinVoice(id: ViolinVoiceId): void {
   currentVoiceId = id;
-  applyVoiceToBus();
 }
 
 export function getCurrentViolinVoiceId(): ViolinVoiceId {
@@ -134,9 +138,12 @@ function triggerNote(
     startAtSeconds?: number;
     /** Written note length — the bow stroke is carved to match. */
     sustainSeconds?: number;
+    /** Voice to sound with; defaults to the one selected for hand playing. */
+    voiceId?: ViolinVoiceId;
   },
 ): void {
-  const voice = getViolinVoice(currentVoiceId);
+  const voiceId = options?.voiceId ?? currentVoiceId;
+  const voice = getViolinVoice(voiceId);
   const midi = getMidi(stringId, position);
   const config = getViolinNoteSampleConfig(midi);
   const buffer = buffers.get(config.anchorId);
@@ -147,7 +154,7 @@ function triggerNote(
   const rate = config.playbackRate * voice.audio.playbackRate;
   const gain = NOTE_GAIN * config.gainTrim * (options?.gainScale ?? 1);
   const shortTail = options?.shortTail ?? false;
-  const output = ensureVoiceBus();
+  const output = ensureVoiceBus(voiceId);
 
   // Every note used to be the same fixed stroke, so a whole note and a
   // sixteenth came out identical — on a sustaining instrument that flattens a
@@ -187,12 +194,15 @@ function triggerNote(
 /**
  * @param gainScale Extra output multiplier — used by Studio mix playback.
  * @param performance Song playback supplies the moment, length and strength.
+ * @param voiceId A take or Studio track replays on its own voice; defaults to
+ * the one selected for hand playing.
  */
 export function playNote(
   stringId: ViolinStringId,
   position: number,
   gainScale = 1,
   performance?: NotePerformance,
+  voiceId: ViolinVoiceId = currentVoiceId,
 ): void {
   resumeAudioContextIfSuspended();
 
@@ -210,6 +220,7 @@ export function playNote(
     gainScale: dynamics,
     startAtSeconds: atTime,
     sustainSeconds,
+    voiceId,
   });
 
   schedulePianoReverbTaps((tapScale, tapIndex, delayMs) => {
@@ -217,6 +228,7 @@ export function playNote(
       shortTail: true,
       gainScale: dynamics * tapScale,
       startAtSeconds: tapStart(delayMs),
+      voiceId,
     });
   }, aheadOfClock, VIOLIN_OWNER);
 
@@ -227,11 +239,16 @@ export function playNote(
       gainScale: dynamics * tapScale,
       startAtSeconds: tapStart(delayMs),
       sustainSeconds,
+      voiceId,
     });
   }, aheadOfClock, VIOLIN_OWNER);
 }
 
-export function playPhrase(phraseId: PhraseId, gainScale = 1): void {
+export function playPhrase(
+  phraseId: PhraseId,
+  gainScale = 1,
+  voiceId: ViolinVoiceId = currentVoiceId,
+): void {
   const phrase = getPhraseById(phraseId);
   if (!phrase) {
     return;
@@ -241,7 +258,7 @@ export function playPhrase(phraseId: PhraseId, gainScale = 1): void {
     const { stringId, position } = phrase.notes[i];
     const timer = setTimeout(() => {
       phraseTimers.delete(timer);
-      playNote(stringId, position, gainScale);
+      playNote(stringId, position, gainScale, undefined, voiceId);
     }, i * PHRASE_STAGGER_MS);
     phraseTimers.add(timer);
   }
@@ -255,28 +272,30 @@ export function stopViolinPhrases(): void {
   phraseTimers.clear();
 }
 
+/** `voiceId` replays a take or Studio track on its own voice. */
 export function playViolinSoundId(
   soundId: string,
   gainScale = 1,
   performance?: NotePerformance,
+  voiceId: ViolinVoiceId = currentVoiceId,
 ): void {
   const parsed = parseViolinSoundId(soundId);
   if (!parsed) {
     if (soundId.startsWith('phrase:')) {
       const phraseId = soundId.slice('phrase:'.length);
       if (isPhraseId(phraseId)) {
-        playPhrase(phraseId, gainScale);
+        playPhrase(phraseId, gainScale, voiceId);
       }
     }
     return;
   }
 
   if (parsed.kind === 'phrase') {
-    playPhrase(parsed.phraseId, gainScale);
+    playPhrase(parsed.phraseId, gainScale, voiceId);
     return;
   }
 
-  playNote(parsed.stringId, parsed.position, gainScale, performance);
+  playNote(parsed.stringId, parsed.position, gainScale, performance, voiceId);
 }
 
 export function releaseViolinEngine(): void {

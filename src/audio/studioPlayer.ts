@@ -2,31 +2,12 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
+import { playInstrumentEvent, resolveEventVoice, type EventVoice } from './playInstrumentEvent';
 import { getSharedAudioContext, stopVoicesOwnedBy, withVoiceOwner } from './sampleBank';
 import { MIN_LOOP_PASS_MS, passEndContextTime, passTailMs } from './schedulerTiming';
 import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
-import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
-import { isDrumKitId } from '../instruments/drums/drumsKits';
-import type { DrumSoundId } from '../instruments/drums/drumsSounds';
-import { playGuitarSoundId, setGuitarVoice } from '../instruments/guitar/guitarEngine';
-import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
-import { triggerPadForBank } from '../instruments/pads/padsEngine';
-import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
-import type { PadSoundId } from '../instruments/pads/padsSounds';
-import {
-  playNote as playPianoNote,
-  setPianoVoice,
-} from '../instruments/piano/pianoEngine';
-import type { NoteId } from '../instruments/piano/pianoNotes';
-import { PIANO_VOICES, type PianoVoiceId } from '../instruments/piano/pianoVoices';
-import type { NotePerformance } from '../instruments/shared/songPerformance';
-import {
-  playViolinSoundId,
-  setViolinVoice,
-  stopViolinPhrases,
-} from '../instruments/violin/violinEngine';
-import { isViolinVoiceId } from '../instruments/violin/violinVoices';
-import type { InstrumentId } from '../types/recording';
+import { stopViolinPhrases } from '../instruments/violin/violinEngine';
+import type { InstrumentEvent, InstrumentId } from '../types/recording';
 import {
   getProjectDurationMs,
   getTrackStartMs,
@@ -119,40 +100,6 @@ function holdEngine(instrument: InstrumentId): Promise<void> {
   return loading;
 }
 
-function playInstrumentEvent(
-  instrument: InstrumentId,
-  soundId: string,
-  velocity: number | undefined,
-  padBankId: PadBankId,
-  gainScale: number,
-  atContextTime: number,
-): void {
-  // Absolute audio-context onset, straight through to the engine. In a mix this
-  // matters more than anywhere else: every track is timed off the same clock,
-  // so a late JS timer would not just drag one note, it would pull that track
-  // out of alignment with the others.
-  const performance: NotePerformance = { atTime: atContextTime };
-  withVoiceOwner(VOICE_OWNER, () => {
-    switch (instrument) {
-      case 'piano':
-        playPianoNote(soundId as NoteId, undefined, undefined, gainScale, performance);
-        return;
-      case 'drums':
-        playHit(soundId as DrumSoundId, velocity, gainScale, performance);
-        return;
-      case 'pads':
-        // Per-track bank — looper exports layer tracks from different banks.
-        triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, gainScale, performance);
-        return;
-      case 'guitar':
-        playGuitarSoundId(soundId, velocity, gainScale, performance);
-        return;
-      case 'violin':
-        playViolinSoundId(soundId, gainScale, performance);
-        return;
-    }
-  });
-}
 
 function stopPlayers(players: AudioPlayer[]): void {
   for (const player of players) {
@@ -331,35 +278,14 @@ function startPreparedMix(params: {
 }): StudioPlaybackHandle {
   const { tracks, durationMs, onEnded, onProgress, loop, rate, initialStartAtMs } = params;
 
-  // The drums bus is global, so one kit per play: use the first drums track's
-  // recorded kit (older tracks without one fall back to acoustic).
-  const drumsTrack = tracks.find((track) => track.instrument === 'drums');
-  if (drumsTrack) {
-    setDrumKit(isDrumKitId(drumsTrack.drumKitId) ? drumsTrack.drumKitId : 'acoustic');
-  }
-
-  // The guitar bus is global too — one voice per play, first guitar track wins.
-  const guitarTrack = tracks.find((track) => track.instrument === 'guitar');
-  if (guitarTrack) {
-    setGuitarVoice(
-      isGuitarVoiceId(guitarTrack.guitarVoiceId) ? guitarTrack.guitarVoiceId : 'nylon',
-    );
-  }
-
-  // Same for violin — first violin track's voice wins.
-  const violinTrack = tracks.find((track) => track.instrument === 'violin');
-  if (violinTrack) {
-    setViolinVoice(
-      isViolinVoiceId(violinTrack.violinVoiceId) ? violinTrack.violinVoiceId : 'classic',
-    );
-  }
-
-  // Piano bus is global as well — first piano track's voice wins.
-  const pianoTrack = tracks.find((track) => track.instrument === 'piano');
-  if (pianoTrack) {
-    const voice = PIANO_VOICES.find((entry) => entry.id === pianoTrack.pianoVoiceId);
-    setPianoVoice((voice?.id ?? 'acoustic') as PianoVoiceId);
-  }
+  // Every track plays on its own recorded kit / voice / bank, handed to the
+  // engine per note (older tracks without one get the base voice). Nothing
+  // global is touched, so the instrument an overdub is being played on keeps
+  // the voice the user picked — and the export, which always rendered each
+  // track on its own voice, now sounds like the live mix.
+  const trackVoices = new Map<string, EventVoice>(
+    tracks.map((track) => [track.id, resolveEventVoice(track)]),
+  );
 
   /**
    * One note from any track, rebased onto the playhead. Every track's events
@@ -369,9 +295,8 @@ function startPreparedMix(params: {
   type ScheduledNote = {
     atMs: number;
     instrument: InstrumentId;
-    soundId: string;
-    velocity?: number;
-    padBankId: PadBankId;
+    event: InstrumentEvent;
+    voice: EventVoice;
     gainScale: number;
   };
 
@@ -493,10 +418,8 @@ function startPreparedMix(params: {
         continue;
       }
 
-      if (track.mode === 'instrument' && track.events) {
-        const trackPadBank: PadBankId = isPadBankId(track.padBankId)
-          ? track.padBankId
-          : 'drums';
+      const voice = trackVoices.get(track.id);
+      if (track.mode === 'instrument' && track.events && voice) {
         for (const event of track.events) {
           if (event.atMs > track.durationMs) {
             continue;
@@ -509,9 +432,8 @@ function startPreparedMix(params: {
             atMs: absAtMs - clampedStart,
             gainScale: track.volume,
             instrument: track.instrument,
-            padBankId: trackPadBank,
-            soundId: event.soundId,
-            velocity: event.velocity,
+            event,
+            voice,
           });
         }
       }
@@ -527,13 +449,18 @@ function startPreparedMix(params: {
         if (finished) {
           return;
         }
-        playInstrumentEvent(
-          note.instrument,
-          note.soundId,
-          note.velocity,
-          note.padBankId,
-          note.gainScale,
-          atContextTime,
+        // Absolute audio-context onset, straight through to the engine. In a
+        // mix this matters more than anywhere else: every track is timed off
+        // the same clock, so a late JS timer would not just drag one note, it
+        // would pull that track out of alignment with the others.
+        withVoiceOwner(VOICE_OWNER, () =>
+          playInstrumentEvent(
+            note.instrument,
+            note.event,
+            note.voice,
+            note.gainScale,
+            atContextTime,
+          ),
         );
       },
       onDone: finish,

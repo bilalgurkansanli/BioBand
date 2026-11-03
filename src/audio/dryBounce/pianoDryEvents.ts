@@ -1,8 +1,12 @@
 import { loadSample } from '../sampleBank';
 import type { DryFilter, DryOscillatorEvent, DrySampleEvent } from '../offlineBounce';
-import { BASE_SAMPLE_FILES, getNoteSampleConfig } from '../../instruments/piano/pianoSamples';
+import {
+  BASE_SAMPLE_FILES,
+  getNoteSampleConfig,
+  MAX_PIANO_PLAYBACK_RATE,
+} from '../../instruments/piano/pianoSamples';
 import { PIANO_NOTES, type NoteId } from '../../instruments/piano/pianoNotes';
-import type { PianoVoiceId } from '../../instruments/piano/pianoVoices';
+import { isPianoVoiceId, type PianoVoiceId } from '../../instruments/piano/pianoVoices';
 import type { InstrumentEvent } from '../../types/recording';
 
 const noteMidis = new Map<NoteId, number>(PIANO_NOTES.map((note) => [note.id, note.midi]));
@@ -29,37 +33,44 @@ const MUSIC_BOX_FILTER: DryFilter = { type: 'lowpass', frequency: 4500, q: 0.7 }
 
 /**
  * Dry (no reverb/echo) resolution of recorded piano note events into schedulable
- * samples/oscillators. Recordings don't remember which voice they were made
- * with (piano has no `pianoVoiceId` field, unlike the other instruments), so
- * the voice must be supplied explicitly — defaults to `acoustic`.
+ * samples/oscillators, on the voice the take was recorded with (`acoustic` for
+ * older takes that never stored one, or an unknown id). Each event carries the
+ * tone slider's transposition it sounded at; older events have none.
  */
 export async function resolvePianoDryEvents(
   events: InstrumentEvent[],
-  voice: PianoVoiceId = 'acoustic',
+  voiceId?: string,
 ): Promise<{ sampleEvents: DrySampleEvent[]; oscillatorEvents: DryOscillatorEvent[] }> {
+  const voice: PianoVoiceId = isPianoVoiceId(voiceId) ? voiceId : 'acoustic';
   const sampleEvents: DrySampleEvent[] = [];
   const oscillatorEvents: DryOscillatorEvent[] = [];
 
   for (const event of events) {
-    const midi = noteMidis.get(event.soundId as NoteId);
-    if (midi === undefined) {
+    const writtenMidi = noteMidis.get(event.soundId as NoteId);
+    if (writtenMidi === undefined) {
       continue;
     }
+    // A take stores the written key; the pitch it sounded at is shifted by the
+    // tone slider the player had set (pianoEngine's toneSemitones).
+    const midi = writtenMidi + (event.transposeSemitones ?? 0);
 
     if (voice === 'acoustic' || voice === 'bright' || voice === 'musicBox') {
       const effectiveMidi = voice === 'musicBox' ? midi + 12 : midi;
       const gain = voice === 'acoustic' ? 0.55 : voice === 'bright' ? 0.5 : 0.45;
       const config = getNoteSampleConfig(effectiveMidi);
       const buffer = await loadSample(BASE_SAMPLE_FILES[config.anchorId]);
+      // Same ceiling, and the same music-box anti-alias rule, as the live
+      // engine's playSampleVoice — so the export agrees with it on every key.
+      const playbackRate = Math.min(config.playbackRate, MAX_PIANO_PLAYBACK_RATE);
       sampleEvents.push({
         atMs: event.atMs,
         buffer,
-        playbackRate: config.playbackRate,
+        playbackRate,
         gain,
         filters:
           voice === 'bright'
             ? [BRIGHT_FILTER]
-            : voice === 'musicBox'
+            : voice === 'musicBox' && playbackRate > 1.5
               ? [MUSIC_BOX_FILTER]
               : undefined,
       });

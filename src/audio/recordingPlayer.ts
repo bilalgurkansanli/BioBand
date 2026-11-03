@@ -2,26 +2,12 @@ import { createAudioPlayer, type AudioPlayer } from 'expo-audio';
 
 import { acquireEngine, releaseEngine } from './engineRegistry';
 import { restorePlaybackAudioMode } from './initAudio';
+import { playInstrumentEvent, resolveEventVoice } from './playInstrumentEvent';
 import { getSharedAudioContext, stopVoicesOwnedBy, withVoiceOwner } from './sampleBank';
 import { MIN_LOOP_PASS_MS, passEndContextTime, passTailMs } from './schedulerTiming';
 import { startSongScheduler, type SongSchedulerHandle } from './songScheduler';
-import { playHit, setDrumKit } from '../instruments/drums/drumsEngine';
-import { isDrumKitId } from '../instruments/drums/drumsKits';
-import type { DrumSoundId } from '../instruments/drums/drumsSounds';
-import { playGuitarSoundId, setGuitarVoice } from '../instruments/guitar/guitarEngine';
-import { isGuitarVoiceId } from '../instruments/guitar/guitarVoices';
-import { triggerPadForBank } from '../instruments/pads/padsEngine';
-import { isPadBankId, type PadBankId } from '../instruments/pads/padsBanks';
-import type { PadSoundId } from '../instruments/pads/padsSounds';
-import { playNote as playPianoNote } from '../instruments/piano/pianoEngine';
-import type { NoteId } from '../instruments/piano/pianoNotes';
-import type { NotePerformance } from '../instruments/shared/songPerformance';
-import {
-  playViolinSoundId,
-  setViolinVoice,
-  stopViolinPhrases,
-} from '../instruments/violin/violinEngine';
-import { isViolinVoiceId } from '../instruments/violin/violinVoices';
+import { getPianoVoice } from '../instruments/piano/pianoEngine';
+import { stopViolinPhrases } from '../instruments/violin/violinEngine';
 import type { InstrumentId, SavedRecording } from '../types/recording';
 
 export type RecordingPlaybackHandle = {
@@ -82,40 +68,6 @@ async function ensureInstrumentEngine(instrument: InstrumentId): Promise<void> {
   }
 
   await acquireEngine(instrument);
-}
-
-function playInstrumentEvent(
-  instrument: InstrumentId,
-  soundId: string,
-  velocity: number | undefined,
-  padBankId: PadBankId,
-  atContextTime: number,
-): void {
-  // The onset is handed to the engine as an absolute audio-context time, so the
-  // audio thread owns it from here. That is the whole point of scheduling this
-  // way: a JS thread busy rendering the scrubber can no longer move the beat.
-  const performance: NotePerformance = { atTime: atContextTime };
-  withVoiceOwner(VOICE_OWNER, () => {
-    switch (instrument) {
-      case 'piano':
-        playPianoNote(soundId as NoteId, undefined, undefined, 1, performance);
-        return;
-      case 'drums':
-        playHit(soundId as DrumSoundId, velocity, 1, performance);
-        return;
-      case 'pads':
-        triggerPadForBank(padBankId, soundId as PadSoundId, velocity ?? 1, 1, performance);
-        return;
-      case 'guitar': {
-        playGuitarSoundId(soundId, velocity, 1, performance);
-        return;
-      }
-      case 'violin': {
-        playViolinSoundId(soundId, 1, performance);
-        return;
-      }
-    }
-  });
 }
 
 function stopActivePlayback(): void {
@@ -268,23 +220,10 @@ export async function playSavedRecording(
   }
 
   // Replay with the kit/voice the take was performed on — not whatever the
-  // engine happens to be left on. Older takes without one default to the base.
-  if (recording.instrument === 'drums') {
-    setDrumKit(isDrumKitId(recording.drumKitId) ? recording.drumKitId : 'acoustic');
-  }
-  if (recording.instrument === 'guitar') {
-    setGuitarVoice(
-      isGuitarVoiceId(recording.guitarVoiceId) ? recording.guitarVoiceId : 'nylon',
-    );
-  }
-  if (recording.instrument === 'violin') {
-    setViolinVoice(
-      isViolinVoiceId(recording.violinVoiceId) ? recording.violinVoiceId : 'classic',
-    );
-  }
-  const padBankId: PadBankId = isPadBankId(recording.padBankId)
-    ? recording.padBankId
-    : 'drums';
+  // engine happens to be left on — passed per note, so the instrument the user
+  // plays by hand keeps its own. Older takes without one default to the base
+  // voice; a piano take without one keeps the current piano voice, as before.
+  const voice = resolveEventVoice(recording, getPianoVoice());
 
   let scheduler: SongSchedulerHandle | null = null;
   let progressInterval: ReturnType<typeof setInterval> | null = null;
@@ -357,12 +296,8 @@ export async function playSavedRecording(
     const handle = startSongScheduler({
       events: pending,
       onEvent: (event, _index, atContextTime) => {
-        playInstrumentEvent(
-          recording.instrument,
-          event.soundId,
-          event.velocity,
-          padBankId,
-          atContextTime,
+        withVoiceOwner(VOICE_OWNER, () =>
+          playInstrumentEvent(recording.instrument, event, voice, 1, atContextTime),
         );
       },
       onDone: finish,

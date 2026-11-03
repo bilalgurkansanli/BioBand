@@ -30,6 +30,7 @@ import {
 import { getCurrentDrumKitId } from '../instruments/drums/drumsEngine';
 import { getCurrentGuitarVoiceId } from '../instruments/guitar/guitarEngine';
 import { getCurrentPadBankId } from '../instruments/pads/padsEngine';
+import { getPianoToneOffset, getPianoVoice } from '../instruments/piano/pianoEngine';
 import { getCurrentViolinVoiceId } from '../instruments/violin/violinEngine';
 import { awardRecordingPractice } from '../profile/awardPlayAlong';
 import { persistRecordingAudio } from '../storage/recordingAudioStorage';
@@ -277,6 +278,9 @@ export function useInstrumentRecording(instrument: InstrumentId) {
           guitarVoiceId: instrument === 'guitar' ? getCurrentGuitarVoiceId() : undefined,
           violinVoiceId: instrument === 'violin' ? getCurrentViolinVoiceId() : undefined,
           padBankId: instrument === 'pads' ? getCurrentPadBankId() : undefined,
+          // The engine's voice is the one the screen plays with — playback no
+          // longer re-voices it, so it is safe to read even during an overdub.
+          pianoVoiceId: instrument === 'piano' ? getPianoVoice() : undefined,
         };
         await saveRecording(take);
         void recordFeatureUse('recordingSaved');
@@ -395,9 +399,13 @@ export function useInstrumentRecording(instrument: InstrumentId) {
         soundId,
         atMs: Date.now() - startTimeRef.current,
         velocity,
+        // The piano records written keys; the tone slider decides the pitch
+        // they sound at. Read from the engine at the moment of the note, so a
+        // slider move mid-take is kept and no screen has to pass it in.
+        ...(instrument === 'piano' ? { transposeSemitones: getPianoToneOffset() } : {}),
       });
     },
-    [isRecording, mode],
+    [instrument, isRecording, mode],
   );
 
   const handleRecordPress = useCallback(() => {

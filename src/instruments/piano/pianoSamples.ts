@@ -26,6 +26,12 @@ export const SAMPLE_ANCHORS: { id: BaseSampleId; midi: number }[] = [
   { id: 'A5', midi: 81 },
 ];
 
+/**
+ * Ceiling on how far an anchor is sped up. Past it resampling crackles; the
+ * live engine and the export both clamp here so they agree on every pitch.
+ */
+export const MAX_PIANO_PLAYBACK_RATE = 2.5;
+
 export type NoteSampleConfig = {
   anchorId: BaseSampleId;
   source: number;

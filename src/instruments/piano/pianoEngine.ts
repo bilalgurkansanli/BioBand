@@ -19,6 +19,7 @@ import {
 import {
   BASE_SAMPLE_FILES,
   getNoteSampleConfig,
+  MAX_PIANO_PLAYBACK_RATE,
   SAMPLE_ANCHORS,
   type BaseSampleId,
 } from './pianoSamples';
@@ -30,7 +31,7 @@ import {
   type NotePerformance,
 } from '../shared/songPerformance';
 
-const MAX_PLAYBACK_RATE = 2.5;
+const MAX_PLAYBACK_RATE = MAX_PIANO_PLAYBACK_RATE;
 
 const anchorBuffers = new Map<BaseSampleId, AudioBuffer>();
 const noteMidis = new Map<NoteId, number>();
@@ -154,6 +155,14 @@ function resetSynthBus(): void {
 
 export function setPianoToneOffset(semitones: number): void {
   toneOffsetSemitones = semitones;
+}
+
+/**
+ * The tone slider's transposition the keyboard is sounding at — what a
+ * recording has to remember, since a take stores written keys, not pitches.
+ */
+export function getPianoToneOffset(): number {
+  return toneOffsetSemitones;
 }
 
 export function setPianoVoice(voice: PianoVoiceId): void {
