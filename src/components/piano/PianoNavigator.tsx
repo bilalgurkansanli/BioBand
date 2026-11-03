@@ -235,7 +235,7 @@ export function PianoNavigator({
           </View>
         </View>
 
-        <Pressable hitSlop={8} onPress={onJumpCenter} style={styles.resetWrap}>
+        <Pressable accessibilityRole="button" hitSlop={8} onPress={onJumpCenter} style={styles.resetWrap}>
           <Text style={styles.resetHint}>{t('piano.tone.dragHint')}</Text>
         </Pressable>
       </View>

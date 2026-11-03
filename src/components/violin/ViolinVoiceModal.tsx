@@ -48,6 +48,7 @@ export function ViolinVoiceModal({
 
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={voice.id}
                   onPress={() => onSelect(voice.id)}
                   style={({ pressed }) => [

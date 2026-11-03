@@ -20,8 +20,8 @@ export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdu
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('studio.addTrack')}</Text>
             <Pressable
@@ -36,6 +36,7 @@ export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdu
           </View>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onPickFromTake}
             style={({ pressed }) => [styles.option, pressed && styles.pressed]}
           >
@@ -47,6 +48,7 @@ export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdu
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onRecordOverdub}
             style={({ pressed }) => [styles.option, pressed && styles.pressed]}
           >
@@ -58,6 +60,7 @@ export function AddTrackModal({ visible, onClose, onPickFromTake, onRecordOverdu
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
           >

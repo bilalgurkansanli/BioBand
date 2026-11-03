@@ -55,8 +55,8 @@ export function TextPromptModal({
           does still resize, the view's bottom already sits on the keyboard,
           the overlap it measures is zero, and nothing moves twice. */}
       <KeyboardAvoidingView behavior="padding" style={styles.keyboardAvoider}>
-        <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
-          <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+        <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
+          <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
             <Text style={styles.title}>{title}</Text>
             <TextInput
               accessibilityLabel={title}

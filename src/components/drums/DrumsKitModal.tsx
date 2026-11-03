@@ -26,8 +26,8 @@ export function DrumsKitModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('drums.kits.close')}
             onClose={onClose}
@@ -40,6 +40,7 @@ export function DrumsKitModal({
 
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={kit.id}
                   onPress={() => onSelect(kit.id)}
                   style={({ pressed }) => [

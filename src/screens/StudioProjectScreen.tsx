@@ -419,6 +419,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
       <ScreenContainer bottomInset style={styles.container} wide>
         <View style={styles.topBar}>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('common.back')}
             hitSlop={8}
             onPress={() => navigation.goBack()}
@@ -451,6 +452,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
     <ScreenContainer bottomInset style={styles.container} wide>
       <View style={styles.topBar}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('common.back')}
           hitSlop={8}
           onPress={() => navigation.goBack()}
@@ -469,6 +471,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
             can't accidentally exit while starting/stopping playback. */}
         <View style={styles.bpmGroup}>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('studio.bpmDown')}
             hitSlop={6}
             onPressIn={() => startBpmRepeat(-5)}
@@ -482,6 +485,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
             <Text style={styles.bpmUnit}>{t('studio.bpm')}</Text>
           </View>
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('studio.bpmUp')}
             hitSlop={6}
             onPressIn={() => startBpmRepeat(5)}
@@ -493,6 +497,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
         </View>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.zoomOut')}
           disabled={!canZoomOut}
           hitSlop={6}
@@ -502,6 +507,7 @@ const StudioProjectEditor = memo(function StudioProjectEditor({
           <Ionicons color={colors.text} name="remove-circle-outline" size={22} />
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.zoomIn')}
           disabled={!canZoomIn}
           hitSlop={6}

@@ -48,6 +48,7 @@ export function PadsKitModal({
 
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={bank.id}
                   onPress={() => onSelect(bank.id)}
                   style={({ pressed }) => [

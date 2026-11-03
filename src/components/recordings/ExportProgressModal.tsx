@@ -60,6 +60,7 @@ export function ExportProgressModal({ job, onCancel, onDismissed }: Props) {
           <Text style={styles.percent}>{t('common.percent', { percent })}</Text>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onCancel}
             style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
           >

@@ -71,6 +71,7 @@ function ChipRow<T extends string>({ options, selected, onSelect, labelFor }: Ch
         const isSelected = option === selected;
         return (
           <Pressable
+            accessibilityRole="button"
             key={option}
             onPress={() => onSelect(option)}
             style={({ pressed }) => [
@@ -102,6 +103,7 @@ function SwitchRow({
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
       <Switch
+        accessibilityLabel={label}
         onValueChange={onValueChange}
         thumbColor={value ? colors.accent : '#7A7A7E'}
         trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -245,6 +247,7 @@ export function PadsSettingsModal({
             <Text style={styles.sectionHint}>{t('pads.settings.quantizeHint')}</Text>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();

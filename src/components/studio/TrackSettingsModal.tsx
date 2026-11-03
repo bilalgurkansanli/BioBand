@@ -72,8 +72,8 @@ export function TrackSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           {track ? (
             <>
               <View style={styles.header}>
@@ -82,6 +82,7 @@ export function TrackSettingsModal({
                 </View>
                 <Text style={styles.title}>{t(INSTRUMENT_TITLE_KEYS[track.instrument])}</Text>
                 <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={t('common.close')}
                   hitSlop={8}
                   onPress={onClose}
@@ -105,6 +106,7 @@ export function TrackSettingsModal({
 
               <View style={styles.volumeRow}>
                 <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={t('studio.volumeDown')}
                   hitSlop={6}
                   onPress={() => step(-VOLUME_STEP)}
@@ -121,6 +123,7 @@ export function TrackSettingsModal({
                   value={liveVolume}
                 />
                 <Pressable
+                  accessibilityRole="button"
                   accessibilityLabel={t('studio.volumeUp')}
                   hitSlop={6}
                   onPress={() => step(VOLUME_STEP)}
@@ -145,6 +148,7 @@ export function TrackSettingsModal({
                       const active = voice.id === selectedVoiceId;
                       return (
                         <Pressable
+                          accessibilityRole="button"
                           key={voice.id}
                           onPress={() => onSelectVoice(voice.id)}
                           style={({ pressed }) => [
@@ -209,7 +213,7 @@ type ActionRowProps = {
 
 function ActionRow({ icon, label, onPress, danger }: ActionRowProps) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
         <Ionicons color={danger ? colors.error : colors.accent} name={icon} size={18} />
       </View>

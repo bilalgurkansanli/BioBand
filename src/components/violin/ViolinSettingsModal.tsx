@@ -77,6 +77,7 @@ export function ViolinSettingsModal({
                 const on = noteLabelMode === mode;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={mode}
                     onPress={() => onChangeNoteLabelMode(mode)}
                     style={[
@@ -100,6 +101,7 @@ export function ViolinSettingsModal({
                 {t('violin.settings.strongGuideHighlight')}
               </Text>
               <Switch
+                accessibilityLabel={t('violin.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
                 thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -110,6 +112,7 @@ export function ViolinSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('violin.settings.haptics')}</Text>
               <Switch
+                accessibilityLabel={t('violin.settings.haptics')}
                 onValueChange={onChangeHaptics}
                 thumbColor={haptics ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -118,6 +121,7 @@ export function ViolinSettingsModal({
             </View>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();

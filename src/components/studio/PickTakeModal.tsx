@@ -24,7 +24,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
         {/* A plain View claims the touch responder for anything starting
             inside the card, so taps here never reach the backdrop below —
             more reliable than relying on event.stopPropagation() alone. */}
@@ -46,6 +46,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
               <Text style={styles.empty}>{t('studio.pickTakeEmpty')}</Text>
               {onRecordInstead ? (
                 <Pressable
+                  accessibilityRole="button"
                   onPress={onRecordInstead}
                   style={({ pressed }) => [styles.recordCta, pressed && styles.pressed]}
                 >
@@ -58,6 +59,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
             <ScrollView style={styles.list}>
               {takes.map((take) => (
                 <Pressable
+                  accessibilityRole="button"
                   key={take.id}
                   onPress={() => onSelect(take)}
                   style={({ pressed }) => [styles.row, pressed && styles.pressed]}
@@ -86,6 +88,7 @@ export function PickTakeModal({ visible, takes, onClose, onSelect, onRecordInste
             </ScrollView>
           )}
           <Pressable
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}
           >

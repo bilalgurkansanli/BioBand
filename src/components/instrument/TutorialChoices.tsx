@@ -42,6 +42,7 @@ export function TutorialChoiceRow({
 }: TutorialChoiceRowProps) {
   return (
     <Pressable
+      accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [

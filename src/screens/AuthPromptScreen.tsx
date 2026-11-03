@@ -111,6 +111,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
           <View style={styles.languageList}>
             {LANGUAGES.map((language) => (
               <Pressable
+                accessibilityRole="button"
                 key={language.code}
                 onPress={() => void selectLanguage(language.code)}
                 style={({ pressed }) => [styles.languageCard, pressed && styles.pressed]}
@@ -172,6 +173,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           disabled={signingIn || !isSupabaseConfigured || !privacyAccepted}
           onPress={() => void handleGoogleSignIn()}
           style={({ pressed }) => [
@@ -204,6 +206,7 @@ export function AuthPromptScreen({ onDone, skipLanguageStep = false }: Props) {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           disabled={signingIn || !privacyAccepted}
           onPress={handleContinueAsGuest}
           style={({ pressed }) => [

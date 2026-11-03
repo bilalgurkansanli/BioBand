@@ -103,6 +103,7 @@ function FxSection({
           <Text style={styles.sectionTitle}>{title}</Text>
         </View>
         <Switch
+          accessibilityLabel={title}
           onValueChange={onToggle}
           thumbColor={enabled ? accent : '#7A7A7E'}
           trackColor={{ false: '#3A3A3C', true: `${accent}55` }}
@@ -113,6 +114,7 @@ function FxSection({
       <View style={styles.sectionBody}>{children}</View>
 
       <Pressable
+        accessibilityRole="button"
         onPress={onReset}
         style={({ pressed }) => [styles.resetButton, pressed && styles.pressed]}
       >
@@ -206,8 +208,8 @@ export function PianoFxModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={handleClose}>
-      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={handleClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={handleClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.fx.close')}
             onClose={handleClose}

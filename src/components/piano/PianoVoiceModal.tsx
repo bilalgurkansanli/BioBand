@@ -29,8 +29,8 @@ export function PianoVoiceModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.voices.close')}
             onClose={onClose}
@@ -43,6 +43,7 @@ export function PianoVoiceModal({
 
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={voice.id}
                   onPress={() => onSelect(voice.id)}
                   style={({ pressed }) => [

@@ -39,6 +39,7 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
       </View>
       <View style={styles.toggles}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.trackMute')}
           hitSlop={4}
           onPress={handleToggleMute}
@@ -51,6 +52,7 @@ function StudioTrackHeaderBase({ track, color, onToggleMute, onToggleSolo }: Pro
           />
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.trackSolo')}
           hitSlop={4}
           onPress={handleToggleSolo}

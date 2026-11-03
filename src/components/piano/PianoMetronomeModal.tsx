@@ -93,8 +93,8 @@ export function PianoMetronomeModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.metronome.close')}
             onClose={onClose}
@@ -105,6 +105,7 @@ export function PianoMetronomeModal({
 
           <View style={styles.sliderRow}>
             <Pressable
+              accessibilityRole="button"
               onPress={() => nudge(-5)}
               style={({ pressed }) => [styles.nudge, pressed && styles.pressed]}
             >
@@ -119,6 +120,7 @@ export function PianoMetronomeModal({
               value={displayBpm}
             />
             <Pressable
+              accessibilityRole="button"
               onPress={() => nudge(5)}
               style={({ pressed }) => [styles.nudge, pressed && styles.pressed]}
             >
@@ -134,6 +136,7 @@ export function PianoMetronomeModal({
                   const selected = option === subdivision;
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={option}
                       onPress={() => selectSubdivision(option)}
                       style={({ pressed }) => [
@@ -166,6 +169,7 @@ export function PianoMetronomeModal({
               const selected = sound.id === soundId;
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={sound.id}
                   onPress={() => selectSound(sound.id)}
                   style={({ pressed }) => [

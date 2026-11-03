@@ -30,8 +30,8 @@ export function ConfirmDeleteModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.iconWrap}>
             <Ionicons color="#FFFFFF" name={icon} size={24} />
           </View>
@@ -39,12 +39,14 @@ export function ConfirmDeleteModal({
           <Text style={styles.message}>{message}</Text>
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               onPress={onCancel}
               style={({ pressed }) => [styles.btn, styles.cancelBtn, pressed && styles.pressed]}
             >
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               onPress={onConfirm}
               style={({ pressed }) => [styles.btn, styles.confirmBtn, pressed && styles.pressed]}
             >

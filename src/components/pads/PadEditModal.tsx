@@ -261,6 +261,7 @@ export function PadEditModal({
             style={styles.scroll}
           >
             <Pressable
+              accessibilityRole="button"
               onPress={() => preview(draft)}
               style={({ pressed }) => [
                 styles.previewButton,
@@ -278,6 +279,7 @@ export function PadEditModal({
             <View style={styles.bankChips}>
               {PAD_BANKS.map((bank) => (
                 <Pressable
+                  accessibilityRole="button"
                   key={bank.id}
                   onPress={() => setSourceBankId(bank.id as Exclude<PadBankId, 'custom'>)}
                   style={({ pressed }) => [
@@ -305,6 +307,7 @@ export function PadEditModal({
             <View style={styles.soundGrid}>
               {sourceBank.slots.map((bankSlot) => (
                 <Pressable
+                  accessibilityRole="button"
                   key={bankSlot.id}
                   onPress={() => pickBuiltinSound(sourceBank.id as Exclude<PadBankId, 'custom'>, bankSlot.id)}
                   style={({ pressed }) => [
@@ -327,6 +330,7 @@ export function PadEditModal({
             <Text style={styles.sectionTitle}>{t('pads.editor.micSection')}</Text>
             <View style={styles.micRow}>
               <Pressable
+                accessibilityRole="button"
                 disabled={busy}
                 onPress={recording ? stopRecording : startRecording}
                 style={({ pressed }) => [
@@ -415,6 +419,7 @@ export function PadEditModal({
                   option === 'none' ? !draft.chokeGroup : draft.chokeGroup === option;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={option}
                     onPress={() =>
                       updateDraft({
@@ -437,6 +442,7 @@ export function PadEditModal({
             <Text style={styles.hint}>{t('pads.editor.chokeHint')}</Text>
 
             <Pressable
+              accessibilityRole="button"
               disabled={recording || busy}
               onPress={handleSave}
               style={({ pressed }) => [

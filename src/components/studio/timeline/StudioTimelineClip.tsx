@@ -268,6 +268,7 @@ function StudioTimelineClipBase({
     >
       <View style={[styles.accentEdge, { backgroundColor: color }]} />
       <Pressable
+        accessibilityRole="button"
         accessibilityHint={t('studio.clipDragHint')}
         accessibilityLabel={t('studio.trackOptions')}
         delayLongPress={LIFT_DELAY_MS}

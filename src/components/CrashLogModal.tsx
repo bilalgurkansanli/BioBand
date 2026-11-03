@@ -85,7 +85,7 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
         >
           <View style={styles.header}>
             <Text style={styles.title}>{t('errors.diagnosticsTitle')}</Text>
-            <Pressable accessibilityLabel={t('common.close')} hitSlop={8} onPress={onClose}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('common.close')} hitSlop={8} onPress={onClose}>
               <Ionicons color={colors.textSecondary} name="close" size={22} />
             </Pressable>
           </View>
@@ -120,12 +120,14 @@ export function CrashLogModal({ visible, onClose, onCleared }: Props) {
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               onPress={clear}
               style={({ pressed }) => [styles.btn, styles.btnGhost, pressed && styles.pressed]}
             >
               <Text style={styles.btnGhostText}>{t('errors.diagnosticsClear')}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               onPress={share}
               style={({ pressed }) => [styles.btn, styles.btnPrimary, pressed && styles.pressed]}
             >

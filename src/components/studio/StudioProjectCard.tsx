@@ -57,6 +57,7 @@ export function StudioProjectCard({
 
       <View style={styles.actions}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('studio.trackDelete')}
           disabled={isBusy}
           hitSlop={6}
@@ -71,6 +72,7 @@ export function StudioProjectCard({
           <Ionicons color="#FFFFFF" name="trash-outline" size={18} />
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('recordings.download')}
           disabled={isBusy}
           hitSlop={6}
@@ -84,6 +86,7 @@ export function StudioProjectCard({
           <Ionicons color={colors.text} name="download-outline" size={18} />
         </Pressable>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('recordings.share')}
           disabled={isBusy}
           hitSlop={6}

@@ -93,6 +93,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               disabled={busy}
               onPress={onCancel}
               style={({ pressed }) => [
@@ -105,6 +106,7 @@ export function DeleteAccountModal({ visible, busy, errorMessage, onCancel, onCo
               <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               disabled={!acknowledged || busy}
               onPress={onConfirm}
               style={({ pressed }) => [

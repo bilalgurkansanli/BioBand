@@ -260,6 +260,7 @@ export function RecordingsScreen({ navigation }: Props) {
                 : t('recordings.count', { count: recordings.length })}
             </Text>
             <Pressable
+              accessibilityRole="button"
               disabled={importing}
               onPress={() => void handleImport()}
               style={[styles.newButton, importing && styles.disabled]}
@@ -362,7 +363,7 @@ export function RecordingsScreen({ navigation }: Props) {
             <Text style={styles.subtitle}>
               {t('studio.projectCount', { count: projects.length })}
             </Text>
-            <Pressable onPress={() => setCreateVisible(true)} style={styles.newButton}>
+            <Pressable accessibilityRole="button" onPress={() => setCreateVisible(true)} style={styles.newButton}>
               <Ionicons color="#FFFFFF" name="add" size={18} />
               <Text style={styles.newButtonText}>{t('studio.newProject')}</Text>
             </Pressable>

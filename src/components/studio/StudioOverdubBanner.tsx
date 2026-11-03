@@ -23,7 +23,7 @@ export function StudioOverdubBanner({ projectTitle, countdown, onCancel }: Props
           </Text>
         )}
       </View>
-      <Pressable onPress={onCancel} style={styles.cancel}>
+      <Pressable accessibilityRole="button" onPress={onCancel} style={styles.cancel}>
         <Text style={styles.cancelText}>{t('studio.cancelOverdub')}</Text>
       </Pressable>
     </View>

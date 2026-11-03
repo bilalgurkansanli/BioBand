@@ -55,11 +55,12 @@ export function StudioSettingsModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>{t('studio.settingsTitle')}</Text>
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel={t('common.close')}
               hitSlop={8}
               onPress={onClose}
@@ -76,6 +77,7 @@ export function StudioSettingsModal({
           >
           <Row icon="musical-note-outline" label={t('studio.metronome')}>
             <Switch
+              accessibilityLabel={t('studio.metronome')}
               onValueChange={onToggleMetronome}
               thumbColor={metronome ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -85,6 +87,7 @@ export function StudioSettingsModal({
 
           <Row icon="repeat-outline" label={t('studio.loop')}>
             <Switch
+              accessibilityLabel={t('studio.loop')}
               onValueChange={onToggleLoop}
               thumbColor={loop ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -94,6 +97,7 @@ export function StudioSettingsModal({
 
           <Row icon="grid-outline" label={t('studio.grid')}>
             <Switch
+              accessibilityLabel={t('studio.grid')}
               onValueChange={onToggleGrid}
               thumbColor={grid ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -103,6 +107,7 @@ export function StudioSettingsModal({
 
           <Row icon="magnet-outline" label={t('studio.snap')}>
             <Switch
+              accessibilityLabel={t('studio.snap')}
               onValueChange={onToggleSnap}
               thumbColor={snap ? colors.accent : '#f4f3f4'}
               trackColor={switchColors}
@@ -118,6 +123,7 @@ export function StudioSettingsModal({
                   const active = option.value === snapDivision;
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={option.value}
                       onPress={() => onChangeSnapDivision(option.value)}
                       style={[styles.segmentBtn, active && styles.segmentBtnActive]}
@@ -135,6 +141,7 @@ export function StudioSettingsModal({
           <View style={styles.divider} />
 
           <Pressable
+            accessibilityRole="button"
             onPress={onRename}
             style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
           >
@@ -146,6 +153,7 @@ export function StudioSettingsModal({
           </Pressable>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onDelete}
             style={({ pressed }) => [styles.actionRow, pressed && styles.pressed]}
           >

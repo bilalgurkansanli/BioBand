@@ -29,8 +29,8 @@ export function OptionListModal({ visible, title, message, options, onSelect, on
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
             <Pressable
@@ -49,6 +49,7 @@ export function OptionListModal({ visible, title, message, options, onSelect, on
           <ScrollView style={styles.list}>
             {options.map((option) => (
               <Pressable
+                accessibilityRole="button"
                 key={option.key}
                 onPress={() => onSelect(option.key)}
                 style={({ pressed }) => [styles.option, pressed && styles.pressed]}
@@ -63,6 +64,7 @@ export function OptionListModal({ visible, title, message, options, onSelect, on
           </ScrollView>
 
           <Pressable
+            accessibilityRole="button"
             onPress={onClose}
             style={({ pressed }) => [styles.cancelBtn, pressed && styles.pressed]}
           >

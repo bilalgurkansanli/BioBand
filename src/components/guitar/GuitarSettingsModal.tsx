@@ -104,6 +104,7 @@ function OptionChips<T extends string | number>({
         const isOn = option.value === selected;
         return (
           <Pressable
+            accessibilityRole="button"
             key={String(option.value)}
             onPress={() => onSelect(option.value)}
             style={({ pressed }) => [
@@ -222,6 +223,7 @@ export function GuitarSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('guitar.settings.showFretNumbers')}</Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.showFretNumbers')}
                 onValueChange={onChangeShowFretNumbers}
                 thumbColor={showFretNumbers ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -234,6 +236,7 @@ export function GuitarSettingsModal({
                 {t('guitar.settings.strongGuideHighlight')}
               </Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
                 thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -244,6 +247,7 @@ export function GuitarSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('guitar.settings.haptics')}</Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.haptics')}
                 onValueChange={onChangeHaptics}
                 thumbColor={haptics ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -256,6 +260,7 @@ export function GuitarSettingsModal({
                 {t('guitar.settings.stringAnimation')}
               </Text>
               <Switch
+                accessibilityLabel={t('guitar.settings.stringAnimation')}
                 onValueChange={onChangeStringAnimation}
                 thumbColor={stringAnimation ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -271,6 +276,7 @@ export function GuitarSettingsModal({
               <View style={styles.row}>
                 <Text style={styles.rowLabel}>{t('guitar.settings.bend')}</Text>
                 <Switch
+                  accessibilityLabel={t('guitar.settings.bend')}
                   onValueChange={onChangeBendEnabled}
                   thumbColor={bendEnabled ? colors.accent : '#7A7A7E'}
                   trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -337,6 +343,7 @@ export function GuitarSettingsModal({
                   {t('guitar.settings.showPlayModeBar')}
                 </Text>
                 <Switch
+                  accessibilityLabel={t('guitar.settings.showPlayModeBar')}
                   onValueChange={onChangeShowChordPlayModeBar}
                   thumbColor={showChordPlayModeBar ? colors.accent : '#7A7A7E'}
                   trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -349,6 +356,7 @@ export function GuitarSettingsModal({
                   const isOn = visibleModeSet.has(mode);
                   return (
                     <Pressable
+                      accessibilityRole="button"
                       key={mode}
                       onPress={() => togglePlayMode(mode)}
                       style={({ pressed }) => [
@@ -381,6 +389,7 @@ export function GuitarSettingsModal({
 
               <View style={styles.presetRow}>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={selectAll}
                   style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                 >
@@ -389,6 +398,7 @@ export function GuitarSettingsModal({
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={selectOpen}
                   style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                 >
@@ -397,6 +407,7 @@ export function GuitarSettingsModal({
                   </Text>
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
                   onPress={selectRock}
                   style={({ pressed }) => [styles.presetChip, pressed && styles.pressed]}
                 >
@@ -419,6 +430,7 @@ export function GuitarSettingsModal({
                         const isOn = visibleSet.has(chord.id);
                         return (
                           <Pressable
+                            accessibilityRole="button"
                             key={chord.id}
                             onPress={() => toggleChord(chord.id)}
                             style={({ pressed }) => [
@@ -445,6 +457,7 @@ export function GuitarSettingsModal({
             </View>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();

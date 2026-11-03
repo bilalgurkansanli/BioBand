@@ -94,6 +94,7 @@ export function DrumsSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('drums.settings.showPadLabels')}</Text>
               <Switch
+                accessibilityLabel={t('drums.settings.showPadLabels')}
                 onValueChange={onChangeShowPadLabels}
                 thumbColor={showPadLabels ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -106,6 +107,7 @@ export function DrumsSettingsModal({
                 {t('drums.settings.strongGuideHighlight')}
               </Text>
               <Switch
+                accessibilityLabel={t('drums.settings.strongGuideHighlight')}
                 onValueChange={onChangeStrongGuideHighlight}
                 thumbColor={strongGuideHighlight ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -116,6 +118,7 @@ export function DrumsSettingsModal({
             <View style={styles.row}>
               <Text style={styles.rowLabel}>{t('drums.settings.haptics')}</Text>
               <Switch
+                accessibilityLabel={t('drums.settings.haptics')}
                 onValueChange={onChangeHaptics}
                 thumbColor={haptics ? colors.accent : '#7A7A7E'}
                 trackColor={{ false: '#3A3A3C', true: `${colors.accent}55` }}
@@ -129,6 +132,7 @@ export function DrumsSettingsModal({
                 const active = Math.abs(padScale - option.value) < 0.01;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={option.id}
                     onPress={() => onChangePadScale(option.value)}
                     style={({ pressed }) => [
@@ -151,6 +155,7 @@ export function DrumsSettingsModal({
                 const active = activeAmbience === option.id;
                 return (
                   <Pressable
+                    accessibilityRole="button"
                     key={option.id}
                     onPress={() => onApplyAmbience(option.id)}
                     style={({ pressed }) => [
@@ -168,6 +173,7 @@ export function DrumsSettingsModal({
             </View>
 
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 onClose();
                 onStartTutorial();

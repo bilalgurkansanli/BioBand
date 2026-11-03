@@ -111,6 +111,7 @@ export function LooperBar({
     <View style={[styles.container, { borderColor: `${accent}44` }]}>
       <View style={styles.transportRow}>
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={running || phase === 'countIn' ? t('pads.looper.stop') : t('pads.looper.play')}
           onPress={running || phase === 'countIn' ? onStop : onStart}
           style={({ pressed }) => [
@@ -127,6 +128,7 @@ export function LooperBar({
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('pads.looper.record')}
           onPress={onToggleRecArm}
           style={({ pressed }) => [
@@ -143,6 +145,7 @@ export function LooperBar({
             const locked = phase !== 'idle' || barsLocked;
             return (
               <Pressable
+                accessibilityRole="button"
                 key={option}
                 disabled={locked}
                 onPress={() => onSetBars(option)}
@@ -185,6 +188,7 @@ export function LooperBar({
         </View>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('pads.looper.export')}
           disabled={!hasEvents}
           onPress={onExport}
@@ -198,6 +202,7 @@ export function LooperBar({
         </Pressable>
 
         <Pressable
+          accessibilityRole="button"
           accessibilityLabel={t('common.close')}
           onPress={onClose}
           style={({ pressed }) => [styles.transportButton, pressed && styles.pressed]}
@@ -211,6 +216,7 @@ export function LooperBar({
           <View style={styles.layersInner}>
             {layers.map((layer, index) => (
               <Pressable
+                accessibilityRole="button"
                 key={layer.id}
                 onLongPress={() => confirmRemoveLayer(layer, index)}
                 onPress={() => onToggleLayerMuted(layer.id)}
@@ -231,6 +237,7 @@ export function LooperBar({
             ))}
 
             <Pressable
+              accessibilityRole="button"
               onPress={onCommitLayer}
               style={({ pressed }) => [styles.layerChip, styles.addChip, pressed && styles.pressed]}
             >

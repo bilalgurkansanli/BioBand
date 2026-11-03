@@ -48,8 +48,8 @@ export function PianoVolumeModal({
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onClose}>
-      <Pressable style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+      <Pressable accessible={false} style={[styles.overlay, safeAreaPadding]} onPress={onClose}>
+        <Pressable accessible={false} style={styles.card} onPress={() => {}}>
           <ModalChromeHeader
             closeLabel={t('piano.volume.close')}
             onClose={onClose}
@@ -89,6 +89,7 @@ export function PianoVolumeModal({
               const isCurrent = Math.abs(ratio - preset) < 0.005;
               return (
                 <Pressable
+                  accessibilityRole="button"
                   key={preset}
                   onPress={() => handleVolumeChange(preset)}
                   style={({ pressed }) => [

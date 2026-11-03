@@ -92,6 +92,7 @@ export class AppErrorBoundary extends Component<Props, State> {
           </Text>
 
           <Pressable
+            accessibilityRole="button"
             onPress={this.reset}
             style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
           >
@@ -101,6 +102,7 @@ export class AppErrorBoundary extends Component<Props, State> {
 
           <View style={styles.secondaryRow}>
             <Pressable
+              accessibilityRole="button"
               onPress={this.toggleDetails}
               style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
             >
@@ -111,6 +113,7 @@ export class AppErrorBoundary extends Component<Props, State> {
               </Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               onPress={this.share}
               style={({ pressed }) => [styles.secondaryBtn, pressed && styles.pressed]}
             >

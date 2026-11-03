@@ -68,8 +68,8 @@ export function TimePickerModal({ visible, hour, minute, onCancel, onConfirm }: 
   return (
     <Modal
       supportedOrientations={MODAL_ORIENTATIONS} animationType="fade" transparent visible={visible} onRequestClose={onCancel}>
-      <Pressable style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
-        <Pressable style={styles.card} onPress={(event) => event.stopPropagation()}>
+      <Pressable accessible={false} style={[styles.backdrop, safeAreaPadding]} onPress={onCancel}>
+        <Pressable accessible={false} style={styles.card} onPress={(event) => event.stopPropagation()}>
           <Text style={styles.title}>{t('profile.reminderTimeTitle')}</Text>
           <Text style={styles.preview}>
             {pad(pickedHour)}:{pad(pickedMinute)}
@@ -93,12 +93,14 @@ export function TimePickerModal({ visible, hour, minute, onCancel, onConfirm }: 
 
           <View style={styles.actions}>
             <Pressable
+              accessibilityRole="button"
               onPress={onCancel}
               style={({ pressed }) => [styles.btn, styles.ghost, pressed && styles.pressed]}
             >
               <Text style={styles.ghostText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable
+              accessibilityRole="button"
               onPress={() => onConfirm(pickedHour, pickedMinute)}
               style={({ pressed }) => [styles.btn, styles.primary, pressed && styles.pressed]}
             >

@@ -102,6 +102,7 @@ export function ProfileScreen() {
         title={t('profile.title')}
         right={
           <Pressable
+            accessibilityRole="button"
             accessibilityLabel={t('profile.settingsTitle')}
             hitSlop={8}
             onPress={() => navigation.navigate('ProfileSettings')}
@@ -172,6 +173,7 @@ export function ProfileScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           onPress={() => setShowTodayBreakdown(true)}
           style={({ pressed }) => [styles.card, pressed && styles.pressed]}
         >
@@ -245,6 +247,7 @@ export function ProfileScreen() {
         </View>
 
         <Pressable
+          accessibilityRole="button"
           onPress={goPractice}
           style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
         >
@@ -261,11 +264,13 @@ export function ProfileScreen() {
         visible={showTodayBreakdown}
       >
         <Pressable
+          accessible={false}
           onPress={() => setShowTodayBreakdown(false)}
           style={[styles.backdrop, breakdownPadding]}
         >
-          <Pressable onPress={() => {}} style={styles.sheet}>
+          <Pressable accessible={false} onPress={() => {}} style={styles.sheet}>
             <Pressable
+              accessibilityRole="button"
               accessibilityLabel={t('common.close')}
               hitSlop={8}
               onPress={() => setShowTodayBreakdown(false)}
