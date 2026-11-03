@@ -1,4 +1,6 @@
 import { renderRecordingPcm, UnrenderableRecordingError, type RenderedPcm } from './recordingRender';
+import { resolveRenderSampleRate } from './renderSampleRate';
+import { getSharedAudioContext } from './sampleBank';
 import type { SavedRecording } from '../types/recording';
 import {
   getProjectDurationMs,
@@ -8,7 +10,6 @@ import {
   type StudioProject,
 } from '../types/studio';
 
-const TARGET_RATE = 44100;
 const TAIL_SECONDS = 1;
 
 export class EmptyProjectError extends Error {
@@ -36,11 +37,11 @@ function resampleLinear(input: Float32Array, ratio: number): Float32Array {
   return out;
 }
 
-/** Normalize a track's rendered PCM to a stereo pair at TARGET_RATE. */
-function toStereoAtTargetRate(pcm: RenderedPcm): [Float32Array, Float32Array] {
+/** Normalize a track's rendered PCM to a stereo pair at the mix rate. */
+function toStereoAtRate(pcm: RenderedPcm, targetRate: number): [Float32Array, Float32Array] {
   const srcLeft = pcm.channels[0] ?? new Float32Array(0);
   const srcRight = pcm.channels[1] ?? srcLeft;
-  const ratio = TARGET_RATE / pcm.sampleRate;
+  const ratio = targetRate / pcm.sampleRate;
   return [resampleLinear(srcLeft, ratio), resampleLinear(srcRight, ratio)];
 }
 
@@ -76,8 +77,11 @@ export async function renderProjectPcm(project: StudioProject): Promise<Rendered
   // tracks get their event times scaled (same pitch, faster performance),
   // mic tracks are resampled (tape-style).
   const rate = getProjectRate(project);
+  // The live context's rate: instrument tracks render at it and mic tracks
+  // decode at it, so nothing needs resampling and nothing changes pitch.
+  const targetRate = resolveRenderSampleRate(getSharedAudioContext().sampleRate);
   const totalMs = getProjectDurationMs(project) / rate;
-  const totalSamples = Math.ceil((totalMs / 1000 + TAIL_SECONDS) * TARGET_RATE);
+  const totalSamples = Math.ceil((totalMs / 1000 + TAIL_SECONDS) * targetRate);
   const left = new Float32Array(totalSamples);
   const right = new Float32Array(totalSamples);
 
@@ -102,13 +106,13 @@ export async function renderProjectPcm(project: StudioProject): Promise<Rendered
       throw error;
     }
 
-    let [trackLeft, trackRight] = toStereoAtTargetRate(pcm);
+    let [trackLeft, trackRight] = toStereoAtRate(pcm, targetRate);
     if (rate !== 1 && track.mode === 'microphone') {
       // Speed up/slow down the captured audio to follow the tempo.
       trackLeft = resampleLinear(trackLeft, 1 / rate);
       trackRight = resampleLinear(trackRight, 1 / rate);
     }
-    const offset = Math.round((getTrackStartMs(track) / rate / 1000) * TARGET_RATE);
+    const offset = Math.round((getTrackStartMs(track) / rate / 1000) * targetRate);
     const volume = track.volume;
 
     for (let i = 0; i < trackLeft.length; i += 1) {
@@ -127,5 +131,5 @@ export async function renderProjectPcm(project: StudioProject): Promise<Rendered
   }
 
   limitInPlace(left, right);
-  return { channels: [left, right], sampleRate: TARGET_RATE };
+  return { channels: [left, right], sampleRate: targetRate };
 }

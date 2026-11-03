@@ -1,4 +1,6 @@
 import { OfflineAudioContext, type AudioBuffer as AudioBufferT, type AudioNode } from './audioApi';
+import { bufferRateCompensation, resolveRenderSampleRate } from './renderSampleRate';
+import { getSharedAudioContext } from './sampleBank';
 
 export type DryFilter = {
   type: 'lowpass' | 'highpass' | 'peaking' | 'lowshelf' | 'highshelf';
@@ -71,10 +73,12 @@ export async function renderDryBounce(params: {
   durationMs: number;
   sampleEvents: DrySampleEvent[];
   oscillatorEvents?: DryOscillatorEvent[];
+  /** Defaults to the live context's rate — the rate every buffer was decoded at. */
   sampleRate?: number;
   numberOfChannels?: number;
 }): Promise<BounceResult> {
-  const sampleRate = params.sampleRate ?? 44100;
+  const sampleRate =
+    params.sampleRate ?? resolveRenderSampleRate(getSharedAudioContext().sampleRate);
   const numberOfChannels = params.numberOfChannels ?? 2;
 
   // Sized to the longest-ringing note's actual decay, not a fixed tail — a
@@ -92,7 +96,10 @@ export async function renderDryBounce(params: {
   for (const event of params.sampleEvents) {
     const source = context.createBufferSource();
     source.buffer = event.buffer;
-    source.playbackRate.value = event.playbackRate ?? 1;
+    // The buffer source ignores buffer.sampleRate, so a buffer at any rate
+    // other than the render's would come out off-pitch and off-tempo.
+    source.playbackRate.value =
+      (event.playbackRate ?? 1) * bufferRateCompensation(event.buffer.sampleRate, sampleRate);
 
     const attackSeconds = Math.max(0.0005, event.attackSeconds ?? DEFAULT_ATTACK_SECONDS);
     const holdSeconds = event.holdSeconds ?? DEFAULT_HOLD_SECONDS;
