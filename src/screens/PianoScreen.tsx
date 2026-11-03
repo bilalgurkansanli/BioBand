@@ -27,14 +27,13 @@ import { PianoVoiceModal } from '../components/piano/PianoVoiceModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
 import { PlayAlongHud } from '../components/piano/PlayAlongHud';
 import { PlayAlongModal } from '../components/piano/PlayAlongModal';
-import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
+import { createNoteOnsetSignal, PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { usePianoTone } from '../hooks/usePianoTone';
 import { usePianoEngine } from '../hooks/usePianoEngine';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePianoPlayAlong } from '../hooks/usePianoPlayAlong';
-import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserSongs } from '../hooks/useUserSongs';
 import type { NoteId } from '../instruments/piano/pianoNotes';
 import {
@@ -118,7 +117,9 @@ export function PianoScreen({ navigation }: Props) {
   const [chordMode, setChordMode] = useState<PianoChordMode>(
     DEFAULT_PIANO_UI_SETTINGS.chordMode,
   );
-  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed();
+  // The speed HUD owns its own ticking state; the screen only signals onsets,
+  // so playing with the HUD on no longer re-renders this whole screen.
+  const [noteOnsets] = useState(createNoteOnsetSignal);
 
   const scaleNoteIds = useMemo(
     () => (scaleId ? getScaleNoteIds(scaleId) : null),
@@ -451,7 +452,7 @@ export function PianoScreen({ navigation }: Props) {
         return;
       }
 
-      recordNoteOn();
+      noteOnsets.emit();
       for (const id of sounded) {
         let holders = soundedNoteHoldersRef.current.get(id);
         if (!holders) {
@@ -469,10 +470,10 @@ export function PianoScreen({ navigation }: Props) {
       captureEvent,
       haptics,
       noteOn,
+      noteOnsets,
       notePlayed,
       playAlongHandleNotePress,
       playAlongIsActive,
-      recordNoteOn,
       resolveSoundedNotes,
     ],
   );
@@ -579,11 +580,7 @@ export function PianoScreen({ navigation }: Props) {
       ) : null}
 
       {showSpeedHud ? (
-        <PlaySpeedHud
-          maxNotesPerSec={maxNotesPerSec}
-          notesPerSec={notesPerSec}
-          visible={!hideSpeedHud}
-        />
+        <PlaySpeedHud onsets={noteOnsets} visible={!hideSpeedHud} />
       ) : null}
 
       {studioArmed && studioProjectTitle ? (

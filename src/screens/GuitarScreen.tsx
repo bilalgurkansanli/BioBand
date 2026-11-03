@@ -355,6 +355,13 @@ export function GuitarScreen({ navigation }: Props) {
     setMetronomeBpmState(bpm);
   }, []);
 
+  // Depend on the fields the string handlers actually read, not on the whole
+  // play-along object — that is new on every render, and the fretboard would
+  // redraw with it on every progress tick.
+  const playAlongIsActive = playAlong.isActive;
+  const playAlongIsDemo = playAlong.phase === 'demo';
+  const playAlongHandleSoundPress = playAlong.handleSoundPress;
+
   const onPluckIn = useCallback(
     (stringId: GuitarStringId, fret: number, velocity: number) => {
       if (haptics) {
@@ -364,13 +371,13 @@ export function GuitarScreen({ navigation }: Props) {
       const soundId = formatPluckSoundId(stringId, fret);
       captureEvent(soundId, velocity);
 
-      if (playAlong.isActive) {
-        if (playAlong.phase === 'demo') {
+      if (playAlongIsActive) {
+        if (playAlongIsDemo) {
           return;
         }
         // One-shot with touch dynamics; scoring still matches `sN:fF`.
         pluckString(stringId, fret, velocity);
-        playAlong.handleSoundPress(soundId, { skipPlayback: true });
+        playAlongHandleSoundPress(soundId, { skipPlayback: true });
         return;
       }
 
@@ -379,28 +386,37 @@ export function GuitarScreen({ navigation }: Props) {
       notePlayed();
       noteOn(stringId, fret, velocity);
     },
-    [captureEvent, haptics, noteOn, playAlong, pluckString, notePlayed],
+    [
+      captureEvent,
+      haptics,
+      noteOn,
+      notePlayed,
+      playAlongHandleSoundPress,
+      playAlongIsActive,
+      playAlongIsDemo,
+      pluckString,
+    ],
   );
 
   const onPluckOut = useCallback(
     (stringId: GuitarStringId, fret: number) => {
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         return;
       }
       noteOff(stringId, fret);
     },
-    [noteOff, playAlong.isActive],
+    [noteOff, playAlongIsActive],
   );
 
   const onBend = useCallback(
     (stringId: GuitarStringId, fret: number, semitones: number) => {
       // Play-along plucks are one-shots — nothing held to bend.
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         return;
       }
       bendNote(stringId, fret, semitones);
     },
-    [bendNote, playAlong.isActive],
+    [bendNote, playAlongIsActive],
   );
 
   const onSelectChord = useCallback(
@@ -421,15 +437,15 @@ export function GuitarScreen({ navigation }: Props) {
         hapticNote();
       }
 
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         const soundId = formatChordSoundId(chordId);
         captureEvent(soundId);
-        if (playAlong.phase === 'demo') {
+        if (playAlongIsDemo) {
           return;
         }
         // Tutorial scoring uses `chord:Id`; hear current play mode.
         playChord(chordId, { mode: chordPlayMode, direction, gesture });
-        playAlong.handleSoundPress(soundId, { skipPlayback: true });
+        playAlongHandleSoundPress(soundId, { skipPlayback: true });
         return;
       }
 
@@ -442,7 +458,17 @@ export function GuitarScreen({ navigation }: Props) {
       );
       playChord(chordId, { mode: chordPlayMode, direction, gesture });
     },
-    [captureEvent, chordPlayMode, haptics, playAlong, playChord, selectedChordId, notePlayed],
+    [
+      captureEvent,
+      chordPlayMode,
+      haptics,
+      notePlayed,
+      playAlongHandleSoundPress,
+      playAlongIsActive,
+      playAlongIsDemo,
+      playChord,
+      selectedChordId,
+    ],
   );
 
   const isPlayAlongModalVisible =

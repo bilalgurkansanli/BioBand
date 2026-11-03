@@ -297,6 +297,12 @@ export function DrumsScreen({ navigation }: Props) {
     setStageSize({ width, height });
   };
 
+  // Depend on the two fields the hit handler actually reads, not on the whole
+  // play-along object — that is new on every render, and the kit would redraw
+  // with it on every progress tick.
+  const playAlongIsActive = playAlong.isActive;
+  const playAlongHandlePadPress = playAlong.handlePadPress;
+
   const onHit = useCallback(
     (id: DrumSoundId, velocity: number) => {
       if (haptics) {
@@ -305,9 +311,9 @@ export function DrumsScreen({ navigation }: Props) {
 
       captureEvent(id, velocity);
 
-      if (playAlong.isActive) {
+      if (playAlongIsActive) {
         // Charts only know the base pads — the rim zone counts as snare here.
-        playAlong.handlePadPress(id === 'snareRim' ? 'snare' : id);
+        playAlongHandlePadPress(id === 'snareRim' ? 'snare' : id);
         return;
       }
 
@@ -316,7 +322,7 @@ export function DrumsScreen({ navigation }: Props) {
       notePlayed();
       playHit(id, velocity);
     },
-    [captureEvent, haptics, playAlong, playHit, notePlayed],
+    [captureEvent, haptics, notePlayed, playAlongHandlePadPress, playAlongIsActive, playHit],
   );
 
   const onChoke = useCallback((id: DrumSoundId) => {

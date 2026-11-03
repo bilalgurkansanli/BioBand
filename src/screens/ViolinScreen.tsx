@@ -236,18 +236,25 @@ export function ViolinScreen({ navigation }: Props) {
     }
   }, [haptics]);
 
+  // Depend on the fields the note handler actually reads, not on the whole
+  // play-along object — that is new on every render, and the fingerboard
+  // would redraw with it on every progress tick.
+  const playAlongIsActive = playAlong.isActive;
+  const playAlongIsDemo = playAlong.phase === 'demo';
+  const playAlongHandleSoundPress = playAlong.handleSoundPress;
+
   const onPlayNote = useCallback(
     (stringId: ViolinStringId, position: number) => {
       const soundId = formatNoteSoundId(stringId, position);
       captureEvent(soundId);
 
-      if (playAlong.isActive) {
-        if (playAlong.phase === 'demo') {
+      if (playAlongIsActive) {
+        if (playAlongIsDemo) {
           return;
         }
         buzz();
         playNote(stringId, position);
-        playAlong.handleSoundPress(soundId, { skipPlayback: true });
+        playAlongHandleSoundPress(soundId, { skipPlayback: true });
         return;
       }
 
@@ -257,7 +264,15 @@ export function ViolinScreen({ navigation }: Props) {
       buzz();
       playNote(stringId, position);
     },
-    [buzz, captureEvent, notePlayed, playAlong, playNote],
+    [
+      buzz,
+      captureEvent,
+      notePlayed,
+      playAlongHandleSoundPress,
+      playAlongIsActive,
+      playAlongIsDemo,
+      playNote,
+    ],
   );
 
   const isPlayAlongModalVisible =

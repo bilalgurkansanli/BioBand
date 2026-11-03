@@ -31,7 +31,7 @@ import { XYPad } from '../components/pads/XYPad';
 import { PianoFxModal } from '../components/piano/PianoFxModal';
 import { PianoMetronomeModal } from '../components/piano/PianoMetronomeModal';
 import { PianoVolumeModal } from '../components/piano/PianoVolumeModal';
-import { PlaySpeedHud } from '../components/piano/PlaySpeedHud';
+import { createNoteOnsetSignal, PlaySpeedHud } from '../components/piano/PlaySpeedHud';
 import { useInstrumentRecording } from '../hooks/useInstrumentRecording';
 import { usePadsEngine } from '../hooks/usePadsEngine';
 import { usePadsLooper } from '../hooks/usePadsLooper';
@@ -39,7 +39,6 @@ import { usePadsPlayAlong } from '../hooks/usePadsPlayAlong';
 import type { NoteRepeatRate } from '../hooks/usePadNoteRepeat';
 import { usePianoOrientation } from '../hooks/usePianoOrientation';
 import { useFreePlayPractice } from '../hooks/useFreePlayPractice';
-import { usePlaySpeed } from '../hooks/usePlaySpeed';
 import { useUserPadSongs } from '../hooks/useUserPadSongs';
 import {
   getPadBank,
@@ -201,7 +200,9 @@ export function PadsScreen({ navigation }: Props) {
   const looperRef = useRef(looper);
   looperRef.current = looper;
 
-  const { notesPerSec, recordNoteOn, maxNotesPerSec } = usePlaySpeed(showSpeedHud);
+  // The speed HUD owns its own ticking state; the screen only signals onsets,
+  // so drumming with the HUD on no longer re-renders this whole screen.
+  const [noteOnsets] = useState(createNoteOnsetSignal);
 
   const {
     isRecording,
@@ -413,7 +414,7 @@ export function PadsScreen({ navigation }: Props) {
   const onTrigger = useCallback(
     (id: PadSoundId, velocity: number) => {
       captureEventRef.current(id, velocity);
-      recordNoteOn();
+      noteOnsets.emit();
       if (hapticsRef.current) {
         hapticSoft();
       }
@@ -431,7 +432,7 @@ export function PadsScreen({ navigation }: Props) {
       pulseStageLight();
       triggerPad(id, velocity);
     },
-    [pulseStageLight, recordNoteOn, triggerPad, notePlayed],
+    [noteOnsets, notePlayed, pulseStageLight, triggerPad],
   );
 
   // --- Custom bank editing ---------------------------------------------------
@@ -656,7 +657,7 @@ export function PadsScreen({ navigation }: Props) {
       ) : null}
 
       {showSpeedHud ? (
-        <PlaySpeedHud maxNotesPerSec={maxNotesPerSec} notesPerSec={notesPerSec} />
+        <PlaySpeedHud onsets={noteOnsets} />
       ) : null}
 
       {editMode && bankId === 'custom' ? (
