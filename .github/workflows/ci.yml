@@ -36,8 +36,12 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings 0
 
-      - name: Unit tests
+      - name: Unit and smoke tests
         run: npx jest --ci
+
+      # The same app-wide smoke test down the Android branches.
+      - name: Smoke test (Android branches)
+        run: SMOKE_OS=android npx jest --ci src/__tests__/appSmoke
 
       - name: Project health
         run: npx expo-doctor
